@@ -88,3 +88,30 @@ describe('browser authorization response binding', () => {
     clearAccess();
   });
 });
+
+it('reports password expiry without requesting tokens or treating it as a session', async () => {
+  const request = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(
+      Response.json(
+        {
+          passwordExpired: true,
+          message: 'Your password has expired and must be changed',
+        },
+        { status: 403 },
+      ),
+    );
+  const auth = createBrowserAuth(
+    {
+      issuer: 'https://identity.example.com',
+      apiPrefix: '/api/identity',
+      clients: { emberpath: 'hivexui-emberpath' },
+    },
+    request,
+  );
+  await expect(auth.login('admin', 'obviously-fake-password')).rejects.toThrow(
+    'password has expired',
+  );
+  expect(request).toHaveBeenCalledTimes(1);
+  expect(String(request.mock.calls[0]?.[0])).toBe('/api/identity/auth/login');
+});

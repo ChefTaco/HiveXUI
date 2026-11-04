@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useId,
   useRef,
   useState,
   type ChangeEvent,
@@ -182,10 +183,10 @@ export function Select({
   );
 }
 
-export function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+export function Toggle({ checked, onChange, label, disabled = false }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
   return (
     <label className="toggle">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
       <span className="toggle-track" />
       {label}
     </label>
@@ -280,12 +281,33 @@ export function ConfirmDialog({
   onCancel: () => void;
   loading?: boolean;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const cancelRef = useRef(onCancel);
+  cancelRef.current = onCancel;
+  const titleId = useId(), messageId = useId();
+  useEffect(() => {
+    if (!open) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const buttons = () => [...(dialogRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])];
+    (buttons()[0] ?? dialogRef.current)?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); cancelRef.current(); }
+      if (event.key === 'Tab') {
+        const elements = buttons(), first = elements[0], last = elements.at(-1);
+        if (!first) { event.preventDefault(); dialogRef.current?.focus(); }
+        else if (event.shiftKey && (document.activeElement === first || !dialogRef.current?.contains(document.activeElement))) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && (document.activeElement === last || !dialogRef.current?.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => { window.removeEventListener('keydown', onKey); if (previousFocus?.isConnected) previousFocus.focus(); };
+  }, [open]);
   if (!open) return null;
   return (
     <div className="modal-center" onClick={onCancel}>
-      <div className="confirm-box" onClick={(e) => e.stopPropagation()}>
-        <h3>{title}</h3>
-        <p>{message}</p>
+      <div ref={dialogRef} className="confirm-box" role="alertdialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={messageId} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
+        <h3 id={titleId}>{title}</h3>
+        <p id={messageId}>{message}</p>
         <div className="confirm-actions">
           <Button variant="ghost" onClick={onCancel}>
             Cancel

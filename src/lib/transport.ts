@@ -116,8 +116,9 @@ export function createApiFetch(request: typeof fetch) {
         throw new Error('Invalid API path');
     }
     const product = productFor(path);
-    if (accessProvider) await accessProvider(product);
     const prefix = prefixes.get(product);
+    if (accessProvider && !prefix) throw new Error('This product is not configured for this console');
+    if (accessProvider) await accessProvider(product);
     let target = path;
     const logical: Record<Product, string> = {
       emberpath: '/api',

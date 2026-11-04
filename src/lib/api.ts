@@ -1,6 +1,7 @@
 import { MemoryWriteSchema, type MemoryWrite } from '@contracts/memory-operations.js';
 import { apiFetch, clearAccess } from './transport';
 import { browserIdentity } from './runtime';
+import { readConsoleHealth } from './suite-health';
 import type {
   AdminUser,
   ApiDoc,
@@ -103,6 +104,66 @@ function iamPath(path: string): string {
   return `/api/iam/${path.replace(/^\/+/, '')}`;
 }
 
+function rows(value: unknown, keys: string[]): Array<Record<string, unknown>> {
+  const source = Array.isArray(value)
+    ? value
+    : keys
+        .map((key) =>
+          value && typeof value === 'object'
+            ? (value as Record<string, unknown>)[key]
+            : null,
+        )
+        .find(Array.isArray);
+  return Array.isArray(source)
+    ? source.filter(
+        (row): row is Record<string, unknown> =>
+          Boolean(row) && typeof row === 'object' && !Array.isArray(row),
+      )
+    : [];
+}
+
+/** Read-only summaries are composed in the browser using the user's resource token. */
+async function memoryConsole(): Promise<MemoryConsoleData> {
+  const paths = [
+    'stats',
+    'queue/status?limit=8',
+    'memories/browse?limit=12&workspace_id=*',
+    'sessions?limit=8&workspace_id=*',
+    'agents',
+    'graph/entities?limit=12&workspace_id=*',
+  ];
+  const results = await Promise.allSettled(
+    paths.map((path) =>
+      request<Record<string, unknown>>('/api/memory/' + path),
+    ),
+  );
+  const value = (index: number) =>
+    results[index]?.status === 'fulfilled' ? results[index].value : null;
+  const failures = results.flatMap((result, index) =>
+    result.status === 'rejected'
+      ? [
+          `${paths[index]!.split('?')[0]}: ${result.reason instanceof Error ? result.reason.message : 'Unavailable'}`,
+        ]
+      : [],
+  );
+  if (results.every((result) => result.status === 'rejected'))
+    throw new Error(
+      'Memory is unavailable or this identity has no permitted memory resources',
+    );
+  const memories = value(2);
+  return {
+    configured: true,
+    stats: value(0),
+    queue: value(1),
+    memories: rows(memories, ['results', 'memories', 'items']),
+    memoryTotal: memories?.total ?? null,
+    sessions: rows(value(3), ['results', 'sessions', 'items']),
+    agents: rows(value(4), ['agents', 'results', 'items']),
+    graphEntities: rows(value(5), ['entities', 'results', 'items', 'nodes']),
+    issues: failures,
+  };
+}
+
 export const adminApi = {
   // ---- auth ----
   login(username: string, password: string) {
@@ -130,7 +191,9 @@ export const adminApi = {
 
   // ---- hive console ----
   hiveStatus() {
-    return request<HiveStatus>('/api/hive/status');
+    return browserIdentity()
+      ? readConsoleHealth()
+      : request<HiveStatus>('/api/hive/status');
   },
   hiveActors() {
     return request<{ data: HiveActor[] }>('/api/hive/actors');
@@ -148,16 +211,39 @@ export const adminApi = {
     return request<{ data: HiveIncident[] }>('/api/hive/incidents');
   },
   memoryConsole() {
-    return request<MemoryConsoleData>('/api/memory/dashboard-data');
+    return memoryConsole();
   },
-  searchMemory(params: { query?: string; workspaceId?: string; scope?: string; limit?: number; offset?: number }) {
+  searchMemory(params: {
+    query?: string;
+    workspaceId?: string;
+    scope?: string;
+    limit?: number;
+    offset?: number;
+  }) {
     const search = new URLSearchParams();
-    if (params.query) search.set('query', params.query);
     search.set('workspace_id', params.workspaceId ?? '*');
     if (params.scope) search.set('scope', params.scope);
     search.set('limit', String(params.limit ?? 25));
-    search.set('offset', String(params.offset ?? 0));
-    return request<MemorySearchResponse>(`/api/memory/search?${search.toString()}`);
+    if (params.query) {
+      search.set('explain', 'true');
+      return request<MemorySearchResponse>(
+        `/api/memory/memories/search?${search}`,
+        {
+          method: 'POST',
+          body: {
+            query: params.query,
+            workspace_id: params.workspaceId ?? '*',
+            limit: params.limit ?? 25,
+            offset: params.offset ?? 0,
+            ...(params.scope ? { scope: params.scope } : {}),
+          },
+        },
+      );
+    }
+    search.set('cursor', String(params.offset ?? 0));
+    return request<MemorySearchResponse>(
+      `/api/memory/memories/browse?${search}`,
+    );
   },
   createMemory(body: MemoryWrite) {
     return request<Record<string, unknown>>('/api/memory/memories', { method: 'POST', body: MemoryWriteSchema.parse(body) });
@@ -166,7 +252,10 @@ export const adminApi = {
     return request<Record<string, unknown>>(`/api/memory/memories/${encodeURIComponent(id)}`);
   },
   updateMemory(id: string, body: Record<string, unknown>) {
-    return request<Record<string, unknown>>(`/api/memory/memories/${encodeURIComponent(id)}`, { method: 'PATCH', body });
+    return request<Record<string, unknown>>(
+      `/api/memory/memories/${encodeURIComponent(id)}`,
+      { method: 'PUT', body },
+    );
   },
   deleteMemory(id: string) {
     return request<Record<string, unknown>>(`/api/memory/memories/${encodeURIComponent(id)}`, { method: 'DELETE' });
@@ -175,25 +264,41 @@ export const adminApi = {
     return request<Record<string, unknown>>(`/api/memory/memories/${encodeURIComponent(id)}/graph`);
   },
   memoryQueue(limit = 12) {
-    return request<Record<string, unknown>>(`/api/memory/queue?limit=${limit}`);
+    return request<Record<string, unknown>>(
+      `/api/memory/queue/status?limit=${limit}`,
+    );
   },
   runMemoryQueueJob(id: string) {
-    return request<Record<string, unknown>>(`/api/memory/queue/${encodeURIComponent(id)}/run`, { method: 'POST' });
+    return request<Record<string, unknown>>(
+      `/api/memory/queue/jobs/${encodeURIComponent(id)}/run`,
+      { method: 'POST', body: {} },
+    );
   },
   retryMemoryQueueJob(id: string) {
-    return request<Record<string, unknown>>(`/api/memory/queue/${encodeURIComponent(id)}/retry`, { method: 'POST' });
+    return request<Record<string, unknown>>(
+      `/api/memory/queue/jobs/${encodeURIComponent(id)}/retry`,
+      { method: 'POST', body: {} },
+    );
   },
   cancelMemoryQueueJob(id: string) {
-    return request<Record<string, unknown>>(`/api/memory/queue/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    return request<Record<string, unknown>>(
+      `/api/memory/queue/jobs/${encodeURIComponent(id)}`,
+      { method: 'DELETE' },
+    );
   },
   memoryConflicts(body: Record<string, unknown>) {
-    return request<Record<string, unknown>>('/api/memory/conflicts', { method: 'POST', body });
+    return request<Record<string, unknown>>('/api/memory/memories/conflicts', {
+      method: 'POST',
+      body,
+    });
   },
   memoryWebhooks() {
     return request<Record<string, unknown>>('/api/memory/webhooks');
   },
   memoryWebhookDeliveries(limit = 10) {
-    return request<Record<string, unknown>>(`/api/memory/webhook-deliveries?limit=${limit}`);
+    return request<Record<string, unknown>>(
+      `/api/memory/webhooks/deliveries?limit=${limit}`,
+    );
   },
 
   // ---- IAM operations ----

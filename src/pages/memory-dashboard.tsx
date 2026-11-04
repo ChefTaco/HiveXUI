@@ -82,6 +82,7 @@ export function MemoryDashboardPage({ currentUser }: { currentUser: AdminUser | 
         adminApi.memoryWebhooks().catch(() => { setPanelIssues((prior) => [...prior, 'Webhooks unavailable']); return null; }),
       ]);
       setData(consoleData);
+      setPanelIssues(prior=>[...prior,...(consoleData.issues ?? [])]);
       if (queueData) setQueue(queueData);
       if (webhookData) setWebhooks(webhookData);
     } catch (caught) {

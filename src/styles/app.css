@@ -1122,8 +1122,18 @@ select {
   color: var(--text);
 }
 .toggle input {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
+.toggle input:focus-visible + .toggle-track {
+  outline: 2px solid var(--teal);
+  outline-offset: 4px;
+}
+.toggle:has(input:disabled) { opacity: 0.6; cursor: not-allowed; }
 .toggle-track {
   width: 38px;
   height: 20px;
@@ -2372,4 +2382,15 @@ tbody tr:hover {
     height: 96px;
     border-radius: var(--radius);
   }
+}
+
+/* Skills workflows keep actions and record summaries readable on narrow screens. */
+.skills-module { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; min-width: 0; width: 100%; }
+.skills-module .panel, .skills-module .table-wrap { min-width: 0; max-width: 100%; }
+.skills-module .panel-body, .skills-module form { display: grid; gap: 1rem; }
+.skills-module .panel-body > .btn, .skills-module form > .btn { justify-self: start; }
+.skills-module .toggle { padding-block: 0.4rem; }
+@media (max-width: 600px) {
+  .skills-module .check-row { flex-direction: column; align-items: stretch; gap: 1rem; }
+  .skills-module .check-row .btn { align-self: start; }
 }

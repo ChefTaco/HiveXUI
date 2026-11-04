@@ -9,9 +9,11 @@ import {
 } from 'react';
 const SecurityModule = lazy(() => import('./modules/security'));
 const ChatModule = lazy(() => import('./modules/chat'));
+const SkillsModule = lazy(() => import('./modules/skills'));
+const SuiteOverview = lazy(() => import('./modules/suite'));
 import { adminApi, ApiError } from './lib/api';
 import { MfaRequired } from './lib/browser-auth';
-import { browserIdentity } from './lib/runtime';
+import { browserIdentity, magnusConsoleUrl } from './lib/runtime';
 import type { AdminUser } from './lib/types';
 import { StoreProvider, useStore } from './lib/store';
 import { Icon, HiveSigil } from './components/icons';
@@ -43,6 +45,7 @@ type IamViewKey =
   | 'iam-security'
   | 'iam-audit';
 type ViewKey =
+  | 'skills'
   | 'chat'
   | 'security'
   | 'hive'
@@ -112,6 +115,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: 'memories', label: 'Memories', icon: Icon.Activity },
       { key: 'actors', label: 'Actors', icon: Icon.Key },
+      { key: 'skills', label: 'Skills', icon: Icon.Scroll },
     ],
   },
   {
@@ -240,6 +244,7 @@ function LoginScreen({ onSuccess }: { onSuccess: (user: AdminUser) => void }) {
         setPassword('');
         return;
       }
+      setPassword('');
       const message =
         caught instanceof ApiError
           ? caught.message
@@ -442,6 +447,7 @@ function Shell({
                 })}
               </div>
             ))}
+            {magnusConsoleUrl() && <div className="nav-group"><p className="nav-group-label">Fleet</p><a className="nav-item" href={magnusConsoleUrl()} target="_blank" rel="noopener noreferrer"><Icon.Server width={18} height={18}/><span>Magnus console ↗</span></a></div>}
           </nav>
 
           <div className="sidebar-footer">
@@ -581,6 +587,7 @@ function titleFor(view: ViewKey): string {
     'iam-security': 'IAM Security',
     'iam-audit': 'IAM Audit',
     memories: 'Memories',
+    skills: 'Skills and assignments',
     actors: 'Actors',
     routers: 'Routers',
     providers: 'Providers',
@@ -608,6 +615,8 @@ function renderView(
   user: AdminUser | null,
 ) {
   switch (view) {
+    case 'skills':
+      return <Suspense fallback={<p role="status">Loading skills…</p>}><SkillsModule currentUser={user}/></Suspense>;
     case 'security':
       return (
         <Suspense fallback={<p role="status">Loading security…</p>}>
@@ -621,7 +630,7 @@ function renderView(
         </Suspense>
       );
     case 'hive':
-      return <HiveOverviewPage onNavigate={onNavigate} />;
+      return browserIdentity()?<Suspense fallback={<p role="status">Checking products…</p>}><SuiteOverview/></Suspense>:<HiveOverviewPage onNavigate={onNavigate} />;
     case 'iam-overview':
     case 'iam-users':
     case 'iam-roles':

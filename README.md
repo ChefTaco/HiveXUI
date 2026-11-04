@@ -60,3 +60,9 @@ reactions and realtime refresh. These are candidate ports. Complete administrati
 passkey/consent/recovery/step-up, memory and Skills parity and live integration
 acceptance are still required. Keep existing native frontends and clients available.
 Synthetic browser renders do not establish backend authorization or workflow parity.
+
+
+Set optional public runtime `links.magnus` to the existing Magnus HTTPS console
+origin to expose its separate fleet navigation link. Credentials, query parameters
+and fragments are rejected. Magnus keeps its own authentication and UI until its
+later integration; no infrastructure credential is shared through navigation.

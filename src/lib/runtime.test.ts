@@ -25,6 +25,24 @@ describe('public console runtime configuration', () => {
         }).success,
       ).toBe(false);
   });
+  it('accepts a separate Magnus console link without URL credentials or token parameters', () => {
+    expect(
+      runtimeSchema.safeParse({
+        ...config,
+        links: { magnus: 'https://fleet.example.com' },
+      }).success,
+    ).toBe(true);
+    for (const magnus of [
+      'http://fleet.example.com',
+      'javascript:alert(1)',
+      'https://user:password@fleet.example.com',
+      'https://fleet.example.com?token=fake',
+      'https://fleet.example.com#fake',
+    ])
+      expect(
+        runtimeSchema.safeParse({ ...config, links: { magnus } }).success,
+      ).toBe(false);
+  });
   it('rejects infrastructure configuration fields and external API prefixes', () => {
     expect(
       runtimeSchema.safeParse({

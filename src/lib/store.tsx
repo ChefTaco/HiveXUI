@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { adminApi, ApiError } from './api';
+import { browserIdentity } from './runtime';
 import type {
   ApiDoc,
   AuditEvent,
@@ -121,7 +122,11 @@ export function StoreProvider({ onAuthExpired, children }: { onAuthExpired: () =
         const key = keys[index]!; const result = settled[index]!;
         if (result.status === 'fulfilled') values.set(key, result.value);
         else {
-          if (result.reason instanceof ApiError && result.reason.status === 401) { onAuthExpired(); return; }
+          if (result.reason instanceof ApiError && result.reason.status === 401) {
+            const identity = browserIdentity();
+            if (!identity) { onAuthExpired(); return; }
+            try { await identity.me(); } catch { onAuthExpired(); return; }
+          }
           issues.push(`${key}: ${result.reason instanceof Error ? result.reason.message : 'Unavailable'}`);
         }
       }

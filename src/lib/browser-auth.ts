@@ -63,6 +63,14 @@ export function createBrowserAuth(
     const result: unknown = await response.json();
     if (!result || typeof result !== 'object' || Array.isArray(result))
       throw new Error('Invalid identity response');
+    if (
+      response.status === 403 &&
+      'passwordExpired' in result &&
+      result.passwordExpired === true
+    )
+      throw new Error(
+        'Your Oathweave password has expired. Complete password recovery with your identity administrator, then sign in again.',
+      );
     if (!response.ok) throw new Error('Sign in to continue');
     return result as Record<string, unknown>;
   }

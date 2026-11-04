@@ -77,6 +77,7 @@ export interface HiveIncident {
 
 export interface MemoryConsoleData {
   configured: boolean;
+  issues?: string[];
   error?: string;
   stats: Record<string, unknown> | null;
   queue: Record<string, unknown> | null;
