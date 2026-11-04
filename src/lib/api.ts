@@ -296,7 +296,7 @@ export const adminApi = {
     );
   },
   deleteMemory(id: string) {
-    return request<Record<string, unknown>>(
+    return request<void>(
       `/api/memory/memories/${encodeURIComponent(id)}`,
       { method: 'DELETE' },
     );

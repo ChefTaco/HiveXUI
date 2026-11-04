@@ -36,6 +36,9 @@ it('validates owned workspace responses and preserves the explicit archive and r
     '/api/hivemem/workspaces/synthetic%3Ateam',
   );
   expect(send.mock.lastCall?.[1]?.method).toBe('DELETE');
+  await expect(adminApi.deleteMemory('synthetic-memory')).resolves.toBeUndefined();
+  expect(send.mock.lastCall?.[0]).toBe('/api/hivemem/memories/synthetic-memory');
+  expect(send.mock.lastCall?.[1]?.method).toBe('DELETE');
   send.mockImplementation(async () =>
     Response.json({ workspace_id: 'malformed-fixture' }),
   );

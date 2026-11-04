@@ -1,4 +1,4 @@
-// Generated from HiveMem OpenAPI 1.0.0; SHA256 fea58d8d08eb0acb871775319368c42dd430360ff5835a795b1672bbc22ac7ea.
+// Generated from HiveMem OpenAPI 1.0.0; SHA256 8681e4bbe6e1b852e8a04abed58841799b414c6bf6d05e7ba023e7ed80b8109e.
 // Apache-2.0. Source attribution: HiveMem, extracted from Hive.
 import {z} from 'zod';
 export const MemoryProfileSchema=z.object({"agent_id":z.string(),"display_name":z.string(),"role":z.enum(["admin","agent"]),"scopes":z.array(z.string()),"workspace_ids":z.union([z.array(z.string()),z.null()])});

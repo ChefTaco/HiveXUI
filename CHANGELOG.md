@@ -7,6 +7,7 @@
   for memory writes and queue administration, and skip unrelated unauthorized reads.
 - Refresh active memory searches after creation, editing and deletion, retaining
   the selected workspace and page where possible.
+- Clear a deleted memory after HiveMem returns its native empty 204 response.
 
 Add lazy Skills catalogue/administration, immutable archive releases, channels,
 assignment enrollment, receipts and audit from the owned Skills API contract.

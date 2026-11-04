@@ -137,7 +137,6 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
     const graphData = await run('memory-graph', () => adminApi.memoryGraph(id), isCurrent);
     if (generation !== detailGeneration.current) return;
     if (graphData) setGraph(graphData);
-    if (!canWriteMemory) return;
     const conflictData = await run('memory-conflicts', () => adminApi.memoryConflicts(conflictQuery(detail)), isCurrent);
     if (generation === detailGeneration.current && conflictData) setConflicts(conflictData);
   }
@@ -180,7 +179,7 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
     const id = memoryId(selected);
     if (!id || !window.confirm('Delete this memory?')) return;
     const generation = ++detailGeneration.current;
-    const deleted = await run('delete-memory', () => adminApi.deleteMemory(id), () => generation === detailGeneration.current);
+    const deleted = await run('delete-memory', async () => { await adminApi.deleteMemory(id); return true; }, () => generation === detailGeneration.current);
     if (deleted && generation === detailGeneration.current) {
       setSelected(null);
       setSelectedContent('');
