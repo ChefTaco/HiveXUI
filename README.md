@@ -78,3 +78,9 @@ the retained native console API; suite installations never select it implicitly.
 Account security uses the released, vendored Oathweave contract, with generated
 browser-only Zod exports checked by `npm run check:contracts`. Recovery codes and
 MFA setup material stay in memory and disappear when dismissed or on navigation.
+
+Workspace administration uses the released HiveMem OpenAPI snapshot in `contracts/`.
+`npm run check:contracts` checks generated browser contracts for drift. Memory writes,
+queue administration and workspace ownership are checked independently; the owning
+API enforces them when console controls are bypassed. Archived workspace IDs remain
+reserved, and restoration preserves existing ownership, membership and stored memories.

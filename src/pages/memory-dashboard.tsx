@@ -1,3 +1,5 @@
+import type { MemoryProfile } from '../../contracts/hivemem.generated';
+import { memoryCan } from '../lib/memory-access';
 import { useEffect, useRef, useState } from 'react';
 import { Badge, Button, EmptyState, Field, JsonBlock, Panel, StatCard, TextArea, TextInput } from '../components/ui';
 import { Icon } from '../components/icons';
@@ -32,6 +34,7 @@ function conflictQuery(memory: Record<string, unknown>): Record<string, unknown>
 }
 
 function recordsFrom(value: unknown, keys: string[]): Array<Record<string, unknown>> {
+  if (Array.isArray(value)) return value.filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === 'object' && !Array.isArray(entry));
   const source = record(value);
   for (const key of keys) {
     const maybe = source[key];
@@ -46,7 +49,7 @@ function memoryId(memory: Record<string, unknown>): string {
   return text(memory.id, text(memory.memory_id, ''));
 }
 
-export function MemoryDashboardPage({ currentUser }: { currentUser: AdminUser | null }) {
+export function MemoryDashboardPage({ currentUser, profile = null }: { currentUser: AdminUser | null; profile?: MemoryProfile | null }) {
   const app = useStore().data.hiveStatus?.apps.find((entry) => entry.key === 'memory');
   const [data, setData] = useState<MemoryConsoleData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,7 +59,7 @@ export function MemoryDashboardPage({ currentUser }: { currentUser: AdminUser | 
   const detailGeneration = useRef(0);
   const [offset, setOffset] = useState(0);
   const [visibility, setVisibility] = useState<'private' | 'shared'>('private');
-  const [createWorkspace, setCreateWorkspace] = useState('default');
+  const [createWorkspace, setCreateWorkspace] = useState(() => { const id = new URLSearchParams(location.search).get('workspace'); return id && id !== '*' ? id : 'default'; });
   const [panelIssues, setPanelIssues] = useState<string[]>([]);
   const [workspaceId, setWorkspaceId] = useState(() => new URLSearchParams(location.search).get('workspace') ?? '*');
   const [searched, setSearched] = useState(false);
@@ -69,7 +72,9 @@ export function MemoryDashboardPage({ currentUser }: { currentUser: AdminUser | 
   const [webhooks, setWebhooks] = useState<Record<string, unknown> | null>(null);
   const [newContent, setNewContent] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
-  const canWriteMemory = can(currentUser, 'memory:write');
+  const allowed = (permission: string) => profile ? memoryCan(profile, permission) : can(currentUser, permission.endsWith(':read') ? 'memory:read' : 'memory:write');
+  const canWriteMemory = allowed('memories:write');
+  const canManageQueue = allowed('admin:queue');
 
   async function refresh() {
     setLoading(true);
@@ -77,9 +82,9 @@ export function MemoryDashboardPage({ currentUser }: { currentUser: AdminUser | 
     setPanelIssues([]);
     try {
       const [consoleData, queueData, webhookData] = await Promise.all([
-        adminApi.memoryConsole(),
-        adminApi.memoryQueue().catch(() => { setPanelIssues((prior) => [...prior, 'Queue unavailable']); return null; }),
-        adminApi.memoryWebhooks().catch(() => { setPanelIssues((prior) => [...prior, 'Webhooks unavailable']); return null; }),
+        adminApi.memoryConsole(allowed),
+        !allowed('queue:read') ? null : adminApi.memoryQueue().catch(() => { setPanelIssues((prior) => [...prior, 'Queue unavailable']); return null; }),
+        !allowed('webhooks:read') ? null : adminApi.memoryWebhooks().catch(() => { setPanelIssues((prior) => [...prior, 'Webhooks unavailable']); return null; }),
       ]);
       setData(consoleData);
       setPanelIssues(prior=>[...prior,...(consoleData.issues ?? [])]);
@@ -132,6 +137,7 @@ export function MemoryDashboardPage({ currentUser }: { currentUser: AdminUser | 
     const graphData = await run('memory-graph', () => adminApi.memoryGraph(id), isCurrent);
     if (generation !== detailGeneration.current) return;
     if (graphData) setGraph(graphData);
+    if (!canWriteMemory) return;
     const conflictData = await run('memory-conflicts', () => adminApi.memoryConflicts(conflictQuery(detail)), isCurrent);
     if (generation === detailGeneration.current && conflictData) setConflicts(conflictData);
   }
@@ -192,6 +198,8 @@ export function MemoryDashboardPage({ currentUser }: { currentUser: AdminUser | 
 
   useEffect(() => {
     void refresh();
+    const params = new URLSearchParams(location.search);
+    if (params.has('q') || params.has('workspace')) void runSearch();
   }, []);
 
   const stats = record(data?.stats);
@@ -231,7 +239,7 @@ export function MemoryDashboardPage({ currentUser }: { currentUser: AdminUser | 
       ) : null}
 
       <div className="grid grid--4">
-        <StatCard label="Memories" value={compactCount(memoryTotal)} sub="visible through Router" accent="amber" emphasize />
+        <StatCard label="Memories" value={compactCount(memoryTotal)} sub="visible to your product account" accent="amber" emphasize />
         <StatCard label="Sessions" value={compactCount(stats.sessions ?? data?.sessions.length)} sub="active history containers" accent="sky" />
         <StatCard label="Agents" value={compactCount(stats.agents ?? data?.agents.length)} sub="registered memory actors" accent="teal" />
         <StatCard label="Queue" value={compactCount(dashboardQueue.pending_count ?? queueCounts.pending ?? dashboardQueue.pending ?? 0)} sub="pending jobs" accent={numberValue(queueCounts.failed) ? 'coral' : 'violet'} />
@@ -248,7 +256,7 @@ export function MemoryDashboardPage({ currentUser }: { currentUser: AdminUser | 
             </Field>
           </div>
           <div className="inline-actions">
-            <Button variant="primary" icon={<Icon.Activity className="btn-ico" />} loading={busy === 'search'} onClick={() => void runSearch()}>
+            <Button variant="primary" icon={<Icon.Activity className="btn-ico" />} disabled={!allowed('memories:read')} loading={busy === 'search'} onClick={() => void runSearch()}>
               Search
             </Button>
             <Button variant="ghost" icon={<Icon.Refresh className="btn-ico" />} loading={loading} onClick={() => void refresh()}>
@@ -262,7 +270,7 @@ export function MemoryDashboardPage({ currentUser }: { currentUser: AdminUser | 
             <Button variant="ghost" disabled={results.length < 25} onClick={() => void runSearch(offset + 25)}>Next</Button>
           </div>
           <Field label="Create in workspace"><TextInput value={createWorkspace} onChange={setCreateWorkspace} /></Field>
-          <Field label="Visibility" hint="Private records belong to the console service identity.">
+          <Field label="Visibility" hint="Private records belong to your linked memory account.">
             <select value={visibility} onChange={(event) => setVisibility(event.target.value as 'private' | 'shared')}><option value="private">Private</option><option value="shared">Shared in workspace</option></select>
           </Field>
           <Field label="Create memory">
@@ -327,9 +335,9 @@ export function MemoryDashboardPage({ currentUser }: { currentUser: AdminUser | 
                     <span className="muted-line">{text(job.status)} · {text(job.workspace_id, 'default')}</span>
                   </div>
                   <div className="inline-actions">
-                    <Button size="sm" variant="ghost" disabled={!canWriteMemory || !id || !runnable} loading={busy === `run-${id}`} onClick={() => void queueAction(`run-${id}`, id, () => adminApi.runMemoryQueueJob(id))}>Run</Button>
-                    <Button size="sm" variant="ghost" disabled={!canWriteMemory || !id || !retryable} loading={busy === `retry-${id}`} onClick={() => void queueAction(`retry-${id}`, id, () => adminApi.retryMemoryQueueJob(id))}>Retry</Button>
-                    <Button size="sm" variant="danger" disabled={!canWriteMemory || !id || !runnable} loading={busy === `cancel-${id}`} onClick={() => void queueAction(`cancel-${id}`, id, () => adminApi.cancelMemoryQueueJob(id))}>Cancel</Button>
+                    <Button size="sm" variant="ghost" disabled={!canManageQueue || !id || !runnable} loading={busy === `run-${id}`} onClick={() => void queueAction(`run-${id}`, id, () => adminApi.runMemoryQueueJob(id))}>Run</Button>
+                    <Button size="sm" variant="ghost" disabled={!canManageQueue || !id || !retryable} loading={busy === `retry-${id}`} onClick={() => void queueAction(`retry-${id}`, id, () => adminApi.retryMemoryQueueJob(id))}>Retry</Button>
+                    <Button size="sm" variant="danger" disabled={!canManageQueue || !id || !runnable} loading={busy === `cancel-${id}`} onClick={() => void queueAction(`cancel-${id}`, id, () => adminApi.cancelMemoryQueueJob(id))}>Cancel</Button>
                   </div>
                 </div>
               );

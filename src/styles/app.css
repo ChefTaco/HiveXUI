@@ -2394,3 +2394,6 @@ tbody tr:hover {
   .skills-module .check-row { flex-direction: column; align-items: stretch; gap: 1rem; }
   .skills-module .check-row .btn { align-self: start; }
 }
+
+.workspaces-module .field { margin-block: 1rem; }
+.workspaces-module .toggle { margin-bottom: 1rem; }

@@ -136,7 +136,7 @@ function rows(value: unknown, keys: string[]): Array<Record<string, unknown>> {
 }
 
 /** Read-only summaries are composed in the browser using the user's resource token. */
-async function memoryConsole(): Promise<MemoryConsoleData> {
+async function memoryConsole(allowed: (permission: string) => boolean = () => true): Promise<MemoryConsoleData> {
   const paths = [
     'stats',
     'queue/status?limit=8',
@@ -146,8 +146,8 @@ async function memoryConsole(): Promise<MemoryConsoleData> {
     'graph/entities?limit=12&workspace_id=*',
   ];
   const results = await Promise.allSettled(
-    paths.map((path) =>
-      request<Record<string, unknown>>('/api/memory/' + path),
+    paths.map((path, index) =>
+      allowed(['memories:read', 'queue:read', 'memories:read', 'sessions:read', 'agents:read', 'memories:read'][index]!) ? request<Record<string, unknown>>('/api/memory/' + path) : Promise.resolve(null),
     ),
   );
   const value = (index: number) =>
@@ -243,8 +243,8 @@ export const adminApi = {
   hiveIncidents() {
     return request<{ data: HiveIncident[] }>('/api/hive/incidents');
   },
-  memoryConsole() {
-    return memoryConsole();
+  memoryConsole(allowed?: (permission: string) => boolean) {
+    return memoryConsole(allowed);
   },
   searchMemory(params: {
     query?: string;

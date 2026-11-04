@@ -10,6 +10,8 @@ import {
 const SecurityModule = lazy(() => import('./modules/security'));
 const ChatModule = lazy(() => import('./modules/chat'));
 const SkillsModule = lazy(() => import('./modules/skills'));
+const WorkspacesModule = lazy(() => import('./modules/workspaces'));
+import { MemoryAccess } from './components/memory-access';
 const AccountModule = lazy(() => import('./modules/account'));
 const SuiteOverview = lazy(() => import('./modules/suite'));
 import { ProductAccess } from './components/product-access';
@@ -57,6 +59,7 @@ type ViewKey =
   | 'security'
   | 'hive'
   | IamViewKey
+  | 'workspaces'
   | 'memories'
   | 'actors'
   | 'routers'
@@ -122,6 +125,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Memory',
     items: [
       { key: 'memories', label: 'Memories', icon: Icon.Activity },
+      { key: 'workspaces', label: 'Workspaces', icon: Icon.Activity },
       { key: 'actors', label: 'Actors', icon: Icon.Key },
       { key: 'skills', label: 'Skills', icon: Icon.Scroll },
     ],
@@ -761,6 +765,7 @@ function titleFor(view: ViewKey): string {
     'iam-security': 'IAM Security',
     'iam-audit': 'IAM Audit',
     memories: 'Memories',
+    workspaces: 'Workspaces',
     skills: 'Skills and assignments',
     actors: 'Actors',
     routers: 'Routers',
@@ -824,11 +829,12 @@ function ViewContent({
     {
       account: 'oathweave',
       memories: 'hivemem',
+      workspaces: 'hivemem',
       skills: 'hiveskills',
       security: 'cindertrace',
       chat: 'chattermost',
     } as const
-  )[view as 'account' | 'memories' | 'skills' | 'security' | 'chat'];
+  )[view as 'account' | 'memories' | 'workspaces' | 'skills' | 'security' | 'chat'];
   if (browserIdentity() && product && !productEnabled(product))
     return (
       <section className="panel">
@@ -893,8 +899,10 @@ function renderView(
           currentUser={user}
         />
       );
+    case 'workspaces':
+      return <MemoryAccess>{profile => <WorkspacesModule profile={profile} />}</MemoryAccess>;
     case 'memories':
-      return <MemoryDashboardPage currentUser={user} />;
+      return browserIdentity() ? <MemoryAccess>{profile => <MemoryDashboardPage currentUser={user} profile={profile} />}</MemoryAccess> : <MemoryDashboardPage currentUser={user} />;
     case 'actors':
       return <ActorsPage currentUser={user} />;
     case 'routers':
