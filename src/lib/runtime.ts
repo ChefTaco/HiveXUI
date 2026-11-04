@@ -3,6 +3,7 @@ import { createBrowserAuth } from './browser-auth';
 import {
   configureEndpoint,
   setAccessProvider,
+  setStepUpProvider,
   type Product,
 } from './transport';
 
@@ -18,6 +19,7 @@ const prefix = z.string().regex(/^\/api\/[a-z][a-z0-9-]*$/);
 export const runtimeSchema = z
   .object({
     schema: z.literal(1),
+    mode: z.enum(['suite', 'legacy']).default('suite'),
     products: z.partialRecord(product, prefix),
     links: z
       .object({
@@ -58,7 +60,26 @@ export const runtimeSchema = z
       .strict()
       .optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((config, context) => {
+    if (config.mode === 'suite' && !config.identity)
+      context.addIssue({
+        code: 'custom',
+        message: 'Suite runtime requires Oathweave sign-in',
+      });
+    if (config.mode === 'legacy' && config.identity)
+      context.addIssue({
+        code: 'custom',
+        message: 'Legacy runtime cannot configure suite identity',
+      });
+    if (config.identity)
+      for (const name of Object.keys(config.products) as Product[])
+        if (!config.identity.clients[name])
+          context.addIssue({
+            code: 'custom',
+            message: 'A public client is required for each configured product',
+          });
+  });
 let identity: ReturnType<typeof createBrowserAuth> | undefined;
 const enabled = new Set<Product>();
 let magnusLink: string | undefined;
@@ -71,7 +92,8 @@ export async function initializeRuntime(): Promise<void> {
     credentials: 'omit',
     redirect: 'error',
   });
-  if (response.status === 404) return; // Explicit legacy extraction mode.
+  if (response.status === 404)
+    throw new Error('A public runtime configuration is required');
   if (!response.ok)
     throw new Error('Console configuration could not be loaded');
   const config = runtimeSchema.parse(await response.json());
@@ -84,5 +106,6 @@ export async function initializeRuntime(): Promise<void> {
   if (config.identity) {
     identity = createBrowserAuth(config.identity);
     setAccessProvider(identity.ensure);
+    setStepUpProvider(identity.stepUp);
   }
 }

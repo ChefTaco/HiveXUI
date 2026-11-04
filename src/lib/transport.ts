@@ -15,8 +15,14 @@ let chatExpiresAt = 0;
 let chatPending: Promise<void> | undefined;
 let generation = 0;
 let accessProvider: ((product: Product) => Promise<void>) | undefined;
+let stepUpProvider: (() => Promise<void>) | undefined;
+export function setStepUpProvider(
+  provider: (() => Promise<void>) | undefined,
+): void {
+  stepUpProvider = provider;
+}
 export function setAccessProvider(
-  provider: (product: Product) => Promise<void>,
+  provider: ((product: Product) => Promise<void>) | undefined,
 ): void {
   accessProvider = provider;
 }
@@ -117,7 +123,8 @@ export function createApiFetch(request: typeof fetch) {
     }
     const product = productFor(path);
     const prefix = prefixes.get(product);
-    if (accessProvider && !prefix) throw new Error('This product is not configured for this console');
+    if (accessProvider && !prefix)
+      throw new Error('This product is not configured for this console');
     if (accessProvider) await accessProvider(product);
     let target = path;
     const logical: Record<Product, string> = {
@@ -144,12 +151,37 @@ export function createApiFetch(request: typeof fetch) {
         await ensureChat(request, prefix, access);
       } else headers.set('Authorization', `Bearer ${access.value}`);
     }
-    return request(target, {
+    const response = await request(target, {
       ...init,
       headers,
-      credentials: 'include',
+      credentials:
+        accessProvider && product !== 'chattermost' ? 'omit' : 'include',
       redirect: 'error',
     });
+    if (response.status === 403 && stepUpProvider) {
+      const body: unknown = await response
+        .clone()
+        .json()
+        .catch(() => null);
+      if (
+        body &&
+        typeof body === 'object' &&
+        'error' in body &&
+        body.error === 'STEP_UP_REQUIRED'
+      ) {
+        await stepUpProvider();
+        // Never replay a durable mutation or an approval automatically.
+        return Response.json(
+          {
+            error: 'RETRY_AFTER_STEP_UP',
+            message:
+              'Identity verified. Review and submit the operation again.',
+          },
+          { status: 403 },
+        );
+      }
+    }
+    return response;
   };
 }
 export const apiFetch = createApiFetch((input, init) => fetch(input, init));

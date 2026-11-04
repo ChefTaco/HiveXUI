@@ -44,3 +44,8 @@ button:focus-visible,a:focus-visible {outline:3px solid var(--sky);outline-offse
   .sidebar { visibility:hidden; transition:transform .25s ease,visibility .25s; }
   .sidebar--open { visibility:visible; }
 }
+
+.identity-dialog { width:min(32rem,calc(100vw - 2rem)); max-height:calc(100dvh - 2rem); overflow:auto; border:1px solid var(--border); border-radius:1rem; background:var(--surface); color:var(--text); padding:1.5rem; }
+.identity-dialog::backdrop { background:rgb(5 25 29 / 65%); backdrop-filter:blur(4px); }
+.identity-dialog form { display:grid; gap:1rem; }
+.identity-dialog ul { overflow-wrap:anywhere; }

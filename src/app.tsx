@@ -10,10 +10,16 @@ import {
 const SecurityModule = lazy(() => import('./modules/security'));
 const ChatModule = lazy(() => import('./modules/chat'));
 const SkillsModule = lazy(() => import('./modules/skills'));
+const AccountModule = lazy(() => import('./modules/account'));
 const SuiteOverview = lazy(() => import('./modules/suite'));
+import { ProductAccess } from './components/product-access';
 import { adminApi, ApiError } from './lib/api';
 import { MfaRequired } from './lib/browser-auth';
-import { browserIdentity, magnusConsoleUrl } from './lib/runtime';
+import {
+  browserIdentity,
+  magnusConsoleUrl,
+  productEnabled,
+} from './lib/runtime';
 import type { AdminUser } from './lib/types';
 import { StoreProvider, useStore } from './lib/store';
 import { Icon, HiveSigil } from './components/icons';
@@ -45,6 +51,7 @@ type IamViewKey =
   | 'iam-security'
   | 'iam-audit';
 type ViewKey =
+  | 'account'
   | 'skills'
   | 'chat'
   | 'security'
@@ -96,6 +103,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Oathweave',
     items: [
       { key: 'iam-overview', label: 'Overview', icon: Icon.Gauge },
+      { key: 'account', label: 'Account security', icon: Icon.Key },
       { key: 'iam-users', label: 'Users', icon: Icon.Key },
       { key: 'iam-roles', label: 'Roles', icon: Icon.Scroll },
       {
@@ -224,6 +232,40 @@ function LoginScreen({ onSuccess }: { onSuccess: (user: AdminUser) => void }) {
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<'sign-in' | 'recover' | 'reset'>('sign-in');
+  const [email, setEmail] = useState(''),
+    [recoveryCode, setRecoveryCode] = useState('');
+  const [newPassword, setNewPassword] = useState(''),
+    [confirmation, setConfirmation] = useState('');
+  const [notice, setNotice] = useState('');
+  function changeMode(value: typeof mode) {
+    setMode(value);
+    setChallenge(null);
+    setPassword('');
+    setCode('');
+    setRecoveryCode('');
+    setNewPassword('');
+    setConfirmation('');
+    setError(null);
+    setNotice('');
+  }
+
+  async function passkey() {
+    const identity = browserIdentity();
+    if (!identity || !challenge) return;
+    setBusy(true);
+    setError(null);
+    try {
+      onSuccess((await identity.completePasskey(challenge.token)).user);
+      setChallenge(null);
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : 'Passkey verification failed',
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -231,6 +273,18 @@ function LoginScreen({ onSuccess }: { onSuccess: (user: AdminUser) => void }) {
     setError(null);
     try {
       const identity = browserIdentity();
+      if (mode === 'recover' && identity) {
+        setNotice(await identity.recover(email.trim()));
+        return;
+      }
+      if (mode === 'reset' && identity) {
+        if (newPassword !== confirmation)
+          throw new Error('Passwords do not match');
+        await identity.resetPassword(recoveryCode.trim(), newPassword);
+        changeMode('sign-in');
+        setNotice('Password updated. Sign in with your new password.');
+        return;
+      }
       const result =
         challenge && identity
           ? await identity.completeMfa(challenge.token, code.trim())
@@ -276,7 +330,52 @@ function LoginScreen({ onSuccess }: { onSuccess: (user: AdminUser) => void }) {
             </div>
           ) : null}
 
-          {!challenge ? (
+          {notice && <p role="status">{notice}</p>}
+          {mode === 'recover' ? (
+            <label className="field">
+              <span className="field-label">Account email</span>
+              <input
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+              />
+            </label>
+          ) : mode === 'reset' ? (
+            <>
+              <label className="field">
+                <span className="field-label">Recovery code</span>
+                <input
+                  type="password"
+                  autoComplete="off"
+                  value={recoveryCode}
+                  onChange={(event) => setRecoveryCode(event.target.value)}
+                  required
+                />
+              </label>
+              <label className="field">
+                <span className="field-label">New password</span>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  required
+                />
+              </label>
+              <label className="field">
+                <span className="field-label">Confirm new password</span>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={confirmation}
+                  onChange={(event) => setConfirmation(event.target.value)}
+                  required
+                />
+              </label>
+            </>
+          ) : !challenge ? (
             <>
               <label className="field">
                 <span className="field-label">Username</span>
@@ -316,8 +415,63 @@ function LoginScreen({ onSuccess }: { onSuccess: (user: AdminUser) => void }) {
             ) : (
               <Icon.Key className="btn-ico" />
             )}
-            {challenge ? 'Verify and sign in' : 'Sign in'}
+            {mode === 'recover'
+              ? 'Request recovery'
+              : mode === 'reset'
+                ? 'Update password'
+                : challenge
+                  ? 'Verify and sign in'
+                  : 'Sign in'}
           </button>
+          {mode === 'sign-in' && challenge?.methods.includes('webauthn') && (
+            <button
+              className="btn"
+              type="button"
+              onClick={() => void passkey()}
+              disabled={busy}
+            >
+              Use passkey
+            </button>
+          )}
+          {browserIdentity() && (
+            <div className="login-recovery-actions">
+              {mode !== 'sign-in' || challenge ? (
+                <button
+                  className="btn btn--ghost"
+                  type="button"
+                  onClick={() => changeMode('sign-in')}
+                >
+                  Back to sign in
+                </button>
+              ) : (
+                <>
+                  <button
+                    className="btn btn--ghost"
+                    type="button"
+                    onClick={() => changeMode('recover')}
+                  >
+                    Forgot password?
+                  </button>
+                  <button
+                    className="btn btn--ghost"
+                    type="button"
+                    onClick={() => changeMode('reset')}
+                  >
+                    Use recovery code
+                  </button>
+                </>
+              )}
+              {mode === 'recover' && (
+                <button
+                  className="btn btn--ghost"
+                  type="button"
+                  onClick={() => changeMode('reset')}
+                >
+                  I have a recovery code
+                </button>
+              )}
+            </div>
+          )}
         </form>
       </div>
     </>
@@ -447,7 +601,20 @@ function Shell({
                 })}
               </div>
             ))}
-            {magnusConsoleUrl() && <div className="nav-group"><p className="nav-group-label">Fleet</p><a className="nav-item" href={magnusConsoleUrl()} target="_blank" rel="noopener noreferrer"><Icon.Server width={18} height={18}/><span>Magnus console ↗</span></a></div>}
+            {magnusConsoleUrl() && (
+              <div className="nav-group">
+                <p className="nav-group-label">Fleet</p>
+                <a
+                  className="nav-item"
+                  href={magnusConsoleUrl()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Icon.Server width={18} height={18} />
+                  <span>Magnus console ↗</span>
+                </a>
+              </div>
+            )}
           </nav>
 
           <div className="sidebar-footer">
@@ -455,7 +622,7 @@ function Shell({
               <span className="user-avatar">{initials(displayName)}</span>
               <div>
                 <strong>{displayName}</strong>
-                <span>Administrator</span>
+                <span>{user?.roles?.join(', ') || 'Signed in'}</span>
               </div>
             </div>
             <button className="btn btn--ghost btn--sm" onClick={handleLogout}>
@@ -512,7 +679,10 @@ function Shell({
               </span>
               <button
                 className="btn btn--ghost btn--sm"
-                onClick={() => void refresh()}
+                onClick={() => {
+                  browserIdentity()?.retryConsent();
+                  void refresh();
+                }}
                 disabled={refreshing}
               >
                 {refreshing ? (
@@ -543,7 +713,10 @@ function Shell({
                     </div>
                     <button
                       className="btn btn--ghost btn--sm"
-                      onClick={() => void refresh()}
+                      onClick={() => {
+                        browserIdentity()?.retryConsent();
+                        void refresh();
+                      }}
                       disabled={refreshing}
                     >
                       {refreshing ? (
@@ -555,11 +728,11 @@ function Shell({
                     </button>
                   </div>
                 ) : null}
-                {renderView(
-                  view,
-                  (next: string) => navigate(next as ViewKey),
-                  user,
-                )}
+                <ViewContent
+                  view={view}
+                  onNavigate={(next: string) => navigate(next as ViewKey)}
+                  user={user}
+                />
               </>
             )}
           </div>
@@ -574,6 +747,7 @@ function Shell({
 
 function titleFor(view: ViewKey): string {
   const map: Record<ViewKey, string> = {
+    account: 'Account security',
     security: 'Cindertrace',
     chat: 'ChatterMost',
     hive: 'Hive',
@@ -609,6 +783,62 @@ function statusPipClass(error: string | null, failures: number): string {
   return 'status-pip status-pip--ok';
 }
 
+function ViewContent({
+  view,
+  onNavigate,
+  user,
+}: {
+  view: ViewKey;
+  onNavigate: (next: string) => void;
+  user: AdminUser | null;
+}) {
+  const models: Partial<Record<ViewKey, string>> = {
+    routers: 'router:routing:read',
+    providers: 'router:providers:read',
+    routing: 'router:routing:read',
+    testing: 'router:testing:read',
+    traces: 'router:admin:read',
+    incidents: 'router:admin:read',
+    keys: 'router:keys:read',
+    audit: 'router:admin:read',
+    docs: 'router:admin:read',
+    settings: 'router:settings:read',
+  };
+  if (models[view])
+    return (
+      <ProductAccess
+        product="emberpath"
+        permission={models[view]}
+        fallback={user}
+      >
+        {(principal) => renderView(view, onNavigate, principal)}
+      </ProductAccess>
+    );
+  if (view.startsWith('iam-'))
+    return (
+      <ProductAccess product="oathweave" fallback={user}>
+        {(principal) => renderView(view, onNavigate, principal)}
+      </ProductAccess>
+    );
+  const product = (
+    {
+      account: 'oathweave',
+      memories: 'hivemem',
+      skills: 'hiveskills',
+      security: 'cindertrace',
+      chat: 'chattermost',
+    } as const
+  )[view as 'account' | 'memories' | 'skills' | 'security' | 'chat'];
+  if (browserIdentity() && product && !productEnabled(product))
+    return (
+      <section className="panel">
+        <h2>Product unconfigured</h2>
+        <p>{product} is not configured for this console.</p>
+      </section>
+    );
+  return renderView(view, onNavigate, user);
+}
+
 function renderView(
   view: ViewKey,
   onNavigate: (next: string) => void,
@@ -616,7 +846,17 @@ function renderView(
 ) {
   switch (view) {
     case 'skills':
-      return <Suspense fallback={<p role="status">Loading skills…</p>}><SkillsModule currentUser={user}/></Suspense>;
+      return (
+        <Suspense fallback={<p role="status">Loading skills…</p>}>
+          <SkillsModule currentUser={user} />
+        </Suspense>
+      );
+    case 'account':
+      return (
+        <Suspense fallback={<p role="status">Loading account security…</p>}>
+          <AccountModule />
+        </Suspense>
+      );
     case 'security':
       return (
         <Suspense fallback={<p role="status">Loading security…</p>}>
@@ -630,7 +870,13 @@ function renderView(
         </Suspense>
       );
     case 'hive':
-      return browserIdentity()?<Suspense fallback={<p role="status">Checking products…</p>}><SuiteOverview/></Suspense>:<HiveOverviewPage onNavigate={onNavigate} />;
+      return browserIdentity() ? (
+        <Suspense fallback={<p role="status">Checking products…</p>}>
+          <SuiteOverview />
+        </Suspense>
+      ) : (
+        <HiveOverviewPage onNavigate={onNavigate} />
+      );
     case 'iam-overview':
     case 'iam-users':
     case 'iam-roles':
@@ -658,7 +904,7 @@ function renderView(
     case 'routing':
       return <RoutingPage currentUser={user} />;
     case 'testing':
-      return <TestingPage />;
+      return <TestingPage currentUser={user} />;
     case 'traces':
       return <TracesPage />;
     case 'incidents':

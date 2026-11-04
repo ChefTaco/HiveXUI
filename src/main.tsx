@@ -7,6 +7,7 @@ import '@fontsource/ibm-plex-mono/latin-400.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './app';
+import { IdentityPrompts } from './components/identity-prompts';
 import { ToastProvider } from './components/toast';
 import { ThemeToggle } from './components/theme-toggle';
 import { initializeRuntime } from './lib/runtime';
@@ -23,13 +24,15 @@ try {
   await initializeRuntime();
 } catch {
   root.setAttribute('role', 'alert');
-  root.textContent = 'HiveXUI could not load its configuration. Check runtime.json and reload the console.';
+  root.textContent =
+    'HiveXUI could not load its configuration. Check runtime.json and reload the console.';
   throw new Error('Invalid console runtime configuration');
 }
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <ToastProvider>
       <ThemeToggle />
+      <IdentityPrompts />
       <App />
     </ToastProvider>
   </React.StrictMode>,

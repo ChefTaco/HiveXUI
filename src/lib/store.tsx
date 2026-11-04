@@ -1,6 +1,15 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { adminApi, ApiError } from './api';
-import { browserIdentity } from './runtime';
+import { browserIdentity, productEnabled } from './runtime';
+import { allowedRouterResource } from './router-access';
 import type {
   ApiDoc,
   AuditEvent,
@@ -49,7 +58,10 @@ const EMPTY: RouterData = {
   hiveStatus: null,
 };
 
-export interface ResourceFreshness { lastSuccess: string | null; error: string | null }
+export interface ResourceFreshness {
+  lastSuccess: string | null;
+  error: string | null;
+}
 interface StoreApi {
   resourceFreshness: Partial<Record<keyof RouterData, ResourceFreshness>>;
   data: RouterData;
@@ -70,14 +82,22 @@ export function useStore(): StoreApi {
   return ctx;
 }
 
-export function StoreProvider({ onAuthExpired, children }: { onAuthExpired: () => void; children: ReactNode }) {
+export function StoreProvider({
+  onAuthExpired,
+  children,
+}: {
+  onAuthExpired: () => void;
+  children: ReactNode;
+}) {
   const [data, setData] = useState<RouterData>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadIssues, setLoadIssues] = useState<string[]>([]);
   const [lastSync, setLastSync] = useState<Date | null>(null);
-  const [resourceFreshness, setResourceFreshness] = useState<Partial<Record<keyof RouterData, ResourceFreshness>>>({});
+  const [resourceFreshness, setResourceFreshness] = useState<
+    Partial<Record<keyof RouterData, ResourceFreshness>>
+  >({});
   const firstLoad = useRef(true);
   const generation = useRef(0);
 
@@ -88,23 +108,51 @@ export function StoreProvider({ onAuthExpired, children }: { onAuthExpired: () =
     setError(null);
     setLoadIssues([]);
     try {
-      const requests = {
-        providers: adminApi.providers(),
-        aliases: adminApi.aliases(),
-        routeRules: adminApi.routeRules(),
-        heuristics: adminApi.heuristics(),
-        clientKeys: adminApi.clientKeys(),
-        telemetry: adminApi.telemetry(),
-        traces: adminApi.traces(),
-        audit: adminApi.audit(),
-        actors: adminApi.hiveActors(),
-        incidents: adminApi.hiveIncidents(),
-        runtimeSettings: adminApi.runtimeSettings(),
-        docs: adminApi.docsIndex(),
-        hiveStatus: adminApi.hiveStatus(),
+      const browser = !!browserIdentity();
+      if (browser && !productEnabled('emberpath')) {
+        setData(EMPTY);
+        setLastSync(new Date());
+        return;
+      }
+      const user = browser
+        ? (await adminApi.resourceMe('emberpath')).user
+        : null;
+      const loaders = {
+        providers: adminApi.providers,
+        aliases: adminApi.aliases,
+        routeRules: adminApi.routeRules,
+        heuristics: adminApi.heuristics,
+        clientKeys: adminApi.clientKeys,
+        telemetry: adminApi.telemetry,
+        traces: adminApi.traces,
+        audit: adminApi.audit,
+        actors: adminApi.hiveActors,
+        incidents: adminApi.hiveIncidents,
+        runtimeSettings: adminApi.runtimeSettings,
+        docs: adminApi.docsIndex,
+        hiveStatus: adminApi.hiveStatus,
       };
-      const keys = Object.keys(requests) as Array<keyof typeof requests>;
-      const settled = await Promise.allSettled(keys.map((key) => requests[key]));
+      const keys = (Object.keys(loaders) as Array<keyof typeof loaders>).filter(
+        (key) => allowedRouterResource(key, user, browser),
+      );
+      const requests = Object.fromEntries(
+        keys.map((key) => [key, loaders[key]()]),
+      ) as Record<keyof typeof loaders, Promise<unknown>>;
+      if (browser)
+        setData(
+          (previous) =>
+            Object.fromEntries(
+              Object.keys(EMPTY).map((key) => [
+                key,
+                keys.includes(key as keyof RouterData)
+                  ? previous[key as keyof RouterData]
+                  : EMPTY[key as keyof RouterData],
+              ]),
+            ) as unknown as RouterData,
+        );
+      const settled = await Promise.allSettled(
+        keys.map((key) => requests[key]),
+      );
       if (refreshId !== generation.current) return;
       const values = new Map<string, unknown>();
       const issues: string[] = [];
@@ -112,48 +160,147 @@ export function StoreProvider({ onAuthExpired, children }: { onAuthExpired: () =
       setResourceFreshness((previous) => {
         const next = { ...previous };
         for (let index = 0; index < keys.length; index++) {
-          const key = keys[index]!; const result = settled[index]!;
-          if (result.status === 'fulfilled') next[key] = { lastSuccess: timestamp, error: null };
-          else next[key] = { lastSuccess: previous[key]?.lastSuccess ?? null, error: result.reason instanceof Error ? result.reason.message : 'Request failed' };
+          const key = keys[index]!;
+          const result = settled[index]!;
+          if (result.status === 'fulfilled')
+            next[key] = { lastSuccess: timestamp, error: null };
+          else
+            next[key] = {
+              lastSuccess: previous[key]?.lastSuccess ?? null,
+              error:
+                result.reason instanceof Error
+                  ? result.reason.message
+                  : 'Request failed',
+            };
         }
         return next;
       });
       for (let index = 0; index < keys.length; index++) {
-        const key = keys[index]!; const result = settled[index]!;
+        const key = keys[index]!;
+        const result = settled[index]!;
         if (result.status === 'fulfilled') values.set(key, result.value);
         else {
-          if (result.reason instanceof ApiError && result.reason.status === 401) {
+          if (
+            result.reason instanceof ApiError &&
+            result.reason.status === 401
+          ) {
             const identity = browserIdentity();
-            if (!identity) { onAuthExpired(); return; }
-            try { await identity.me(); } catch { onAuthExpired(); return; }
+            if (!identity) {
+              onAuthExpired();
+              return;
+            }
+            try {
+              await identity.me();
+            } catch {
+              onAuthExpired();
+              return;
+            }
           }
-          issues.push(`${key}: ${result.reason instanceof Error ? result.reason.message : 'Unavailable'}`);
+          issues.push(
+            `${key}: ${result.reason instanceof Error ? result.reason.message : 'Unavailable'}`,
+          );
         }
       }
       setLoadIssues(issues);
-      setError(issues.length ? `${issues.length} console sections failed to refresh; previous data remains visible` : null);
+      setError(
+        issues.length
+          ? `${issues.length} console sections failed to refresh; previous data remains visible`
+          : null,
+      );
       setData((previous) => ({
-        providers: (values.get('providers') as Awaited<ReturnType<typeof adminApi.providers>> | undefined)?.data ?? previous.providers,
-        aliases: (values.get('aliases') as Awaited<ReturnType<typeof adminApi.aliases>> | undefined)?.data ?? previous.aliases,
-        routeRules: (values.get('routeRules') as Awaited<ReturnType<typeof adminApi.routeRules>> | undefined)?.data ?? previous.routeRules,
-        heuristics: (values.get('heuristics') as Awaited<ReturnType<typeof adminApi.heuristics>> | undefined)?.data ?? previous.heuristics,
-        clientKeys: (values.get('clientKeys') as Awaited<ReturnType<typeof adminApi.clientKeys>> | undefined)?.data ?? previous.clientKeys,
-        telemetry: (values.get('telemetry') as Awaited<ReturnType<typeof adminApi.telemetry>> | undefined) ?? previous.telemetry,
-        traces: (values.get('traces') as Awaited<ReturnType<typeof adminApi.traces>> | undefined)?.data ?? previous.traces,
-        audit: (values.get('audit') as Awaited<ReturnType<typeof adminApi.audit>> | undefined)?.data ?? previous.audit,
-        actors: (values.get('actors') as Awaited<ReturnType<typeof adminApi.hiveActors>> | undefined)?.data ?? previous.actors,
-        incidents: (values.get('incidents') as Awaited<ReturnType<typeof adminApi.hiveIncidents>> | undefined)?.data ?? previous.incidents,
-        runtimeSettings: (values.get('runtimeSettings') as Awaited<ReturnType<typeof adminApi.runtimeSettings>> | undefined)?.data ?? previous.runtimeSettings,
-        docs: (values.get('docs') as Awaited<ReturnType<typeof adminApi.docsIndex>> | undefined)?.docs ?? previous.docs,
-        hiveStatus: (values.get('hiveStatus') as Awaited<ReturnType<typeof adminApi.hiveStatus>> | undefined) ?? previous.hiveStatus,
+        providers:
+          (
+            values.get('providers') as
+              | Awaited<ReturnType<typeof adminApi.providers>>
+              | undefined
+          )?.data ?? previous.providers,
+        aliases:
+          (
+            values.get('aliases') as
+              | Awaited<ReturnType<typeof adminApi.aliases>>
+              | undefined
+          )?.data ?? previous.aliases,
+        routeRules:
+          (
+            values.get('routeRules') as
+              | Awaited<ReturnType<typeof adminApi.routeRules>>
+              | undefined
+          )?.data ?? previous.routeRules,
+        heuristics:
+          (
+            values.get('heuristics') as
+              | Awaited<ReturnType<typeof adminApi.heuristics>>
+              | undefined
+          )?.data ?? previous.heuristics,
+        clientKeys:
+          (
+            values.get('clientKeys') as
+              | Awaited<ReturnType<typeof adminApi.clientKeys>>
+              | undefined
+          )?.data ?? previous.clientKeys,
+        telemetry:
+          (values.get('telemetry') as
+            | Awaited<ReturnType<typeof adminApi.telemetry>>
+            | undefined) ?? previous.telemetry,
+        traces:
+          (
+            values.get('traces') as
+              | Awaited<ReturnType<typeof adminApi.traces>>
+              | undefined
+          )?.data ?? previous.traces,
+        audit:
+          (
+            values.get('audit') as
+              | Awaited<ReturnType<typeof adminApi.audit>>
+              | undefined
+          )?.data ?? previous.audit,
+        actors:
+          (
+            values.get('actors') as
+              | Awaited<ReturnType<typeof adminApi.hiveActors>>
+              | undefined
+          )?.data ?? previous.actors,
+        incidents:
+          (
+            values.get('incidents') as
+              | Awaited<ReturnType<typeof adminApi.hiveIncidents>>
+              | undefined
+          )?.data ?? previous.incidents,
+        runtimeSettings:
+          (
+            values.get('runtimeSettings') as
+              | Awaited<ReturnType<typeof adminApi.runtimeSettings>>
+              | undefined
+          )?.data ?? previous.runtimeSettings,
+        docs:
+          (
+            values.get('docs') as
+              | Awaited<ReturnType<typeof adminApi.docsIndex>>
+              | undefined
+          )?.docs ?? previous.docs,
+        hiveStatus:
+          (values.get('hiveStatus') as
+            | Awaited<ReturnType<typeof adminApi.hiveStatus>>
+            | undefined) ?? previous.hiveStatus,
       }));
       setLastSync(new Date());
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
-        onAuthExpired();
-        return;
+        const identity = browserIdentity();
+        if (!identity) {
+          onAuthExpired();
+          return;
+        }
+        try {
+          await identity.me();
+        } catch {
+          onAuthExpired();
+          return;
+        }
       }
-      setError(caught instanceof Error ? caught.message : 'Failed to load admin data');
+      setError(
+        caught instanceof Error ? caught.message : 'Failed to load admin data',
+      );
     } finally {
       if (refreshId !== generation.current) return;
       firstLoad.current = false;
@@ -167,7 +314,19 @@ export function StoreProvider({ onAuthExpired, children }: { onAuthExpired: () =
   }, [refresh]);
 
   return (
-    <StoreContext.Provider value={{ data, loading, refreshing, error, loadIssues, lastSync, refresh, onAuthExpired, resourceFreshness }}>
+    <StoreContext.Provider
+      value={{
+        data,
+        loading,
+        refreshing,
+        error,
+        loadIssues,
+        lastSync,
+        refresh,
+        onAuthExpired,
+        resourceFreshness,
+      }}
+    >
       {children}
     </StoreContext.Provider>
   );

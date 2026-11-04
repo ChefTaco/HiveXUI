@@ -1,6 +1,43 @@
 import { createRemoteJWKSet, customFetch, jwtVerify } from 'jose';
 import { clearAccess, rememberAccess, type Product } from './transport';
 import type { AdminUser } from './types';
+import { z } from 'zod';
+import {
+  cancelIdentityPrompts,
+  requestConsent,
+  requestStepUp,
+} from './identity-prompts';
+import { authenticatePasskey } from './passkeys';
+import {
+  LoginRequestSchema,
+  MfaChallengeRequestSchema,
+  ForgotPasswordRequestSchema,
+  ResetPasswordRequestSchema,
+  StepUpRequestSchema,
+  PasskeyAuthenticationOptionsRequestSchema,
+  PasskeyAuthenticationRequestSchema,
+  PasskeyOptionsResponseSchema,
+  AuthorizeConsentRequestSchema,
+  TokenExchangeRequestSchema,
+} from '../../contracts/oathweave.generated';
+
+class IdentityApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly data: Record<string, unknown>,
+  ) {
+    super(
+      typeof data.message === 'string' ? data.message : 'Sign in to continue',
+    );
+  }
+}
+const consentDetails = z.object({
+  clientName: z.string().max(200),
+  clientDescription: z.string().max(2000).nullable(),
+  audience: z.string().max(200),
+  scope: z.string().max(1000),
+  permissions: z.array(z.string().max(200)).max(100),
+});
 
 export interface BrowserIdentityConfig {
   issuer: string;
@@ -38,6 +75,7 @@ export function createBrowserAuth(
     throw new Error('Invalid identity configuration');
   const pending = new Map<Product, Promise<void>>();
   const expiry = new Map<Product, number>();
+  const declined = new Set<Product>();
   let generation = 0;
   const keys = createRemoteJWKSet(
     new URL(config.apiPrefix + '/oauth/jwks', location.origin),
@@ -50,6 +88,21 @@ export function createBrowserAuth(
     path: string,
     body?: object,
   ): Promise<Record<string, unknown>> {
+    const schema = (
+      {
+        '/auth/login': LoginRequestSchema,
+        '/auth/mfa/challenge': MfaChallengeRequestSchema,
+        '/auth/forgot-password': ForgotPasswordRequestSchema,
+        '/auth/reset-password': ResetPasswordRequestSchema,
+        '/auth/step-up': StepUpRequestSchema,
+        '/mfa/webauthn/authenticate-options':
+          PasskeyAuthenticationOptionsRequestSchema,
+        '/mfa/webauthn/authenticate': PasskeyAuthenticationRequestSchema,
+        '/oauth/authorize': AuthorizeConsentRequestSchema,
+        '/oauth/token': TokenExchangeRequestSchema,
+      } as Record<string, z.ZodType>
+    )[path];
+    if (body && schema) body = schema.parse(body) as object;
     const response = await request(config.apiPrefix + path, {
       method: body ? 'POST' : 'GET',
       credentials: 'include',
@@ -71,7 +124,11 @@ export function createBrowserAuth(
       throw new Error(
         'Your Oathweave password has expired. Complete password recovery with your identity administrator, then sign in again.',
       );
-    if (!response.ok) throw new Error('Sign in to continue');
+    if (!response.ok)
+      throw new IdentityApiError(
+        response.status,
+        result as Record<string, unknown>,
+      );
     return result as Record<string, unknown>;
   }
   async function authorize(product: Product) {
@@ -90,7 +147,7 @@ export function createBrowserAuth(
       ),
     );
     const redirectUri = location.origin + '/auth/callback';
-    const authorization = await json('/oauth/authorize', {
+    const parameters = {
       clientId: client,
       redirectUri,
       responseType: 'code',
@@ -99,7 +156,25 @@ export function createBrowserAuth(
       state,
       nonce,
       scope: 'openid profile',
-    });
+    };
+    let authorization: Record<string, unknown>;
+    try {
+      authorization = await json('/oauth/authorize', parameters);
+    } catch (error) {
+      if (
+        !(error instanceof IdentityApiError) ||
+        error.data.error !== 'CONSENT_REQUIRED'
+      )
+        throw error;
+      const approved = await requestConsent(consentDetails.parse(error.data));
+      if (!approved) declined.add(product);
+      if (started !== generation || !approved)
+        throw new Error('Access was not approved');
+      authorization = await json('/oauth/authorize', {
+        ...parameters,
+        consent: 'approve',
+      });
+    }
     if (
       authorization.state !== state ||
       authorization.iss !== config.issuer ||
@@ -145,6 +220,10 @@ export function createBrowserAuth(
     expiry.set(product, expiresAt);
   }
   async function ensure(product: Product) {
+    if (declined.has(product))
+      throw new Error(
+        'Product access was declined. Select Retry to review access again.',
+      );
     if ((expiry.get(product) ?? 0) > Date.now() + 30000) return;
     let operation = pending.get(product);
     if (!operation) {
@@ -204,11 +283,53 @@ export function createBrowserAuth(
     await json('/auth/mfa/challenge', { mfaToken: token, code });
     return { ...(await me()), ok: true };
   }
+  async function completePasskey(token: string) {
+    const options = await json('/mfa/webauthn/authenticate-options', {
+      mfaToken: token,
+    });
+    const response = await authenticatePasskey(
+      PasskeyOptionsResponseSchema.parse(options).data,
+    );
+    await json('/mfa/webauthn/authenticate', { mfaToken: token, response });
+    return { ...(await me()), ok: true };
+  }
+  async function recover(email: string): Promise<string> {
+    const response = await json('/auth/forgot-password', { email });
+    return typeof response.message === 'string'
+      ? response.message
+      : 'Check your recovery channel for instructions';
+  }
+  async function resetPassword(
+    token: string,
+    newPassword: string,
+  ): Promise<void> {
+    await json('/auth/reset-password', { token, newPassword });
+    invalidate();
+  }
+  async function stepUp(): Promise<void> {
+    const input = await requestStepUp();
+    if (!input) throw new Error('Identity verification cancelled');
+    let assertion: Record<string, unknown> | undefined;
+    if (input.passkey) {
+      const options = await json('/auth/step-up/options', {});
+      assertion = await authenticatePasskey(
+        PasskeyOptionsResponseSchema.parse(options).data,
+      );
+    }
+    await json('/auth/step-up', {
+      password: input.password,
+      ...(input.totpCode ? { totpCode: input.totpCode } : {}),
+      ...(assertion ? { assertion } : {}),
+    });
+    invalidate(); // Replacement resource tokens carry the newly verified auth_time.
+  }
   function invalidate() {
     generation++;
     clearAccess();
     expiry.clear();
     pending.clear();
+    declined.clear();
+    cancelIdentityPrompts();
   }
   async function logout() {
     invalidate();
@@ -218,5 +339,17 @@ export function createBrowserAuth(
       invalidate();
     }
   }
-  return { ensure, me, login, completeMfa, logout, invalidate };
+  return {
+    ensure,
+    retryConsent: () => declined.clear(),
+    me,
+    login,
+    completeMfa,
+    completePasskey,
+    recover,
+    resetPassword,
+    stepUp,
+    logout,
+    invalidate,
+  };
 }

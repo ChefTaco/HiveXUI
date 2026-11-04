@@ -1,0 +1,31 @@
+// Generated from Oathweave OpenAPI 1.2.2; SHA256 18d6a6279e21d917ddfe9076ce928f163df99e9da3530fa017ce43a29c082298.
+// Apache-2.0. Source attribution: Oathweave, extracted from Hive.
+import {z} from 'zod';
+export const LoginRequestSchema=z.object({"password":z.string().min(1).max(256),"username":z.string().min(1).max(254)});
+export type LoginRequest=z.infer<typeof LoginRequestSchema>;
+export const MfaChallengeRequestSchema=z.object({"code":z.string().min(1).max(12),"mfaToken":z.string().min(1)});
+export type MfaChallengeRequest=z.infer<typeof MfaChallengeRequestSchema>;
+export const ForgotPasswordRequestSchema=z.object({"email":z.string()});
+export type ForgotPasswordRequest=z.infer<typeof ForgotPasswordRequestSchema>;
+export const ResetPasswordRequestSchema=z.object({"newPassword":z.string().min(8).max(256),"token":z.string().min(1)});
+export type ResetPasswordRequest=z.infer<typeof ResetPasswordRequestSchema>;
+export const StepUpRequestSchema=z.object({"assertion":z.record(z.string(),z.unknown()).optional(),"password":z.string().min(1).max(256),"totpCode":z.string().regex(new RegExp("^[0-9]{6}$")).optional()});
+export type StepUpRequest=z.infer<typeof StepUpRequestSchema>;
+export const PasskeyRegisterRequestSchema=z.object({"friendlyName":z.string().max(100).optional(),"response":z.record(z.string(),z.unknown())});
+export type PasskeyRegisterRequest=z.infer<typeof PasskeyRegisterRequestSchema>;
+export const PasskeyAuthenticationRequestSchema=z.object({"mfaToken":z.string().min(1).max(8192),"response":z.record(z.string(),z.unknown())});
+export type PasskeyAuthenticationRequest=z.infer<typeof PasskeyAuthenticationRequestSchema>;
+export const PasskeyAuthenticationOptionsRequestSchema=z.object({"mfaToken":z.string().min(1).max(8192)});
+export type PasskeyAuthenticationOptionsRequest=z.infer<typeof PasskeyAuthenticationOptionsRequestSchema>;
+export const PasskeyOptionsResponseSchema=z.object({"data":z.record(z.string(),z.unknown())});
+export type PasskeyOptionsResponse=z.infer<typeof PasskeyOptionsResponseSchema>;
+export const PasskeyCredentialSchema=z.object({"backedUp":z.boolean(),"createdAt":z.string(),"credentialId":z.string(),"deviceType":z.string(),"friendlyName":z.string(),"id":z.string(),"lastUsedAt":z.string().nullable()});
+export type PasskeyCredential=z.infer<typeof PasskeyCredentialSchema>;
+export const MfaStatusSchema=z.object({"enabled":z.boolean(),"recoveryCodesRemaining":z.number().int().min(0).max(9007199254740991),"totpConfigured":z.boolean()});
+export type MfaStatus=z.infer<typeof MfaStatusSchema>;
+export const RecoveryCodesSchema=z.object({"backupCodes":z.array(z.string())});
+export type RecoveryCodes=z.infer<typeof RecoveryCodesSchema>;
+export const AuthorizeConsentRequestSchema=z.object({"clientId":z.string().min(1),"codeChallenge":z.string().optional(),"codeChallengeMethod":z.enum(["S256"]).optional(),"consent":z.enum(["approve","deny"]).optional(),"nonce":z.string().min(16).max(256).optional(),"redirectUri":z.string(),"responseType":z.string().min(1),"scope":z.string().optional(),"state":z.string().optional()});
+export type AuthorizeConsentRequest=z.infer<typeof AuthorizeConsentRequestSchema>;
+export const TokenExchangeRequestSchema=z.object({"client_id":z.string().optional(),"client_secret":z.string().optional(),"code":z.string().optional(),"code_verifier":z.string().optional(),"grant_type":z.enum(["authorization_code","refresh_token","client_credentials"]),"nonce":z.string().optional(),"redirect_uri":z.string().optional(),"refresh_token":z.string().optional(),"scope":z.string().optional()});
+export type TokenExchangeRequest=z.infer<typeof TokenExchangeRequestSchema>;

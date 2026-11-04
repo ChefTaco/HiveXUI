@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { createHash, webcrypto } from 'node:crypto';
 import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 import { createBrowserAuth } from './browser-auth';
+import { subscribeIdentityPrompts } from './identity-prompts';
 import { clearAccess } from './transport';
 
 vi.stubGlobal('location', { origin: 'https://console.example.com' });
@@ -12,7 +13,13 @@ describe('browser authorization response binding', () => {
     keys = await generateKeyPair('RS256');
   });
   async function scenario(
-    change: 'none' | 'state' | 'issuer' | 'nonce' | 'access' = 'none',
+    change:
+      | 'none'
+      | 'state'
+      | 'issuer'
+      | 'nonce'
+      | 'access'
+      | 'consent' = 'none',
   ) {
     let nonce = '';
     const access = 'obviously-fake-resource-token';
@@ -29,6 +36,18 @@ describe('browser authorization response binding', () => {
           string
         >;
         if (path.endsWith('/authorize')) {
+          if (change === 'consent' && body.consent !== 'approve')
+            return Response.json(
+              {
+                error: 'CONSENT_REQUIRED',
+                clientName: 'Example',
+                clientDescription: null,
+                audience: 'emberpath',
+                scope: 'openid profile',
+                permissions: ['router:providers:read'],
+              },
+              { status: 403 },
+            );
           nonce = body.nonce!;
           expect(body.codeChallenge).toHaveLength(43);
           expect(body.codeChallengeMethod).toBe('S256');
@@ -80,6 +99,23 @@ describe('browser authorization response binding', () => {
     await expect(auth.ensure('emberpath')).resolves.toBeUndefined();
     clearAccess();
   });
+  it('requires explicit consent and never exchanges a code after a decline', async () => {
+    const cancel = subscribeIdentityPrompts((prompt) => {
+      if (prompt?.kind === 'consent') prompt.resolve(false);
+    });
+    await expect(
+      (await scenario('consent')).ensure('emberpath'),
+    ).rejects.toThrow('not approved');
+    cancel();
+    const approve = subscribeIdentityPrompts((prompt) => {
+      if (prompt?.kind === 'consent') prompt.resolve(true);
+    });
+    await expect(
+      (await scenario('consent')).ensure('emberpath'),
+    ).resolves.toBeUndefined();
+    approve();
+    clearAccess();
+  });
   it('rejects state, issuer, nonce and access-token substitution', async () => {
     for (const change of ['state', 'issuer', 'nonce', 'access'] as const) {
       const auth = await scenario(change);
@@ -90,17 +126,15 @@ describe('browser authorization response binding', () => {
 });
 
 it('reports password expiry without requesting tokens or treating it as a session', async () => {
-  const request = vi
-    .fn<typeof fetch>()
-    .mockResolvedValue(
-      Response.json(
-        {
-          passwordExpired: true,
-          message: 'Your password has expired and must be changed',
-        },
-        { status: 403 },
-      ),
-    );
+  const request = vi.fn<typeof fetch>().mockResolvedValue(
+    Response.json(
+      {
+        passwordExpired: true,
+        message: 'Your password has expired and must be changed',
+      },
+      { status: 403 },
+    ),
+  );
   const auth = createBrowserAuth(
     {
       issuer: 'https://identity.example.com',

@@ -58,3 +58,24 @@ describe('public console runtime configuration', () => {
     ).toBe(false);
   });
 });
+
+it('requires explicit standalone legacy mode and a client for every suite product', () => {
+  expect(runtimeSchema.safeParse({ schema: 1, products: {} }).success).toBe(
+    false,
+  );
+  expect(
+    runtimeSchema.safeParse({ schema: 1, mode: 'legacy', products: {} })
+      .success,
+  ).toBe(true);
+  expect(
+    runtimeSchema.safeParse({
+      schema: 1,
+      products: { emberpath: '/api/emberpath' },
+      identity: {
+        issuer: 'https://identity.example.com',
+        apiPrefix: '/api/oathweave',
+        clients: {},
+      },
+    }).success,
+  ).toBe(false);
+});

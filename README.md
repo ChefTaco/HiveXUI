@@ -49,6 +49,10 @@ credentials, infrastructure keys or passwords in it. Access tokens live only in
 memory; replacement credentials use the server-owned SSO cookie. Chat exchanges a
 resource credential for a short native cookie and uses that cookie for attachments
 and WebSockets. Nothing puts credentials in URLs or browser storage.
+Bearer-authorized API requests omit browser cookies. Shared ingress must also
+strip Oathweave's SSO and refresh cookies from other products and reject those
+products' attempts to set identity cookies; this also covers native WebSocket and
+attachment requests that necessarily include cookies.
 
 Contracts are browser-safe files owned by this checkout. They do not import a
 sibling backend. Their provenance records the original public source revision.
@@ -56,9 +60,9 @@ A released contract publication/drift pipeline remains part of migration work.
 
 The security module ports the existing investigation pages and approval controls;
 the chat module includes channels, DMs, threads, files, search, message editing,
-reactions and realtime refresh. These are candidate ports. Complete administration,
-passkey/consent/recovery/step-up, memory and Skills parity and live integration
-acceptance are still required. Keep existing native frontends and clients available.
+reactions and realtime refresh. These are candidate ports. Authentication controls include passkeys, consent, recovery, step-up and MFA.
+Complete administration, memory and Skills parity and live integration acceptance
+are still required. Keep existing native frontends and clients available.
 Synthetic browser renders do not establish backend authorization or workflow parity.
 
 
@@ -66,3 +70,11 @@ Set optional public runtime `links.magnus` to the existing Magnus HTTPS console
 origin to expose its separate fleet navigation link. Credentials, query parameters
 and fragments are rejected. Magnus keeps its own authentication and UI until its
 later integration; no infrastructure credential is shared through navigation.
+
+Suite runtime requires an Oathweave identity configuration and a public client for
+each configured product. A missing runtime file or missing identity fails before
+sign-in. Explicit `mode: "legacy"` is reserved for standalone recovery against
+the retained native console API; suite installations never select it implicitly.
+Account security uses the released, vendored Oathweave contract, with generated
+browser-only Zod exports checked by `npm run check:contracts`. Recovery codes and
+MFA setup material stay in memory and disappear when dismissed or on navigation.

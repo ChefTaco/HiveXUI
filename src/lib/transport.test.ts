@@ -1,13 +1,32 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   clearAccess,
+  setStepUpProvider,
+  setAccessProvider,
   configureEndpoint,
   createApiFetch,
   rememberAccess,
 } from './transport';
 
-afterEach(clearAccess);
+afterEach(() => {
+  clearAccess();
+  setAccessProvider(undefined);
+});
 describe('product API transport', () => {
+  it('omits identity cookies on bearer-authorized product requests', async () => {
+    configureEndpoint('emberpath', '/api/emberpath');
+    setAccessProvider(async () => {});
+    rememberAccess(
+      'emberpath',
+      'obviously-fake-resource-token',
+      Date.now() + 60000,
+    );
+    const request = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(Response.json({ ok: true }));
+    await createApiFetch(request)('/api/providers', { credentials: 'include' });
+    expect(request.mock.calls[0]![1]!.credentials).toBe('omit');
+  });
   it('rejects arbitrary and credential-bearing endpoint URLs', () => {
     for (const endpoint of [
       'https://external.example.com/api',
@@ -108,4 +127,28 @@ it('rejects encoded route traversal before acquiring or forwarding credentials',
     );
   }
   expect(request).not.toHaveBeenCalled();
+});
+
+it('step-up never replays a durable operation or consumes an approval twice', async () => {
+  const verify = vi.fn(async () => {});
+  setStepUpProvider(verify);
+  const request = vi
+    .fn<typeof fetch>()
+    .mockImplementation(async () =>
+      Response.json({ error: 'STEP_UP_REQUIRED' }, { status: 403 }),
+    );
+  try {
+    const response = await createApiFetch(request)('/api/providers', {
+      method: 'POST',
+      body: '{}',
+    });
+    expect(request).toHaveBeenCalledOnce();
+    expect(verify).toHaveBeenCalledOnce();
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({
+      error: 'RETRY_AFTER_STEP_UP',
+    });
+  } finally {
+    setStepUpProvider(undefined);
+  }
 });

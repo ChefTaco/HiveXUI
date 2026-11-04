@@ -1,4 +1,7 @@
-import { MemoryWriteSchema, type MemoryWrite } from '@contracts/memory-operations.js';
+import {
+  MemoryWriteSchema,
+  type MemoryWrite,
+} from '@contracts/memory-operations.js';
 import { apiFetch, clearAccess } from './transport';
 import { browserIdentity } from './runtime';
 import { readConsoleHealth } from './suite-health';
@@ -54,7 +57,11 @@ import type {
   UpdateIamSystemUserRequest,
   UpdateIamUserRequest,
 } from './types';
-import type { IamAssignRolesRequest, IamRotatePasswordRequest, JsonRequestBody } from '@contracts/ui-api.generated.js';
+import type {
+  IamAssignRolesRequest,
+  IamRotatePasswordRequest,
+  JsonRequestBody,
+} from '@contracts/ui-api.generated.js';
 
 export class ApiError extends Error {
   status: number;
@@ -71,11 +78,17 @@ interface RequestOptions<TBody extends JsonRequestBody = JsonRequestBody> {
   headers?: Record<string, string> | undefined;
 }
 
-async function request<T, TBody extends JsonRequestBody = JsonRequestBody>(path: string, options: RequestOptions<TBody> = {}): Promise<T> {
+async function request<T, TBody extends JsonRequestBody = JsonRequestBody>(
+  path: string,
+  options: RequestOptions<TBody> = {},
+): Promise<T> {
   const body = options.body !== undefined ? JSON.stringify(options.body) : null;
   const response = await apiFetch(path, {
     method: options.method ?? 'GET',
-    headers: { ...(body ? { 'content-type': 'application/json' } : {}), ...(options.headers ?? {}) },
+    headers: {
+      ...(body ? { 'content-type': 'application/json' } : {}),
+      ...(options.headers ?? {}),
+    },
     credentials: 'include',
     ...(body ? { body } : {}),
   });
@@ -86,7 +99,7 @@ async function request<T, TBody extends JsonRequestBody = JsonRequestBody>(path:
     if (text) {
       try {
         const parsed = JSON.parse(text) as { error?: string; message?: string };
-        message = parsed.error ?? parsed.message ?? text;
+        message = parsed.message ?? parsed.error ?? text;
       } catch {
         message = text;
       }
@@ -167,26 +180,37 @@ async function memoryConsole(): Promise<MemoryConsoleData> {
 export const adminApi = {
   // ---- auth ----
   login(username: string, password: string) {
-    const identity=browserIdentity();
-    if (identity) return identity.login(username,password);
+    const identity = browserIdentity();
+    if (identity) return identity.login(username, password);
     return request<{ ok: boolean; user: AdminUser }>('/api/auth/login', {
       method: 'POST',
       body: { username, password },
     });
   },
   async logout() {
-    const identity=browserIdentity();
-    if (identity) {await identity.logout();return {ok:true};}
+    const identity = browserIdentity();
+    if (identity) {
+      await identity.logout();
+      return { ok: true };
+    }
     try {
-      return await request<{ ok: boolean }>('/api/auth/logout', { method: 'POST' });
+      return await request<{ ok: boolean }>('/api/auth/logout', {
+        method: 'POST',
+      });
     } finally {
       clearAccess();
     }
   },
   me() {
-    const identity=browserIdentity();
+    const identity = browserIdentity();
     if (identity) return identity.me();
     return request<{ user: AdminUser }>('/api/auth/me');
+  },
+
+  resourceMe(product: 'emberpath' | 'oathweave') {
+    return request<{ user: AdminUser }>(
+      product === 'emberpath' ? '/api/auth/me' : '/api/iam/auth/me',
+    );
   },
 
   // ---- hive console ----
@@ -199,13 +223,22 @@ export const adminApi = {
     return request<{ data: HiveActor[] }>('/api/hive/actors');
   },
   createHiveActor(body: HiveActorCreateRequest) {
-    return request<HiveActorLifecycleResponse, HiveActorCreateRequest>('/api/hive/actors', { method: 'POST', body });
+    return request<HiveActorLifecycleResponse, HiveActorCreateRequest>(
+      '/api/hive/actors',
+      { method: 'POST', body },
+    );
   },
   disableHiveActor(id: string, body: HiveActorLifecycleRequest) {
-    return request<HiveActorLifecycleResponse, HiveActorLifecycleRequest>(`/api/hive/actors/${encodeURIComponent(id)}/disable`, { method: 'POST', body });
+    return request<HiveActorLifecycleResponse, HiveActorLifecycleRequest>(
+      `/api/hive/actors/${encodeURIComponent(id)}/disable`,
+      { method: 'POST', body },
+    );
   },
   rotateHiveActor(id: string, body: HiveActorLifecycleRequest) {
-    return request<HiveActorLifecycleResponse, HiveActorLifecycleRequest>(`/api/hive/actors/${encodeURIComponent(id)}/rotate`, { method: 'POST', body });
+    return request<HiveActorLifecycleResponse, HiveActorLifecycleRequest>(
+      `/api/hive/actors/${encodeURIComponent(id)}/rotate`,
+      { method: 'POST', body },
+    );
   },
   hiveIncidents() {
     return request<{ data: HiveIncident[] }>('/api/hive/incidents');
@@ -246,10 +279,15 @@ export const adminApi = {
     );
   },
   createMemory(body: MemoryWrite) {
-    return request<Record<string, unknown>>('/api/memory/memories', { method: 'POST', body: MemoryWriteSchema.parse(body) });
+    return request<Record<string, unknown>>('/api/memory/memories', {
+      method: 'POST',
+      body: MemoryWriteSchema.parse(body),
+    });
   },
   getMemory(id: string) {
-    return request<Record<string, unknown>>(`/api/memory/memories/${encodeURIComponent(id)}`);
+    return request<Record<string, unknown>>(
+      `/api/memory/memories/${encodeURIComponent(id)}`,
+    );
   },
   updateMemory(id: string, body: Record<string, unknown>) {
     return request<Record<string, unknown>>(
@@ -258,10 +296,15 @@ export const adminApi = {
     );
   },
   deleteMemory(id: string) {
-    return request<Record<string, unknown>>(`/api/memory/memories/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    return request<Record<string, unknown>>(
+      `/api/memory/memories/${encodeURIComponent(id)}`,
+      { method: 'DELETE' },
+    );
   },
   memoryGraph(id: string) {
-    return request<Record<string, unknown>>(`/api/memory/memories/${encodeURIComponent(id)}/graph`);
+    return request<Record<string, unknown>>(
+      `/api/memory/memories/${encodeURIComponent(id)}/graph`,
+    );
   },
   memoryQueue(limit = 12) {
     return request<Record<string, unknown>>(
@@ -306,96 +349,169 @@ export const adminApi = {
     return request<Record<string, unknown>>(iamPath('health'));
   },
   iamUsers() {
-    return request<{ users: IamUser[]; total: number; page: number; limit: number }>(iamPath('users?limit=100'));
+    return request<{
+      users: IamUser[];
+      total: number;
+      page: number;
+      limit: number;
+    }>(iamPath('users?limit=100'));
   },
   createIamUser(body: CreateIamUserRequest) {
-    return request<{ user: IamUser }>(iamPath('users'), { method: 'POST', body });
+    return request<{ user: IamUser }>(iamPath('users'), {
+      method: 'POST',
+      body,
+    });
   },
   updateIamUser(id: string, body: UpdateIamUserRequest) {
-    return request<{ user: IamUser }>(iamPath(`users/${id}`), { method: 'PATCH', body });
+    return request<{ user: IamUser }>(iamPath(`users/${id}`), {
+      method: 'PATCH',
+      body,
+    });
   },
   deleteIamUser(id: string) {
-    return request<{ success: boolean }>(iamPath(`users/${id}`), { method: 'DELETE' });
+    return request<{ success: boolean }>(iamPath(`users/${id}`), {
+      method: 'DELETE',
+    });
   },
   assignIamUserRoles(id: string, roleIds: string[]) {
     const body: IamAssignRolesRequest = { roleIds };
-    return request<{ success: boolean }, IamAssignRolesRequest>(iamPath(`users/${id}/roles`), { method: 'POST', body });
+    return request<{ success: boolean }, IamAssignRolesRequest>(
+      iamPath(`users/${id}/roles`),
+      { method: 'POST', body },
+    );
   },
   removeIamUserRole(id: string, roleId: string) {
-    return request<{ success: boolean }>(iamPath(`users/${id}/roles/${roleId}`), { method: 'DELETE' });
+    return request<{ success: boolean }>(
+      iamPath(`users/${id}/roles/${roleId}`),
+      { method: 'DELETE' },
+    );
   },
   lockIamUser(id: string) {
-    return request<{ success: boolean }>(iamPath(`users/${id}/lock`), { method: 'POST' });
+    return request<{ success: boolean }>(iamPath(`users/${id}/lock`), {
+      method: 'POST',
+    });
   },
   unlockIamUser(id: string) {
-    return request<{ success: boolean }>(iamPath(`users/${id}/unlock`), { method: 'POST' });
+    return request<{ success: boolean }>(iamPath(`users/${id}/unlock`), {
+      method: 'POST',
+    });
   },
   rotateIamUserPassword(id: string, password: string) {
     const body: IamRotatePasswordRequest = { password };
-    return request<{ success: boolean }, IamRotatePasswordRequest>(iamPath(`users/${id}/rotate-password`), { method: 'POST', body });
+    return request<{ success: boolean }, IamRotatePasswordRequest>(
+      iamPath(`users/${id}/rotate-password`),
+      { method: 'POST', body },
+    );
   },
   iamRoles() {
     return request<{ roles: IamRole[] }>(iamPath('roles'));
   },
   createIamRole(body: CreateIamRoleRequest) {
-    return request<{ role: IamRole }>(iamPath('roles'), { method: 'POST', body });
+    return request<{ role: IamRole }>(iamPath('roles'), {
+      method: 'POST',
+      body,
+    });
   },
   updateIamRole(id: string, body: UpdateIamRoleRequest) {
-    return request<{ role: IamRole }>(iamPath(`roles/${id}`), { method: 'PATCH', body });
+    return request<{ role: IamRole }>(iamPath(`roles/${id}`), {
+      method: 'PATCH',
+      body,
+    });
   },
   deleteIamRole(id: string) {
-    return request<{ success: boolean }>(iamPath(`roles/${id}`), { method: 'DELETE' });
+    return request<{ success: boolean }>(iamPath(`roles/${id}`), {
+      method: 'DELETE',
+    });
   },
   iamServiceAccounts() {
-    return request<{ serviceAccounts: IamServiceAccount[] }>(iamPath('service-accounts'));
+    return request<{ serviceAccounts: IamServiceAccount[] }>(
+      iamPath('service-accounts'),
+    );
   },
   createIamServiceAccount(body: CreateIamServiceAccountRequest) {
-    return request<{ id: string; apiKey: string; warning: string }>(iamPath('service-accounts'), { method: 'POST', body });
+    return request<{ id: string; apiKey: string; warning: string }>(
+      iamPath('service-accounts'),
+      { method: 'POST', body },
+    );
   },
   updateIamServiceAccount(id: string, body: UpdateIamServiceAccountRequest) {
-    return request<{ serviceAccount: IamServiceAccount }>(iamPath(`service-accounts/${id}`), { method: 'PATCH', body });
+    return request<{ serviceAccount: IamServiceAccount }>(
+      iamPath(`service-accounts/${id}`),
+      { method: 'PATCH', body },
+    );
   },
   deleteIamServiceAccount(id: string) {
-    return request<{ success: boolean }>(iamPath(`service-accounts/${id}`), { method: 'DELETE' });
+    return request<{ success: boolean }>(iamPath(`service-accounts/${id}`), {
+      method: 'DELETE',
+    });
   },
   rotateIamServiceAccount(id: string) {
-    return request<{ apiKey: string; warning: string }>(iamPath(`service-accounts/${id}/rotate`), { method: 'POST' });
+    return request<{ apiKey: string; warning: string }>(
+      iamPath(`service-accounts/${id}/rotate`),
+      { method: 'POST' },
+    );
   },
   iamClients() {
     return request<{ clients: IamClient[] }>(iamPath('clients'));
   },
   createIamClient(body: CreateIamClientRequest) {
-    return request<{ client: IamClient }>(iamPath('clients'), { method: 'POST', body });
+    return request<{ client: IamClient }>(iamPath('clients'), {
+      method: 'POST',
+      body,
+    });
   },
   updateIamClient(id: string, body: UpdateIamClientRequest) {
-    return request<{ client: IamClient }>(iamPath(`clients/${id}`), { method: 'PATCH', body });
+    return request<{ client: IamClient }>(iamPath(`clients/${id}`), {
+      method: 'PATCH',
+      body,
+    });
   },
   deleteIamClient(id: string) {
-    return request<{ success: boolean }>(iamPath(`clients/${id}`), { method: 'DELETE' });
+    return request<{ success: boolean }>(iamPath(`clients/${id}`), {
+      method: 'DELETE',
+    });
   },
   iamSystemUsers() {
     return request<{ systemUsers: IamSystemUser[] }>(iamPath('system-users'));
   },
   createIamSystemUser(body: CreateIamSystemUserRequest) {
-    return request<{ systemUser: IamSystemUser }>(iamPath('system-users'), { method: 'POST', body });
+    return request<{ systemUser: IamSystemUser }>(iamPath('system-users'), {
+      method: 'POST',
+      body,
+    });
   },
   updateIamSystemUser(id: string, body: UpdateIamSystemUserRequest) {
-    return request<{ systemUser: IamSystemUser }>(iamPath(`system-users/${id}`), { method: 'PATCH', body });
+    return request<{ systemUser: IamSystemUser }>(
+      iamPath(`system-users/${id}`),
+      { method: 'PATCH', body },
+    );
   },
   deleteIamSystemUser(id: string) {
-    return request<{ success: boolean }>(iamPath(`system-users/${id}`), { method: 'DELETE' });
+    return request<{ success: boolean }>(iamPath(`system-users/${id}`), {
+      method: 'DELETE',
+    });
   },
   iamSessions() {
     return request<{ sessions: IamSession[] }>(iamPath('sessions'));
   },
   revokeIamSession(id: string) {
-    return request<{ success: boolean }>(iamPath(`sessions/${id}`), { method: 'DELETE' });
+    return request<{ success: boolean }>(iamPath(`sessions/${id}`), {
+      method: 'DELETE',
+    });
   },
   deduplicateIamSessions() {
-    return request<{ success: boolean; revoked: number }>(iamPath('sessions/deduplicate'), { method: 'POST' });
+    return request<{ success: boolean; revoked: number }>(
+      iamPath('sessions/deduplicate'),
+      { method: 'POST' },
+    );
   },
   iamAudit() {
-    return request<{ events: IamAuditEvent[]; total: number; page: number; limit: number }>(iamPath('audit?limit=50'));
+    return request<{
+      events: IamAuditEvent[];
+      total: number;
+      page: number;
+      limit: number;
+    }>(iamPath('audit?limit=50'));
   },
   iamAuditStats() {
     return request<IamAuditStats>(iamPath('audit/stats'));
@@ -404,7 +520,10 @@ export const adminApi = {
     return request<{ policy: IamPasswordPolicy }>(iamPath('password-policy'));
   },
   updateIamPasswordPolicy(body: Partial<IamPasswordPolicy>) {
-    return request<{ policy: IamPasswordPolicy }, Partial<IamPasswordPolicy>>(iamPath('password-policy'), { method: 'PATCH', body });
+    return request<{ policy: IamPasswordPolicy }, Partial<IamPasswordPolicy>>(
+      iamPath('password-policy'),
+      { method: 'PATCH', body },
+    );
   },
 
   // ---- providers ----
@@ -412,22 +531,38 @@ export const adminApi = {
     return request<{ data: Provider[] }>('/api/providers');
   },
   createProvider(body: ProviderWriteRequest) {
-    return request<{ data: Provider }>('/api/providers', { method: 'POST', body });
+    return request<{ data: Provider }>('/api/providers', {
+      method: 'POST',
+      body,
+    });
   },
   updateProvider(id: string, body: ProviderWriteRequest) {
-    return request<{ data: Provider }>(`/api/providers/${id}`, { method: 'PUT', body });
+    return request<{ data: Provider }>(`/api/providers/${id}`, {
+      method: 'PUT',
+      body,
+    });
   },
   deleteProvider(id: string) {
-    return request<{ ok: boolean }>(`/api/providers/${id}`, { method: 'DELETE' });
+    return request<{ ok: boolean }>(`/api/providers/${id}`, {
+      method: 'DELETE',
+    });
   },
   codexOAuthStatus() {
-    return request<{ data: CodexOAuthStatus }>('/api/providers/codex-oauth/status');
+    return request<{ data: CodexOAuthStatus }>(
+      '/api/providers/codex-oauth/status',
+    );
   },
   startCodexOAuth() {
-    return request<{ data: CodexOAuthStart }>('/api/providers/codex-oauth/start', { method: 'POST' });
+    return request<{ data: CodexOAuthStart }>(
+      '/api/providers/codex-oauth/start',
+      { method: 'POST' },
+    );
   },
   checkCodexOAuth(loginId: string) {
-    return request<{ data: CodexOAuthCheck }>('/api/providers/codex-oauth/check', { method: 'POST', body: { loginId } });
+    return request<{ data: CodexOAuthCheck }>(
+      '/api/providers/codex-oauth/check',
+      { method: 'POST', body: { loginId } },
+    );
   },
 
   // ---- model aliases ----
@@ -435,30 +570,54 @@ export const adminApi = {
     return request<{ data: ModelAlias[] }>('/api/model-aliases');
   },
   createAlias(body: ModelAliasWriteRequest) {
-    return request<{ data: ModelAlias }>('/api/model-aliases', { method: 'POST', body });
+    return request<{ data: ModelAlias }>('/api/model-aliases', {
+      method: 'POST',
+      body,
+    });
   },
   updateAlias(id: string, body: ModelAliasWriteRequest) {
-    return request<{ data: ModelAlias }>(`/api/model-aliases/${id}`, { method: 'PUT', body });
+    return request<{ data: ModelAlias }>(`/api/model-aliases/${id}`, {
+      method: 'PUT',
+      body,
+    });
   },
   deleteAlias(id: string) {
-    return request<{ ok: boolean }>(`/api/model-aliases/${id}`, { method: 'DELETE' });
+    return request<{ ok: boolean }>(`/api/model-aliases/${id}`, {
+      method: 'DELETE',
+    });
   },
 
   // ---- route rules ----
   routeRules() {
     return request<{ data: RouteRule[] }>('/api/route-rules');
   },
-  runRoutingTest(body: { category?: string; modelAlias: string; prompt: string; maxResponseChars?: number }) {
-    return request<{ data: RoutingTestResult }>('/api/testing/run', { method: 'POST', body });
+  runRoutingTest(body: {
+    category?: string;
+    modelAlias: string;
+    prompt: string;
+    maxResponseChars?: number;
+  }) {
+    return request<{ data: RoutingTestResult }>('/api/testing/run', {
+      method: 'POST',
+      body,
+    });
   },
   createRouteRule(body: RouteRuleWriteRequest) {
-    return request<{ data: RouteRule }>('/api/route-rules', { method: 'POST', body });
+    return request<{ data: RouteRule }>('/api/route-rules', {
+      method: 'POST',
+      body,
+    });
   },
   updateRouteRule(id: string, body: RouteRuleWriteRequest) {
-    return request<{ data: RouteRule }>(`/api/route-rules/${id}`, { method: 'PUT', body });
+    return request<{ data: RouteRule }>(`/api/route-rules/${id}`, {
+      method: 'PUT',
+      body,
+    });
   },
   deleteRouteRule(id: string) {
-    return request<{ ok: boolean }>(`/api/route-rules/${id}`, { method: 'DELETE' });
+    return request<{ ok: boolean }>(`/api/route-rules/${id}`, {
+      method: 'DELETE',
+    });
   },
 
   // ---- heuristics ----
@@ -466,13 +625,21 @@ export const adminApi = {
     return request<{ data: HeuristicRule[] }>('/api/heuristics');
   },
   createHeuristic(body: HeuristicWriteRequest) {
-    return request<{ data: HeuristicRule }>('/api/heuristics', { method: 'POST', body });
+    return request<{ data: HeuristicRule }>('/api/heuristics', {
+      method: 'POST',
+      body,
+    });
   },
   updateHeuristic(id: string, body: HeuristicWriteRequest) {
-    return request<{ data: HeuristicRule }>(`/api/heuristics/${id}`, { method: 'PUT', body });
+    return request<{ data: HeuristicRule }>(`/api/heuristics/${id}`, {
+      method: 'PUT',
+      body,
+    });
   },
   deleteHeuristic(id: string) {
-    return request<{ ok: boolean }>(`/api/heuristics/${id}`, { method: 'DELETE' });
+    return request<{ ok: boolean }>(`/api/heuristics/${id}`, {
+      method: 'DELETE',
+    });
   },
 
   // ---- client keys ----
@@ -480,16 +647,27 @@ export const adminApi = {
     return request<{ data: ClientKey[] }>('/api/client-keys');
   },
   createClientKey(body: ClientKeyCreateRequest) {
-    return request<{ data: ClientKey & { apiKey: string } }>('/api/client-keys', { method: 'POST', body });
+    return request<{ data: ClientKey & { apiKey: string } }>(
+      '/api/client-keys',
+      { method: 'POST', body },
+    );
   },
   updateClientKey(id: string, body: ClientKeyUpdateRequest) {
-    return request<{ data: ClientKey }>(`/api/client-keys/${id}`, { method: 'PUT', body });
+    return request<{ data: ClientKey }>(`/api/client-keys/${id}`, {
+      method: 'PUT',
+      body,
+    });
   },
   rotateClientKey(id: string) {
-    return request<{ data: ClientKey & { apiKey: string } }>(`/api/client-keys/${id}/rotate`, { method: 'POST' });
+    return request<{ data: ClientKey & { apiKey: string } }>(
+      `/api/client-keys/${id}/rotate`,
+      { method: 'POST' },
+    );
   },
   deleteClientKey(id: string) {
-    return request<{ ok: boolean }>(`/api/client-keys/${id}`, { method: 'DELETE' });
+    return request<{ ok: boolean }>(`/api/client-keys/${id}`, {
+      method: 'DELETE',
+    });
   },
 
   // ---- observability ----
@@ -508,20 +686,30 @@ export const adminApi = {
     return request<{ data: RuntimeSetting[] }>('/api/runtime-settings');
   },
   routingObjective() {
-    return request<{ data: { config: RoutingObjectiveConfig } }>('/api/routing/objective');
+    return request<{ data: { config: RoutingObjectiveConfig } }>(
+      '/api/routing/objective',
+    );
   },
   updateRoutingObjective(body: RoutingObjectiveConfig) {
-    return request<{ data: { config: RoutingObjectiveConfig } }>('/api/routing/objective', { method: 'PUT', body });
+    return request<{ data: { config: RoutingObjectiveConfig } }>(
+      '/api/routing/objective',
+      { method: 'PUT', body },
+    );
   },
   exportConfig() {
     return request<Record<string, unknown>>('/api/config/export');
   },
   importConfig(body: ConfigImportRequest) {
-    return request<{ ok: boolean }>('/api/config/import', { method: 'POST', body });
+    return request<{ ok: boolean }>('/api/config/import', {
+      method: 'POST',
+      body,
+    });
   },
 
   // ---- docs ----
   docsIndex() {
-    return request<{ docs: ApiDoc[]; providers: Provider[] }>('/api/docs/index');
+    return request<{ docs: ApiDoc[]; providers: Provider[] }>(
+      '/api/docs/index',
+    );
   },
 };

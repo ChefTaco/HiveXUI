@@ -1,55 +1,117 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../lib/store';
 import type { ApiDoc } from '../lib/types';
-import { Badge, Button, Drawer, EmptyState, JsonBlock, Panel } from '../components/ui';
+import {
+  Badge,
+  Button,
+  Drawer,
+  EmptyState,
+  JsonBlock,
+  Panel,
+} from '../components/ui';
 import { Icon } from '../components/icons';
+import { browserIdentity } from '../lib/runtime';
+
+const SUITE_RUNBOOKS = [
+  {
+    title: 'Installation health',
+    symptom: 'A configured product is unavailable',
+    action:
+      'Inspect product readiness and the installation inventory. Repair the owning service through its operator workflow.',
+    command: './hive.sh doctor --config installation.json',
+    target: 'hive',
+  },
+  {
+    title: 'Verified backup',
+    symptom: 'Prepare for maintenance or recovery',
+    action:
+      'Create an installation-bound backup and rehearse restoration in isolation before activation.',
+    command: './hive.sh backup --config installation.json',
+    target: 'hive',
+  },
+  {
+    title: 'Recoverable rollback',
+    symptom: 'A release fails readiness or workflow checks',
+    action:
+      'Review the retained release and storage compatibility. Reconcile writes before any data restore.',
+    command: './hive.sh rollback --config installation.json --release VERSION',
+    target: 'hive',
+  },
+  {
+    title: 'Identity recovery',
+    symptom: 'A password is expired or a second factor is unavailable',
+    action:
+      'Use Oathweave password recovery or a saved recovery code. If delivery is unavailable, contact the identity administrator; host login does not bypass product authorization.',
+    command: 'Oathweave sign-in → Forgot password?',
+    target: 'account',
+  },
+  {
+    title: 'External provider unavailable',
+    symptom: 'Model discovery, generation or streaming fails',
+    action:
+      'Inspect the external provider and its protected credential reference. Hive verifies endpoints; the provider operator manages inference services and models.',
+    command: './hive.sh doctor --config installation.json',
+    target: 'providers',
+  },
+] as const;
 
 const RUNBOOKS = [
   {
     title: 'Secret rotation',
     symptom: 'Planned credential change or suspected exposure',
-    action: 'Run a dry-run rotation, review the redacted plan, then apply during a maintenance window.',
+    action:
+      'Run a dry-run rotation, review the redacted plan, then apply during a maintenance window.',
     command: 'npm run rotate:secrets -- --host hive --kind all',
     target: 'settings',
   },
   {
     title: 'Rollback',
     symptom: 'Router deploy fails health or the UI regresses after release',
-    action: 'Roll Router back to the previous retained release, then verify readiness and audit drift.',
+    action:
+      'Roll Router back to the previous retained release, then verify readiness and audit drift.',
     command: 'npm run deploy -- --rollback',
     target: 'routers',
   },
   {
     title: 'Dependency degraded',
-    symptom: 'IAM Redis, Memory Qdrant, provider health, or SQLite checks are degraded',
-    action: 'Open the service page, inspect failing checks, repair the dependency, then restart only the affected service.',
+    symptom:
+      'IAM Redis, Memory Qdrant, provider health, or SQLite checks are degraded',
+    action:
+      'Open the service page, inspect failing checks, repair the dependency, then restart only the affected service.',
     command: 'npm run audit:deployments',
     target: 'hive',
   },
   {
     title: 'Certificate warning',
-    symptom: 'TLS cert is expired, near expiry, or does not match the public FQDN',
-    action: 'Redeploy Router with the expected certificate domain and verify the parsed TLS details.',
+    symptom:
+      'TLS cert is expired, near expiry, or does not match the public FQDN',
+    action:
+      'Redeploy Router with the expected certificate domain and verify the parsed TLS details.',
     command: 'HIVE_ROUTER_CERT_DOMAIN=hive.example.com npm run deploy:router',
     target: 'hive',
   },
   {
     title: 'Memory queue backlog',
     symptom: 'HiveMem queue or worker checks show warn/fail',
-    action: 'Open Memory, inspect queue state, retry or cancel stuck jobs, and check Qdrant before restarting HiveMem.',
+    action:
+      'Open Memory, inspect queue state, retry or cancel stuck jobs, and check Qdrant before restarting HiveMem.',
     command: 'curl --fail https://hive.example.com/v1/health/dependencies',
     target: 'memories',
   },
   {
     title: 'IAM lockout',
-    symptom: 'Operator cannot sign in or sessions are failing step-up/auth checks',
-    action: 'Use OS/PAM break-glass login, inspect IAM sessions/audit, then reset the admin password only if needed.',
+    symptom:
+      'Operator cannot sign in or sessions are failing step-up/auth checks',
+    action:
+      'Use OS/PAM break-glass login, inspect IAM sessions/audit, then reset the admin password only if needed.',
     command: 'IAM_RESET_PASSWORD=<known-password> npm run reset:admin',
     target: 'iam-sessions',
   },
 ] as const;
 
-function methodTone(method?: string): 'teal' | 'sky' | 'amber' | 'coral' | 'muted' {
+function methodTone(
+  method?: string,
+): 'teal' | 'sky' | 'amber' | 'coral' | 'muted' {
   switch ((method ?? '').toUpperCase()) {
     case 'GET':
       return 'sky';
@@ -65,8 +127,13 @@ function methodTone(method?: string): 'teal' | 'sky' | 'amber' | 'coral' | 'mute
   }
 }
 
-export function DocsPage({ onNavigate }: { onNavigate?: (view: string) => void }) {
+export function DocsPage({
+  onNavigate,
+}: {
+  onNavigate?: (view: string) => void;
+}) {
   const { data } = useStore();
+  const runbooks = browserIdentity() ? SUITE_RUNBOOKS : RUNBOOKS;
   const [selected, setSelected] = useState<ApiDoc | null>(null);
 
   const grouped = useMemo(() => {
@@ -89,9 +156,9 @@ export function DocsPage({ onNavigate }: { onNavigate?: (view: string) => void }
         </div>
       </div>
 
-      <Panel title="Operator Runbooks" eyebrow={`${RUNBOOKS.length} repairs`}>
+      <Panel title="Operator Runbooks" eyebrow={`${runbooks.length} workflows`}>
         <div className="runbook-grid">
-          {RUNBOOKS.map((runbook) => (
+          {runbooks.map((runbook) => (
             <article className="runbook-card" key={runbook.title}>
               <div>
                 <h3>{runbook.title}</h3>
@@ -100,7 +167,10 @@ export function DocsPage({ onNavigate }: { onNavigate?: (view: string) => void }
               <p className="runbook-action">{runbook.action}</p>
               <code>{runbook.command}</code>
               {onNavigate ? (
-                <button className="btn btn--ghost btn--sm" onClick={() => onNavigate(runbook.target)}>
+                <button
+                  className="btn btn--ghost btn--sm"
+                  onClick={() => onNavigate(runbook.target)}
+                >
                   Open
                 </button>
               ) : null}
@@ -111,7 +181,10 @@ export function DocsPage({ onNavigate }: { onNavigate?: (view: string) => void }
 
       {data.docs.length === 0 ? (
         <Panel title="Endpoints" eyebrow="0 documented">
-          <EmptyState icon={<Icon.Book width={34} height={34} />} message="No API documentation available." />
+          <EmptyState
+            icon={<Icon.Book width={34} height={34} />}
+            message="No API documentation available."
+          />
         </Panel>
       ) : (
         grouped.map(([scope, docs]) => (
@@ -127,11 +200,19 @@ export function DocsPage({ onNavigate }: { onNavigate?: (view: string) => void }
                 </thead>
                 <tbody>
                   {docs.map((doc, i) => (
-                    <tr key={doc.id ?? `${scope}-${i}`} className="row-clickable" onClick={() => setSelected(doc)}>
+                    <tr
+                      key={doc.id ?? `${scope}-${i}`}
+                      className="row-clickable"
+                      onClick={() => setSelected(doc)}
+                    >
                       <td>
-                        <Badge tone={methodTone(doc.method)}>{doc.method ?? '—'}</Badge>
+                        <Badge tone={methodTone(doc.method)}>
+                          {doc.method ?? '—'}
+                        </Badge>
                       </td>
-                      <td className="cell-mono">{doc.path ?? doc.title ?? '—'}</td>
+                      <td className="cell-mono">
+                        {doc.path ?? doc.title ?? '—'}
+                      </td>
                       <td>{doc.summary ?? doc.description ?? '—'}</td>
                     </tr>
                   ))}
@@ -155,7 +236,11 @@ export function DocsPage({ onNavigate }: { onNavigate?: (view: string) => void }
       >
         {selected ? (
           <>
-            {selected.description ? <p style={{ color: 'var(--text)', lineHeight: 1.6 }}>{selected.description}</p> : null}
+            {selected.description ? (
+              <p style={{ color: 'var(--text)', lineHeight: 1.6 }}>
+                {selected.description}
+              </p>
+            ) : null}
             <p className="panel-eyebrow" style={{ marginTop: 18 }}>
               Definition
             </p>
