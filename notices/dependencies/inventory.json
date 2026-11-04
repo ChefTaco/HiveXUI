@@ -1,0 +1,93 @@
+[
+  {
+    "name": "@fontsource/dm-sans",
+    "version": "5.3.0",
+    "license": "OFL-1.1",
+    "file": "fontsource-dm-sans.LICENSE",
+    "sha256": "6fbd040a29c2037a765dfb9f2561e9965b5c95c6dcb5dce516089d63d5f17af7"
+  },
+  {
+    "name": "@fontsource/ibm-plex-mono",
+    "version": "5.3.0",
+    "license": "OFL-1.1",
+    "file": "fontsource-ibm-plex-mono.LICENSE",
+    "sha256": "23b0a9d0c6d3f140a0b77e483c5cfa6bba574325ef5cb189ed9f2fec4884533f"
+  },
+  {
+    "name": "@fontsource/space-grotesk",
+    "version": "5.3.0",
+    "license": "OFL-1.1",
+    "file": "fontsource-space-grotesk.LICENSE",
+    "sha256": "18a4de52385f6b988782639d5d0cc1326e5a8c2de9a7f01d7b20d9aedcc60943"
+  },
+  {
+    "name": "clsx",
+    "version": "2.1.0",
+    "license": "MIT",
+    "file": "clsx.LICENSE",
+    "sha256": "9a9edad7baae52622bddf3c15b2ef8a33d2c89f2d25408ad13e8a7481c6b0c97"
+  },
+  {
+    "name": "jose",
+    "version": "6.2.3",
+    "license": "MIT",
+    "file": "jose.LICENSE",
+    "sha256": "8078b0829d6c3e9ecde2f003e1966e4cad3efc6e7a640efbab0313cc166b1af1"
+  },
+  {
+    "name": "lucide-react",
+    "version": "1.64.0",
+    "license": "ISC",
+    "file": "lucide-react.LICENSE",
+    "sha256": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57"
+  },
+  {
+    "name": "react",
+    "version": "19.3.1",
+    "license": "MIT",
+    "file": "react.LICENSE",
+    "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93"
+  },
+  {
+    "name": "react-dom",
+    "version": "19.3.1",
+    "license": "MIT",
+    "file": "react-dom.LICENSE",
+    "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93"
+  },
+  {
+    "name": "scheduler",
+    "version": "0.28.0",
+    "license": "MIT",
+    "file": "scheduler.LICENSE",
+    "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93"
+  },
+  {
+    "name": "tailwind-merge",
+    "version": "3.7.0",
+    "license": "MIT",
+    "file": "tailwind-merge.LICENSE",
+    "sha256": "d4c70c7ce38cea8778f0aed3fc0bef0a9dbd27f13bd8b6773cbd6d37941971e5"
+  },
+  {
+    "name": "tailwindcss",
+    "version": "4.3.3",
+    "license": "MIT",
+    "file": "tailwindcss.LICENSE",
+    "sha256": "60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985"
+  },
+  {
+    "name": "vite",
+    "version": "7.3.7",
+    "license": "MIT",
+    "file": "vite.LICENSE",
+    "sha256": "a77a1c089806b39ad339535bdf3677f636c91d96693e8ad7b11fe733f650ea64"
+  },
+  {
+    "name": "zod",
+    "version": "4.6.7",
+    "license": "MIT",
+    "file": "zod.LICENSE",
+    "sha256": "3f1189b28e3866e0d979968d466b78f813f76827cfdca1fbb124cc0a5c8841f8"
+  }
+]

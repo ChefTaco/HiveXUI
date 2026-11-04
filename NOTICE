@@ -1,0 +1,20 @@
+Hive
+Copyright 2026 ChefTaco and contributors
+
+This product includes software developed by ChefTaco and contributors
+(https://github.com/ChefTaco/hive).
+
+Security console components and contracts are derived from Cindertrace:
+https://github.com/ChefTaco/cindertrace
+Cindertrace, Copyright contributors.
+Includes Security Fusion code derived from Magnus, Copyright Magnus contributors.
+
+Browser-safe chat contract declarations are derived from ChatterMost:
+https://github.com/ChefTaco/ChatterMost
+ChatterMost, Copyright ChatterMost contributors.
+An independent Mattermost-compatible project; no affiliation or certification is implied.
+
+Original source-project notices are retained in notices/. References there to
+source-project fonts and container inventories describe their original distributions.
+HiveXUI's own browser dependency licenses and version inventory are collected during
+its build and included under /licenses in the static distribution.

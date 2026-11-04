@@ -1,0 +1,133 @@
+{
+  "schema": 1,
+  "repository": "https://github.com/ChefTaco/hive",
+  "revision": "78fb6cced1aade79b4c55160754f4d6466bf8891",
+  "source": "services/hive-router/ui",
+  "files": [
+    {
+      "path": "index.html",
+      "sha256": "81f992c8eeb1c51c6dca58f8daf4d388603bb10a74f2453efa4480a1691562ce"
+    },
+    {
+      "path": "src/app.tsx",
+      "sha256": "30cd39f99ec312a016b9b2ee1193c5ff198e38ee4c1beb2b966ab000e8b59cb1"
+    },
+    {
+      "path": "src/components/icons.tsx",
+      "sha256": "93aed73788ccef122771d497756d0a12623d5aad667007790b1583ff3cba1857"
+    },
+    {
+      "path": "src/components/toast.tsx",
+      "sha256": "c30cb9d4bffc346222cc62355b74e598358bb88fdb2b2e94f1ca37cc8d6cd4df"
+    },
+    {
+      "path": "src/components/ui.tsx",
+      "sha256": "831493f6136770cee4a97d65e0964d9061e303de94a1a765c1d19e00c7f006b3"
+    },
+    {
+      "path": "src/components/upgrades.tsx",
+      "sha256": "eb67ed2a43ab74d752f088c16bb7257812b6ae0de044c7b29fb479ece2df2e79"
+    },
+    {
+      "path": "src/lib/api.ts",
+      "sha256": "5f3856d5c8bcc553c817bd256c5f21e2228f9abfdf09ff1ff0bc52722996c68b"
+    },
+    {
+      "path": "src/lib/constants.ts",
+      "sha256": "b64df7eb7ae5d1f63f99e6f2fbb3579a25eec867896c470b55de2547a48b98dc"
+    },
+    {
+      "path": "src/lib/format.ts",
+      "sha256": "6538675fd03340a61c06bf00676ee0389ffb6c9b8834219ba664bef235bbb25c"
+    },
+    {
+      "path": "src/lib/permissions.ts",
+      "sha256": "9187ebab4b712bb9e9ca958c5e6e833b1ada0bede4f467d4df6e7d2a66e41b18"
+    },
+    {
+      "path": "src/lib/store.tsx",
+      "sha256": "30e0b07324439b2c952296bc5c2a11291e70e5ff2c0b67cab21989a6f21b754a"
+    },
+    {
+      "path": "src/lib/types.ts",
+      "sha256": "ce50420068a8c7e43dd8861687c10865b2b655c64fb8425f3f79432ee178f29a"
+    },
+    {
+      "path": "src/main.tsx",
+      "sha256": "ecd0070e5a0a3a73be33e45987d9808024269f56cac7c9a5813b75814e2526f5"
+    },
+    {
+      "path": "src/pages/actors.tsx",
+      "sha256": "89adc53cf80efe77918879da4a851fc6888f06f1002c8f510e516df212275e88"
+    },
+    {
+      "path": "src/pages/audit.tsx",
+      "sha256": "db1e1080f2b498a2d2c97cb26f3d7c67970aad83ee909d0408b02d29ac449d75"
+    },
+    {
+      "path": "src/pages/docs.tsx",
+      "sha256": "ed7afa1ff96376d4bcd4a89eef570cb2b5c2237262e04d4890d45223b9ca739f"
+    },
+    {
+      "path": "src/pages/hive-apps.tsx",
+      "sha256": "1b253493dc095f5007666803213c56b5600f33f9fa20a0772a0117c0e0d0a247"
+    },
+    {
+      "path": "src/pages/iam-operations.tsx",
+      "sha256": "4a14d402f0d0dcb2d4c4255acaacd240a49d4ab2f9720320202ebee801edeb10"
+    },
+    {
+      "path": "src/pages/incidents.tsx",
+      "sha256": "32ecb6417c55b66e08e38a9935dea07edcabd6c8d3b27ab860f13f4e20d92daa"
+    },
+    {
+      "path": "src/pages/keys.tsx",
+      "sha256": "cf0cedb965d589016b4d87f1eea1dc54eff90097ed0d347b77cdb0c20ba1fc42"
+    },
+    {
+      "path": "src/pages/memory-dashboard.tsx",
+      "sha256": "5726291c950f1465931cca1366ba118cc122ee6dcd35ee7d294e2e973f7971e9"
+    },
+    {
+      "path": "src/pages/overview.tsx",
+      "sha256": "73b3314d5b4966f8ff99f63b8fdd2e56361f8ef6bb4751cd793a2ab8ce3e32fb"
+    },
+    {
+      "path": "src/pages/providers.tsx",
+      "sha256": "cab22caa883f1045507ebd65497efa4c740b3103860c5c3108a8afda274072c8"
+    },
+    {
+      "path": "src/pages/routers.tsx",
+      "sha256": "fd82d98555789e8321d6a16459f063e7e71bd76945420250a6d25853b7289964"
+    },
+    {
+      "path": "src/pages/routing.tsx",
+      "sha256": "2ff63eda87ac6097689276788230c943550c66fd7fa039fbc0fb5f5a254eeba3"
+    },
+    {
+      "path": "src/pages/settings.tsx",
+      "sha256": "a77deb4b437972021cbed685ee8d74b85787adb9ae65e2e0718db0eadeb20e80"
+    },
+    {
+      "path": "src/pages/testing.tsx",
+      "sha256": "61b73a55f7055770a3f2ca742f8e5fda2dc4197efd1850f070911b20b5e21887"
+    },
+    {
+      "path": "src/pages/traces.tsx",
+      "sha256": "c7f7d1e8c2aed398d48e73705becd91be28a80b0b66c59af7a75cd1271fd7594"
+    },
+    {
+      "path": "src/styles/app.css",
+      "sha256": "41414b9f8b90f0544caf8dcc53fc88e7b5c8f59405cb00d83065f72488b651ee"
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "cc17e28817e0772b5a626a78cc906dc1cdc1545306bcafa4b6638bce0800e964"
+    },
+    {
+      "path": "vite.config.ts",
+      "sha256": "3f9b169a82c74c25383919620395b8d5cb4c1019888503e66be0c701e4feaa59"
+    }
+  ],
+  "note": "Source snapshot checksums before product-specific changes. No private history or untracked files included."
+}

@@ -1,0 +1,40 @@
+{
+  "name": "@hivemagnus/hivexui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && vite build",
+    "test": "vitest run",
+    "scan:secrets": "bash scripts/scan-secrets.sh",
+    "check:private": "bash scripts/check-private-data.sh",
+    "postbuild": "node scripts/collect-browser-licenses.mjs"
+  },
+  "dependencies": {
+    "@fontsource/dm-sans": "5.3.0",
+    "@fontsource/ibm-plex-mono": "5.3.0",
+    "@fontsource/space-grotesk": "5.3.0",
+    "clsx": "2.1.0",
+    "jose": "6.2.3",
+    "lucide-react": "1.64.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwind-merge": "3.7.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.1.1",
+    "tailwindcss": "4.3.3",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.2",
+    "vitest": "^5.0.5"
+  }
+}

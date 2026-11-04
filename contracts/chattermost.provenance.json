@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/ChefTaco/ChatterMost",
+  "revision": "bab016695d493dcc094b82e0a498fac74bba9f7c",
+  "source": "src/shared/mattermost.ts",
+  "sha256": "3b8ef6fdff356845d241e42251e77e325bd0869ac4f4b3f2bd1fcaf85ae759ba"
+}
