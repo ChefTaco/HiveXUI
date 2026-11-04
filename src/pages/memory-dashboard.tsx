@@ -157,6 +157,7 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
     if (created) {
       setNewContent('');
       await refresh();
+      if (searched) await runSearch();
       if (generation === detailGeneration.current) await openMemory(created);
     }
   }
@@ -170,6 +171,7 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
     if (updated && generation === detailGeneration.current) {
       setSelected(updated);
       await refresh();
+      if (searched) await runSearch(offset);
     }
   }
 
@@ -185,6 +187,7 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
       setGraph(null);
       setConflicts(null);
       await refresh();
+      if (searched) await runSearch(Math.max(0, results.length === 1 ? offset - 25 : offset));
     }
   }
 

@@ -5,6 +5,8 @@
 - Add workspace creation, policy/membership editing, archive/restore, resolved policy
   and consolidation scheduling through owned HiveMem contracts. Use resource scopes
   for memory writes and queue administration, and skip unrelated unauthorized reads.
+- Refresh active memory searches after creation, editing and deletion, retaining
+  the selected workspace and page where possible.
 
 Add lazy Skills catalogue/administration, immutable archive releases, channels,
 assignment enrollment, receipts and audit from the owned Skills API contract.
