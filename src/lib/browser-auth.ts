@@ -26,9 +26,14 @@ export function createBrowserAuth(
   config: BrowserIdentityConfig,
   request: typeof fetch = fetch,
 ) {
+  const issuerUrl = new URL(config.issuer);
   if (
     !/^\/api\/[a-z][a-z0-9-]*$/.test(config.apiPrefix) ||
-    new URL(config.issuer).protocol !== 'https:'
+    issuerUrl.protocol !== 'https:' ||
+    issuerUrl.username ||
+    issuerUrl.password ||
+    issuerUrl.search ||
+    issuerUrl.hash
   )
     throw new Error('Invalid identity configuration');
   const pending = new Map<Product, Promise<void>>();

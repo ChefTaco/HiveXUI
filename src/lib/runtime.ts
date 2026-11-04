@@ -21,7 +21,16 @@ export const runtimeSchema = z
     products: z.partialRecord(product, prefix),
     identity: z
       .object({
-        issuer: z.url().refine((value) => new URL(value).protocol === 'https:'),
+        issuer: z.url().refine((value) => {
+          const url = new URL(value);
+          return (
+            url.protocol === 'https:' &&
+            !url.username &&
+            !url.password &&
+            !url.search &&
+            !url.hash
+          );
+        }),
         apiPrefix: prefix,
         clients: z.partialRecord(
           product,

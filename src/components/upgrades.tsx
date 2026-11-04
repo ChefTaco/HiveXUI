@@ -1,3 +1,4 @@
+import { browserIdentity } from '../lib/runtime';
 import { apiFetch } from '../lib/transport';
 import { useEffect, useState } from 'react';
 import { Button, Panel } from './ui';
@@ -39,6 +40,28 @@ async function api(path: string, body?: unknown): Promise<unknown> {
   return value;
 }
 export function UpgradesPanel({ canUpgrade }: { canUpgrade: boolean }) {
+  if (browserIdentity())
+    return (
+      <Panel title="Hive lifecycle" eyebrow="Installation controller">
+        <p>
+          Suite upgrades run through the installation controller. This console
+          is awaiting a configured Magnus job adapter.
+        </p>
+        <p>Prepare an installation plan on the control host:</p>
+        <pre>
+          <code>
+            ./hive.sh plan --config installation.json --release VERSION
+          </code>
+        </pre>
+        <p>
+          Activation requires a tested signed release, a verified backup and the
+          installation's recovery workflow.
+        </p>
+      </Panel>
+    );
+  return <LegacyUpgradesPanel canUpgrade={canUpgrade} />;
+}
+function LegacyUpgradesPanel({ canUpgrade }: { canUpgrade: boolean }) {
   const [notice, setNotice] = useState<Notice | null>(null),
     [plan, setPlan] = useState<Plan | null>(null),
     [result, setResult] = useState(''),
@@ -96,7 +119,9 @@ export function UpgradesPanel({ canUpgrade }: { canUpgrade: boolean }) {
     setBusy(true);
     try {
       await api('/api/hive/upgrades/apply', { planHash: plan.hash });
-      setResult('Upgrade started. The console will reconnect after the services restart.');
+      setResult(
+        'Upgrade started. The console will reconnect after the services restart.',
+      );
       setPlan(null);
     } catch (e) {
       failure(e, 'Could not apply upgrade');
@@ -110,9 +135,15 @@ export function UpgradesPanel({ canUpgrade }: { canUpgrade: boolean }) {
         busy: boolean;
         result: { state?: string; error?: string };
       };
-      setResult(value.result.error || value.result.state || (value.busy ? 'running' : 'idle'));
+      setResult(
+        value.result.error ||
+          value.result.state ||
+          (value.busy ? 'running' : 'idle'),
+      );
     } catch {
-      setResult('Services are restarting or the coordinator is unavailable. Try again shortly.');
+      setResult(
+        'Services are restarting or the coordinator is unavailable. Try again shortly.',
+      );
     }
   }
   return (
@@ -124,8 +155,8 @@ export function UpgradesPanel({ canUpgrade }: { canUpgrade: boolean }) {
       </p>
       {notice && !notice.enabled && (
         <p>
-          Automatic update checks are disabled. Run <code>hive upgrade --dry-run</code> to check
-          manually.
+          Automatic update checks are disabled. Run{' '}
+          <code>hive upgrade --dry-run</code> to check manually.
         </p>
       )}
       {notice?.summary && <p>{notice.summary}</p>}
@@ -148,13 +179,19 @@ export function UpgradesPanel({ canUpgrade }: { canUpgrade: boolean }) {
               onChange={(event) => setPassword(event.target.value)}
             />
           </label>
-          <Button disabled={busy || !password} onClick={() => void reauthenticate()}>
+          <Button
+            disabled={busy || !password}
+            onClick={() => void reauthenticate()}
+          >
             Confirm authentication
           </Button>
         </div>
       )}
       {notice?.newRequiredEnv?.length ? (
-        <p>Required settings: {notice.newRequiredEnv.map((e) => e.name).join(', ')}</p>
+        <p>
+          Required settings:{' '}
+          {notice.newRequiredEnv.map((e) => e.name).join(', ')}
+        </p>
       ) : null}
       {notice?.migrations?.some((m) => m.impact !== 'fast') && (
         <p>
@@ -164,19 +201,23 @@ export function UpgradesPanel({ canUpgrade }: { canUpgrade: boolean }) {
       )}
       {notice?.available && !notice.canApply && (
         <p>
-          Run <code>hive upgrade --to {notice.available}</code> locally. Enroll the installation and
-          enable UI upgrades to apply here.
+          Run <code>hive upgrade --to {notice.available}</code> locally. Enroll
+          the installation and enable UI upgrades to apply here.
         </p>
       )}
-      {notice?.available && canUpgrade && notice.canApply && !needsAuthentication && (
-        <Button disabled={busy} onClick={() => void prepare()}>
-          Review upgrade
-        </Button>
-      )}
+      {notice?.available &&
+        canUpgrade &&
+        notice.canApply &&
+        !needsAuthentication && (
+          <Button disabled={busy} onClick={() => void prepare()}>
+            Review upgrade
+          </Button>
+        )}
       {plan && (
         <div>
           <p>
-            Upgrade to {plan.target.version}. Services pause while data is backed up and checked.
+            Upgrade to {plan.target.version}. Services pause while data is
+            backed up and checked.
           </p>
           <ul>
             {Object.entries(plan.packages).map(([name, versions]) => (
@@ -186,19 +227,30 @@ export function UpgradesPanel({ canUpgrade }: { canUpgrade: boolean }) {
             ))}
           </ul>
           {plan.changes.newRequiredEnv.length > 0 && (
-            <p>Required settings: {plan.changes.newRequiredEnv.map((e) => e.name).join(', ')}</p>
+            <p>
+              Required settings:{' '}
+              {plan.changes.newRequiredEnv.map((e) => e.name).join(', ')}
+            </p>
           )}
           {plan.changes.removedEnv.length > 0 && (
-            <p>Removed settings: {plan.changes.removedEnv.map((e) => e.name).join(', ')}</p>
+            <p>
+              Removed settings:{' '}
+              {plan.changes.removedEnv.map((e) => e.name).join(', ')}
+            </p>
           )}
           {plan.changes.migrations.length > 0 && (
             <p>
               Migration impact:{' '}
-              {[...new Set(plan.changes.migrations.map((m) => m.impact))].join(', ')}
+              {[...new Set(plan.changes.migrations.map((m) => m.impact))].join(
+                ', ',
+              )}
             </p>
           )}
           {plan.attention.length > 0 && (
-            <p>This release requires explicit approval: {plan.attention.join(', ')}.</p>
+            <p>
+              This release requires explicit approval:{' '}
+              {plan.attention.join(', ')}.
+            </p>
           )}
           <Button disabled={busy} onClick={() => void apply()}>
             Confirm upgrade to {plan.target.version}
