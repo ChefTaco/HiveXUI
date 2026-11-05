@@ -178,7 +178,11 @@ export function StoreProvider({
       for (let index = 0; index < keys.length; index++) {
         const key = keys[index]!;
         const result = settled[index]!;
-        if (result.status === 'fulfilled') values.set(key, result.value);
+        if (result.status === 'fulfilled') {
+          values.set(key, result.value);
+          if (key === 'incidents' && result.value && typeof result.value === 'object' && 'issues' in result.value && Array.isArray(result.value.issues))
+            issues.push(...result.value.issues.filter((issue): issue is string => typeof issue === 'string'));
+        }
         else {
           if (
             result.reason instanceof ApiError &&

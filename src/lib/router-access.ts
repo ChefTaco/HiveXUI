@@ -7,6 +7,7 @@ const permissions: Record<string, string> = {
   heuristics: 'router:routing:read',
   clientKeys: 'router:keys:read',
   telemetry: 'router:admin:read',
+  incidents: 'router:admin:read',
   traces: 'router:admin:read',
   audit: 'router:admin:read',
   runtimeSettings: 'router:settings:read',

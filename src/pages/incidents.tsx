@@ -13,7 +13,8 @@ function severityTone(severity: HiveIncident['severity']): 'amber' | 'teal' | 'c
 }
 
 export function IncidentsPage() {
-  const { data, refresh, refreshing } = useStore();
+  const { data, refresh, refreshing, loadIssues } = useStore();
+  const unavailable = loadIssues.filter(issue => issue.includes('failure summary unavailable'));
   const [selected, setSelected] = useState<HiveIncident | null>(null);
   const open = data.incidents.filter((incident) => incident.status === 'open').length;
   const critical = data.incidents.filter((incident) => incident.severity === 'critical').length;
@@ -24,12 +25,14 @@ export function IncidentsPage() {
       <div className="page-head">
         <div>
           <h2>Incidents</h2>
-          <p>Router traces and IAM audit records grouped by request ID and failure window.</p>
+          <p>Authorized model, identity and memory failures grouped by request ID and time. Review and response stay in the owning product.</p>
         </div>
         <Button variant="ghost" icon={<Icon.Refresh className="btn-ico" />} loading={refreshing} onClick={() => void refresh()}>
           Refresh
         </Button>
       </div>
+
+      {unavailable.length > 0 && <p role="status">Some failure summaries are unavailable: {unavailable.join(' · ')}.</p>}
 
       <div className="grid grid--4">
         <StatCard label="Open" value={open} sub="needs attention" accent={open ? 'coral' : 'teal'} emphasize />
@@ -40,7 +43,7 @@ export function IncidentsPage() {
 
       <Panel title="Timeline" eyebrow={`${data.incidents.length} groups`}>
         {data.incidents.length === 0 ? (
-          <EmptyState icon={<Icon.Activity width={34} height={34} />} message="No recent incidents found." />
+          <EmptyState icon={<Icon.Activity width={34} height={34} />} message="No recent failures in the data available to this identity." />
         ) : (
           <div className="timeline-list">
             {data.incidents.map((incident) => (

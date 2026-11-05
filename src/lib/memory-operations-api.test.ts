@@ -78,3 +78,15 @@ it("archives a session using its empty native response and validates webhook tes
   ).rejects.toThrow();
   expect(send).toHaveBeenCalledTimes(1);
 });
+it("preserves owned URL and array limits in generated browser request validators", async () => {
+  const send = setup({});
+  await expect(api.createWebhook({
+    workspace_id: "default", url: "invalid-url", event_types: ["memory.created"],
+    enabled: true, headers: {}, metadata: {},
+  })).rejects.toThrow();
+  expect(() => api.consolidate({
+    workspace_id: "default", memory_ids: Array.from({ length: 257 }, (_, index) => `synthetic-${index}`),
+    strategy: "compatibility", operation_id: "synthetic-operation",
+  })).toThrow();
+  expect(send).not.toHaveBeenCalled();
+});

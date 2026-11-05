@@ -13,6 +13,13 @@ import {
   GraphNodeSchema,
   GraphEdgeSchema,
   MemoryOperationSchema,
+  MemoryRecordSchema,
+  MemoryQueueStatusSchema,
+  MemoryQueueJobSchema,
+  SessionContextRequestSchema,
+  SessionContextResultSchema,
+  SessionChatRequestSchema,
+  SessionChatResultSchema,
   ConsolidationRequestSchema,
   ConflictResolveSchema,
   type SessionCreate,
@@ -55,19 +62,19 @@ export const memoryOperations = {
   },
   sessionMemories: async (value: string) =>
     z
-      .array(MemoryOperationSchema)
+      .array(MemoryRecordSchema)
       .parse(await memoryRequest("/sessions/" + id(value) + "/memories")),
-  sessionContext: (value: string, workspace: string, text: string) =>
-    object("/sessions/" + id(value) + "/context", "POST", {
+  sessionContext: async (value: string, workspace: string, text: string) =>
+    SessionContextResultSchema.parse(await memoryRequest("/sessions/" + id(value) + "/context", "POST", SessionContextRequestSchema.parse({
       workspace_id: workspace,
       search_query: text,
-    }),
-  sessionChat: (value: string, workspace: string, text: string) =>
-    object("/sessions/" + id(value) + "/chat", "POST", {
+    }))),
+  sessionChat: async (value: string, workspace: string, text: string) =>
+    SessionChatResultSchema.parse(await memoryRequest("/sessions/" + id(value) + "/chat", "POST", SessionChatRequestSchema.parse({
       workspace_id: workspace,
       query: text,
       stream: false,
-    }),
+    }))),
   webhooks: async (workspace: string) =>
     z
       .array(WebhookSchema)
@@ -166,8 +173,8 @@ export const memoryOperations = {
       "POST",
       ConsolidationRequestSchema.parse(body),
     ),
-  queue: (workspace: string, offset: number, status: string) =>
-    object(
+  queue: async (workspace: string, offset: number, status: string) =>
+    MemoryQueueStatusSchema.parse(await memoryRequest(
       "/queue/status?" +
         query({
           workspace_id: workspace,
@@ -175,20 +182,20 @@ export const memoryOperations = {
           limit: 25,
           ...(status ? { status } : {}),
         }),
-    ),
-  job: (value: string) => object("/queue/jobs/" + id(value)),
-  runJob: (value: string) =>
-    object("/queue/jobs/" + id(value) + "/run", "POST", {}),
-  retryJob: (value: string) =>
-    object("/queue/jobs/" + id(value) + "/retry", "POST", {}),
-  cancelJob: (value: string) => object("/queue/jobs/" + id(value), "DELETE"),
-  runNext: (workspace: string) =>
-    object("/queue/run-next?" + query({ workspace_id: workspace }), "POST", {}),
-  operation: (value: string, workspace: string) =>
-    object(
+    )),
+  job: async (value: string) => MemoryQueueJobSchema.parse(await memoryRequest("/queue/jobs/" + id(value))),
+  runJob: async (value: string) =>
+    MemoryQueueJobSchema.parse(await memoryRequest("/queue/jobs/" + id(value) + "/run", "POST", {})),
+  retryJob: async (value: string) =>
+    MemoryQueueJobSchema.parse(await memoryRequest("/queue/jobs/" + id(value) + "/retry", "POST", {})),
+  cancelJob: async (value: string) => MemoryQueueJobSchema.parse(await memoryRequest("/queue/jobs/" + id(value), "DELETE")),
+  runNext: async (workspace: string) =>
+    MemoryQueueJobSchema.parse(await memoryRequest("/queue/run-next?" + query({ workspace_id: workspace }), "POST", {})),
+  operation: async (value: string, workspace: string) =>
+    MemoryQueueJobSchema.parse(await memoryRequest(
       "/queue/operations/" +
         id(value) +
         "?" +
         query({ workspace_id: workspace }),
-    ),
+    )),
 };

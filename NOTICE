@@ -22,3 +22,13 @@ its build and included under /licenses in the static distribution.
 Browser-safe model administration contracts are derived from Emberpath:
 https://github.com/ChefTaco/Emberpath
 Original Apache-2.0 license and source notice are retained in notices/.
+
+Browser-safe memory API contracts are derived from HiveMem:
+https://github.com/ChefTaco/HiveMem
+Original Apache-2.0 license and source notice are retained in notices/.
+
+Browser-safe identity contracts are derived from Oathweave:
+https://github.com/ChefTaco/Oathweave
+Browser-safe registry contracts are derived from HiveSkills:
+https://github.com/ChefTaco/HiveSkills
+Original Apache-2.0 licenses and source notices are retained in notices/.

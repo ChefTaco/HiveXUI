@@ -42,12 +42,12 @@ function serviceTarget(app: HiveAppStatus): string {
 
 function guidanceFor(app: HiveAppStatus, check: HiveHealthCheck): string {
   const text = `${check.name} ${check.message ?? ''}`.toLowerCase();
-  if (text.includes('redis')) return 'Check redis-server on the IAM host, then restart hive-iam.service after Redis is healthy.';
-  if (text.includes('qdrant')) return 'Check Qdrant reachability and HiveMem Qdrant env before restarting hivemem.service.';
-  if (text.includes('tls') || text.includes('cert')) return 'Renew the TLS certificate through the Router deploy and confirm TLS_CERT_PATH.';
+  if (text.includes('redis')) return 'Use Hive doctor to check the owning product and its private datastore readiness.';
+  if (text.includes('qdrant')) return 'Use Hive doctor to check HiveMem datastore reachability and its configured trust.';
+  if (text.includes('tls') || text.includes('cert')) return 'Review the console and backend certificates, then run Hive doctor before activation.';
   if (text.includes('provider')) return 'Open Providers, refresh health, and disable or deprioritize failing upstreams.';
   if (text.includes('queue')) return 'Open Memory and inspect queue depth, worker state, and stuck jobs.';
-  if (text.includes('auth') || text.includes('iam')) return 'Open IAM status and verify the Router IAM proxy client secret and IAM readiness.';
+  if (text.includes('auth') || text.includes('iam')) return 'Open Identity and access to review Oathweave readiness and product authorization.';
   return `Open ${app.name} details and inspect ${check.name}.`;
 }
 

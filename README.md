@@ -75,12 +75,20 @@ Suite runtime requires an Oathweave identity configuration and a public client f
 each configured product. A missing runtime file or missing identity fails before
 sign-in. Explicit `mode: "legacy"` is reserved for standalone recovery against
 the retained native console API; suite installations never select it implicitly.
-Account security uses the released, vendored Oathweave contract, with generated
-browser-only Zod exports checked by `npm run check:contracts`. Recovery codes and
+Identity administration, account security and enrollment use a reviewed immutable
+Oathweave browser export. Skills uses the equivalent owning-product export. These
+standalone Zod modules are pinned by version and checksum, preserve native request
+refinements, and import only Zod. `npm run check:contracts` checks the reviewed
+artifacts; each producer separately checks source/export drift. These local
+candidate contracts remain unpublished pending independent product releases. Recovery codes and
 MFA setup material stay in memory and disappear when dismissed or on navigation.
 
-Workspace administration uses the released HiveMem OpenAPI snapshot in `contracts/`.
-`npm run check:contracts` checks generated browser contracts for drift. Memory writes,
+Memory and workspace administration use the reviewed immutable HiveMem OpenAPI
+artifact in `contracts/`, pinned by source revision and checksum with license and
+notice attribution. `npm run check:contracts` checks provenance and generated
+browser validators for drift, including URL and array limits. Memory browsing sends
+the native `offset` query parameter. Every dashboard response is validated before
+browser aggregation. Memory writes,
 queue administration and workspace ownership are checked independently; the owning
 API enforces them when console controls are bypassed. Archived workspace IDs remain
 reserved, and restoration preserves existing ownership, membership and stored memories.
@@ -131,8 +139,10 @@ clear on section changes, page hiding, timeout or explicit clearing. If a token
 response is lost, acknowledge the committed receipt before explicitly rotating a
 replacement and updating the owning agent's protected configuration.
 
-Provider and model-alias writes use Emberpath's reviewed browser-safe contract
-export. `check:contracts` verifies its exact source checksum, public provenance,
+Models, routing policies and revisions, inference tests and previews, client-key
+management and quota usage, telemetry and traces, audit, settings, API docs and
+Codex authorization use Emberpath's reviewed browser-safe request and response
+contract export. `check:contracts` verifies its exact source checksum, public provenance,
 product version and immutable source revision. Request types and runtime
 validation come from that vendored artifact, including the distinct model
 read-to-write conversion. The original Apache license and notice are retained in

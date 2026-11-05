@@ -4,7 +4,17 @@ const bytes = readFileSync(
   new URL('../contracts/hivemem.openapi.json', import.meta.url),
 );
 const spec = JSON.parse(bytes);
+const provenance = JSON.parse(readFileSync(new URL('../contracts/hivemem.provenance.json', import.meta.url), 'utf8'));
+if (provenance.schema !== 1 || provenance.product !== 'hivemem' || provenance.contractVersion !== 1 ||
+    provenance.repository !== 'https://github.com/ChefTaco/HiveMem' || provenance.source !== 'docs/openapi.json' ||
+    !/^[a-f0-9]{40}$/.test(provenance.revision) || !/^\d+\.\d+\.\d+(?:[-+][a-zA-Z0-9.-]+)?$/.test(provenance.productVersion) ||
+    provenance.sha256 !== createHash('sha256').update(bytes).digest('hex'))
+  throw Error('HiveMem immutable API contract provenance drift');
 const names = [
+  'MemorySource', 'MemoryWrite', 'MemoryUpdate', 'MemoryRecord', 'MemorySearchRequest', 'MemorySearchResult',
+  'MemorySearchResponse', 'MemoryBrowseResponse', 'MemoryConflictQuery', 'MemoryStats', 'MemoryAgent',
+  'MemoryQueueJobSummary', 'MemoryQueueJob', 'MemoryQueueStatus', 'WorkspaceSettings', 'DreamSchedule',
+  'SessionContextRequest', 'SessionChatRequest', 'SessionContextResult', 'SessionChatResult',
   'MemoryProfile', 'Session', 'SessionCreate', 'SessionUpdate', 'Webhook', 'WebhookWrite', 'WebhookTest', 'WebhookTestResult', 'WebhookDelivery', 'WebhookDeliveries', 'GraphNode', 'GraphEdge', 'Graph', 'MemoryOperation', 'ConflictResolve', 'ConsolidationRequest',
   'Workspace',
   'WorkspaceMember',
@@ -33,6 +43,7 @@ function schema(node) {
     case 'string':
       return (
         'z.string()' +
+        (node.format === 'uri' ? '.url()' : '') +
         (node.minLength !== undefined ? `.min(${node.minLength})` : '') +
         (node.maxLength !== undefined ? `.max(${node.maxLength})` : '') +
         (node.pattern
@@ -52,7 +63,9 @@ function schema(node) {
     case 'null':
       return 'z.null()';
     case 'array':
-      return `z.array(${schema(node.items)})`;
+      return `z.array(${schema(node.items)})` +
+        (node.minItems !== undefined ? `.min(${node.minItems})` : '') +
+        (node.maxItems !== undefined ? `.max(${node.maxItems})` : '');
     case 'object':
       if (!node.properties && node.additionalProperties !== false)
         return `z.record(z.string(),${schema(typeof node.additionalProperties === 'object' ? node.additionalProperties : {})})`;

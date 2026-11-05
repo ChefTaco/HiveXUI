@@ -1,5 +1,18 @@
 # Changelog
 
+- Compute suite incident summaries from independently authorized product APIs,
+  project safe event details and surface unavailable sources; retain investigations
+  in their owning products and update installation-health guidance for the suite.
+
+- Consume immutable HiveMem-owned CRUD, search, queue/worker and session contracts;
+  retain generated URL/array limits and report malformed summary sections. Use
+  native offset pagination so browsing subsequent memory pages advances correctly.
+
+- Validate every Models, Routing, Keys, Traces, Audit and Settings API payload
+  with the immutable Emberpath browser contract, including selection previews,
+  revision recovery, quota history and Codex authorization. Render documented
+  endpoint paths from the native route field.
+
 - Validate complete native version-1 configuration archives and legacy bare
   imports with the owned Emberpath contract, retaining known source metadata.
 - Keep populated navigation count badges readable in both color themes.
@@ -62,3 +75,5 @@ Static TypeScript console extraction with branded themes, resource-scoped in-mem
 Public runtime configuration rejects embedded credentials and unsafe identity URLs. Suite lifecycle controls present the Hive controller workflow while managed job integration remains pending.
 
 - Add account authentication controls, passkey sign-in, explicit consent, step-up and recovery forms using owned Oathweave browser contracts.
+
+- Consume immutable product-owned Oathweave and HiveSkills browser validators for identity administration, authentication, enrollment and complete registry operations. Preserve request refinements and native response compatibility; reject malformed requests before dispatch and malformed response envelopes before use.

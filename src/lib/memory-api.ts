@@ -6,6 +6,8 @@ import {
   WorkspaceCreateSchema,
   WorkspaceUpdateSchema,
   WorkspaceMemberUpdateSchema,
+  WorkspaceSettingsSchema,
+  DreamScheduleSchema,
   type WorkspaceCreate,
   type WorkspaceUpdate,
   type WorkspaceMemberUpdate,
@@ -102,8 +104,8 @@ export const memoryApi = {
         'DELETE',
       ),
     ),
-  settings: (id: string, agentId: string, sessionId: string) =>
-    memoryRequest(
+  settings: async (id: string, agentId: string, sessionId: string) =>
+    WorkspaceSettingsSchema.parse(await memoryRequest(
       '/workspaces/' +
         encodeURIComponent(id) +
         '/settings?' +
@@ -111,11 +113,11 @@ export const memoryApi = {
           ...(agentId ? { agent_id: agentId } : {}),
           ...(sessionId ? { session_id: sessionId } : {}),
         }),
-    ),
-  scheduleDream: (id: string) =>
-    memoryRequest(
+    )),
+  scheduleDream: async (id: string) =>
+    DreamScheduleSchema.parse(await memoryRequest(
       '/workspaces/' + encodeURIComponent(id) + '/schedule-dream',
       'POST',
       {},
-    ),
+    )),
 };

@@ -71,7 +71,7 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
   const [graph, setGraph] = useState<Record<string, unknown> | null>(null);
   const [queue, setQueue] = useState<Record<string, unknown> | null>(null);
   const [conflicts, setConflicts] = useState<Record<string, unknown> | null>(null);
-  const [webhooks, setWebhooks] = useState<Record<string, unknown> | null>(null);
+  const [webhooks, setWebhooks] = useState<Array<Record<string, unknown>> | null>(null);
   const [newContent, setNewContent] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [operationsOpen, setOperationsOpen] = useState(() => new URLSearchParams(location.search).has('memoryTab'));
@@ -304,7 +304,7 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
               {visibleMemories.map((memory, index) => (
                 <button className="stack-item stack-item--button" key={memoryId(memory) || `memory-${index}`} onClick={() => void openMemory(memory)}>
                   <div>
-                    <strong>{text(memory.content, text(memory.summary, 'Untitled memory')).slice(0, 180)}</strong>
+                    <strong>{text(memory.content, 'Untitled memory').slice(0, 180)}</strong>
                     <span className="muted-line">
                       {text(memory.type)} · {text(memory.scope)} · {text(memory.workspace_id, 'default')}
                     </span>
@@ -408,7 +408,7 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
         {data?.sessions.length ? (
           <div className="stack-list stack-list--compact">
             {data.sessions.slice(0, 5).map((session, index) => (
-              <div className="stack-item" key={text(session.session_id, text(session.id, `session-${index}`))}>
+              <div className="stack-item" key={text(session.session_id, `session-${index}`)}>
                 <div>
                   <strong>{text(session.title, text(session.session_id, 'Session'))}</strong>
                   <span className="muted-line">{text(session.workspace_id, 'default')}</span>

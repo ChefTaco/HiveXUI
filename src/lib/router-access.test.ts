@@ -20,4 +20,5 @@ it('limits browser panels to product permissions and excludes retired proxy coor
     allowedRouterResource('actors', { ...user, permissions: ['*'] }, true),
   ).toBe(false);
   expect(allowedRouterResource('actors', null, false)).toBe(true);
+  expect(allowedRouterResource('incidents', { ...user, permissions: ['router:admin:read'] }, true)).toBe(true);
 });

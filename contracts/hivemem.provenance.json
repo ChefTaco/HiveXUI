@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "product": "hivemem",
+  "contractVersion": 1,
+  "productVersion": "1.0.0",
+  "repository": "https://github.com/ChefTaco/HiveMem",
+  "revision": "4d81a2e2bdf58a516b6d8453532ef54753703366",
+  "source": "docs/openapi.json",
+  "sha256": "b1082ff043bbb5ede0558cd9138a9a31db55bfd8330124960e8afa8ee6c7492e",
+  "license": "Apache-2.0"
+}
