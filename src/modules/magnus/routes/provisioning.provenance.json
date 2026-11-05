@@ -1,4 +1,37 @@
 {
   "workPackage": "provisioning",
-  "files": []
+  "files": [
+    {
+      "source": "apps/dashboard/src/app/library/library-client.tsx",
+      "sha256": "03f97ef81e1076a3a1502103eb922d050844f09b544bf8aa344f40bd1deebbb5"
+    },
+    {
+      "source": "apps/dashboard/src/app/library/page.tsx",
+      "sha256": "3ebf4622c4aa631eb649a3ba367dfbdd35a64a53b0b8871fc2a2647f698bc388"
+    },
+    {
+      "source": "apps/dashboard/src/app/roles/page.tsx",
+      "sha256": "4a5d6ecc0c251cb34338d95bb4f43c3cd85d01b2386cc1aa333667d406211af4"
+    },
+    {
+      "source": "apps/dashboard/src/app/roles/roles-client.tsx",
+      "sha256": "90657a8f5fe2c270d6bd6e31641b4e5315f5fa9e204c406ccb88737e46e20bdd"
+    },
+    {
+      "source": "apps/dashboard/src/app/skills/page.tsx",
+      "sha256": "ecff2d83f633170b4ed380b911a46fe928a217d9292e6d69ab2746d0a3bb3dfd"
+    },
+    {
+      "source": "apps/dashboard/src/components/library/library-deploy-modal.tsx",
+      "sha256": "e0a4eb20f9de3ab55375e9d71970c1247b2a81a2993905bf34b5bba228eeb692"
+    },
+    {
+      "source": "apps/dashboard/src/components/library/library-modals.tsx",
+      "sha256": "1967d186b4005ae2eceb844ce85fbc472f14fd2cd1b73dde10c1731f7497e852"
+    },
+    {
+      "source": "apps/dashboard/src/components/roles/role-modal.tsx",
+      "sha256": "84fb1e09348c6b4af4820788122c6f65a928d795509016bc81e49ca0fb4a465c"
+    }
+  ]
 }
