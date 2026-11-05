@@ -1,5 +1,7 @@
 # Changelog
 
+- Add the central Oathweave authorization portal for registered external public clients, reusing sign-in/MFA/consent and enforcing PKCE, bound response/redirect validation, duplicate-request suppression and logout-safe one-use navigation without frontend token exchange.
+
 - Keep the mobile navigation backdrop below its menu so product links remain
   visible and pointer-accessible. Place it in the same stacking context as the
   sidebar and retain the higher backdrop for modal drawers.

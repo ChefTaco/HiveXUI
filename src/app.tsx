@@ -17,6 +17,7 @@ const SuiteOverview = lazy(() => import('./modules/suite'));
 import { ProductAccess } from './components/product-access';
 import { adminApi, ApiError } from './lib/api';
 import { MfaRequired } from './lib/browser-auth';
+import { parsePortalAuthorization } from './lib/authorization-portal';
 import {
   browserIdentity,
   magnusConsoleUrl,
@@ -160,6 +161,10 @@ const NAV_GROUPS: NavGroup[] = [
 ];
 
 export function App() {
+  return location.pathname === '/auth/authorize' ? <AuthorizationPortal /> : <ConsoleApp />;
+}
+
+function ConsoleApp() {
   const [auth, setAuth] = useState<AuthState>('checking');
   const [user, setUser] = useState<AdminUser | null>(null);
 
@@ -217,6 +222,45 @@ export function App() {
   );
 }
 
+function AuthorizationPortal() {
+  const [selection] = useState(() => {
+    try { return { request: parsePortalAuthorization(location.search), error: '' }; }
+    catch { return { request: null, error: 'This authorization request is invalid. Return to the application to start sign-in again.' }; }
+  });
+  const [phase, setPhase] = useState<AuthState>('checking');
+  const [error, setError] = useState(selection.error);
+  const identity = browserIdentity();
+  useEffect(() => {
+    if (!selection.request || !identity) return;
+    let active = true;
+    void identity.me().then(() => { if (active) setPhase('authed'); })
+      .catch(() => { if (active) setPhase('unauthed'); });
+    return () => { active = false; };
+  }, [selection, identity]);
+  useEffect(() => {
+    if (phase !== 'authed' || !selection.request || !identity || error) return;
+    let active = true;
+    void identity.approveAuthorization(selection.request).then(approval => {
+      if (active) approval.redirect(url => location.replace(url));
+    }).catch(caught => {
+      if (active) setError(caught instanceof Error ? caught.message : 'Authorization could not be completed');
+    });
+    return () => { active = false; };
+  }, [phase, selection, identity, error]);
+  if (!error && identity && selection.request && phase === 'unauthed')
+    return <LoginScreen authorization onSuccess={() => setPhase('authed')} />;
+  const message = error || (!identity ? 'Oathweave sign-in is not configured for this console.' : 'Checking your sign-in and application access…');
+  return <><Background /><main className="login-shell"><section className="login-card" aria-labelledby="authorization-title">
+    <HiveSigil className="login-sigil" />
+    <p className="login-eyebrow">Hive:Magnus</p><h1 id="authorization-title">Oathweave sign-in</h1>
+    <p className="login-sub">Continue securely to your application.</p>
+    <p role={error || !identity ? 'alert' : 'status'}>{message}</p>
+    {!error && identity && selection.request && <button className="btn" onClick={() => {
+      identity.invalidate(); setError('Authorization cancelled. Return to the application to start again.');
+    }}>Cancel authorization</button>}
+  </section></main></>;
+}
+
 function Background() {
   return (
     <>
@@ -229,7 +273,7 @@ function Background() {
 
 /* ===================== Login ===================== */
 
-function LoginScreen({ onSuccess }: { onSuccess: (user: AdminUser) => void }) {
+function LoginScreen({ onSuccess, authorization = false }: { onSuccess: (user: AdminUser) => void; authorization?: boolean }) {
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
   const [challenge, setChallenge] = useState<MfaRequired | null>(null);
@@ -322,9 +366,9 @@ function LoginScreen({ onSuccess }: { onSuccess: (user: AdminUser) => void }) {
         <form className="login-card" onSubmit={submit}>
           <HiveSigil className="login-sigil" />
           <p className="login-eyebrow">Hive:Magnus</p>
-          <h1>Control Plane Console</h1>
+          <h1>{authorization ? 'Oathweave sign-in' : 'Control Plane Console'}</h1>
           <p className="login-sub">
-            Authenticate to manage identity, memory, and routing.
+            {authorization ? 'Sign in to continue to your application.' : 'Authenticate to manage identity, memory, and routing.'}
           </p>
 
           {error ? (

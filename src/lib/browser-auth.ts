@@ -2,6 +2,7 @@ import { createRemoteJWKSet, customFetch, jwtVerify } from 'jose';
 import { clearAccess, rememberAccess, type Product } from './transport';
 import type { AdminUser } from './types';
 import { z } from 'zod';
+import { authorizationRedirect, validatePortalAuthorization, type PortalAuthorizationRequest } from './authorization-portal';
 import {
   cancelIdentityPrompts,
   requestConsent,
@@ -72,6 +73,9 @@ export function createBrowserAuth(
   const expiry = new Map<Product, number>();
   const declined = new Set<Product>();
   let generation = 0;
+  // Retain settled results, including declines, until session invalidation. React
+  // effect replay and concurrent callers must never mint a second code.
+  const portalApprovals = new Map<string, Promise<{ redirect: (navigate: (url: string) => void) => void }>>();
   const keys = createRemoteJWKSet(
     new URL(config.apiPrefix + '/oauth/jwks', location.origin),
     {
@@ -214,6 +218,40 @@ export function createBrowserAuth(
     rememberAccess(product, token.access_token, expiresAt);
     expiry.set(product, expiresAt);
   }
+  function approveAuthorization(input: PortalAuthorizationRequest) {
+    const parameters = validatePortalAuthorization(input);
+    const key = JSON.stringify(parameters);
+    const existing = portalApprovals.get(key);
+    if (existing) return existing;
+    const started = generation;
+    const current = () => {
+      if (started !== generation) throw new Error('Sign-in session ended; start authorization again');
+    };
+    const approval = (async () => {
+      let response: unknown;
+      try {
+        response = await json('/oauth/authorize', parameters);
+      } catch (error) {
+        current();
+        if (!(error instanceof IdentityApiError) || error.data.error !== 'CONSENT_REQUIRED') throw error;
+        const accepted = await requestConsent(consentDetails.parse(error.data));
+        current();
+        if (!accepted) throw new Error('Access was not approved. Return to the application to start again.');
+        response = await json('/oauth/authorize', { ...parameters, consent: 'approve' });
+      }
+      current();
+      const url = authorizationRedirect(parameters, response, config.issuer);
+      let redirected = false;
+      return { redirect(navigate: (value: string) => void) {
+        current();
+        if (redirected) return;
+        redirected = true;
+        navigate(url);
+      } };
+    })();
+    portalApprovals.set(key, approval);
+    return approval;
+  }
   async function ensure(product: Product) {
     if (declined.has(product))
       throw new Error(
@@ -320,6 +358,7 @@ export function createBrowserAuth(
   }
   function invalidate() {
     generation++;
+    portalApprovals.clear();
     clearAccess();
     expiry.clear();
     pending.clear();
@@ -336,6 +375,7 @@ export function createBrowserAuth(
   }
   return {
     ensure,
+    approveAuthorization,
     retryConsent: () => declined.clear(),
     me,
     login,

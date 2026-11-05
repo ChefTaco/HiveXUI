@@ -147,3 +147,14 @@ product version and immutable source revision. Request types and runtime
 validation come from that vendored artifact, including the distinct model
 read-to-write conversion. The original Apache license and notice are retained in
 `notices/`; frontend code never imports a sibling backend implementation.
+
+The central `/auth/authorize` portal accepts standard Code with S256 PKCE
+requests for explicitly registered Oathweave public clients. It reuses sign-in,
+MFA and consent, validates state/nonce and the configured issuer, and returns
+only the backend-issued code to the exact registered HTTPS callback. The
+requesting application's backend retains its verifier and performs token exchange.
+Unknown or repeated parameters, unsafe callbacks and declined access remain local
+errors; the portal does not redirect errors to unvalidated targets. Authorization
+requests and one-use continuations live only in memory and are invalidated on
+logout or session invalidation. Existing suite sign-in and console deep links
+retain their original behavior.
