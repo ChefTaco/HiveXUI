@@ -12,7 +12,7 @@
     "scan:secrets": "bash scripts/scan-secrets.sh",
     "check:private": "bash scripts/check-private-data.sh",
     "postbuild": "node scripts/collect-browser-licenses.mjs",
-    "check:contracts": "node scripts/check-owned-identity-skills.mjs && node scripts/generate-memory-client.mjs --check && node scripts/check-chat-contracts.mjs && node scripts/check-emberpath-contracts.mjs && node scripts/check-security-contracts.mjs && node scripts/check-magnus-contracts.mjs",
+    "check:contracts": "node scripts/check-owned-identity-skills.mjs && node scripts/generate-memory-client.mjs --check && node scripts/check-chat-contracts.mjs && node scripts/check-emberpath-contracts.mjs && node scripts/check-security-contracts.mjs && node scripts/check-magnus-contracts.mjs && node scripts/check-registry-contracts.mjs",
     "contracts:magnus:import": "node scripts/import-magnus-contracts.mjs",
     "magnus:provenance": "node scripts/record-magnus-provenance.mjs"
   },
