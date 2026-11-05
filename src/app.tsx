@@ -10,6 +10,7 @@ import {
 } from 'react';
 const SecurityModule = lazy(() => import('./modules/security'));
 const MagnusModule = lazy(() => import('./modules/magnus'));
+const ChatInviteRedemption = lazy(() => import('./modules/chat/invite-redemption'));
 const ChatModule = lazy(() => import('./modules/chat'));
 const SkillsModule = lazy(() => import('./modules/skills'));
 const WorkspacesModule = lazy(() => import('./modules/workspaces'));
@@ -72,7 +73,10 @@ const IAM_VIEW_SECTIONS: Record<IamViewKey, IamSection> = {
 };
 
 export function App() {
-  return location.pathname === '/auth/authorize' ? <AuthorizationPortal /> : <ConsoleApp />;
+  if (location.pathname === '/auth/authorize') return <AuthorizationPortal />;
+  // Public: the person redeeming an invite has no identity to sign in with.
+  if (location.pathname === '/signup') return <Suspense fallback={<Background />}><ChatInviteRedemption /></Suspense>;
+  return <ConsoleApp />;
 }
 
 function ConsoleApp() {
@@ -431,6 +435,9 @@ function LoginScreen({ onSuccess, authorization = false }: { onSuccess: (user: A
                 </button>
               )}
             </div>
+          )}
+          {!authorization && productEnabled('chattermost') && mode === 'sign-in' && !challenge && (
+            <a className="btn btn--ghost" href="/signup">Have a chat invite?</a>
           )}
         </form>
       </div>

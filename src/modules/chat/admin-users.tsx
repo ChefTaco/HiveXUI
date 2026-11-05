@@ -5,6 +5,7 @@ import type {
   ChatCleanup,
 } from "../../../contracts/chattermost-admin.generated";
 import { adminAPI } from "./admin-api";
+import { inviteLink } from "./invite";
 import type { AdminControls } from "./admin";
 const text = (data: FormData, name: string) =>
   String(data.get(name) ?? "").trim();
@@ -68,7 +69,7 @@ export function UsersAdministration({
       `Create an invite valid for ${body.expires_in_hours} hours with ${role.includes("system_admin") ? "administrator" : "member"} access?`,
       async () => {
         const result = await adminAPI.createInvite(body);
-        reveal("One-use invitation code", result.code);
+        reveal("One-use invitation link", inviteLink(location.origin, result.code));
         await load();
       },
     );
@@ -301,6 +302,11 @@ export function UsersAdministration({
       ) : null}
       <section className="chat-admin-block">
         <h4>One-use invitations</h4>
+        <p>
+          An invite creates a chat account for Mattermost-compatible apps. Using
+          chat in this console also needs an Oathweave account and a reviewed
+          account link in the chat service configuration.
+        </p>
         <form onSubmit={invite}>
           <div className="chat-admin-grid">
             <label className="field">
