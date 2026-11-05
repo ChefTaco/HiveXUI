@@ -89,8 +89,15 @@ describe('navigation model', () => {
 
   it('shows the Magnus section only with Magnus installed', () => {
     const shown = layout(only('magnus'));
-    expect(Object.keys(shown)).toEqual(['Hive', 'Magnus', 'System']);
-    expect(new Set(shown.Magnus)).toEqual(new Set(['magnus']));
+    const labels = Object.keys(shown);
+    expect(labels[0]).toBe('Hive');
+    expect(labels.at(-1)).toBe('System');
+    // The port adds Magnus sections; only those may appear between Hive and System.
+    expect(labels.slice(1, -1).length).toBeGreaterThan(0);
+    for (const label of labels.slice(1, -1)) {
+      expect(label).toMatch(/^Magnus/);
+      expect(new Set(shown[label])).toEqual(new Set(['magnus']));
+    }
     expect(shown.System).toEqual(['docs', 'settings']);
     const magnus = visibleNavGroups(only('magnus')).find((group) => group.label === 'Magnus')!;
     expect(magnus.items.map((item) => item.path)).toEqual(expect.arrayContaining(['/mission-control', '/', '/nodes']));
