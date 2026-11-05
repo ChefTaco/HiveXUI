@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "product": "chattermost-browser-admin",
+  "version": 1,
+  "repository": "https://github.com/ChefTaco/ChatterMost",
+  "revision": "d6b6a03646da7d9ce2a9edf33c293f75e59c61d7",
+  "source": "src/shared/browser-admin.ts",
+  "sha256": "7e014df3e0e666b9d58c4fa11d3214daa40e66ed744d764ab692f85d6f11b54d"
+}

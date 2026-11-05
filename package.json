@@ -12,7 +12,7 @@
     "scan:secrets": "bash scripts/scan-secrets.sh",
     "check:private": "bash scripts/check-private-data.sh",
     "postbuild": "node scripts/collect-browser-licenses.mjs",
-    "check:contracts": "node scripts/generate-skills-client.mjs --check && node scripts/generate-identity-client.mjs --check && node scripts/generate-memory-client.mjs --check"
+    "check:contracts": "node scripts/generate-skills-client.mjs --check && node scripts/generate-identity-client.mjs --check && node scripts/generate-memory-client.mjs --check && node scripts/check-chat-contracts.mjs"
   },
   "dependencies": {
     "@fontsource/dm-sans": "5.3.0",

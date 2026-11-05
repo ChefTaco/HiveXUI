@@ -1,0 +1,37 @@
+// Public browser contracts. No persistence records, authentication secrets or
+// server implementation belongs in these exports.
+import { z } from 'zod';
+const json = z.record(z.string(), z.unknown());
+const id = z.string().min(1);
+export const browserAdminContractVersion = 1;
+export const botOperationIdSchema = z.string().regex(/^[a-z0-9]{26}$/u);
+export const chatAdminCapabilitiesSchema = z.object({ schema: z.literal(1), bot_operation_ids: z.literal('caller-bound-v1') });
+export const chatAdminUserSchema = z.object({ id, username: z.string(), email: z.string(), nickname: z.string(), first_name: z.string(), last_name: z.string(), position: z.string(), roles: z.string(), delete_at: z.number(), is_bot: z.boolean(), locale: z.string() });
+export type ChatAdminUser = z.infer<typeof chatAdminUserSchema>;
+export const chatInviteSchema = z.object({ id, code_preview: z.string(), max_uses: z.number(), uses: z.number(), expires_at: z.number(), role: z.string(), team_ids: z.array(z.string()), channel_ids: z.array(z.string()), disabled_at: z.number() });
+export const chatInviteCreatedSchema = z.object({ invite: chatInviteSchema, code: z.string() });
+export const chatBotSchema = z.object({ id, user_id: id, username: z.string(), display_name: z.string(), description: z.string(), create_at: z.number(), update_at: z.number(), token_configured: z.boolean() });
+export const chatBotOperationSchema = z.object({ operation_id: botOperationIdSchema, status: z.enum(['accepted', 'published']), action: z.string(), target_id: z.string().nullable(), create_at: z.number(), published_at: z.number() });
+export const chatBotMutationSchema = z.object({ operation_id: botOperationIdSchema, token: z.string().optional(), bot: z.object({ id, user_id: id, display_name: z.string(), update_at: z.number() }) });
+export const chatHermesHealthSchema = z.object({ token_configured: z.boolean(), bot_count: z.number(), websocket_connections: z.number(), last_bot_post_at: z.number(), bot_users: z.array(z.object({ id, username: z.string(), display_name: z.string(), delete_at: z.number() })), recent_agent_events: z.array(z.object({ id, create_at: z.number(), action: z.string(), state: z.string(), channel_id: z.string().nullable(), post_id: z.string().nullable() })) });
+export const chatCustomEmojiSchema = z.object({ id, name: z.string(), emoji: z.string(), creator_id: z.string(), create_at: z.number(), update_at: z.number(), delete_at: z.number() });
+export const chatSupervisionModes = ['disabled', 'audit_only', 'pre_moderation', 'post_moderation'] as const;
+export const chatSupervisionPolicySchema = z.object({ id, mode: z.enum(chatSupervisionModes), blockedTerms: z.array(z.string()), channelRestrictions: json, userRestrictions: json, agentRestrictions: json, fileRestrictions: json, createAt: z.number(), updateAt: z.number() });
+export const chatSupervisionEventSchema = z.object({ id, createAt: z.number(), actorUserId: z.string().nullable(), postId: z.string().nullable(), channelId: z.string().nullable(), agentUserId: z.string().nullable(), action: z.string(), state: z.string(), metadata: json });
+export const chatAgentSchema = z.object({ id, createAt: z.number(), updateAt: z.number(), name: z.string(), username: z.string(), userId: z.string().nullable(), permissions: json, channelRouting: json, userAllowlists: json, memoryPolicy: json, verified: z.boolean() });
+export const chatSimulationSchema = z.object({ allowed: z.boolean(), input: json, explanation: z.string(), affected_user_ids: z.array(z.string()), visible_channel_ids: z.array(z.string()) });
+export const chatCleanupSchema = z.object({ dry_run: z.boolean(), matched_user_count: z.number().optional(), matched_channel_count: z.number().optional(), cleaned_user_count: z.number().optional(), cleaned_channel_count: z.number().optional(), users: z.array(z.object({ id, username: z.string(), create_at: z.number() })).optional(), channels: z.array(z.object({ id, name: z.string(), display_name: z.string(), type: z.string(), create_at: z.number() })).optional() }).loose();
+export const chatPrivacyKeys = ['EnableTelemetry', 'EnableDiagnostics', 'EnableSecurityAlerts', 'ShowEmailAddress', 'ShowFullName', 'EnableFileAttachments', 'EnablePublicFileLinks', 'EnableCustomEmoji', 'EnableBotAccountCreation'] as const;
+export const chatPrivacySchema = z.object(Object.fromEntries(chatPrivacyKeys.map(key => [key, z.boolean()])) as Record<(typeof chatPrivacyKeys)[number], z.ZodBoolean>);
+export const chatConfigurationSchema = z.object({ PrivacySettings: chatPrivacySchema });
+export type ChatInvite = z.infer<typeof chatInviteSchema>;
+export type ChatBot = z.infer<typeof chatBotSchema>;
+export type ChatBotOperation = z.infer<typeof chatBotOperationSchema>;
+export type ChatHermesHealth = z.infer<typeof chatHermesHealthSchema>;
+export type ChatCustomEmoji = z.infer<typeof chatCustomEmojiSchema>;
+export type ChatSupervisionPolicy = z.infer<typeof chatSupervisionPolicySchema>;
+export type ChatSupervisionEvent = z.infer<typeof chatSupervisionEventSchema>;
+export type ChatAgent = z.infer<typeof chatAgentSchema>;
+export type ChatSimulation = z.infer<typeof chatSimulationSchema>;
+export type ChatCleanup = z.infer<typeof chatCleanupSchema>;
+export type ChatPrivacy = z.infer<typeof chatPrivacySchema>;

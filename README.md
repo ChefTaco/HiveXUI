@@ -111,3 +111,22 @@ Deep links use `?view=memories&memoryTab=sessions&workspace=default` (also `webh
 reopen permitted records. Disabled operations explain the missing product permission.
 Legacy frontends remain available until restored-data and authenticated browser parity
 checks pass. These workflows do not certify a production migration or enable cutover.
+
+Chat administration is available to the effective ChatterMost system administrator
+through **Open administration**. Task sections cover native users, invitations,
+password/session recovery, reviewed test cleanup, privacy, custom emoji,
+supervision decisions and history, agent policy registrations/simulation, Hermes
+health and bot credentials. Administrative APIs enforce authorization independently.
+The policy simulator displays the product's preview; it does not certify an agent's
+actual authority. Existing native Chat clients and the recovery web console remain.
+
+Deep links add `chatAdmin=users`, `system`, `supervision`, `agents` or `hermes` to
+`?view=chat`. Bot credential changes require the released caller-bound receipt
+capability. Create only refuses existing usernames; identity edits preserve tokens.
+A non-secret, administrator-bound operation ID is saved in session storage before
+a mutation. Interrupted requests are reconciled through a read-only receipt and
+are never automatically repeated. A missing receipt holds further credential
+changes for review. Revealed bot tokens and invitation codes stay in memory and
+clear on section changes, page hiding, timeout or explicit clearing. If a token
+response is lost, acknowledge the committed receipt before explicitly rotating a
+replacement and updating the owning agent's protected configuration.
