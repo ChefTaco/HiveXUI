@@ -1,8 +1,6 @@
 /* =====================================================================
-   HIVE ROUTER — ADMIN PLANE
-   Sibling aesthetic to HiveMem "Intelligence Monitor".
-   Amber/gold primary · teal/sky/violet/coral accents · honeycomb field.
-   Typography: Chakra Petch (display) + Share Tech Mono (mono).
+   HIVEXUI — SHARED CONSOLE COMPONENTS
+   Ecosystem themes and brand typography are supplied by ecosystem.css.
    ===================================================================== */
 
 :root {
@@ -1978,7 +1976,20 @@ tbody tr:hover {
 /* ===== RESPONSIVE ===== */
 .menu-toggle {
   display: none;
+  flex: 0 0 44px;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
 }
+.menu-toggle svg { width: 20px; height: 20px; }
+.menu-toggle:hover { background: var(--surface-hover); }
+.menu-toggle:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
 @media (max-width: 920px) {
   .app-shell {
     grid-template-columns: 1fr;

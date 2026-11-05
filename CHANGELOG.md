@@ -1,5 +1,8 @@
 # Changelog
 
+- Give mobile navigation an explicit themed surface, a comfortable target and a
+  visible keyboard focus indicator in both themes.
+
 - Give investigation and evidence controls explicit theme backgrounds so enabled
   security actions retain readable contrast in dark mode. Adapt warning text to
   each theme and make scrolling event and collector records reachable by keyboard.
