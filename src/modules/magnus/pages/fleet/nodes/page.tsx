@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, AlertTriangle, Loader2, Pencil, Plus, Power, RefreshCcwDot, RefreshCw, Server, ShieldCheck, Trash2 } from 'lucide-react';
+import { AlertCircle, AlertTriangle, ArrowUpCircle, Loader2, Pencil, Plus, Power, RefreshCcwDot, RefreshCw, Server, ShieldCheck, Trash2 } from 'lucide-react';
 import { deleteNodeResponseSchema, systemUpdatesSummaryResponseSchema, tailscaleSummaryResponseSchema } from '@contracts/magnus/browser';
 import { Badge, Button, ConfirmDialog, EmptyState, IconButton, PageHeader, StatusDot, statusTone, TableFrame } from '@ui';
 import { relativeTime } from '@lib/format';
@@ -9,11 +9,12 @@ import { magnus, segment } from '../../../api/client';
 import { errorMessage } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
 import { FxMeter, FxPanel, PageItem } from '../../../effects';
-import Link from '../../../navigation';
+import Link, { useRouter, useSearchParams } from '../../../navigation';
 import { hasRoute } from '../../../routes';
 import { ADMIN_ONLY, useMagnusSession, WRITE_ROLES } from '../../../session';
 import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { TailscaleExpiryAlert } from '../shared/tailscale-alert';
+import { AgentUpgradeDrawer } from './agent-upgrade';
 import { AssignRoleDrawer, EditNodeDrawer, RegisterNodeDrawer } from './node-actions';
 import { diskSeverity, listAllNodes, nodeError, readNodeHealth, worstPersistentDisk, type NodeHealth, type NodeRow } from './nodes-api';
 
@@ -45,6 +46,17 @@ export default function NodesPage() {
     void readNodeHealth(rows, controller.signal).then(setHealth, () => {});
     return () => controller.abort();
   }, [rows]);
+  const router = useRouter();
+  // The update banner links here with ?upgrade=agents. Closing clears it, so the same link opens it again.
+  const upgradeLinked = useSearchParams().get('upgrade') === 'agents';
+  const [upgradeOpen, setUpgradeOpen] = useState(upgradeLinked);
+  useEffect(() => {
+    if (upgradeLinked) setUpgradeOpen(true);
+  }, [upgradeLinked]);
+  const closeUpgrade = () => {
+    setUpgradeOpen(false);
+    if (upgradeLinked) router.replace('/nodes');
+  };
   const [registerOpen, setRegisterOpen] = useState(false);
   const [editing, setEditing] = useState<NodeRow | null>(null);
   const [assigning, setAssigning] = useState<NodeRow | null>(null);
@@ -90,6 +102,7 @@ export default function NodesPage() {
           actions={
             <>
               <Button size="sm" icon={<RefreshCw className="size-4" />} loading={nodes.refreshing} onClick={refreshAll}>Refresh</Button>
+              <Button size="sm" icon={<ArrowUpCircle className="size-4" />} onClick={() => setUpgradeOpen(true)}>Upgrade agents</Button>
               {canWrite ? <Button size="sm" icon={<Plus className="size-4" />} onClick={() => setRegisterOpen(true)}>Register node</Button> : null}
             </>
           }
@@ -159,6 +172,7 @@ export default function NodesPage() {
           )}
         </FxPanel>
       </PageItem>
+      <AgentUpgradeDrawer open={upgradeOpen} onClose={closeUpgrade} onFinished={refreshAll} />
       <RegisterNodeDrawer open={registerOpen} onClose={() => setRegisterOpen(false)} onRegistered={refreshAll} />
       <EditNodeDrawer node={editing} onClose={() => setEditing(null)} onSaved={refreshAll} />
       <AssignRoleDrawer node={assigning} onClose={() => setAssigning(null)} onSaved={refreshAll} />

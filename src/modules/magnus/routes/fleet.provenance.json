@@ -26,6 +26,18 @@
       "sha256": "59d5656dc84a734a3a4f510db485de56814022508ba06608e98be225835bc27b"
     },
     {
+      "source": "apps/dashboard/src/app/fleet-map/fleet-map-canvas.tsx",
+      "sha256": "b68e9e9798e2ca959a54a479996186fe81aa5aba5d87cb43957a4f468819bb80"
+    },
+    {
+      "source": "apps/dashboard/src/app/fleet-map/fleet-map-client.tsx",
+      "sha256": "4ab6ab2152a45751111d00c297773e87b322b4a40cb03663babec16d214def45"
+    },
+    {
+      "source": "apps/dashboard/src/app/fleet-map/page.tsx",
+      "sha256": "ea380dcb8464b1e50352d2d473f3829b973886ab2af9b711a47ca92b03f51e91"
+    },
+    {
       "source": "apps/dashboard/src/app/fleet-readiness/page.tsx",
       "sha256": "f67a270abb43abb48ed26fc0fb2a589b53cc05aaeda7db25b7d749ba4c7a01e1"
     },
@@ -40,6 +52,14 @@
     {
       "source": "apps/dashboard/src/app/mission-control/page.tsx",
       "sha256": "f0bac74c3bc34890ca78071a9e7f4df228891717ff0ba6be3953d906596f94d4"
+    },
+    {
+      "source": "apps/dashboard/src/app/nodes/[nodeId]/page.tsx",
+      "sha256": "f2cd08d17008e072db5a838ff1f617f48bb65231eecbfa5536023d099f17f144"
+    },
+    {
+      "source": "apps/dashboard/src/app/nodes/[nodeId]/personality-card.tsx",
+      "sha256": "591602cb0351fef73d7c0b602e78b66e74169faf5e15b3ab6c9d18bb23cf7ec7"
     },
     {
       "source": "apps/dashboard/src/app/nodes/nodes-client.tsx",
@@ -82,8 +102,28 @@
       "sha256": "3ed93c05191bd72b125f011c7a02fb4ac3fe65ccaeccc747611cf6958ebe6e4f"
     },
     {
+      "source": "apps/dashboard/src/components/nodes/agent-self-upgrade-badge.tsx",
+      "sha256": "c28d9ca9a535f70208849c589afaa88fec2350a54217bb8e87114444bb1b0bbe"
+    },
+    {
+      "source": "apps/dashboard/src/components/nodes/agent-upgrade-modal.tsx",
+      "sha256": "ef5cad04456471ca4340b1a3352902615f20b6a0f09a1359feca3bd8f167345e"
+    },
+    {
+      "source": "apps/dashboard/src/components/nodes/gpu-telemetry-card.tsx",
+      "sha256": "092a756f324a786fbcee44d9bb064a7c5f2dfcdc3af4f581c72eded2c3825bfa"
+    },
+    {
+      "source": "apps/dashboard/src/components/nodes/node-metrics-chart.tsx",
+      "sha256": "55ea12efbfd6aaa348ff89fed9abc225793bc4348df1f8744e7ead8b149d957a"
+    },
+    {
       "source": "apps/dashboard/src/components/nodes/node-modals.tsx",
       "sha256": "3262031bd092ee581f039480e462e639fc26bdaaf065bf3a3c9a529d77bed826"
+    },
+    {
+      "source": "apps/dashboard/src/components/nodes/quick-commands.tsx",
+      "sha256": "a09f96f7c6637ce927b1c392c11abc5ba1d673143da2ce917080efc220718ee3"
     },
     {
       "source": "apps/dashboard/src/components/nodes/tailscale-expiry-alert.tsx",
@@ -96,6 +136,10 @@
     {
       "source": "apps/dashboard/src/components/notifications/notification-dropdown.tsx",
       "sha256": "48d77d594b1e4661a714e59faa2db16a064340a972c1d683a2082e05f34082ea"
+    },
+    {
+      "source": "apps/dashboard/src/components/orchestra/hivemem-token-status.tsx",
+      "sha256": "958583fe4453a77028dbaf5caca90507d6735172848709febb76bd9f1366644c"
     },
     {
       "source": "apps/dashboard/src/components/overview/fleet-radar.tsx",
@@ -158,6 +202,10 @@
       "sha256": "50acf010b0f913efbc776efb3c1e341a7d1228cea0658bd6b09a1b8c9e5cd9fc"
     },
     {
+      "source": "apps/dashboard/src/lib/agent-upgrade-view.ts",
+      "sha256": "9022b24dcef356c16819b7d1477a9a856024532da97aed482d8111f3e3d57edc"
+    },
+    {
       "source": "apps/dashboard/src/lib/event-feed.ts",
       "sha256": "146246e1d8550169d518ebfc09ff03ea66c81cdc4d0125a2deb15437c9393ee7"
     },
@@ -172,6 +220,14 @@
     {
       "source": "apps/dashboard/src/lib/user-disk.ts",
       "sha256": "edf507778165e050066b0c3a195f9b8d2fb53571ffbaa49faf3ca5b9b3c313ac"
+    },
+    {
+      "source": "packages/contracts/src/upgrade-remedies.ts",
+      "sha256": "ba983b6d5544ea92ae489aaaad1e94fefde1206e725eea29059ad3fcefd6cbfa"
+    },
+    {
+      "source": "services/control-api/src/services/topology-service.ts",
+      "sha256": "42610c1f06f6082183c6d4de91ea34f83a82de2066d384b92ea293d2b2b0203e"
     }
   ]
 }

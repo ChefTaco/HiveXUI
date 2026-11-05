@@ -11,4 +11,6 @@ export const fleetRoutes: readonly MagnusRoute[] = [
   { path: '/anomalies/:anomalyId', title: 'Anomaly Analysis', load: () => import('../pages/fleet/anomalies/detail/page') },
   { path: '/anomalies/remediation', title: 'Auto-Remediation', load: () => import('../pages/fleet/anomalies/remediation/page') },
   { path: '/notifications', title: 'Notifications', load: () => import('../pages/fleet/notifications/page') },
+  { path: '/nodes/:nodeId', title: 'Node', load: () => import('../pages/fleet/node-detail/page') },
+  { path: '/fleet-map', title: 'Fleet Map', load: () => import('../pages/fleet/fleet-map/page') },
 ];
