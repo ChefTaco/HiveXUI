@@ -1,0 +1,116 @@
+/*
+ * Reusable effects built from the motion and glow tokens: the hooks ported pages use for
+ * glow, sweep and marquee. Base.css stops all animation under prefers-reduced-motion, and
+ * html[data-fx='low'] is a kill switch for looping effects. Glows are decoration, so never
+ * rely on one to carry meaning; pair it with text or a status color.
+ */
+.glow-accent,
+.glow-success,
+.glow-warning,
+.glow-danger,
+.glow-info {
+  box-shadow: 0 0 16px var(--glow-color);
+}
+.glow-accent,
+.glow-text-accent,
+.glow-text-primary,
+.glow-hover {
+  --glow-color: var(--glow-accent);
+}
+.glow-success,
+.glow-text-success,
+.glow-hover--success {
+  --glow-color: var(--glow-success);
+}
+.glow-warning,
+.glow-text-warning,
+.glow-hover--warning {
+  --glow-color: var(--glow-warning);
+}
+.glow-danger,
+.glow-text-danger,
+.glow-hover--danger {
+  --glow-color: var(--glow-danger);
+}
+.glow-info,
+.glow-hover--info {
+  --glow-color: var(--glow-info);
+}
+.glow-text-accent,
+.glow-text-primary,
+.glow-text-success,
+.glow-text-warning,
+.glow-text-danger {
+  text-shadow: 0 0 14px var(--glow-color);
+}
+
+/* Fades a pre-shadowed layer, so hovering never animates box-shadow. */
+.glow-hover {
+  position: relative;
+}
+.glow-hover::after {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  box-shadow: 0 0 20px var(--glow-hover-color, var(--glow-color));
+  content: '';
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-slow) var(--ease-out-expo);
+}
+.glow-hover:hover::after,
+.glow-hover:focus-visible::after {
+  opacity: 1;
+}
+
+/* Corner brackets, top left and bottom right. */
+.panel-corners {
+  position: relative;
+}
+.panel-corners::before,
+.panel-corners::after {
+  position: absolute;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-color: var(--panel-corner-color, var(--border-strong));
+  content: '';
+  pointer-events: none;
+}
+.panel-corners::before {
+  top: -1px;
+  left: -1px;
+  border-top: 1px solid;
+  border-left: 1px solid;
+  border-top-left-radius: var(--radius-panel);
+}
+.panel-corners::after {
+  right: -1px;
+  bottom: -1px;
+  border-right: 1px solid;
+  border-bottom: 1px solid;
+  border-bottom-right-radius: var(--radius-panel);
+}
+
+/* Faint grid for hero backdrops. */
+.grid-bg {
+  background-image: linear-gradient(var(--glow-grid) 1px, transparent 1px), linear-gradient(90deg, var(--glow-grid) 1px, transparent 1px);
+  background-position: -1px -1px;
+  background-size: 2rem 2rem;
+}
+
+/* One-shot highlight down a row after a refresh. */
+.scan-sweep {
+  background-image: linear-gradient(180deg, transparent 0%, var(--glow-accent) 50%, transparent 100%);
+  background-repeat: no-repeat;
+  background-size: 100% 50%;
+  animation: scan-sweep var(--duration-sweep) var(--ease-out-expo) 1 both;
+}
+
+html[data-fx='low'] .animate-glow-pulse,
+html[data-fx='low'] .animate-flicker,
+html[data-fx='low'] .animate-sweep,
+html[data-fx='low'] .animate-ticker,
+html[data-fx='low'] .animate-halo,
+html[data-fx='low'] .status-dot--live::after {
+  animation: none;
+}

@@ -54,7 +54,7 @@ describe('stylesheets', () => {
   });
 
   it('never name a class after a Tailwind utility', async () => {
-    const names = new Set(stylesheets.filter((file) => !file.endsWith('tokens.css') && !file.endsWith('index.css')).flatMap((file) => [...withoutComments(read(file)).replace(/url\([^)]*\)/g, '').matchAll(/\.(-?[a-zA-Z_][\w-]*)/g)].map((match) => match[1]!)));
+    const names = new Set(stylesheets.filter((file) => !file.endsWith('tokens.css') && !file.endsWith('index.css')).flatMap((file) => [...withoutComments(read(file)).replace(/url\([^)]*\)/g, '').replace(/html\[data-fx='low'\] [^,{]+/g, '').matchAll(/\.(-?[a-zA-Z_][\w-]*)/g)].map((match) => match[1]!)));
     expect(names.size).toBeGreaterThan(100);
     const compiler = await compile(`@tailwind utilities; ${read(join(SOURCE, 'styles/tokens.css'))}`);
     const generated = compiler.build([...names]);
@@ -72,8 +72,18 @@ describe('components', () => {
     expect(matching(components, /\b(?:bg|text|border|ring|from|via|to|fill|stroke)-(?:\[#|white\b|black\b|(?:red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|gray|zinc|neutral|stone)-\d)/g)).toEqual([]);
   });
 
-  it('do not use the retired glow effects or legacy token names', () => {
-    expect(matching(components, /\bglow-[a-z-]+|panel-corners|\bgrid-bg\b|--color-glow|var\(--(?:amber|teal|sky|violet|coral|muted|bg-void|text-bright|border-light)\b[^)]*\)/g)).toEqual([]);
+  it('do not use legacy token names', () => {
+    expect(matching(components, /var\(--(?:amber|teal|sky|violet|coral|muted|bg-void|text-bright|border-light)\b[^)]*\)/g)).toEqual([]);
+  });
+
+  it('define every glow and effect hook they use', () => {
+    const effects = read(join(SOURCE, 'styles/effects.css'));
+    const used = new Set(components.flatMap((file) => [...read(file).matchAll(/\b(?:glow-(?:text-)?[a-z]+(?:--[a-z]+)?|panel-corners|grid-bg|scan-sweep)\b/g)].map((match) => match[0])));
+    expect([...used].filter((name) => !effects.includes(`.${name}`))).toEqual([]);
+  });
+
+  it('take glow color from tokens in shadows', () => {
+    expect(matching(components, /shadow-\[[^\]]*(?:rgba?\(|#[0-9a-f]{3,8})[^\]]*\]/gi)).toEqual([]);
   });
 
   it('do not shout: uppercase and wide tracking stay out of page text', () => {

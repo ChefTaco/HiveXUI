@@ -75,6 +75,10 @@ describe.each([
 
 describe('theme completeness', () => {
   const themed = [...light.keys()].filter((name) => !name.startsWith('--space-') && name !== '--sidebar-width');
+  it('stops motion for people who ask for reduced motion', () => {
+    const base = readFileSync(new URL('./base.css', import.meta.url), 'utf8');
+    expect(base).toMatch(/prefers-reduced-motion: reduce[\s\S]*animation: none !important/);
+  });
   it('dark defines every color the light theme defines, and no others', () => {
     expect([...darkOverrides.keys()].sort()).toEqual(themed.sort());
   });

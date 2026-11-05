@@ -56,6 +56,14 @@
   --shadow-panel: 0 1px 2px rgb(23 50 70 / 0.05);
   --shadow-overlay: 0 24px 70px rgb(23 50 70 / 0.22);
 
+  /* Glow: translucent color for effects, one per accent or status. See effects.css. */
+  --glow-accent: rgb(33 109 105 / 0.28);
+  --glow-success: rgb(42 108 67 / 0.28);
+  --glow-warning: rgb(133 86 15 / 0.28);
+  --glow-danger: rgb(163 58 43 / 0.28);
+  --glow-info: rgb(48 89 127 / 0.28);
+  --glow-grid: rgb(33 109 105 / 0.07);
+
   /* Spacing: one step per Tailwind unit, so `--space-4` equals `p-4`. */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -108,6 +116,13 @@
 
   --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.2);
   --shadow-overlay: 0 24px 80px rgb(0 0 0 / 0.5);
+
+  --glow-accent: rgb(140 203 187 / 0.32);
+  --glow-success: rgb(163 220 174 / 0.32);
+  --glow-warning: rgb(238 194 124 / 0.32);
+  --glow-danger: rgb(245 185 171 / 0.32);
+  --glow-info: rgb(176 208 239 / 0.32);
+  --glow-grid: rgb(140 203 187 / 0.07);
 }
 
 /*
@@ -115,7 +130,7 @@
  * rendering at all: a ported page uses these names or it visibly has no color.
  * `primary` is the same teal as `accent`; it stays only because ported pages use it.
  */
-@theme inline {
+@theme inline static {
   --color-*: initial;
 
   --color-bg: var(--surface-page);
@@ -152,6 +167,13 @@
   --color-info-soft: var(--info-soft);
   --color-on-info: var(--on-info);
 
+  --color-glow: var(--glow-accent);
+  --color-glow-accent: var(--glow-accent);
+  --color-glow-success: var(--glow-success);
+  --color-glow-warning: var(--glow-warning);
+  --color-glow-danger: var(--glow-danger);
+  --color-glow-info: var(--glow-info);
+
   --shadow-panel: var(--shadow-panel);
   --shadow-overlay: var(--shadow-overlay);
   --shadow-sm: var(--shadow-panel);
@@ -159,6 +181,8 @@
   --shadow-lg: var(--shadow-overlay);
   --shadow-xl: var(--shadow-overlay);
   --shadow-2xl: var(--shadow-overlay);
+  --shadow-glow-sm: 0 0 8px var(--glow-accent);
+  --shadow-glow-md: 0 0 20px var(--glow-accent);
 }
 
 /* Theme-independent tokens. These also exist at runtime as var(--font-mono) and so on. */
@@ -203,9 +227,22 @@
 
   --spacing: 0.25rem;
 
+  /* Motion. Everything stops under prefers-reduced-motion; see base.css. */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 400ms;
+  --duration-sweep: 900ms;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
   --animate-halo: halo 2s ease-out infinite;
   --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-glow-pulse: glow-pulse 2.4s ease-in-out infinite;
+  --animate-flicker: flicker 4s linear infinite;
+  --animate-sweep: sweep 4s linear infinite;
+  --animate-ticker: ticker 40s linear infinite;
+  --animate-toast-in: toast-in 350ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-page-in: page-in 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
 
   @keyframes halo {
     0% {
@@ -223,6 +260,72 @@
     }
     to {
       background-position: -200% 0;
+    }
+  }
+  @keyframes glow-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 8px var(--glow-accent);
+    }
+    50% {
+      box-shadow: 0 0 24px var(--glow-accent);
+    }
+  }
+  @keyframes flicker {
+    0%,
+    92%,
+    94%,
+    97%,
+    100% {
+      opacity: 1;
+    }
+    93% {
+      opacity: 0.8;
+    }
+    96% {
+      opacity: 0.9;
+    }
+  }
+  @keyframes sweep {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  /* Marquee: duplicate the content once inside the track so the loop is seamless. */
+  @keyframes ticker {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateX(24px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  @keyframes page-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes scan-sweep {
+    from {
+      background-position: 0 -100%;
+    }
+    to {
+      background-position: 0 200%;
     }
   }
 }

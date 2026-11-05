@@ -47,11 +47,27 @@ use only tokens, and limit it to layout. Unlayered CSS would beat every utility.
 | Radii | `rounded-chip`, `rounded-control`, `rounded-panel`, `rounded-dialog`, `rounded-pill` |
 | Spacing | The normal scale; `p-4` equals `--space-4` |
 | Numbers | `num` for tabular figures |
+| Motion | `duration-[var(--duration-base)]`, `ease-standard`, `ease-out-expo`, `animate-halo`, `animate-shimmer`, `animate-glow-pulse`, `animate-flicker`, `animate-sweep`, `animate-ticker`, `animate-toast-in`, `animate-page-in` |
+| Glow | `glow-accent`, `glow-success`, `glow-warning`, `glow-danger`, `glow-info`, `glow-text-*`, `glow-hover`, `shadow-glow-sm`, `shadow-glow-md`, `shadow-[0_0_8px_var(--color-glow-danger)]` |
+| Backdrops | `panel-corners`, `grid-bg`, `scan-sweep` |
 
 `dark:` follows the console's theme control, but tokens already change with the theme, so
 a page rarely needs it. `primary` is an alias of `accent` kept for ported pages; prefer
 `accent` in new code. Tailwind's default palette is removed, so `bg-red-500` produces
 nothing.
+
+## Motion and effects
+
+Motion and glow are part of the product and stay when a page is ported. Tokens live in
+`tokens.css`: `--duration-fast|base|slow|sweep`, `--ease-standard`, `--ease-out-expo`, and
+`--glow-accent|success|warning|danger|info`, which differ per theme. Reusable hooks live in
+`effects.css`; add new effects there, built from these tokens. `Panel glow="success"` adds a
+hover glow. For a marquee, duplicate the content once inside an `animate-ticker` track.
+
+`prefers-reduced-motion` stops every animation and transition, and `html[data-fx='low']`
+stops looping effects, so show nothing important only through motion. Glow is decoration:
+pair it with text or a status color. The final look of ported effects is settled in a design
+review after the port.
 
 ## Narrow screens
 
@@ -74,8 +90,10 @@ use a neutral badge. Do not use color for decoration or to tell categories apart
 | `text-[9px]`, `text-[10px]`, `text-[11px]` | `text-xs`; `text-sm` if it is reading text |
 | `text-xs` on body copy | `text-sm` |
 | `uppercase`, `tracking-*` | Remove. For a short label above a title, use `eyebrow` on `PageHeader` or `Panel` |
-| `glow-*`, `neon-*`, `shadow-[0_0_...]`, `panel-corners`, `grid-bg`, `animate-page-in`, scanlines | Remove |
-| `GlowPanel`, `Card` | `Panel` |
+| `glow-*`, `panel-corners`, `grid-bg`, `animate-*`, `shadow-[0_0_...var(--color-glow)]` | Keep; they resolve to theme tokens |
+| `neon-text`, `neon-border`, `accent-glow` | `glow-text-primary`, `glow-accent` |
+| `glitch`, scanlines and other effects not listed above | Add to `effects.css` from tokens, for design review |
+| `GlowPanel`, `Card` | `Panel` (`glow=` for the hover glow, `panel-corners` for brackets) |
 | `Badge variant=` | `Badge tone=` with `statusTone()` for status strings |
 | `MeterBar` | `Meter` |
 | `Modal` | `ConfirmDialog` or `Drawer` |
@@ -87,6 +105,7 @@ use a neutral badge. Do not use color for decoration or to tell categories apart
 
 - Add a color, font or font size anywhere but `tokens.css`, including arbitrary values and inline styles.
 - Use text under 12px, all-caps sentences or wide letter spacing.
+- Hardcode a glow color or a duration; use the tokens.
 - Name a class after a Tailwind utility (`grid`, `table`, `flex`). The utility would then bring that class's other declarations with it.
 - Give a shared component an outer margin. Parents space children with `gap`; `page-stack` and `page-grid` are there for it.
 - Leave a `<button>` without a class. Preflight strips its appearance; use `Button` or `btn`.

@@ -13,6 +13,7 @@
 @import 'tailwindcss/preflight.css' layer(base);
 @import './base.css' layer(base);
 @import './app.css' layer(components);
+@import './effects.css' layer(components);
 @import 'tailwindcss/utilities.css' layer(utilities) source('..');
 
 /*

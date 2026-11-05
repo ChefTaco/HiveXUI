@@ -60,6 +60,9 @@
     padding: var(--space-5) 0 0;
     border-top: 1px solid var(--border);
   }
+  .chat-admin-block > * + * {
+    margin-top: var(--space-3);
+  }
   .chat-admin-actions {
     display: flex;
     flex-wrap: wrap;

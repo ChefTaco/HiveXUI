@@ -47,6 +47,11 @@ strong {
   font-weight: 600;
 }
 
+/* Preflight's 80% would land under the 12px floor. */
+small {
+  font-size: var(--text-xs);
+}
+
 code,
 kbd,
 samp,

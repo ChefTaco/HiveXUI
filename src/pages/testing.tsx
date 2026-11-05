@@ -717,7 +717,7 @@ export function TestingPage({
                 actions={
                   <div className="inline-actions">
                     <Badge tone="accent">{category.alias}</Badge>
-                    <span className="neutral">/</span>
+                    <span className="muted">/</span>
                     <Badge tone={statusTone}>
                       {result
                         ? result.success

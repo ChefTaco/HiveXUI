@@ -1805,7 +1805,7 @@ export function IamOperationsPage({
                     {event.outcome}
                   </Badge>
                 </td>
-                <td className="cell-mono">{safeDetail(event.detail)}</td>
+                <td className="cell-mono cell-long">{safeDetail(event.detail)}</td>
               </tr>
             ))}
           </EntityTable>

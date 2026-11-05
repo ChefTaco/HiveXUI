@@ -1,5 +1,13 @@
 # Changelog
 
+- Give the console one visual theme. A single token file defines color, type, radii and
+  spacing for light and dark, Tailwind maps onto it, and security, chat and all other pages
+  share one set of buttons, badges, panels, empty states, tables, fields and page headers.
+  Text is at least 12px and color pairs meet WCAG AA. See `docs/THEME.md`.
+
+- Keep the page from scrolling sideways on phones: multi-column layouts collapse below
+  640px and wide tables scroll inside their own container.
+
 - Show only installed products. Group navigation by owning product, drop sections and
   overview rows for absent products, send bookmarks to them to the overview, and stop
   background reads of their APIs. Incidents, API Docs and Settings now work without

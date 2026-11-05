@@ -82,8 +82,8 @@ export default async function AuditPage({
                     {new Date(e.timestamp).toLocaleString()}
                   </td>
                   <td>{e.action}</td>
-                  <td>{e.actorId}</td>
-                  <td>{e.targetId}</td>
+                  <td className="cell-mono cell-long">{e.actorId}</td>
+                  <td className="cell-mono cell-long">{e.targetId}</td>
                   <td>
                     <Badge tone={statusTone(e.verificationState)}>{e.verificationState}</Badge>
                   </td>

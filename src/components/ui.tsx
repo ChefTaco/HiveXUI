@@ -253,13 +253,15 @@ type PanelProps = PropsWithChildren<
     tone?: 'warning' | 'danger' | undefined;
     /** `sm` for cards in a grid; `none` when a table or list fills the panel edge to edge. */
     padding?: 'sm' | 'md' | 'none';
+    /** Hover glow, colored by meaning. */
+    glow?: 'accent' | 'success' | 'warning' | 'danger' | 'info' | undefined;
     as?: 'section' | 'div' | 'article' | 'form';
   } & Omit<HTMLAttributes<HTMLElement>, 'title'>
 >;
 
-export function Panel({ title, eyebrow, description, actions, tone, padding = 'md', as: Tag = 'section', className, children, ...rest }: PanelProps) {
+export function Panel({ title, eyebrow, description, actions, tone, padding = 'md', glow, as: Tag = 'section', className, children, ...rest }: PanelProps) {
   return (
-    <Tag {...rest} className={cn('panel', padding !== 'md' && `panel--${padding}`, tone && `panel--${tone}`, className)}>
+    <Tag {...rest} className={cn('panel', padding !== 'md' && `panel--${padding}`, tone && `panel--${tone}`, glow && 'glow-hover', glow && glow !== 'accent' && `glow-hover--${glow}`, className)}>
       {title || eyebrow || actions ? (
         <div className="panel-header">
           <div>

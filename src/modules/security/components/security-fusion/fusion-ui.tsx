@@ -16,7 +16,7 @@ export function EmptyState({ children }: { children: React.ReactNode }): React.R
 /** Severity shown as a badge; critical is the one solid fill, so it stands out in a list. */
 export function SeverityBadge({ severity, className }: { severity: FusionCase["severity"]; className?: string }): React.ReactElement {
   return (
-    <Badge tone={severityTone[severity]} className={cn(severity === "critical" && "badge--solid-danger", className)}>
+    <Badge tone={severityTone[severity]} className={cn(severity === "critical" && "badge--solid-danger glow-danger", className)}>
       {severity}
     </Badge>
   );
@@ -83,12 +83,12 @@ export function EvidenceBraid({ events }: { events: FusionEvent[] }): React.Reac
               <p className="num mt-1 text-xs text-text-muted">{Math.round((event.confidenceContribution ?? event.confidence) * 100)}% confidence contribution</p>
             </div>
             <span className="relative col-start-1 row-start-1 mx-auto flex h-3 w-3 items-center justify-center sm:col-start-2">
-              <span className="relative h-2.5 w-2.5 rounded-full bg-accent" />
+              <span className="glow-accent relative h-2.5 w-2.5 rounded-full bg-accent" />
             </span>
           </div>
         ))}
       </div>
-      <div className="relative mx-auto w-fit rounded-control border border-accent bg-accent-soft px-4 py-2 text-center text-sm font-semibold text-accent">Correlated case</div>
+      <div className="glow-accent relative mx-auto w-fit rounded-control border border-accent bg-accent-soft px-4 py-2 text-center text-sm font-semibold text-accent">Correlated case</div>
     </Panel>
   );
 }
@@ -96,6 +96,7 @@ export function EvidenceBraid({ events }: { events: FusionEvent[] }): React.Reac
 const STALE_MS = 15 * 60 * 1000;
 
 export function SourceGrid({ sources }: { sources: FusionSource[] }): React.ReactElement {
+  if (!sources.length) return <EmptyState>No source has reported its posture yet.</EmptyState>;
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {mergeSourceAliases(sources).map((source) => {
@@ -103,7 +104,7 @@ export function SourceGrid({ sources }: { sources: FusionSource[] }): React.Reac
         const lastSuccess = source.lastSuccessAt ? Date.parse(source.lastSuccessAt) : null;
         const stale = lastSuccess === null || Date.now() - lastSuccess > STALE_MS;
         return (
-          <Panel key={source.source} as="div" padding="sm" tone={healthy ? undefined : "warning"} className="gap-2">
+          <Panel key={source.source} as="div" padding="sm" tone={healthy ? undefined : "warning"} glow={healthy ? "success" : "warning"} className="gap-2">
             <div className="flex items-center justify-between gap-2">
               <strong className="text-sm text-text-strong">{sourceLabel(source.source)}</strong>
               <StatusDot status={healthy ? "HEALTHY" : source.status === "error" ? "ERROR" : "DEGRADED"} label={source.status} />
