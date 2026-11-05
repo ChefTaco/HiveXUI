@@ -1,5 +1,8 @@
 # Changelog
 
+- Present complete health, upgrade and recovery CLI workflows for suite operators,
+  including isolated rehearsal and explicit write reconciliation before restore.
+
 - Port chat channel creation/discovery, membership and policy controls, group
   messages, pinned messages, profiles/avatars, attachment previews, reactions,
   slash-command discovery and paginated history. Preserve conversation deep links

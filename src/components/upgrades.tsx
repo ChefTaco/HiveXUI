@@ -1,7 +1,7 @@
-import { browserIdentity } from '../lib/runtime';
-import { apiFetch } from '../lib/transport';
-import { useEffect, useState } from 'react';
-import { Button, Panel } from './ui';
+import { browserIdentity, magnusConsoleUrl } from "../lib/runtime";
+import { apiFetch } from "../lib/transport";
+import { useEffect, useState } from "react";
+import { Button, Panel } from "./ui";
 
 interface Notice {
   installed: string;
@@ -31,72 +31,182 @@ interface Plan {
 }
 async function api(path: string, body?: unknown): Promise<unknown> {
   const res = await apiFetch(path, {
-    method: body ? 'POST' : 'GET',
-    headers: body ? { 'content-type': 'application/json' } : {},
+    method: body ? "POST" : "GET",
+    headers: body ? { "content-type": "application/json" } : {},
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const value = await res.json();
-  if (!res.ok) throw new Error(value.error || 'Upgrade request failed');
+  if (!res.ok) throw new Error(value.error || "Upgrade request failed");
   return value;
 }
 export function UpgradesPanel({ canUpgrade }: { canUpgrade: boolean }) {
-  if (browserIdentity())
-    return (
-      <Panel title="Hive lifecycle" eyebrow="Installation controller">
-        <p>
-          Suite upgrades run through the installation controller. This console
-          is awaiting a configured Magnus job adapter.
-        </p>
-        <p>Prepare an installation plan on the control host:</p>
-        <pre>
-          <code>
-            ./hive.sh plan --config installation.json --release VERSION
-          </code>
-        </pre>
-        <p>
-          Activation requires a tested signed release, a verified backup and the
-          installation's recovery workflow.
-        </p>
-      </Panel>
-    );
+  if (browserIdentity()) return <SuiteLifecyclePanel />;
   return <LegacyUpgradesPanel canUpgrade={canUpgrade} />;
+}
+function SuiteLifecyclePanel() {
+  const [workflow, setWorkflow] = useState<"inspect" | "upgrade" | "recover">(
+    "inspect",
+  );
+  const [message, setMessage] = useState("");
+  const steps = {
+    inspect: [
+      [
+        "Read installation health",
+        "./hive.sh status --config installation.json",
+      ],
+      [
+        "Check hosts and configuration",
+        "./hive.sh doctor --config installation.json",
+      ],
+    ],
+    upgrade: [
+      [
+        "Review the exact signed release",
+        "./hive.sh plan --config installation.json --release VERSION",
+      ],
+      [
+        "Create and verify a backup",
+        "./hive.sh backup --config installation.json",
+      ],
+      [
+        "Rehearse the backup in isolation",
+        "./hive.sh rehearse --config installation.json --archive BACKUP_ID",
+      ],
+      [
+        "Activate during the maintenance window",
+        "./hive.sh upgrade --config installation.json --release VERSION",
+      ],
+      [
+        "Check the activated installation",
+        "./hive.sh doctor --config installation.json",
+      ],
+    ],
+    recover: [
+      [
+        "Use binary rollback only with compatible storage",
+        "./hive.sh rollback --config installation.json --release PREVIOUS_VERSION",
+      ],
+      [
+        "For data recovery, review writes since the chosen backup",
+        "./hive.sh restore --config installation.json --archive BACKUP_ID --reconciliation reconciliation.json",
+      ],
+      [
+        "Check the recovered installation",
+        "./hive.sh doctor --config installation.json",
+      ],
+    ],
+  } satisfies Record<string, string[][]>;
+  return (
+    <Panel title="Hive lifecycle" eyebrow="Installation controller">
+      <p>
+        Run these steps on the installation control host with its protected
+        configuration. Replace the release and backup placeholders with the
+        reviewed values.
+      </p>
+      <div className="flex gap-2 flex-wrap">
+        {(["inspect", "upgrade", "recover"] as const).map((value) => (
+          <Button
+            key={value}
+            variant="default"
+            aria-pressed={workflow === value}
+            onClick={() => {
+              setWorkflow(value);
+              setMessage("");
+            }}
+          >
+            {value === "inspect"
+              ? "Health"
+              : value === "upgrade"
+                ? "Upgrade"
+                : "Recovery"}
+          </Button>
+        ))}
+      </div>
+      <ol>
+        {steps[workflow].map(([label, command]) => (
+          <li key={command}>
+            <p>{label}</p>
+            <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+              <code>{command}</code>
+            </pre>
+            <Button
+              variant="default"
+              onClick={() => {
+                if (command)
+                  void navigator.clipboard
+                    .writeText(command)
+                    .then(() => setMessage("Command copied"))
+                    .catch(() => setMessage("Select the command to copy it"));
+              }}
+            >
+              Copy command
+            </Button>
+          </li>
+        ))}
+      </ol>
+      {workflow === "upgrade" && (
+        <p>
+          Use a tested signed release and a rehearsed backup before activation.
+          Any migration requiring approval remains explicit; automatic upgrades
+          stay disabled.
+        </p>
+      )}
+      {workflow === "recover" && (
+        <p>
+          Restore requires a protected reconciliation file acknowledging
+          subsequent writes. Reuse the installation's rehearsed recovery
+          procedure and keep one active writer.
+        </p>
+      )}
+      {magnusConsoleUrl() && (
+        <p>
+          <a href={magnusConsoleUrl()} target="_blank" rel="noreferrer">
+            Open Magnus
+          </a>{" "}
+          for approved fleet jobs. A suite lifecycle job adapter is not
+          configured; these commands remain the available workflow.
+        </p>
+      )}
+      <p role="status">{message}</p>
+    </Panel>
+  );
 }
 function LegacyUpgradesPanel({ canUpgrade }: { canUpgrade: boolean }) {
   const [notice, setNotice] = useState<Notice | null>(null),
     [plan, setPlan] = useState<Plan | null>(null),
-    [result, setResult] = useState(''),
+    [result, setResult] = useState(""),
     [busy, setBusy] = useState(false);
   const [needsAuthentication, setNeedsAuthentication] = useState(false);
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState("");
   function failure(error: unknown, fallback: string) {
-    if (error instanceof Error && error.message === 'STEP_UP_REQUIRED') {
+    if (error instanceof Error && error.message === "STEP_UP_REQUIRED") {
       setNeedsAuthentication(true);
       setPlan(null);
-      setResult('Confirm your password, then review a new upgrade plan.');
+      setResult("Confirm your password, then review a new upgrade plan.");
     } else setResult(error instanceof Error ? error.message : fallback);
   }
   async function reauthenticate() {
     setBusy(true);
     try {
-      await api('/api/auth/reauthenticate', { password });
+      await api("/api/auth/reauthenticate", { password });
       setNeedsAuthentication(false);
       setPlan(null);
-      setResult('Authentication refreshed. Review the upgrade again.');
+      setResult("Authentication refreshed. Review the upgrade again.");
     } catch (e) {
-      failure(e, 'Authentication failed');
+      failure(e, "Authentication failed");
     } finally {
-      setPassword('');
+      setPassword("");
       setBusy(false);
     }
   }
   useEffect(() => {
     let alive = true;
-    void api('/api/hive/updates').then(
+    void api("/api/hive/updates").then(
       (v) => {
         if (alive) setNotice(v as Notice);
       },
       () => {
-        if (alive) setResult('Update status is unavailable.');
+        if (alive) setResult("Update status is unavailable.");
       },
     );
     return () => {
@@ -106,10 +216,10 @@ function LegacyUpgradesPanel({ canUpgrade }: { canUpgrade: boolean }) {
   async function prepare() {
     setBusy(true);
     try {
-      setPlan((await api('/api/hive/upgrades/plan', {})) as Plan);
-      setResult('');
+      setPlan((await api("/api/hive/upgrades/plan", {})) as Plan);
+      setResult("");
     } catch (e) {
-      failure(e, 'Could not prepare upgrade');
+      failure(e, "Could not prepare upgrade");
     } finally {
       setBusy(false);
     }
@@ -118,31 +228,31 @@ function LegacyUpgradesPanel({ canUpgrade }: { canUpgrade: boolean }) {
     if (!plan) return;
     setBusy(true);
     try {
-      await api('/api/hive/upgrades/apply', { planHash: plan.hash });
+      await api("/api/hive/upgrades/apply", { planHash: plan.hash });
       setResult(
-        'Upgrade started. The console will reconnect after the services restart.',
+        "Upgrade started. The console will reconnect after the services restart.",
       );
       setPlan(null);
     } catch (e) {
-      failure(e, 'Could not apply upgrade');
+      failure(e, "Could not apply upgrade");
     } finally {
       setBusy(false);
     }
   }
   async function status() {
     try {
-      const value = (await api('/api/hive/upgrades/status')) as {
+      const value = (await api("/api/hive/upgrades/status")) as {
         busy: boolean;
         result: { state?: string; error?: string };
       };
       setResult(
         value.result.error ||
           value.result.state ||
-          (value.busy ? 'running' : 'idle'),
+          (value.busy ? "running" : "idle"),
       );
     } catch {
       setResult(
-        'Services are restarting or the coordinator is unavailable. Try again shortly.',
+        "Services are restarting or the coordinator is unavailable. Try again shortly.",
       );
     }
   }
@@ -150,12 +260,12 @@ function LegacyUpgradesPanel({ canUpgrade }: { canUpgrade: boolean }) {
     <Panel title="Hive updates" eyebrow="Installed services">
       <p>
         {notice
-          ? `Installed ${notice.installed}${notice.available ? ` · ${notice.available} available` : ''}`
-          : 'Checking update status…'}
+          ? `Installed ${notice.installed}${notice.available ? ` · ${notice.available} available` : ""}`
+          : "Checking update status…"}
       </p>
       {notice && !notice.enabled && (
         <p>
-          Automatic update checks are disabled. Run{' '}
+          Automatic update checks are disabled. Run{" "}
           <code>hive upgrade --dry-run</code> to check manually.
         </p>
       )}
@@ -171,7 +281,7 @@ function LegacyUpgradesPanel({ canUpgrade }: { canUpgrade: boolean }) {
       {needsAuthentication && (
         <div>
           <label>
-            Confirm your password{' '}
+            Confirm your password{" "}
             <input
               type="password"
               autoComplete="current-password"
@@ -189,14 +299,14 @@ function LegacyUpgradesPanel({ canUpgrade }: { canUpgrade: boolean }) {
       )}
       {notice?.newRequiredEnv?.length ? (
         <p>
-          Required settings:{' '}
-          {notice.newRequiredEnv.map((e) => e.name).join(', ')}
+          Required settings:{" "}
+          {notice.newRequiredEnv.map((e) => e.name).join(", ")}
         </p>
       ) : null}
-      {notice?.migrations?.some((m) => m.impact !== 'fast') && (
+      {notice?.migrations?.some((m) => m.impact !== "fast") && (
         <p>
-          Migration requires operator review:{' '}
-          {[...new Set(notice.migrations.map((m) => m.impact))].join(', ')}
+          Migration requires operator review:{" "}
+          {[...new Set(notice.migrations.map((m) => m.impact))].join(", ")}
         </p>
       )}
       {notice?.available && !notice.canApply && (
@@ -228,28 +338,28 @@ function LegacyUpgradesPanel({ canUpgrade }: { canUpgrade: boolean }) {
           </ul>
           {plan.changes.newRequiredEnv.length > 0 && (
             <p>
-              Required settings:{' '}
-              {plan.changes.newRequiredEnv.map((e) => e.name).join(', ')}
+              Required settings:{" "}
+              {plan.changes.newRequiredEnv.map((e) => e.name).join(", ")}
             </p>
           )}
           {plan.changes.removedEnv.length > 0 && (
             <p>
-              Removed settings:{' '}
-              {plan.changes.removedEnv.map((e) => e.name).join(', ')}
+              Removed settings:{" "}
+              {plan.changes.removedEnv.map((e) => e.name).join(", ")}
             </p>
           )}
           {plan.changes.migrations.length > 0 && (
             <p>
-              Migration impact:{' '}
+              Migration impact:{" "}
               {[...new Set(plan.changes.migrations.map((m) => m.impact))].join(
-                ', ',
+                ", ",
               )}
             </p>
           )}
           {plan.attention.length > 0 && (
             <p>
-              This release requires explicit approval:{' '}
-              {plan.attention.join(', ')}.
+              This release requires explicit approval:{" "}
+              {plan.attention.join(", ")}.
             </p>
           )}
           <Button disabled={busy} onClick={() => void apply()}>
