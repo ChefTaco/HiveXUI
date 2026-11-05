@@ -1,16 +1,26 @@
 // The session is loaded by the shell too, for the sidebar, so it lives outside React. Importing this
 // file brings in the contract, so the shell only reaches it through a dynamic import.
-import { consoleSessionResponseSchema } from '@contracts/magnus/browser';
+import { consoleCapabilitiesSchema, consoleSessionResponseSchema, consoleSessionSchema } from '@contracts/magnus/browser';
+import { z } from 'zod';
 import { onAccessCleared } from '../../lib/transport';
 import { magnus } from './api/client';
 import { MagnusApiError } from './api/errors';
 import type { ConsoleRole } from './routes';
+
+// The pinned contract predates the fleet gateway, and a schema drops what it does not name. Newer
+// Magnus contracts declare this field the same way, so this goes when the contract is next imported.
+// A server that omits it offers no terminal.
+const sessionResponseSchema = consoleSessionResponseSchema.extend({
+  data: consoleSessionSchema.extend({ capabilities: consoleCapabilitiesSchema.extend({ terminal: z.boolean().default(false) }) }),
+});
 
 export interface MagnusSession {
   userId: string;
   role: ConsoleRole;
   capabilities: {
     hermes: boolean;
+    /** The fleet gateway is deployed and this person may use it. A node can still refuse. */
+    terminal: boolean;
     agentVersion: string;
     magnusVersion: string;
   };
@@ -54,7 +64,7 @@ export const sessionStore = {
     if (state.status !== 'error' || force) set({ status: 'loading' });
     const operation = (async () => {
       try {
-        const { data } = await magnus.get('/console/session', consoleSessionResponseSchema);
+        const { data } = await magnus.get('/console/session', sessionResponseSchema);
         if (started !== generation) return;
         // securityConsoleUrl stays behind here: Cindertrace is in this console, so nothing links out.
         const { securityConsoleUrl: _ignored, ...capabilities } = data.capabilities;

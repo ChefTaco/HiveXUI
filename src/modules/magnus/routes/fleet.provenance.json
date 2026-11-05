@@ -130,6 +130,10 @@
       "sha256": "b701f0120ef820aab2aa7e2ff6412aac5434404b4e781ce4c5d39e3561e4fd39"
     },
     {
+      "source": "apps/dashboard/src/components/nodes/terminal-modal.tsx",
+      "sha256": "7f9fa41da9973040e2ee949877242ff66faf26ddf849fa145c3f6022451d611d"
+    },
+    {
       "source": "apps/dashboard/src/components/nodes/upgrade-readiness-badge.tsx",
       "sha256": "009cecccdf11a9be2aba6094b70b4f200dec590d56cc643c32849dc7a2f4d5ba"
     },

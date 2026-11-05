@@ -29,7 +29,7 @@ const QUICK_COMMANDS: readonly QuickCommand[] = [
 
 type CommandResult = z.output<typeof quickCommandResponseSchema>['data'];
 
-/** Fixed commands with their output. A free command line is the terminal, which comes later through its own gateway. */
+/** Fixed commands with their output. A free command line is the terminal, which has its own gateway. */
 export function QuickCommandBar({ nodeId, nodeStatus, ask }: { nodeId: string; nodeStatus: string; ask: Ask }) {
   const [active, setActive] = useState<QuickCommand | null>(null);
   const [open, setOpen] = useState(false);

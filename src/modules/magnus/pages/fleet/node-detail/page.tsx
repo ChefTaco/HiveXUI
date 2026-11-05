@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { AlertCircle, ArrowLeft, ExternalLink, Loader2, Pencil, Server, ShieldCheck, Trash2 } from 'lucide-react';
+import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { AlertCircle, ArrowLeft, ExternalLink, Loader2, Pencil, Server, ShieldCheck, TerminalSquare, Trash2 } from 'lucide-react';
 import { deleteNodeResponseSchema, enableSystemUpdatesResponseSchema, hermesInstallationsResponseSchema, nodeDetailResponseSchema, nodeForecastResponseSchema, nodeGpuResponseSchema, nodeHealthResponseSchema, roleApplicationListResponseSchema } from '@contracts/magnus/browser';
 import { Badge, Button, ConfirmDialog, EmptyState, PageHeader, Skeleton, StatusDot, statusTone } from '@ui';
 import { formatTime } from '@lib/format';
@@ -25,6 +25,9 @@ import { QuickCommandBar } from './quick-commands';
 import { RoleApplicationsCard } from './role-applications';
 import { SoftwareCard } from './software-card';
 
+/** xterm comes with this chunk, which loads when someone opens a terminal and not before. */
+const TerminalPanel = lazy(() => import('./terminal/terminal-panel'));
+
 const TRANSIENT_POLL_MS = 4000;
 const LIVE_POLL_MS = 30_000;
 const SLOW_POLL_MS = 5 * 60_000;
@@ -48,7 +51,7 @@ export default function NodeDetailPage() {
   const { nodeId = '' } = useParams<{ nodeId: string }>();
   const router = useRouter();
   const toast = useToast();
-  const { can, hermes } = useMagnusSession();
+  const { can, hermes, terminal } = useMagnusSession();
   const canWrite = can(WRITE_ROLES);
   const canDelete = can(ADMIN_ONLY);
   const path = `/nodes/${segment(nodeId)}`;
@@ -65,6 +68,7 @@ export default function NodeDetailPage() {
   const applicationsResource = useMagnusResource((signal) => magnus.get('/roles/applications/list', roleApplicationListResponseSchema, { query: { nodeId }, signal }), [nodeId], { pollMs: LIVE_POLL_MS });
   const hermesResource = useMagnusResource((signal) => magnus.get('/hermes/installations', hermesInstallationsResponseSchema, { signal }), [], { enabled: hermes, pollMs: SLOW_POLL_MS });
 
+  const [terminalOpen, setTerminalOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [skillsOpen, setSkillsOpen] = useState(false);
@@ -175,6 +179,7 @@ export default function NodeDetailPage() {
                   {node.agent?.status === 'UPDATING' ? <Badge tone="info"><Loader2 aria-hidden="true" className="mr-1 inline size-3 animate-spin" />Upgrading…</Badge> : null}
                   <AgentSelfUpgradeBadge metadata={node.metadata} />
                   <UpgradeReadinessBadge readiness={node.upgradeReadiness} />
+                  {terminal ? <Button size="sm" icon={<TerminalSquare className="size-4" />} onClick={() => setTerminalOpen(true)}>Terminal</Button> : null}
                   {canWrite ? <Button size="sm" icon={<Pencil className="size-4" />} onClick={() => setEditing(true)}>Edit</Button> : null}
                   {canDelete ? (
                     <Button size="sm" variant="danger" icon={<Trash2 className="size-4" />} onClick={() => setPending({ title: 'Delete node', message: `Delete "${node.name}"? This permanently removes it and all associated data.`, label: 'Delete', action: confirmDelete })}>Delete</Button>
@@ -263,6 +268,7 @@ export default function NodeDetailPage() {
       </PageItem>
       {applicationsResource.data?.data.length ? <PageItem><RoleApplicationsCard applications={applicationsResource.data.data} /></PageItem> : null}
 
+      {terminal && terminalOpen ? <Suspense fallback={null}><TerminalPanel key={node.id} nodeId={node.id} nodeName={node.name} onClose={() => setTerminalOpen(false)} /></Suspense> : null}
       <SkillsDrawer open={skillsOpen} nodeName={node.name} skills={skills} onClose={() => setSkillsOpen(false)} />
       <EditNodeDrawer node={editing ? node : null} onClose={() => setEditing(false)} onSaved={refreshNode} />
       <AssignRoleDrawer

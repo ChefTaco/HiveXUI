@@ -215,7 +215,7 @@ function NodeTableRow({ node, health, updates, tailscale, canWrite, canDelete, o
   const disk = worstPersistentDisk(health?.disks);
   const severity = disk ? diskSeverity(disk.usagePercent) : null;
   const blocked = node.upgradeReadiness?.status === 'not-ready' ? node.upgradeReadiness.problems : null;
-  // The web terminal comes later, through its own gateway, so this row offers no terminal control.
+  // The web terminal is on node detail, so this row offers no terminal control.
   return (
     <tr className="fx-rail">
       <td>

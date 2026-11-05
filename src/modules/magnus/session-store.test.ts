@@ -22,6 +22,15 @@ describe('the Magnus session', () => {
     expect(state).toEqual({ status: 'ready', session: { userId: 'alice', role: 'VIEWER', capabilities: { terminal: false, hermes: true, agentVersion: '1.2.3', magnusVersion: '1.2.3' } } });
     expect(JSON.stringify(state)).not.toContain('security.example.com');
   });
+  it('offers the terminal only when the server says so, and an older server that omits it offers none', async () => {
+    request.mockResolvedValueOnce(Response.json(body({ terminal: true })));
+    await sessionStore.load();
+    expect(sessionStore.get()).toMatchObject({ session: { capabilities: { terminal: true } } });
+    sessionStore.reset();
+    request.mockResolvedValueOnce(Response.json(body()));
+    await sessionStore.load();
+    expect(sessionStore.get()).toMatchObject({ session: { capabilities: { terminal: false } } });
+  });
   it('separates an identity with no Magnus access from an unreachable API, and Retry reloads', async () => {
     request.mockResolvedValueOnce(Response.json({ error: { message: 'No link for this identity' } }, { status: 403 }));
     await sessionStore.load();

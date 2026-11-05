@@ -27,7 +27,6 @@ Not ported, by the owner's decision. Leave them out and remove any link to them:
   is one API per installation.
 - `/orchestra/web-gateway` and the embedded Hermes dashboard. Nothing from a node is embedded.
 - The registry parts of `/skills`. HiveSkills is the only registry. Keep only per-node installed Skills.
-- Terminal controls, including `terminal-modal`. The web terminal comes later through its own gateway.
 - `/governor/share/[token]`. Ask the owner first.
 
 ## The recipe
@@ -196,6 +195,13 @@ wait rather than exceed that. Poll those paths with `HERMES_POLL_MS` or slower, 
 
 Safe reads repeat once after step-up, in the transport. Mutations are never repeated: the error has
 `retryAfterStepUp`, and its message asks the operator to submit again. Do not add retries.
+
+## The web terminal
+
+It lives in `pages/fleet/node-detail/terminal/`, and node detail is the only place that offers it. The controls show only
+when `session.capabilities.terminal` is true. `gateway.ts` is its API, `session.ts` its logic and `terminal-panel.tsx` its
+lazy chunk, the only file allowed to import xterm. Output from a node goes to xterm as bytes and nowhere else. Never render
+it as HTML, log it, or load an xterm addon that reaches the clipboard or opens links.
 
 ## Contracts
 
