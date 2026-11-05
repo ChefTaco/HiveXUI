@@ -9,6 +9,25 @@
   external Magnus link is removed.
 
 - Show a permanent warning strip while Oathweave reports relaxed sign-in limits.
+
+- Redeem chat invites at `/signup` without signing in. The page calls ChatterMost's public
+  signup route anonymously and creates a native chat account with its own password; the
+  invite code leaves the address bar on load. Admins now get a link with the code in its
+  fragment. It does not create an Oathweave account or a link: console chat still needs both.
+
+- Show chat conversations oldest first. They were newest first with the composer below them.
+
+- Add to the chat composer an emoji picker with search and recents, a typed `/` command
+  palette in conversations with a bot, and Enter to send (Shift+Enter for a new line). Add a
+  bot-responding indicator, a webhook marker with message details, a first-weeks welcome
+  strip, jump to latest, and reading position that holds while earlier messages load.
+
+- Show the Cindertrace Lab tab and overview link only when `GET /lab` reports it enabled.
+
+- Name every Cindertrace source by product; source IDs are unchanged. Sources shows a feed
+  only if it has reported anything, a live collector may send it, or its product is
+  installed, and names the rest. An unreported alias no longer masks one with an error.
+
 - Give the console one visual theme. A single token file defines color, type, radii and
   spacing for light and dark, Tailwind maps onto it, and security, chat and all other pages
   share one set of buttons, badges, panels, empty states, tables, fields and page headers.

@@ -56,6 +56,12 @@ Contracts are browser-safe files owned by this checkout. They do not import a
 sibling backend. Their provenance records the original public source revision.
 A released contract publication/drift pipeline remains part of migration work.
 
+Chat invites are redeemed at `/signup`, the one console page that needs no sign-in. It
+creates a native ChatterMost account for Mattermost-compatible apps through the product's
+public signup route. Using chat in this console also needs an Oathweave account with
+`chattermost:session` and a reviewed entry in `OATHWEAVE_CHAT_IDENTITIES_JSON`; redeeming
+an invite creates neither, and nothing matches accounts by name or email.
+
 The security module ports the existing investigation pages and approval controls;
 the chat module includes channels, DMs, threads, files, search, message editing,
 reactions and realtime refresh. These are candidate ports. Authentication controls include passkeys, consent, recovery, step-up and MFA.
