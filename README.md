@@ -1,12 +1,10 @@
 # HiveXUI
 
-Part of the Hive:Magnus ecosystem. This repository starts from a reviewed public
-Hive source snapshot; `provenance.json` records its revision and original hashes.
+HiveXUI is the shared browser console for the Hive:Magnus suite: one sign-in and one navigation across identity, models, memory, Skills, security and chat. It is a static React application. Every operation goes to the owning product's API with the signed-in user's own credentials.
 
-Extraction is in progress. Existing client protocols and migration history are
-retained. The suite SSO/API cutover and production migration are not yet accepted.
-Do not replace an existing deployment using this source snapshot alone.
+It is one product in the [Hive:Magnus](https://github.com/ChefTaco/hive) suite. The [Hive installer](https://github.com/ChefTaco/hive#readme) deploys tested combinations of the suite's products.
 
+This project was extracted from Hive with its migration history and client protocols intact. `provenance.json` records the source revision and original file hashes.
 
 Build with `npm ci --ignore-scripts && npm run build`; run the browser boundary
 regressions with `npm test`. `Dockerfile` serves only compiled assets as UID 101.
