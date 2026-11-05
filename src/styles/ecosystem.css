@@ -29,7 +29,10 @@ h1,h2,h3,.brand strong {font-family:var(--font-display);}
 .login-card {background:var(--surface);border-top:4px solid var(--amber);box-shadow:0 24px 70px rgba(23,50,70,.1);}
 .login-sigil {filter:none;}
 .login-eyebrow {letter-spacing:.16em;}
-.theme-toggle {position:fixed;top:12px;right:16px;z-index:1000;border:1px solid var(--border-light);border-radius:6px;background:var(--surface);color:var(--text);padding:8px 12px;cursor:pointer;font-size:12px;}
+.theme-toggle {flex:none;border:1px solid var(--border-light);border-radius:6px;background:var(--surface);color:var(--text);padding:8px 12px;cursor:pointer;font-size:12px;white-space:nowrap;}
+.theme-toggle--floating {position:fixed;top:12px;right:16px;z-index:1000;}
+/* The signed-in shell carries its own control in the top bar. */
+body:has(.app-shell) .theme-toggle--floating {display:none;}
 button:focus-visible,a:focus-visible {outline:3px solid var(--sky);outline-offset:4px;}
 @media(prefers-reduced-motion:reduce) {*,*::before,*::after {animation:none!important;transition:none!important;scroll-behavior:auto!important;}}
 
@@ -49,3 +52,10 @@ button:focus-visible,a:focus-visible {outline:3px solid var(--sky);outline-offse
 .identity-dialog::backdrop { background:rgb(5 25 29 / 65%); backdrop-filter:blur(4px); }
 .identity-dialog form { display:grid; gap:1rem; }
 .identity-dialog ul { overflow-wrap:anywhere; }
+
+.sidebar-user > div {display:flex;flex-direction:column;gap:2px;min-width:0;}
+.sidebar-user > div > span {font-size:11px;color:var(--muted);overflow-wrap:anywhere;}
+.json-collapsed > summary {cursor:pointer;font-family:var(--font-mono);font-size:11px;color:var(--muted);padding:6px 0;}
+/* A tall control in one cell must not stretch the labels and inputs beside it. */
+.form-grid {align-items:start;}
+.panel > .field,.panel > .inline-actions,.panel > .form-grid {margin-top:14px;}

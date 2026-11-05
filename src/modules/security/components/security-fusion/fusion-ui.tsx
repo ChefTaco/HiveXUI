@@ -1,4 +1,4 @@
-import { sourceLabel } from "@security/lib/security-fusion";
+import { sourceLabel, mergeSourceAliases } from "@security/lib/security-fusion";
 import Link from '@security/navigation';
 import { ScanSearch } from 'lucide-react';
 import type { FusionCase, FusionCollector, FusionEvent, FusionSource } from '@security/lib/security-fusion';
@@ -126,7 +126,7 @@ const STALE_MS = 15 * 60 * 1000;
 export function SourceGrid({ sources }: { sources: FusionSource[] }): React.ReactElement {
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {sources.map((source) => {
+      {mergeSourceAliases(sources).map((source) => {
         const healthy = source.status === 'healthy';
         const lastSuccess = source.lastSuccessAt ? Date.parse(source.lastSuccessAt) : null;
         const stale = lastSuccess === null || Date.now() - lastSuccess > STALE_MS;

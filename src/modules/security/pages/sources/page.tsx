@@ -19,7 +19,7 @@ export default async function SourcesPage(): Promise<React.ReactElement> {
   return (
     <div className="p-5 lg:p-7">
       <FusionHeader
-        eyebrow="Eight required feeds"
+        eyebrow="Required feeds"
         title="Sources"
         copy="Checkpointed, replay-safe ingestion posture for UniFi DNS, UniFi IDS/IPS, NetFlow/IPFIX, Wazuh, Tailscale, Magnus, Hive, and ChatterMost."
       />

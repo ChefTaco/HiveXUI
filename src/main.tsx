@@ -11,8 +11,11 @@ import { IdentityPrompts } from './components/identity-prompts';
 import { ToastProvider } from './components/toast';
 import { ThemeToggle } from './components/theme-toggle';
 import { initializeRuntime } from './lib/runtime';
+import { applyTheme } from './lib/theme';
 import './styles/app.css';
 import './styles/ecosystem.css';
+
+applyTheme();
 
 const root = document.getElementById('root');
 
@@ -31,7 +34,7 @@ try {
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <ToastProvider>
-      <ThemeToggle />
+      <ThemeToggle floating />
       <IdentityPrompts />
       <App />
     </ToastProvider>

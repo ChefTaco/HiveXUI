@@ -204,6 +204,7 @@ export function EmptyState({ icon, message }: { icon?: ReactNode; message: strin
 }
 
 /* ===== JSON block ===== */
+const JSON_INLINE_LIMIT = 4000;
 export function JsonBlock({ value }: { value: unknown }) {
   let text: string;
   try {
@@ -211,6 +212,14 @@ export function JsonBlock({ value }: { value: unknown }) {
   } catch {
     text = String(value);
   }
+  // Stored values can be whole API documents; keep them from swallowing the page.
+  if (text.length > JSON_INLINE_LIMIT)
+    return (
+      <details className="json-collapsed">
+        <summary>Show value ({Math.round(text.length / 1024)} KB)</summary>
+        <pre className="code-block">{text}</pre>
+      </details>
+    );
   return <pre className="code-block">{text}</pre>;
 }
 

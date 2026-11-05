@@ -1,9 +1,17 @@
-import { useState } from 'react';
+import { useSyncExternalStore } from 'react';
+import { currentTheme, setTheme, subscribeTheme } from '../lib/theme';
 
-export function ThemeToggle() {
-  const [dark,setDark]=useState(()=>localStorage.getItem('hivexui-theme')==='dark');
-  document.documentElement.dataset.theme=dark?'dark':'light';
-  return <button className="theme-toggle" type="button" aria-label={dark?'Use light theme':'Use dark theme'} onClick={()=>{
-    const next=!dark;setDark(next);localStorage.setItem('hivexui-theme',next?'dark':'light');
-  }}>{dark?'Light theme':'Dark theme'}</button>;
+export function ThemeToggle({ floating = false }: { floating?: boolean }) {
+  const theme = useSyncExternalStore(subscribeTheme, currentTheme);
+  const dark = theme === 'dark';
+  return (
+    <button
+      className={floating ? 'theme-toggle theme-toggle--floating' : 'theme-toggle'}
+      type="button"
+      aria-label={dark ? 'Use light theme' : 'Use dark theme'}
+      onClick={() => setTheme(dark ? 'light' : 'dark')}
+    >
+      {dark ? 'Light theme' : 'Dark theme'}
+    </button>
+  );
 }

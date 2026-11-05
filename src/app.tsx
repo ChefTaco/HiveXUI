@@ -26,6 +26,7 @@ import {
 import type { AdminUser } from './lib/types';
 import { StoreProvider, useStore } from './lib/store';
 import { Icon, HiveSigil } from './components/icons';
+import { ThemeToggle } from './components/theme-toggle';
 import { initials, relativeTime } from './lib/format';
 import { ProvidersPage } from './pages/providers';
 import { RoutingPage } from './pages/routing';
@@ -741,6 +742,7 @@ function Shell({
                 Refresh
               </button>
             </div>
+            <ThemeToggle />
           </header>
 
           <div className="content">

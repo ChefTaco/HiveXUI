@@ -26,3 +26,16 @@ export function sourceLabel(source: string): string {
   if (source === "magnus_ui") return "Magnus console";
   return source.replaceAll("_", " ");
 }
+
+/** Historical IDs that share one product label appear as one feed, showing its best state. */
+export function mergeSourceAliases<T extends { source: string; status: string; lastSuccessAt?: string | null | undefined }>(sources: T[]): T[] {
+  const merged = new Map<string, T>();
+  const rank = (source: T) => [source.status === "healthy" ? 1 : 0, source.lastSuccessAt ? Date.parse(source.lastSuccessAt) : 0] as const;
+  for (const source of sources) {
+    const label = sourceLabel(source.source), current = merged.get(label);
+    if (!current) { merged.set(label, source); continue; }
+    const [health, recency] = rank(source), [currentHealth, currentRecency] = rank(current);
+    if (health > currentHealth || (health === currentHealth && recency > currentRecency)) merged.set(label, source);
+  }
+  return [...merged.values()];
+}

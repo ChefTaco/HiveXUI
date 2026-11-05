@@ -36,14 +36,16 @@ export function relativeTime(value: unknown): string {
   const date = new Date(String(value));
   if (Number.isNaN(date.getTime())) return String(value);
   const diff = Date.now() - date.getTime();
-  const sec = Math.round(diff / 1000);
-  if (sec < 60) return `${sec}s ago`;
+  // An expiry is in the future: "in 7d", never a negative age.
+  const text = (magnitude: string) => (diff < 0 ? `in ${magnitude}` : `${magnitude} ago`);
+  const sec = Math.round(Math.abs(diff) / 1000);
+  if (sec < 60) return text(`${sec}s`);
   const min = Math.round(sec / 60);
-  if (min < 60) return `${min}m ago`;
+  if (min < 60) return text(`${min}m`);
   const hr = Math.round(min / 60);
-  if (hr < 24) return `${hr}h ago`;
+  if (hr < 24) return text(`${hr}h`);
   const day = Math.round(hr / 24);
-  return `${day}d ago`;
+  return text(`${day}d`);
 }
 
 export function initials(name: string): string {
