@@ -59,6 +59,20 @@ describe('public console runtime configuration', () => {
   });
 });
 
+it('accepts magnus as a suite product with its public client', () => {
+  expect(
+    runtimeSchema.safeParse({
+      schema: 1,
+      products: { magnus: '/api/magnus' },
+      identity: {
+        issuer: 'https://identity.example.com',
+        apiPrefix: '/api/oathweave',
+        clients: { magnus: 'hivexui-magnus' },
+      },
+    }).success,
+  ).toBe(true);
+});
+
 it('requires explicit standalone legacy mode and a client for every suite product', () => {
   expect(runtimeSchema.safeParse({ schema: 1, products: {} }).success).toBe(
     false,

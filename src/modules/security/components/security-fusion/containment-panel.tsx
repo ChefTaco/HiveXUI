@@ -25,7 +25,7 @@ export function ContainmentPanel({
   caseId: string;
   actions: ExistingAction[];
   available?: boolean; canApprove?: boolean; approvalMode?: "console" | "external";
-}): React.ReactElement {
+}): React.ReactElement | null {
   const router = useRouter();
   useEffect(() => {
     if (!actions.some(action => ['dispatch_pending','executing','verifying','release_pending','releasing'].includes(action.status))) return;
@@ -58,7 +58,7 @@ export function ContainmentPanel({
     }
   }
 
-  if (!available) return <section className="border border-border/60 p-4"><h2 className="text-xs uppercase">Response</h2><p className="mt-3 text-xs text-text-muted">Magnus response is not configured.</p></section>;
+  if (!available) return null;
   return (
     <section className="border border-border/60 p-4">
       <h2 className="font-mono text-[10px] uppercase tracking-widest text-primary">

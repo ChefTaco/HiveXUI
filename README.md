@@ -69,10 +69,18 @@ origin to expose its separate fleet navigation link. Credentials, query paramete
 and fragments are rejected. Magnus keeps its own authentication and UI until its
 later integration; no infrastructure credential is shared through navigation.
 
+Runtime `products` decide what the console shows. Navigation has one section per
+installed product plus Hive and System, and the Hive overview, Incidents, API Docs and
+Settings cover and call only installed products. A bookmark to an absent product opens
+the overview. Actors needs Oathweave, Emberpath and HiveMem because each enrollment
+links all three. `magnus` is accepted as a product for a later module and has no
+navigation yet.
+
 Suite runtime requires an Oathweave identity configuration and a public client for
 each configured product. A missing runtime file or missing identity fails before
 sign-in. Explicit `mode: "legacy"` is reserved for standalone recovery against
 the retained native console API; suite installations never select it implicitly.
+That mode keeps its unfiltered navigation.
 Identity administration, account security and enrollment use a reviewed immutable
 Oathweave browser export. Skills uses the equivalent owning-product export. These
 standalone Zod modules are pinned by version and checksum, preserve native request

@@ -14,6 +14,7 @@ const product = z.enum([
   'hiveskills',
   'cindertrace',
   'chattermost',
+  'magnus',
 ]);
 const prefix = z.string().regex(/^\/api\/[a-z][a-z0-9-]*$/);
 export const runtimeSchema = z
@@ -93,6 +94,12 @@ export function selectEnrollmentInstallation(value: string): void {
 export const magnusConsoleUrl = () => magnusLink;
 export const productEnabled = (product: Product) => enabled.has(product);
 export const browserIdentity = () => identity;
+/**
+ * Whether the console should present a product. Legacy standalone recovery has no suite
+ * identity and talks to the retained native console API, so its surface stays unfiltered.
+ */
+export const productInstalled = (product: Product) =>
+  !identity || enabled.has(product);
 export async function initializeRuntime(): Promise<void> {
   const response = await fetch('/runtime.json', {
     cache: 'no-store',

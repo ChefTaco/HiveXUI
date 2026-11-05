@@ -40,13 +40,7 @@ export default function SuiteOverview() {
                 </span>
               </div>
               <Badge
-                tone={
-                  row.state === 'ready'
-                    ? 'teal'
-                    : row.state === 'unconfigured'
-                      ? 'muted'
-                      : 'amber'
-                }
+                tone={row.state === 'ready' ? 'teal' : 'amber'}
               >
                 {row.state}
               </Badge>

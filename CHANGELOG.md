@@ -1,5 +1,11 @@
 # Changelog
 
+- Show only installed products. Group navigation by owning product, drop sections and
+  overview rows for absent products, send bookmarks to them to the overview, and stop
+  background reads of their APIs. Incidents, API Docs and Settings now work without
+  Emberpath. Access errors for installed products are unchanged, and legacy recovery
+  mode stays unfiltered. Accept `magnus` as a runtime product for a later module.
+
 - Refresh safe GET/HEAD reads once after shared step-up verification with newly acquired resource credentials. Keep mutations and approvals manual, and reject verification completion after logout.
 
 - Add the central Oathweave authorization portal for registered external public clients, reusing sign-in/MFA/consent and enforcing PKCE, bound response/redirect validation, duplicate-request suppression and logout-safe one-use navigation without frontend token exchange.

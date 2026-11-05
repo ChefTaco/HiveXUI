@@ -4,7 +4,8 @@ export type Product =
   | 'hivemem'
   | 'hiveskills'
   | 'cindertrace'
-  | 'chattermost';
+  | 'chattermost'
+  | 'magnus';
 interface Access {
   value: string;
   expiresAt: number;
@@ -108,6 +109,7 @@ export function productFor(path: string): Product {
   if (path.startsWith('/api/skills/')) return 'hiveskills';
   if (path.startsWith('/api/security/')) return 'cindertrace';
   if (path.startsWith('/api/chat/')) return 'chattermost';
+  if (path.startsWith('/api/magnus/')) return 'magnus';
   return 'emberpath';
 }
 
@@ -139,6 +141,7 @@ export function createApiFetch(request: typeof fetch) {
       hiveskills: '/api/skills',
       cindertrace: '/api/security',
       chattermost: '/api/chat',
+      magnus: '/api/magnus',
     };
     if (prefix) target = prefix + path.slice(logical[product].length);
     const headers = new Headers(init.headers);

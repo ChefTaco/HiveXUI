@@ -4,6 +4,16 @@ import { Icon } from '../components/icons';
 import { useStore } from '../lib/store';
 import type { HiveIncident } from '../lib/types';
 import { formatTime, relativeTime } from '../lib/format';
+import { productInstalled } from '../lib/runtime';
+
+function failureSources(): string {
+  const names = [
+    productInstalled('emberpath') && 'model',
+    productInstalled('oathweave') && 'identity',
+    productInstalled('hivemem') && 'memory',
+  ].filter((name) => name !== false);
+  return new Intl.ListFormat('en', { style: 'long', type: 'conjunction' }).format(names);
+}
 
 function severityTone(severity: HiveIncident['severity']): 'amber' | 'teal' | 'coral' | 'muted' {
   if (severity === 'critical') return 'coral';
@@ -25,7 +35,7 @@ export function IncidentsPage() {
       <div className="page-head">
         <div>
           <h2>Incidents</h2>
-          <p>Authorized model, identity and memory failures grouped by request ID and time. Review and response stay in the owning product.</p>
+          <p>Authorized {failureSources()} failures grouped by request ID and time. Review and response stay in the owning product.</p>
         </div>
         <Button variant="ghost" icon={<Icon.Refresh className="btn-ico" />} loading={refreshing} onClick={() => void refresh()}>
           Refresh

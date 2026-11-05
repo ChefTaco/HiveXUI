@@ -24,7 +24,7 @@ export interface ServiceReadiness {
   product: Product;
   name: string;
   path: string;
-  state: 'unconfigured' | 'ready' | 'denied' | 'unavailable';
+  state: 'ready' | 'denied' | 'unavailable';
   message: string;
   latencyMs?: number;
 }
@@ -32,41 +32,38 @@ export async function readSuiteHealth(
   send: typeof apiFetch = apiFetch,
 ): Promise<ServiceReadiness[]> {
   return Promise.all(
-    readiness.map(async (service): Promise<ServiceReadiness> => {
-      if (!productPrefix(service.product))
-        return {
-          ...service,
-          state: 'unconfigured' as const,
-          message: 'Not configured for this installation',
-        };
-      try {
-        const started = performance.now(),
-          response = await send(service.path, {
-            signal: AbortSignal.timeout(5000),
-          });
-        return {
-          ...service,
-          state: response.ok
-            ? ('ready' as const)
-            : response.status === 401 || response.status === 403
-              ? ('denied' as const)
-              : ('unavailable' as const),
-          message: response.ok
-            ? 'Product readiness check passed'
-            : response.status === 401 || response.status === 403
-              ? 'This identity cannot inspect this product'
-              : 'Readiness check failed',
-          latencyMs: Math.round(performance.now() - started),
-        };
-      } catch {
-        return {
-          ...service,
-          state: 'unavailable' as const,
-          message:
-            'Product endpoint is unreachable or sign-in is not configured',
-        };
-      }
-    }),
+    // Only installed products are probed or reported; an absent one leaves no row.
+    readiness
+      .filter((service) => productPrefix(service.product))
+      .map(async (service): Promise<ServiceReadiness> => {
+        try {
+          const started = performance.now(),
+            response = await send(service.path, {
+              signal: AbortSignal.timeout(5000),
+            });
+          return {
+            ...service,
+            state: response.ok
+              ? ('ready' as const)
+              : response.status === 401 || response.status === 403
+                ? ('denied' as const)
+                : ('unavailable' as const),
+            message: response.ok
+              ? 'Product readiness check passed'
+              : response.status === 401 || response.status === 403
+                ? 'This identity cannot inspect this product'
+                : 'Readiness check failed',
+            latencyMs: Math.round(performance.now() - started),
+          };
+        } catch {
+          return {
+            ...service,
+            state: 'unavailable' as const,
+            message:
+              'Product endpoint is unreachable or sign-in is not configured',
+          };
+        }
+      }),
   );
 }
 export async function readConsoleHealth(): Promise<HiveStatus> {

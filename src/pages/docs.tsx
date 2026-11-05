@@ -10,7 +10,8 @@ import {
   Panel,
 } from '../components/ui';
 import { Icon } from '../components/icons';
-import { browserIdentity } from '../lib/runtime';
+import { viewAvailable } from '../lib/navigation';
+import { browserIdentity, productInstalled } from '../lib/runtime';
 
 const SUITE_RUNBOOKS = [
   {
@@ -133,7 +134,10 @@ export function DocsPage({
   onNavigate?: (view: string) => void;
 }) {
   const { data } = useStore();
-  const runbooks = browserIdentity() ? SUITE_RUNBOOKS : RUNBOOKS;
+  const endpoints = productInstalled('emberpath');
+  const runbooks = (browserIdentity() ? SUITE_RUNBOOKS : RUNBOOKS).filter(
+    (runbook) => viewAvailable(runbook.target, productInstalled),
+  );
   const [selected, setSelected] = useState<ApiDoc | null>(null);
 
   const grouped = useMemo(() => {
@@ -152,7 +156,11 @@ export function DocsPage({
       <div className="page-head">
         <div>
           <h2>Docs</h2>
-          <p>Runbooks and endpoint surface grouped by scope.</p>
+          <p>
+            {endpoints
+              ? 'Runbooks and endpoint surface grouped by scope.'
+              : 'Runbooks for operating this installation.'}
+          </p>
         </div>
       </div>
 
@@ -179,7 +187,7 @@ export function DocsPage({
         </div>
       </Panel>
 
-      {data.docs.length === 0 ? (
+      {!endpoints ? null : data.docs.length === 0 ? (
         <Panel title="Endpoints" eyebrow="0 documented">
           <EmptyState
             icon={<Icon.Book width={34} height={34} />}

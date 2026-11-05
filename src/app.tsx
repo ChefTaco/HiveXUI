@@ -19,9 +19,16 @@ import { adminApi, ApiError } from './lib/api';
 import { MfaRequired } from './lib/browser-auth';
 import { parsePortalAuthorization } from './lib/authorization-portal';
 import {
+  resolveDeepLink,
+  viewAvailable,
+  visibleNavGroups,
+  type IamViewKey,
+  type ViewKey,
+} from './lib/navigation';
+import {
   browserIdentity,
   magnusConsoleUrl,
-  productEnabled,
+  productInstalled,
 } from './lib/runtime';
 import type { AdminUser } from './lib/types';
 import { StoreProvider, useStore } from './lib/store';
@@ -35,45 +42,14 @@ import { TracesPage } from './pages/traces';
 import { KeysPage } from './pages/keys';
 import { AuditPage } from './pages/audit';
 import { DocsPage } from './pages/docs';
-import { SettingsPage } from './pages/settings';
+import { InstallationSettingsPage, SettingsPage } from './pages/settings';
 import { HiveOverviewPage } from './pages/hive-apps';
 import { IamOperationsPage, type IamSection } from './pages/iam-operations';
 import { MemoryDashboardPage } from './pages/memory-dashboard';
 import { RoutersPage } from './pages/routers';
 import { ActorsPage } from './pages/actors';
 import { IncidentsPage } from './pages/incidents';
-import type { ReactElement, SVGProps } from 'react';
 
-type IamViewKey =
-  | 'iam-overview'
-  | 'iam-users'
-  | 'iam-roles'
-  | 'iam-service-accounts'
-  | 'iam-clients'
-  | 'iam-sessions'
-  | 'iam-system-users'
-  | 'iam-security'
-  | 'iam-audit';
-type ViewKey =
-  | 'account'
-  | 'skills'
-  | 'chat'
-  | 'security'
-  | 'hive'
-  | IamViewKey
-  | 'workspaces'
-  | 'memories'
-  | 'actors'
-  | 'routers'
-  | 'providers'
-  | 'routing'
-  | 'testing'
-  | 'traces'
-  | 'incidents'
-  | 'keys'
-  | 'audit'
-  | 'docs'
-  | 'settings';
 type AuthState = 'checking' | 'unauthed' | 'authed';
 
 const IAM_VIEW_SECTIONS: Record<IamViewKey, IamSection> = {
@@ -87,79 +63,6 @@ const IAM_VIEW_SECTIONS: Record<IamViewKey, IamSection> = {
   'iam-security': 'security',
   'iam-audit': 'audit',
 };
-
-interface NavItem {
-  key: ViewKey;
-  label: string;
-  icon: (p: SVGProps<SVGSVGElement>) => ReactElement;
-}
-
-interface NavGroup {
-  label: string;
-  items: NavItem[];
-}
-
-const NAV_GROUPS: NavGroup[] = [
-  {
-    label: 'Hive:Magnus',
-    items: [{ key: 'hive', label: 'Hive', icon: Icon.Hexagon }],
-  },
-  {
-    label: 'Oathweave',
-    items: [
-      { key: 'iam-overview', label: 'Overview', icon: Icon.Gauge },
-      { key: 'account', label: 'Account security', icon: Icon.Key },
-      { key: 'iam-users', label: 'Users', icon: Icon.Key },
-      { key: 'iam-roles', label: 'Roles', icon: Icon.Scroll },
-      {
-        key: 'iam-service-accounts',
-        label: 'Service Accounts',
-        icon: Icon.Server,
-      },
-      { key: 'iam-clients', label: 'Clients', icon: Icon.Route },
-      { key: 'iam-sessions', label: 'Sessions', icon: Icon.Activity },
-      { key: 'iam-system-users', label: 'System Users', icon: Icon.Settings },
-      { key: 'iam-security', label: 'Security', icon: Icon.Alert },
-      { key: 'iam-audit', label: 'Audit', icon: Icon.Book },
-    ],
-  },
-  {
-    label: 'Memory',
-    items: [
-      { key: 'memories', label: 'Memories', icon: Icon.Activity },
-      { key: 'workspaces', label: 'Workspaces', icon: Icon.Activity },
-      { key: 'actors', label: 'Actors', icon: Icon.Key },
-      { key: 'skills', label: 'Skills', icon: Icon.Scroll },
-    ],
-  },
-  {
-    label: 'Emberpath',
-    items: [
-      { key: 'routers', label: 'Routers', icon: Icon.Gauge },
-      { key: 'providers', label: 'Providers', icon: Icon.Server },
-      { key: 'routing', label: 'Routing', icon: Icon.Route },
-      { key: 'testing', label: 'Testing', icon: Icon.Hexagon },
-    ],
-  },
-  {
-    label: 'Observability',
-    items: [
-      { key: 'security', label: 'Cindertrace', icon: Icon.Alert },
-      { key: 'chat', label: 'ChatterMost', icon: Icon.Activity },
-      { key: 'traces', label: 'Traces', icon: Icon.Activity },
-      { key: 'incidents', label: 'Incidents', icon: Icon.Alert },
-      { key: 'audit', label: 'Audit Log', icon: Icon.Scroll },
-    ],
-  },
-  {
-    label: 'System',
-    items: [
-      { key: 'keys', label: 'API Keys', icon: Icon.Key },
-      { key: 'docs', label: 'API Docs', icon: Icon.Book },
-      { key: 'settings', label: 'Settings', icon: Icon.Settings },
-    ],
-  },
-];
 
 export function App() {
   return location.pathname === '/auth/authorize' ? <AuthorizationPortal /> : <ConsoleApp />;
@@ -369,7 +272,7 @@ function LoginScreen({ onSuccess, authorization = false }: { onSuccess: (user: A
           <p className="login-eyebrow">Hive:Magnus</p>
           <h1>{authorization ? 'Oathweave sign-in' : 'Control Plane Console'}</h1>
           <p className="login-sub">
-            {authorization ? 'Sign in to continue to your application.' : 'Authenticate to manage identity, memory, and routing.'}
+            {authorization ? 'Sign in to continue to your application.' : 'Authenticate to manage this installation.'}
           </p>
 
           {error ? (
@@ -536,15 +439,12 @@ function Shell({
   user: AdminUser | null;
   onLogout: () => void;
 }) {
-  const [view, setView] = useState<ViewKey>(() => {
-    const page = new URLSearchParams(location.search).get('page');
-    return (
-      NAV_GROUPS.flatMap((group) => group.items).find(
-        (item) => item.key === page,
-      )?.key ??
-      (location.pathname.startsWith('/security-fusion') ? 'security' : 'hive')
-    );
-  });
+  const [deepLink] = useState(() => resolveDeepLink(location, productInstalled));
+  const [view, setView] = useState<ViewKey>(deepLink.view);
+  const [navGroups] = useState(() => visibleNavGroups(productInstalled));
+  useEffect(() => {
+    if (deepLink.url) history.replaceState(null, '', deepLink.url);
+  }, [deepLink]);
   const [navOpen, setNavOpen] = useState(false);
   const navigationRef = useRef<HTMLElement>(null);
   const navigationToggleRef = useRef<HTMLButtonElement>(null);
@@ -591,7 +491,10 @@ function Shell({
     }
   }
 
-  function navigate(next: ViewKey) {
+  function navigate(requested: string) {
+    const next: ViewKey = viewAvailable(requested, productInstalled)
+      ? requested
+      : 'hive';
     setView(next);
     setNavOpen(false);
     requestAnimationFrame(() =>
@@ -624,11 +527,11 @@ function Shell({
           </div>
 
           <nav className="nav">
-            {NAV_GROUPS.map((group) => (
+            {navGroups.map((group) => (
               <div className="nav-group" key={group.label}>
                 <p className="nav-group-label">{group.label}</p>
                 {group.items.map((item) => {
-                  const ItemIcon = item.icon;
+                  const ItemIcon = Icon[item.icon];
                   const count = counts[item.key];
                   return (
                     <button
@@ -780,7 +683,7 @@ function Shell({
                 ) : null}
                 <ViewContent
                   view={view}
-                  onNavigate={(next: string) => navigate(next as ViewKey)}
+                  onNavigate={navigate}
                   user={user}
                 />
               </>
@@ -855,7 +758,9 @@ function ViewContent({
     docs: 'router:admin:read',
     settings: 'router:settings:read',
   };
-  if (models[view])
+  // Incidents, API Docs and Settings also work without Emberpath; its access check
+  // applies only where Emberpath is installed, and there a denial is a real error.
+  if (models[view] && productInstalled('emberpath'))
     return (
       <ProductAccess
         product="emberpath"
@@ -870,23 +775,6 @@ function ViewContent({
       <ProductAccess product="oathweave" fallback={user}>
         {(principal) => renderView(view, onNavigate, principal)}
       </ProductAccess>
-    );
-  const product = (
-    {
-      account: 'oathweave',
-      memories: 'hivemem',
-      workspaces: 'hivemem',
-      skills: 'hiveskills',
-      security: 'cindertrace',
-      chat: 'chattermost',
-    } as const
-  )[view as 'account' | 'memories' | 'workspaces' | 'skills' | 'security' | 'chat'];
-  if (browserIdentity() && product && !productEnabled(product))
-    return (
-      <section className="panel">
-        <h2>Product unconfigured</h2>
-        <p>{product} is not configured for this console.</p>
-      </section>
     );
   return renderView(view, onNavigate, user);
 }
@@ -970,7 +858,11 @@ function renderView(
     case 'docs':
       return <DocsPage onNavigate={onNavigate} />;
     case 'settings':
-      return <SettingsPage currentUser={user} />;
+      return productInstalled('emberpath') ? (
+        <SettingsPage currentUser={user} />
+      ) : (
+        <InstallationSettingsPage />
+      );
     default:
       return null;
   }

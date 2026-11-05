@@ -28,6 +28,21 @@ function parseRoutingObjective(settings: Array<{ key: string; parsed?: unknown }
   };
 }
 
+/** Settings without Emberpath: the installation lifecycle is all that remains. */
+export function InstallationSettingsPage() {
+  return (
+    <>
+      <div className="page-head">
+        <div>
+          <h2>Settings</h2>
+          <p>Installation lifecycle.</p>
+        </div>
+      </div>
+      <UpgradesPanel canUpgrade={false} />
+    </>
+  );
+}
+
 export function SettingsPage({ currentUser }: { currentUser: AdminUser | null }) {
   const { data, refresh } = useStore();
   const toast = useToast();

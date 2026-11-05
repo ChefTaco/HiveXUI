@@ -44,12 +44,8 @@ export function ProductAccess({
     };
   }, [product, attempt]);
   if (!browserIdentity()) return children(fallback);
-  if (!productEnabled(product))
-    return (
-      <Panel title="Product unconfigured">
-        <p>{product} is not configured for this console.</p>
-      </Panel>
-    );
+  // Navigation never routes here for an absent product; render nothing rather than a trace of it.
+  if (!productEnabled(product)) return null;
   if (loading) return <p role="status">Checking product access…</p>;
   if (error || !user)
     return (

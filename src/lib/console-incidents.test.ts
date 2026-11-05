@@ -46,3 +46,9 @@ it('skips unconfigured products and unauthorized audit reads', async () => {
   expect(send).toHaveBeenCalledTimes(1);
   expect(send.mock.calls[0]![0]).toBe('/api/iam/auth/me');
 });
+
+it('calls nothing and reports no issue for products that are not installed', async () => {
+  const send = vi.fn<typeof fetch>();
+  await expect(readConsoleIncidents(send, () => false)).resolves.toEqual({ data: [], issues: [] });
+  expect(send).not.toHaveBeenCalled();
+});

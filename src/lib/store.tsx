@@ -8,8 +8,8 @@ import {
   type ReactNode,
 } from 'react';
 import { adminApi, ApiError } from './api';
-import { browserIdentity, productEnabled } from './runtime';
-import { allowedRouterResource } from './router-access';
+import { browserIdentity, productInstalled } from './runtime';
+import { allowedStoreResource } from './router-access';
 import type {
   ApiDoc,
   AuditEvent,
@@ -109,14 +109,10 @@ export function StoreProvider({
     setLoadIssues([]);
     try {
       const browser = !!browserIdentity();
-      if (browser && !productEnabled('emberpath')) {
-        setData(EMPTY);
-        setLastSync(new Date());
-        return;
-      }
-      const user = browser
-        ? (await adminApi.resourceMe('emberpath')).user
-        : null;
+      const user =
+        browser && productInstalled('emberpath')
+          ? (await adminApi.resourceMe('emberpath')).user
+          : null;
       const loaders = {
         providers: adminApi.providers,
         aliases: adminApi.aliases,
@@ -133,7 +129,7 @@ export function StoreProvider({
         hiveStatus: adminApi.hiveStatus,
       };
       const keys = (Object.keys(loaders) as Array<keyof typeof loaders>).filter(
-        (key) => allowedRouterResource(key, user, browser),
+        (key) => allowedStoreResource(key, user, browser, productInstalled),
       );
       const requests = Object.fromEntries(
         keys.map((key) => [key, loaders[key]()]),

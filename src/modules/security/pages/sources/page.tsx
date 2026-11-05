@@ -21,7 +21,7 @@ export default async function SourcesPage(): Promise<React.ReactElement> {
       <FusionHeader
         eyebrow="Required feeds"
         title="Sources"
-        copy="Checkpointed, replay-safe ingestion posture for UniFi DNS, UniFi IDS/IPS, NetFlow/IPFIX, Wazuh, Tailscale, Magnus, Hive, and ChatterMost."
+        copy="Checkpointed, replay-safe ingestion posture for each feed this installation reports."
       />
       <SourceGrid sources={sources ?? []} />
       <section className="mt-7">
