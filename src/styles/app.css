@@ -312,7 +312,7 @@ a:hover {
   margin-left: auto;
   font-family: var(--font-mono);
   font-size: 10.5px;
-  color: var(--muted);
+  color: var(--text);
   background: var(--border);
   border-radius: 999px;
   padding: 1px 8px;

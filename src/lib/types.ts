@@ -276,7 +276,7 @@ export interface ProviderModel {
   capabilityJson?: string | null;
 }
 
-export type {ProviderWriteRequest, ProviderModelWriteRequest, ModelAliasWriteRequest} from '@contracts/emberpath-model-admin.generated';
+export type {ProviderWriteRequest, ProviderModelWriteRequest, ModelAliasWriteRequest, ConfigImportRequest} from '@contracts/emberpath-model-admin.generated';
 
 export interface Provider {
   id: string;
@@ -402,16 +402,6 @@ export interface ClientKeyUpdateRequest {
   name?: string;
   enabled?: boolean;
   metadata?: ClientKeyMetadataInput;
-}
-
-export interface ConfigImportRequest {
-  data?: {
-    providers?: Array<Record<string, unknown>>;
-    aliases?: Array<Record<string, unknown>>;
-    routeRules?: Array<Record<string, unknown>>;
-    heuristicRules?: Array<Record<string, unknown>>;
-    runtimeSettings?: Array<{ key: string; valueJson: string }>;
-  };
 }
 
 export interface ClientKey {

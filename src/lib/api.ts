@@ -3,7 +3,7 @@ import {
   type MemoryWrite,
 } from '@contracts/memory-operations.js';
 import { apiFetch, clearAccess } from './transport';
-import {providerSchema, modelAliasSchema} from '@contracts/emberpath-model-admin.generated';
+import {providerSchema, modelAliasSchema, configImportSchema} from '@contracts/emberpath-model-admin.generated';
 import { browserIdentity, enrollmentInstallationId } from './runtime';
 import { readConsoleHealth } from './suite-health';
 import { EnrollmentInventorySchema, EnrollmentResultSchema, EnrollmentRequestSchema, LegacyEnrollmentReceiptSchema, EnrollmentInstallationsSchema } from '@contracts/oathweave.generated.js';
@@ -719,7 +719,7 @@ export const adminApi = {
   importConfig(body: ConfigImportRequest) {
     return request<{ ok: boolean }>('/api/config/import', {
       method: 'POST',
-      body,
+      body: configImportSchema.parse(body),
     });
   },
 

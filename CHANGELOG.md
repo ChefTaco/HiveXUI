@@ -1,5 +1,9 @@
 # Changelog
 
+- Validate complete native version-1 configuration archives and legacy bare
+  imports with the owned Emberpath contract, retaining known source metadata.
+- Keep populated navigation count badges readable in both color themes.
+
 - Validate provider and alias writes with Emberpath's checksum-pinned, versioned
   browser contract and derive request types from its schemas. Retain source
   attribution, handle legacy null capabilities, and name configuration exports
