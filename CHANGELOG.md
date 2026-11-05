@@ -1,5 +1,7 @@
 # Changelog
 
+- Keep chat member checkboxes at their native control width so group selection labels remain readable in the console rail.
+
 - Append, drop, paste and remove pending chat files with atomic ten-file limits; protect drafts during sending and reuse each completed upload on manual retries. Keep mobile channel navigation readable.
 
 - Review and revoke explicit identity sessions instead of grouping clients by
