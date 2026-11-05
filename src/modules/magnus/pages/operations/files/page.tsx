@@ -6,10 +6,11 @@ import { useToast } from '../../../../../components/toast';
 import { magnus, segment } from '../../../api/client';
 import { errorMessage } from '../../../api/errors';
 import { FxPanel, PageItem } from '../../../effects';
+import { ActionConfirm } from '../../../ui/action-confirm';
 import { NodeSelector } from '../../../ui/node-selector';
 import { postKeepingBody } from '../shared/request';
 import { FileBrowser } from './file-browser';
-import { libraryFileName, pushProblem } from './files-model';
+import { libraryFileName, pushMessage, pushProblem } from './files-model';
 import { LibraryPicker, SaveToLibrary, type LoadedLibraryFile } from './library-drawers';
 
 type Preview = { policy: string; targetCount: number; backupPlanned: boolean; contentBytes: number };
@@ -17,6 +18,8 @@ type Preview = { policy: string; targetCount: number; backupPlanned: boolean; co
 export default function FilesPage() {
   const toast = useToast();
   const [nodeId, setNodeId] = useState('');
+  const [nodeName, setNodeName] = useState('');
+  const [confirmingPush, setConfirmingPush] = useState(false);
   const [filePath, setFilePath] = useState('');
   const [content, setContent] = useState('');
   const [busy, setBusy] = useState<'pull' | 'push' | 'preview' | null>(null);
@@ -47,6 +50,7 @@ export default function FilesPage() {
   }
 
   async function push() {
+    setConfirmingPush(false);
     if (!nodeId || !filePath) return;
     setBusy('push');
     setError(null);
@@ -111,7 +115,7 @@ export default function FilesPage() {
         <FxPanel title="Target" interactive={false}>
           <div className="grid gap-4">
             <div className="grid items-end gap-4 sm:grid-cols-[1fr_2fr_auto]">
-              <NodeSelector label="Node" value={nodeId} onChange={setNodeId} />
+              <NodeSelector label="Node" value={nodeId} onChange={(id, name) => { setNodeId(id); setNodeName(name); }} />
               <div className="field min-w-0">
                 <span className="field-label">File path</span>
                 <button
@@ -158,7 +162,7 @@ export default function FilesPage() {
               <Button size="sm" icon={<BookOpen className="size-4" />} onClick={() => setPickerOpen(true)}>Load from Library</Button>
               <Button size="sm" icon={<Library className="size-4" />} loading={librarySaving} disabled={!content} onClick={() => void saveToLibrary()}>{libraryFileId ? 'Save to Library' : 'Save as Library file'}</Button>
               <Button size="sm" icon={<ShieldCheck className="size-4" />} loading={busy === 'preview'} disabled={loading || !nodeId || !filePath} onClick={() => void runPreview()}>Preview</Button>
-              <Button size="sm" variant="primary" icon={<Save className="size-4" />} loading={busy === 'push'} disabled={loading || !nodeId || !filePath} onClick={() => void push()}>Push to Node</Button>
+              <Button size="sm" variant="primary" icon={<Save className="size-4" />} loading={busy === 'push'} disabled={loading || !nodeId || !filePath} onClick={() => setConfirmingPush(true)}>Push to Node</Button>
             </>
           }
         >
@@ -169,6 +173,14 @@ export default function FilesPage() {
           <TextArea aria-label="File content" value={content} onChange={setContent} placeholder="File content will appear here after pulling from a node…" rows={20} className="w-full font-mono transition-shadow duration-[var(--duration-base)] focus:shadow-[0_0_12px_var(--glow-accent)]" />
         </FxPanel>
       </PageItem>
+      <ActionConfirm
+        open={confirmingPush}
+        title="Push this file?"
+        message={pushMessage({ filePath, nodeName, content, backup })}
+        confirmLabel="Push to node"
+        onConfirm={() => void push()}
+        onCancel={() => setConfirmingPush(false)}
+      />
       <FileBrowser
         open={browserOpen}
         nodeId={nodeId}

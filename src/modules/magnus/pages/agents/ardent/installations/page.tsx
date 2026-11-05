@@ -5,6 +5,7 @@ import { errorMessage } from '../../../../api/errors';
 import { useMagnusResource } from '../../../../api/use-resource';
 import { FxPanel, HaloDot, PageItem } from '../../../../effects';
 import Link from '../../../../navigation';
+import { ActionConfirm } from '../../../../ui/action-confirm';
 import { LoadingRows, ResourceError } from '../../../../ui/resource-state';
 import { Fact } from '../../shared/fx';
 import { ardentAction, listInstallations } from '../api';
@@ -16,7 +17,9 @@ function PackageControls({ item, refresh }: { item: ArdentInstallation; refresh:
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState('');
   const staged = item.stagedPackage;
+  const [confirming, setConfirming] = useState(false);
   async function install() {
+    setConfirming(false);
     setBusy(true);
     setError('');
     setFeedback('');
@@ -37,11 +40,12 @@ function PackageControls({ item, refresh }: { item: ArdentInstallation; refresh:
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-text-muted">Release package</span>
         <span className="font-mono">{staged?.version ?? 'not staged'}</span>
-        {staged && item.version !== staged.version ? <Button size="sm" loading={busy} disabled={!item.reachable} onClick={() => void install()}>{busy ? 'Installing…' : item.installed ? 'Update package' : 'Install package'}</Button> : null}
+        {staged && item.version !== staged.version ? <Button size="sm" loading={busy} disabled={!item.reachable} onClick={() => setConfirming(true)}>{busy ? 'Installing…' : item.installed ? 'Update package' : 'Install package'}</Button> : null}
       </div>
       {item.stagedPackageError ? <p role="alert" className="m-0 mt-2 text-danger">{item.stagedPackageError}</p> : null}
       {feedback ? <p role="status" className="m-0 mt-2 text-success">{feedback}</p> : null}
       {error ? <p role="alert" className="m-0 mt-2 text-danger">{error}</p> : null}
+      <ActionConfirm open={confirming} title={item.installed ? 'Update the Ardent package?' : 'Install the Ardent package?'} message={`${item.installed ? 'Update' : 'Install'} Ardent ${staged?.version ?? ''} on this node? Profiles running there may restart.`} confirmLabel={item.installed ? 'Update package' : 'Install package'} onConfirm={() => void install()} onCancel={() => setConfirming(false)} />
     </div>
   );
 }
@@ -50,7 +54,9 @@ function ServiceControls({ nodeId, profileId, running, refresh }: { nodeId: stri
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState('');
+  const [confirming, setConfirming] = useState<'service-stop' | 'service-restart' | null>(null);
   async function act(action: 'service-start' | 'service-stop' | 'service-restart') {
+    setConfirming(null);
     setBusy(action);
     setError('');
     setFeedback('');
@@ -68,11 +74,12 @@ function ServiceControls({ nodeId, profileId, running, refresh }: { nodeId: stri
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
       <Button size="sm" disabled={!!busy || running} loading={busy === 'service-start'} onClick={() => void act('service-start')}>Start</Button>
-      <Button size="sm" disabled={!!busy || !running} loading={busy === 'service-restart'} onClick={() => void act('service-restart')}>Restart</Button>
-      <Button size="sm" variant="danger" disabled={!!busy || !running} loading={busy === 'service-stop'} onClick={() => void act('service-stop')}>Stop</Button>
+      <Button size="sm" disabled={!!busy || !running} loading={busy === 'service-restart'} onClick={() => setConfirming('service-restart')}>Restart</Button>
+      <Button size="sm" variant="danger" disabled={!!busy || !running} loading={busy === 'service-stop'} onClick={() => setConfirming('service-stop')}>Stop</Button>
       {busy ? <span className="flex items-center gap-2 text-xs text-text-muted"><HaloDot tone="accent" />Waiting for node receipt…</span> : null}
       {feedback ? <span role="status" className="text-xs text-success">{feedback}</span> : null}
       {error ? <span role="alert" className="text-xs text-danger">{error}</span> : null}
+      <ActionConfirm open={!!confirming} title={confirming === 'service-stop' ? 'Stop this profile?' : 'Restart this profile?'} message={`${confirming === 'service-stop' ? 'Stop' : 'Restart'} ${profileId} on this node? Work it is doing now is interrupted.`} confirmLabel={confirming === 'service-stop' ? 'Stop' : 'Restart'} onConfirm={() => { if (confirming) void act(confirming); }} onCancel={() => setConfirming(null)} />
     </div>
   );
 }

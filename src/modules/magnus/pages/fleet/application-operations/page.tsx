@@ -14,7 +14,7 @@ import Link from '../../../navigation';
 import { hasRoute } from '../../../routes';
 import { useMagnusSession, WRITE_ROLES } from '../../../session';
 import { LoadingRows, ResourceError } from '../../../ui/resource-state';
-import { ActionConfirm } from '../shared/action-confirm';
+import { ActionConfirm } from '../../../ui/action-confirm';
 import { Figure } from '../shared/figure';
 import { useSweep } from '../shared/sweep';
 import { listAllNodes } from '../nodes/nodes-api';

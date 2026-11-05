@@ -5,6 +5,7 @@ import { magnus, segment } from '../../../api/client';
 import { errorMessage } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
 import { FxPanel, HaloDot } from '../../../effects';
+import { ActionConfirm } from '../../../ui/action-confirm';
 import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { Fact } from '../shared/fx';
 import { authTone, canRequestUpdate, safeExternalUrl } from './logic';
@@ -19,6 +20,7 @@ export function CodexInstallationCard({ installation, onChange }: { installation
   const [error, setError] = useState('');
   const [session, setSession] = useState<CodexDeviceSession | null>(null);
   const [copied, setCopied] = useState(false);
+  const [confirming, setConfirming] = useState<'update' | 'logout' | null>(null);
   const change = useRef(onChange);
   change.current = onChange;
   const pending = session?.status === 'pending' ? session.id : null;
@@ -49,6 +51,7 @@ export function CodexInstallationCard({ installation, onChange }: { installation
   }, [installation.nodeId, pending]);
 
   async function run(action: 'update' | 'logout') {
+    setConfirming(null);
     setBusy(action);
     setError('');
     try {
@@ -121,9 +124,9 @@ export function CodexInstallationCard({ installation, onChange }: { installation
               <span className="mt-1 block text-xs">API-key credentials are not used by this Magnus flow.</span>
             </div>
             <div className="flex flex-wrap gap-2">
-              {canRequestUpdate(installation) ? <Button size="sm" disabled={busy !== null} loading={busy === 'update'} icon={<RefreshCw className="size-4" />} onClick={() => void run('update')}>{installation.latestVersion ? 'Update Codex' : 'Check and update Codex'}</Button> : null}
+              {canRequestUpdate(installation) ? <Button size="sm" disabled={busy !== null} loading={busy === 'update'} icon={<RefreshCw className="size-4" />} onClick={() => setConfirming('update')}>{installation.latestVersion ? 'Update Codex' : 'Check and update Codex'}</Button> : null}
               {!auth.oauth ? <Button size="sm" variant="primary" disabled={busy !== null || session?.status === 'pending'} loading={busy === 'device'} icon={<KeyRound className="size-4" />} onClick={() => void startDeviceLogin()}>Generate device code</Button> : null}
-              {auth.oauth ? <Button size="sm" variant="danger" disabled={busy !== null} loading={busy === 'logout'} icon={<LogOut className="size-4" />} onClick={() => void run('logout')}>Log out</Button> : null}
+              {auth.oauth ? <Button size="sm" variant="danger" disabled={busy !== null} loading={busy === 'logout'} icon={<LogOut className="size-4" />} onClick={() => setConfirming('logout')}>Log out</Button> : null}
             </div>
           </>
         ) : null}
@@ -147,6 +150,14 @@ export function CodexInstallationCard({ installation, onChange }: { installation
             ) : <p className="m-0 mt-3 text-sm text-text-muted">{session.error ?? (session.status === 'completed' ? 'ChatGPT OAuth authorization completed.' : 'Device authorization ended.')}</p>}
           </div>
         ) : null}
+        <ActionConfirm
+          open={!!confirming}
+          title={confirming === 'logout' ? 'Log Codex out?' : 'Update Codex?'}
+          message={confirming === 'logout' ? `Log Codex out on ${installation.nodeName}? What uses this login stops until someone signs in again.` : `Update Codex on ${installation.nodeName}? Work it is doing now may be interrupted.`}
+          confirmLabel={confirming === 'logout' ? 'Log out' : 'Update'}
+          onConfirm={() => { if (confirming) void run(confirming); }}
+          onCancel={() => setConfirming(null)}
+        />
         {error ? <p role="alert" className="m-0 rounded-control border border-danger bg-danger-soft p-3 text-sm text-danger">{error}</p> : null}
       </div>
     </FxPanel>

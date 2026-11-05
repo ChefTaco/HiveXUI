@@ -10,6 +10,7 @@ import { errorMessage } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
 import { FxPanel, PageItem } from '../../../effects';
 import { ADMIN_ONLY, useMagnusSession, WRITE_ROLES } from '../../../session';
+import { ActionConfirm } from '../../../ui/action-confirm';
 import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { NodeChecklist } from '../shared/nodes';
 import { applicationIsActive, parseSteps } from './logic';
@@ -88,6 +89,7 @@ export default function RolesPage() {
   const [unassigning, setUnassigning] = useState<{ id: string; name: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [confirmingApply, setConfirmingApply] = useState(false);
   const detailRef = useRef<HTMLDivElement>(null);
 
   const refresh = () => void Promise.all([roles.refresh(), selectedId ? detail.refresh() : Promise.resolve()]);
@@ -127,6 +129,7 @@ export default function RolesPage() {
     }
   }
   async function reapply() {
+    setConfirmingApply(false);
     if (!role) return;
     setApplying(true);
     try {
@@ -230,7 +233,7 @@ export default function RolesPage() {
                   interactive={false}
                   actions={canWrite ? (
                     <>
-                      {(role.nodes?.length ?? 0) > 0 ? <Button size="sm" icon={<RefreshCw className="size-4" />} loading={applying} onClick={() => void reapply()}>Re-apply all</Button> : null}
+                      {(role.nodes?.length ?? 0) > 0 ? <Button size="sm" icon={<RefreshCw className="size-4" />} loading={applying} onClick={() => setConfirmingApply(true)}>Re-apply all</Button> : null}
                       <Button size="sm" variant="primary" icon={<Plus className="size-4" />} onClick={() => setAssignOpen(true)}>Assign nodes</Button>
                     </>
                   ) : undefined}
@@ -292,6 +295,7 @@ export default function RolesPage() {
         </div>
       </PageItem>
       <RoleDrawer open={!!drawer} role={drawer?.role ?? null} onClose={() => setDrawer(null)} onSaved={refresh} />
+      <ActionConfirm open={confirmingApply && !!role} title="Re-apply this role?" message={role ? `Apply "${role.name}" again on ${role.nodes?.length ?? 0} node${role.nodes?.length === 1 ? '' : 's'}? Its steps run on each of them now.` : ''} confirmLabel="Re-apply" onConfirm={() => void reapply()} onCancel={() => setConfirmingApply(false)} />
       <ConfirmDialog open={!!deleting} title="Delete node role" message={deleting ? `Delete role "${deleting.name}"? This unassigns all its nodes.` : ''} loading={busy} onConfirm={() => void confirmDelete()} onCancel={() => setDeleting(null)} />
       <ConfirmDialog open={!!unassigning} title="Unassign node" confirmLabel="Unassign" message={unassigning ? `Unassign ${unassigning.name}? This removes the role's configuration from it.` : ''} loading={busy} onConfirm={() => void confirmUnassign()} onCancel={() => setUnassigning(null)} />
     </div>

@@ -14,7 +14,8 @@ import { skillScanResponseSchema } from './schemas';
 export default function InstalledSkillsPage() {
   const { can } = useMagnusSession();
   const canScan = can(WRITE_ROLES);
-  const scan = useMagnusResource((signal) => magnus.post('/scan/skills', skillScanResponseSchema, { signal }), [], { enabled: canScan });
+  // This POST asks every online node for its skills, so it runs when someone asks and never on arrival.
+  const scan = useMagnusResource((signal) => magnus.post('/scan/skills', skillScanResponseSchema, { signal }), [], { enabled: false });
   const nodes = useMemo(() => (scan.data ? normalizeScan(scan.data.data) : null), [scan.data]);
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -40,11 +41,14 @@ export default function InstalledSkillsPage() {
           title="Installed skills"
           description="What each online node reports as installed. HiveSkills is the registry."
           status={nodes && !scanning ? <span className="num text-xs text-text-muted">{nodes.length} node{nodes.length === 1 ? '' : 's'} · {totalSkills} skill{totalSkills === 1 ? '' : 's'}{errored ? ` · ${errored} error${errored === 1 ? '' : 's'}` : ''}</span> : undefined}
-          actions={canScan ? <Button size="sm" icon={<RefreshCw className="size-4" />} loading={scanning} onClick={() => void scan.refresh()}>{scanning ? 'Scanning…' : 'Rescan'}</Button> : undefined}
+          actions={canScan ? <Button size="sm" icon={<RefreshCw className="size-4" />} loading={scanning} onClick={() => void scan.refresh()}>{scanning ? 'Scanning…' : nodes ? 'Rescan' : 'Scan nodes'}</Button> : undefined}
         />
       </PageItem>
       {!canScan ? (
         <PageItem><FxPanel interactive={false}><EmptyState icon={<Server className="size-6" />} title="Scanning needs an operator" message="Reading skills from nodes takes the ADMIN or OPERATOR role." /></FxPanel></PageItem>
+      ) : null}
+      {canScan && !scanning && !scan.error && !nodes ? (
+        <PageItem><FxPanel interactive={false}><EmptyState icon={<Search className="size-6" />} title="Not scanned yet" message="Scanning asks every online node for its skills, so it runs only when you ask." action={<Button size="sm" variant="primary" icon={<RefreshCw className="size-4" />} onClick={() => void scan.refresh()}>Scan nodes</Button>} /></FxPanel></PageItem>
       ) : null}
       {canScan && scanning ? (
         <PageItem><ScanPanel title="Scanning nodes for skills" description="Probing all online nodes…" scanning nodes={[]} /></PageItem>

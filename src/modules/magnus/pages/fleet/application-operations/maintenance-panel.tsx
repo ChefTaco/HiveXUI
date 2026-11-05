@@ -10,6 +10,7 @@ import { magnus, segment } from '../../../api/client';
 import { errorMessage } from '../../../api/errors';
 import type { Resource } from '../../../api/use-resource';
 import { FxPanel } from '../../../effects';
+import { ActionConfirm } from '../../../ui/action-confirm';
 import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import type { NodeRow } from '../nodes/nodes-api';
 import { useSweep } from '../shared/sweep';
@@ -46,6 +47,7 @@ export function MaintenancePanel({ resource, nodes, canWrite }: { resource: Reso
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState('');
   const [cancelling, setCancelling] = useState('');
+  const [confirmingCancel, setConfirmingCancel] = useState<MaintenanceWindow | null>(null);
   async function create(event: FormEvent) {
     event.preventDefault();
     const request = maintenanceRequest({ nodeId, serviceId, reason, minutes });
@@ -67,6 +69,7 @@ export function MaintenancePanel({ resource, nodes, canWrite }: { resource: Reso
     }
   }
   async function cancel(window: MaintenanceWindow) {
+    setConfirmingCancel(null);
     setCancelling(window.id);
     try {
       await magnus.post(`/ops/maintenance/${segment(window.id)}/cancel`, maintenanceWindowResponseSchema);
@@ -109,7 +112,7 @@ export function MaintenancePanel({ resource, nodes, canWrite }: { resource: Reso
                     <strong className="min-w-0 break-words">{window.reason}</strong>
                     <Badge tone={STATE_LABEL[state].tone} dot={state === 'active'} className={state === 'active' ? 'fx-badge-pulse' : ''}>{STATE_LABEL[state].label}</Badge>
                     <span className="flex-1" />
-                    {canWrite && (state === 'active' || state === 'scheduled') ? <Button size="sm" icon={<X className="size-4" />} loading={cancelling === window.id} onClick={() => void cancel(window)}>Cancel window</Button> : null}
+                    {canWrite && (state === 'active' || state === 'scheduled') ? <Button size="sm" icon={<X className="size-4" />} loading={cancelling === window.id} onClick={() => setConfirmingCancel(window)}>Cancel window</Button> : null}
                   </div>
                   <p className="m-0 mt-1 break-words text-sm text-text-muted">
                     {parseIdList(window.nodeIds).join(', ')} / {services.length ? services.join(', ') : 'all services'} · {window.actorId}
@@ -122,6 +125,7 @@ export function MaintenancePanel({ resource, nodes, canWrite }: { resource: Reso
           </ul>
         )}
       </div>
+      <ActionConfirm open={!!confirmingCancel} title="Cancel this window?" message={confirmingCancel ? `Cancel "${confirmingCancel.reason}"? It ends now and cannot be reopened.` : ''} confirmLabel="Cancel window" onConfirm={() => { if (confirmingCancel) void cancel(confirmingCancel); }} onCancel={() => setConfirmingCancel(null)} />
     </FxPanel>
   );
 }

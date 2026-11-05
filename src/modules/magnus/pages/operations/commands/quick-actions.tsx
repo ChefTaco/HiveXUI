@@ -9,7 +9,7 @@ export interface QuickAction {
   description: string;
 }
 
-/** Common Ubuntu administration tasks. A click only fills in the command; nothing runs until Execute. */
+/** Common Ubuntu administration tasks. A click only fills in the command; nothing runs until Execute is confirmed. */
 export const QUICK_ACTIONS: readonly QuickAction[] = [
   { label: 'Update & Upgrade', command: 'sudo apt update && sudo apt upgrade -y', icon: <RefreshCw className="size-4" />, description: 'Update package lists and upgrade all packages' },
   { label: 'Dist-Upgrade', command: 'sudo apt update && sudo apt dist-upgrade -y', icon: <ArrowUpCircle className="size-4" />, variant: 'warning', description: 'Full distribution upgrade with dependency resolution' },
@@ -22,6 +22,22 @@ export const QUICK_ACTIONS: readonly QuickAction[] = [
   { label: 'Tail Syslog', command: 'sudo tail -100 /var/log/syslog', icon: <FileText className="size-4" />, description: 'Show the last 100 lines of the system log' },
   { label: 'Reboot', command: 'sudo reboot', icon: <RotateCcw className="size-4" />, variant: 'danger', description: 'Immediately reboot the node' },
 ];
+
+const DESTRUCTIVE: ReadonlyArray<readonly [RegExp, string]> = [
+  [/\b(?:reboot|shutdown|poweroff|halt)\b|\binit\s+[06]\b/, 'This takes the target nodes offline, and anything running on them stops.'],
+  [/\b(?:dist-upgrade|full-upgrade)\b/, 'This can remove packages and replace the kernel, and it may leave the nodes needing a reboot.'],
+  [/\brm\s+-\w*[rf]|\bmkfs\b|\bdd\b[^|;&]*\bof=|\bwipefs\b|\bfdisk\b/, 'This deletes data that cannot be brought back.'],
+];
+/** Why a command deserves a second look, for the confirmation. Every Execute is confirmed either way. */
+export function destructiveWarning(command: string): string | null {
+  return DESTRUCTIVE.find(([pattern]) => pattern.test(command))?.[1] ?? null;
+}
+export const nodeCount = (count: number): string => `${count} node${count === 1 ? '' : 's'}`;
+/** What the confirmation says: how many nodes, and exactly what they will run. */
+export function executeMessage(command: string, count: number): string {
+  const warning = destructiveWarning(command);
+  return `${nodeCount(count)} will run this command:\n\n${command}${warning ? `\n\n${warning}` : ''}`;
+}
 
 export function resultText(result: { exitCode: number; stdout: string; stderr: string }): string {
   return `Exit: ${result.exitCode}\n\n--- stdout ---\n${result.stdout}\n--- stderr ---\n${result.stderr}`;

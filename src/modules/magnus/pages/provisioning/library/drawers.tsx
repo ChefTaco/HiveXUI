@@ -7,6 +7,7 @@ import { cn } from '@lib/cn';
 import { idempotencyKey, magnus, segment } from '../../../api/client';
 import { errorMessage } from '../../../api/errors';
 import { HaloDot } from '../../../effects';
+import { ActionConfirm } from '../../../ui/action-confirm';
 import { NodeChecklist } from '../shared/nodes';
 import { CATEGORY_COLORS, DEFAULT_CATEGORY_COLOR, displayNameOf, imageSource, isCategoryColor, isEditableText, mimeLabel, mimeOptionsFor, readsAsText, splitTags, uploadMimeType } from './logic';
 import { categoryResponseSchema, libraryDeployResponseSchema, type DeployResult, type LibraryCategory } from './schemas';
@@ -184,12 +185,14 @@ export function DeployDrawer({ file, onClose }: { file: { id: string; name: stri
   const [deploying, setDeploying] = useState(false);
   const [results, setResults] = useState<DeployResult[] | null>(null);
   const [error, setError] = useState('');
+  const [confirming, setConfirming] = useState(false);
   useEffect(() => {
     setNodeIds([]);
     setResults(null);
     setError('');
   }, [file]);
   async function deploy() {
+    setConfirming(false);
     if (!file) return;
     setDeploying(true);
     setError('');
@@ -202,7 +205,17 @@ export function DeployDrawer({ file, onClose }: { file: { id: string; name: stri
     }
   }
   return (
-    <Drawer open={!!file} title={`Deploy ${file ? mimeLabel(file.mimeType).toLowerCase() : 'item'}`} {...(file ? { eyebrow: file.name } : {})} onClose={onClose}>
+    <>
+    <ActionConfirm
+      open={confirming && !!file}
+      title="Deploy this file?"
+      message={file ? `Write "${file.name}" to ${nodeIds.length} node${nodeIds.length === 1 ? '' : 's'}? A file already at that path is overwritten.` : ''}
+      confirmLabel={`Deploy to ${nodeIds.length} node${nodeIds.length === 1 ? '' : 's'}`}
+      onConfirm={() => void deploy()}
+      onCancel={() => setConfirming(false)}
+    />
+    {/* The drawer steps aside: two dialogs would both trap the keyboard. */}
+    <Drawer open={!!file && !confirming} title={`Deploy ${file ? mimeLabel(file.mimeType).toLowerCase() : 'item'}`} {...(file ? { eyebrow: file.name } : {})} onClose={onClose}>
       {results ? (
         <div className="grid gap-4">
           <ul className="m-0 grid list-none gap-2 p-0" role="status">
@@ -223,10 +236,11 @@ export function DeployDrawer({ file, onClose }: { file: { id: string; name: stri
           <div className="flex items-center justify-end gap-2">
             {deploying ? <span className="flex items-center gap-2 text-sm text-text-muted"><HaloDot tone="accent" />Writing to nodes…</span> : null}
             <Button variant="ghost" onClick={onClose}>Cancel</Button>
-            <Button variant="primary" loading={deploying} disabled={nodeIds.length === 0} onClick={() => void deploy()}>Deploy to {nodeIds.length} node{nodeIds.length === 1 ? '' : 's'}</Button>
+            <Button variant="primary" loading={deploying} disabled={nodeIds.length === 0} onClick={() => setConfirming(true)}>Deploy to {nodeIds.length} node{nodeIds.length === 1 ? '' : 's'}</Button>
           </div>
         </div>
       )}
     </Drawer>
+    </>
   );
 }

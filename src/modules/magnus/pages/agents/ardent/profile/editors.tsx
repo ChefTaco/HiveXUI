@@ -3,6 +3,7 @@ import { Badge, Button, Field, Select, TextArea, TextInput, Toggle, statusTone }
 import { randomId } from '../../../../api/client';
 import { errorMessage } from '../../../../api/errors';
 import { FxPanel } from '../../../../effects';
+import { ActionConfirm } from '../../../../ui/action-confirm';
 import { ardentAction, readResource } from '../api';
 import { parseIdList } from '../logic';
 import {
@@ -37,11 +38,13 @@ export function Outcome({ feedback, error }: { feedback?: string | undefined; er
 const Revision = ({ value, label = 'Revision' }: { value: string; label?: string }) => <span className="font-mono text-xs text-text-muted">{label} {value.slice(0, 12)}</span>;
 
 /** Runs one action on the node and reports its result beneath itself. */
-export function ActionButton({ nodeId, profileId, action, target, body, label, disabled, onSuccess }: ProfileRef & { action: string; target?: string; body?: unknown; label: string; disabled?: boolean; onSuccess?: () => void }) {
+export function ActionButton({ nodeId, profileId, action, target, body, label, disabled, confirm, onSuccess }: ProfileRef & { action: string; target?: string; body?: unknown; label: string; disabled?: boolean; confirm?: { title: string; message: string; label: string }; onSuccess?: () => void }) {
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [error, setError] = useState('');
+  const [confirming, setConfirming] = useState(false);
   async function run() {
+    setConfirming(false);
     setBusy(true);
     setFeedback('');
     setError('');
@@ -58,8 +61,9 @@ export function ActionButton({ nodeId, profileId, action, target, body, label, d
   }
   return (
     <div className="mt-3">
-      <Button size="sm" loading={busy} disabled={disabled} onClick={() => void run()}>{busy ? 'Checking…' : label}</Button>
+      <Button size="sm" loading={busy} disabled={disabled} onClick={() => (confirm ? setConfirming(true) : void run())}>{busy ? 'Checking…' : label}</Button>
       <Outcome feedback={feedback} error={error} />
+      {confirm ? <ActionConfirm open={confirming} title={confirm.title} message={confirm.message} confirmLabel={confirm.label} onConfirm={() => void run()} onCancel={() => setConfirming(false)} /> : null}
     </div>
   );
 }
@@ -108,6 +112,7 @@ function IdentityFile({ nodeId, profileId, kind, entry }: ProfileRef & { kind: '
   const [draft, setDraft] = useState(entry.text);
   const [saved, setSaved] = useState(entry);
   const [history, setHistory] = useState<ReadonlyArray<{ name: string; revision: string }>>([]);
+  const [restoring, setRestoring] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [error, setError] = useState('');
@@ -139,6 +144,7 @@ function IdentityFile({ nodeId, profileId, kind, entry }: ProfileRef & { kind: '
     }
   }
   async function restore(name: string) {
+    setRestoring(null);
     setBusy(true);
     setError('');
     setFeedback('');
@@ -160,12 +166,13 @@ function IdentityFile({ nodeId, profileId, kind, entry }: ProfileRef & { kind: '
         <Button size="sm" variant="primary" loading={busy} disabled={draft === saved.text} onClick={() => void save()}>Save</Button>
         <Button size="sm" disabled={busy} onClick={() => void loadHistory()}>Previous versions</Button>
       </div>
+      <ActionConfirm open={!!restoring} title="Restore this version?" message={`Replace the current ${label} on the node with ${restoring ?? ''}? Unsaved changes here are lost.`} confirmLabel="Restore" onConfirm={() => { if (restoring) void restore(restoring); }} onCancel={() => setRestoring(null)} />
       {history.length > 0 ? (
         <div className="mt-3 grid gap-1 border-t border-border pt-3">
           {history.map((item) => (
             <div key={item.name} className="flex flex-wrap items-center justify-between gap-2 text-xs">
               <span className="break-all font-mono text-text-muted">{item.name}</span>
-              <Button size="sm" disabled={busy} onClick={() => void restore(item.name)}>Restore</Button>
+              <Button size="sm" disabled={busy} onClick={() => setRestoring(item.name)}>Restore</Button>
             </div>
           ))}
         </div>

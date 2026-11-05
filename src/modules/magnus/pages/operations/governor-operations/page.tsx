@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Clock, Pause, Play, Plus, RefreshCw, Server, SlidersHorizontal, Terminal, Trash2 } from 'lucide-react';
 import { cronCreateResponseSchema, cronDeleteResponseSchema, cronListResponseSchema, cronUpdateResponseSchema, nodeListResponseSchema, skillListResponseSchema } from '@contracts/magnus/browser';
 import type { z } from 'zod';
-import { Badge, Button, Drawer, EmptyState, Field, IconButton, PageHeader, Select, StatusDot, statusTone, TextInput } from '@ui';
+import { Badge, Button, ConfirmDialog, Drawer, EmptyState, Field, IconButton, PageHeader, Select, StatusDot, statusTone, TextInput } from '@ui';
 import { formatTime } from '@lib/format';
 import { cn } from '@lib/cn';
 import { useToast } from '../../../../../components/toast';
@@ -86,7 +86,8 @@ export default function OperationsPage() {
   const nodes = useMagnusResource((signal) => magnus.get('/nodes', nodeListResponseSchema, { query: { pageSize: 100 }, signal }));
   const skills = useMagnusResource((signal) => magnus.get('/skills', skillListResponseSchema, { signal }));
   const [addOpen, setAddOpen] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<Job | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const list = jobs.data?.data.filter(isSkillJob);
   const nodeList = nodes.data?.data ?? [];
@@ -95,15 +96,17 @@ export default function OperationsPage() {
     void nodes.refresh();
     void skills.refresh();
   };
-  async function remove(job: Job) {
-    setDeletingId(job.id);
+  async function remove() {
+    if (!deleting) return;
+    setDeleteBusy(true);
     try {
-      await magnus.delete(`/cron/${segment(job.id)}`, cronDeleteResponseSchema);
+      await magnus.delete(`/cron/${segment(deleting.id)}`, cronDeleteResponseSchema);
       await jobs.refresh();
     } catch (error) {
       toast.error('The job could not be deleted', errorMessage(error));
     } finally {
-      setDeletingId(null);
+      setDeleteBusy(false);
+      setDeleting(null);
     }
   }
   async function toggle(job: Job) {
@@ -160,7 +163,7 @@ export default function OperationsPage() {
                     {canWrite ? (
                       <div className="flex shrink-0 items-center gap-1">
                         <IconButton label={active ? `Pause ${displayName(job.name)}` : `Resume ${displayName(job.name)}`} icon={active ? <Pause className="size-4" /> : <Play className="size-4" />} disabled={togglingId === job.id || job.status === 'ERROR'} onClick={() => void toggle(job)} />
-                        <IconButton label={`Delete ${displayName(job.name)}`} variant="danger" icon={<Trash2 className="size-4" />} disabled={deletingId === job.id} onClick={() => void remove(job)} />
+                        <IconButton label={`Delete ${displayName(job.name)}`} variant="danger" icon={<Trash2 className="size-4" />} onClick={() => setDeleting(job)} />
                       </div>
                     ) : null}
                   </li>
@@ -170,6 +173,14 @@ export default function OperationsPage() {
           )}
         </FxPanel>
       </PageItem>
+      <ConfirmDialog
+        open={!!deleting}
+        title="Delete this job?"
+        message={deleting ? `Delete "${displayName(deleting.name)}" on ${deleting.node.name}? It stops running, and this cannot be undone.` : ''}
+        loading={deleteBusy}
+        onConfirm={() => void remove()}
+        onCancel={() => setDeleting(null)}
+      />
       <AddJobDrawer open={addOpen} nodes={nodeList} skills={skills.data?.data ?? []} onClose={() => setAddOpen(false)} onCreated={() => void jobs.refresh()} />
     </div>
   );

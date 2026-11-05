@@ -15,8 +15,8 @@ type PublishTarget = { job: ScannedJob; nodeName: string };
 
 export default function CronPage() {
   const toast = useToast();
-  // A read of the live crontabs, though it is a POST. It runs on arrival and on Rescan only.
-  const scan = useMagnusResource((signal) => magnus.post('/scan/cron', cronScanResponseSchema, { signal }));
+  // This POST asks every online node for its crontab, so it runs when someone asks and never on arrival.
+  const scan = useMagnusResource((signal) => magnus.post('/scan/cron', cronScanResponseSchema, { signal }), [], { enabled: false });
   const [query, setQuery] = useState('');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [publishTarget, setPublishTarget] = useState<PublishTarget | null>(null);
@@ -72,9 +72,16 @@ export default function CronPage() {
           icon={<Clock className="size-5" />}
           description="Discover and manage scheduled jobs across your fleet"
           status={scanned && !failed ? <span className="num text-xs text-text-muted">{list.length} node{list.length === 1 ? '' : 's'} · {totalJobs} job{totalJobs === 1 ? '' : 's'}{nodesErrored > 0 ? ` · ${nodesErrored} error${nodesErrored === 1 ? '' : 's'}` : ''}</span> : undefined}
-          actions={<Button size="sm" icon={<RefreshCw className={cn('size-4', scanning && 'animate-spin')} />} disabled={scanning} onClick={() => void scan.refresh()}>{scanning ? 'Scanning…' : 'Rescan'}</Button>}
+          actions={<Button size="sm" icon={<RefreshCw className={cn('size-4', scanning && 'animate-spin')} />} disabled={scanning} onClick={() => void scan.refresh()}>{scanning ? 'Scanning…' : results ? 'Rescan' : 'Scan nodes'}</Button>}
         />
       </PageItem>
+      {!scanning && !failed && !results ? (
+        <PageItem>
+          <FxPanel interactive={false}>
+            <EmptyState icon={<Search className="size-5" />} title="Not scanned yet" message="Scanning asks every online node for its crontab, so it runs only when you ask." action={<Button size="sm" variant="primary" icon={<RefreshCw className="size-4" />} onClick={() => void scan.refresh()}>Scan nodes</Button>} />
+          </FxPanel>
+        </PageItem>
+      ) : null}
       {scanning ? (
         <PageItem>
           <ScanPanel title="Scanning nodes for cron jobs" description="Probing all online nodes…" scanning nodes={list.map((result) => ({ nodeId: result.nodeId, nodeName: result.nodeName, status: 'scanning' as const }))} />

@@ -228,7 +228,7 @@ function TasksTab({ nodeId, profileId, onChanged }: ProfileRef & { onChanged: ()
             {selected ? (
               <div className="grid gap-3">
                 <p className="m-0 text-sm text-text-muted">{selected.prompt}</p>
-                {!taskIsFinal(selected.state) ? <ActionButton nodeId={nodeId} profileId={profileId} action="task-cancel" target={selected.id} label="Cancel task" onSuccess={onChanged} /> : null}
+                {!taskIsFinal(selected.state) ? <ActionButton nodeId={nodeId} profileId={profileId} action="task-cancel" target={selected.id} label="Cancel task" confirm={{ title: 'Cancel this task?', message: 'The task stops, and what it has not finished is lost.', label: 'Cancel task' }} onSuccess={onChanged} /> : null}
                 {selected.result ? <pre className="code-block m-0 max-h-64 whitespace-pre-wrap">{selected.result}</pre> : null}
                 {selected.error ? <p className="m-0 text-sm text-danger">{selected.error}</p> : null}
                 {artifacts.length > 0 ? (

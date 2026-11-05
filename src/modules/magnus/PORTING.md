@@ -176,6 +176,14 @@ Rules for anything you add to a page:
 - Use theme tokens for glows and durations: `--glow-accent`, `--duration-slow` and so on.
 - An effect that two pages need belongs in `effects/`. Ask in your report rather than editing it.
 
+## Commands and confirmations
+
+Viewing a page never runs anything on a host. A probe or a scan that reaches a node is a `POST`, and it waits for a click,
+even when the old console ran it on arrival: `useMagnusResource(load, [], { enabled: false })`, then `refresh()`. An action
+that changes a host or cannot be undone asks first, with `ConfirmDialog`, or `ActionConfirm` from `ui/action-confirm` when
+it deletes nothing. From inside a `Drawer`, hide the drawer while asking, or both trap the keyboard.
+`command-safety.test.tsx` holds this to account.
+
 ## Streams and rate limits
 
 `EventSource` cannot send the bearer token, so read a stream with `openStream`:

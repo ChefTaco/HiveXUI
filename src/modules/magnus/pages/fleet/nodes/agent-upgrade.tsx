@@ -8,6 +8,7 @@ import { magnus, segment } from '../../../api/client';
 import { MagnusApiError } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
 import { ADMIN_ONLY, useMagnusSession } from '../../../session';
+import { ActionConfirm } from '../../../ui/action-confirm';
 import { failureBudget, nodeDetail, remedyText, retryCount, runHeadline, targetDescription, upgradeErrorMessage, type UpgradeEligibility, type UpgradeRun } from './agent-upgrade-view';
 
 const RUN_POLL_MS = 5000;
@@ -35,6 +36,13 @@ const isRun = (data: StartAnswer): data is UpgradeRun => !('dryRun' in data);
  * one node never stops the run. Reopening shows the last run, each node needing attention with what to do,
  * and Retry for those nodes. Reading is open to every role; only ADMIN sees what would change anything.
  */
+interface UpgradeConfirmation {
+  title: string;
+  message: string;
+  label: string;
+  action: () => unknown;
+}
+
 export function AgentUpgradeDrawer({ open, onClose, onFinished }: { open: boolean; onClose: () => void; onFinished?: () => void }) {
   const { can } = useMagnusSession();
   const canRun = can(ADMIN_ONLY);
@@ -46,6 +54,7 @@ export function AgentUpgradeDrawer({ open, onClose, onFinished }: { open: boolea
   const [check, setCheck] = useState<CheckReport | null>(null);
   const [checking, setChecking] = useState(false);
   const [maxFailures, setMaxFailures] = useState('');
+  const [confirming, setConfirming] = useState<UpgradeConfirmation | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -136,14 +145,14 @@ export function AgentUpgradeDrawer({ open, onClose, onFinished }: { open: boolea
   const footer = (
     <div className="flex flex-wrap items-center justify-end gap-2">
       <Button size="sm" variant="ghost" onClick={onClose}>Close</Button>
-      {canRun && run?.status === 'running' ? <Button size="sm" variant="danger" onClick={() => void stop()} disabled={busy || Boolean(run.stopRequestedBy)} icon={<OctagonX className="size-4" />}>Stop</Button> : null}
-      {retries > 0 && canStart ? <Button size="sm" onClick={() => void retry()} disabled={busy} icon={<RotateCcw className="size-4" />}>Retry {retries} node{retries === 1 ? '' : 's'}</Button> : null}
+      {canRun && run?.status === 'running' ? <Button size="sm" variant="danger" onClick={() => setConfirming({ title: 'Stop this upgrade?', message: 'No further nodes are started. A node already upgrading finishes first.', label: 'Stop', action: stop })} disabled={busy || Boolean(run.stopRequestedBy)} icon={<OctagonX className="size-4" />}>Stop</Button> : null}
+      {retries > 0 && canStart ? <Button size="sm" onClick={() => setConfirming({ title: 'Retry this upgrade?', message: `Upgrade ${retries} node${retries === 1 ? '' : 's'} again now.`, label: 'Retry', action: () => retry() })} disabled={busy} icon={<RotateCcw className="size-4" />}>Retry {retries} node{retries === 1 ? '' : 's'}</Button> : null}
       {retries > 0 && canStart && (run?.suspectedRelease || run?.excluded?.some((node) => node.code === 'RETRY_HELD_SUSPECTED')) ? (
-        <Button size="sm" variant="danger" onClick={() => void retry(true)} disabled={busy} title="Each attempt on an older agent can strand another lease. Read the agent log first." icon={<RotateCcw className="size-4" />}>Retry older agents too</Button>
+        <Button size="sm" variant="danger" onClick={() => setConfirming({ title: 'Retry older agents too?', message: 'Each attempt on an older agent can strand another lease. Read the agent log first.', label: 'Retry older agents', action: () => retry(true) })} disabled={busy} title="Each attempt on an older agent can strand another lease. Read the agent log first." icon={<RotateCcw className="size-4" />}>Retry older agents too</Button>
       ) : null}
       {showCandidates && canRun ? <Button size="sm" onClick={() => void runCheck()} disabled={busy} loading={checking} icon={<ClipboardCheck className="size-4" />}>Check</Button> : null}
       {showCandidates && canRun ? (
-        <Button size="sm" variant="primary" onClick={() => void startUpgrade()} disabled={selected.size === 0 || !eligibility?.upgradesEnabled} loading={busy} icon={<ArrowUpCircle className="size-4" />}>
+        <Button size="sm" variant="primary" onClick={() => setConfirming({ title: 'Upgrade these agents?', message: `Upgrade the agent on ${selected.size} node${selected.size === 1 ? '' : 's'} to version ${eligibility?.version ?? 'the target'}? Each agent restarts as it upgrades.`, label: `Upgrade ${selected.size} agent${selected.size === 1 ? '' : 's'}`, action: startUpgrade })} disabled={selected.size === 0 || !eligibility?.upgradesEnabled} loading={busy} icon={<ArrowUpCircle className="size-4" />}>
           Upgrade {selected.size || eligibleCount} agent{(selected.size || eligibleCount) === 1 ? '' : 's'}
         </Button>
       ) : null}
@@ -151,7 +160,10 @@ export function AgentUpgradeDrawer({ open, onClose, onFinished }: { open: boolea
   );
 
   return (
-    <Drawer open={open} title="Upgrade agents" onClose={onClose} footer={footer} {...(eligibility ? { eyebrow: `Target ${eligibility.version}` } : {})}>
+    <>
+    <ActionConfirm open={open && !!confirming} title={confirming?.title ?? ''} message={confirming?.message ?? ''} confirmLabel={confirming?.label ?? 'Confirm'} onConfirm={() => { const action = confirming?.action; setConfirming(null); void action?.(); }} onCancel={() => setConfirming(null)} />
+    {/* The drawer steps aside: two dialogs would both trap the keyboard. */}
+    <Drawer open={open && !confirming} title="Upgrade agents" onClose={onClose} footer={footer} {...(eligibility ? { eyebrow: `Target ${eligibility.version}` } : {})}>
       <div className="grid gap-4 text-sm">
         {eligibility ? <p className="m-0 text-text-muted">{targetDescription(eligibility)}</p> : null}
         {error ? <p role="alert" className="m-0 rounded-control border border-danger bg-danger-soft px-3 py-2 text-danger">{error}</p> : null}
@@ -183,6 +195,7 @@ export function AgentUpgradeDrawer({ open, onClose, onFinished }: { open: boolea
         ) : null}
       </div>
     </Drawer>
+    </>
   );
 }
 

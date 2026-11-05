@@ -1,19 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { RotateCw } from 'lucide-react';
 import { commandDispatchResponseSchema, quickCommandResponseSchema } from '@contracts/magnus/browser';
-import { Badge, Button, IconButton } from '@ui';
+import { Badge, Button } from '@ui';
 import { formatTime } from '@lib/format';
+import { onAccessCleared } from '../../../../../lib/transport';
 import { useToast } from '../../../../../components/toast';
 import { idempotencyKey, magnus, segment } from '../../../api/client';
 import { errorMessage } from '../../../api/errors';
 import { FxPanel } from '../../../effects';
-import { STREAM_DWELL_MS } from '../../../live/use-live-events';
 import type { Ask } from './ask';
 import { APT_COMMAND, parseAptCount, parseVersions, SOFTWARE_NAMES, VERSION_COMMAND } from './node-data';
 
 const VERSION_TIMEOUT_SECONDS = 60;
 const APT_TIMEOUT_SECONDS = 180;
-const APT_REFRESH_MS = 60 * 60 * 1000;
 
 function probe(nodeId: string, command: string, timeoutSeconds: number, signal: AbortSignal): Promise<string> {
   return magnus
@@ -24,17 +23,25 @@ function probe(nodeId: string, command: string, timeoutSeconds: number, signal: 
     });
 }
 
+interface Checked {
+  versions?: Record<string, string>;
+  versionsAt?: string;
+  aptCount?: number | null;
+  aptAt?: string;
+}
+/** The last answers for each node, so coming back to a page shows them without asking the node again. */
+const lastChecked = new Map<string, Checked>();
+onAccessCleared(() => lastChecked.clear());
+
 /**
- * Versions and pending apt updates come from running a probe on the node, so a read here is a command there.
- * The first probes wait until someone has stayed on the page, and a role that may not run commands sends none.
+ * Versions and pending apt updates come from running a command on the node, so they run only when
+ * someone presses a button here. Viewing this page must never execute anything on a host.
  */
 export function SoftwareCard({ nodeId, nodeName, online, canRun, ask }: { nodeId: string; nodeName: string; online: boolean; canRun: boolean; ask: Ask }) {
   const toast = useToast();
-  const [versions, setVersions] = useState<Record<string, string>>({});
+  const [checked, setChecked] = useState<Checked>(() => lastChecked.get(nodeId) ?? {});
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [versionsError, setVersionsError] = useState<string | null>(null);
-  const [aptCount, setAptCount] = useState<number | null>(null);
-  const [aptChecked, setAptChecked] = useState<string | null>(null);
   const [aptChecking, setAptChecking] = useState(false);
   const [aptError, setAptError] = useState<string | null>(null);
   const [upgrading, setUpgrading] = useState(false);
@@ -42,54 +49,45 @@ export function SoftwareCard({ nodeId, nodeName, online, canRun, ask }: { nodeId
   useEffect(() => {
     const current = new AbortController();
     controller.current = current;
+    setChecked(lastChecked.get(nodeId) ?? {});
+    setVersionsLoading(false);
+    setAptChecking(false);
     return () => current.abort();
   }, [nodeId]);
+  const remember = (next: Checked) => {
+    const merged = { ...lastChecked.get(nodeId), ...next };
+    lastChecked.set(nodeId, merged);
+    setChecked(merged);
+  };
 
-  const loadVersions = useCallback(async () => {
+  async function checkVersions() {
     const signal = controller.current?.signal;
     if (!signal) return;
     setVersionsLoading(true);
     setVersionsError(null);
     try {
       const stdout = await probe(nodeId, VERSION_COMMAND, VERSION_TIMEOUT_SECONDS, signal);
-      if (!signal.aborted) setVersions(parseVersions(stdout));
+      if (!signal.aborted) remember({ versions: parseVersions(stdout), versionsAt: new Date().toISOString() });
     } catch (error) {
       if (!signal.aborted) setVersionsError(errorMessage(error, 'Software revisions could not be loaded'));
     } finally {
       if (!signal.aborted) setVersionsLoading(false);
     }
-  }, [nodeId]);
-  const refreshApt = useCallback(async () => {
+  }
+  async function checkApt() {
     const signal = controller.current?.signal;
     if (!signal) return;
     setAptChecking(true);
     setAptError(null);
     try {
       const stdout = await probe(nodeId, APT_COMMAND, APT_TIMEOUT_SECONDS, signal);
-      if (signal.aborted) return;
-      setAptCount(parseAptCount(stdout));
-      setAptChecked(new Date().toISOString());
+      if (!signal.aborted) remember({ aptCount: parseAptCount(stdout), aptAt: new Date().toISOString() });
     } catch (error) {
       if (!signal.aborted) setAptError(errorMessage(error, 'Apt updates could not be refreshed'));
     } finally {
       if (!signal.aborted) setAptChecking(false);
     }
-  }, [nodeId]);
-
-  const active = online && canRun;
-  useEffect(() => {
-    if (!active) return;
-    const first = setTimeout(() => {
-      void loadVersions();
-      void refreshApt();
-    }, STREAM_DWELL_MS);
-    const hourly = setInterval(() => void refreshApt(), APT_REFRESH_MS);
-    return () => {
-      clearTimeout(first);
-      clearInterval(hourly);
-    };
-  }, [active, loadVersions, refreshApt]);
-
+  }
   async function upgrade() {
     setUpgrading(true);
     const key = idempotencyKey();
@@ -97,7 +95,6 @@ export function SoftwareCard({ nodeId, nodeName, online, canRun, ask }: { nodeId
       const { data } = await magnus.post('/commands', commandDispatchResponseSchema, { idempotencyKey: key, body: { nodeIds: [nodeId], command: 'sudo', args: ['apt', 'upgrade', '-y'], timeoutSeconds: 1800, idempotencyKey: key } });
       const command = 'commands' in data ? data.commands[0] : undefined;
       toast.success('APT upgrade dispatched', command ? `Command ${command.id.slice(0, 12)}… Check Commands for progress.` : 'Check Commands for progress.');
-      void refreshApt();
     } catch (error) {
       toast.error('APT upgrade was not dispatched', errorMessage(error));
     } finally {
@@ -105,11 +102,12 @@ export function SoftwareCard({ nodeId, nodeName, online, canRun, ask }: { nodeId
     }
   }
 
+  const { versions = {}, versionsAt, aptCount, aptAt } = checked;
   return (
     <FxPanel
       title="Software revisions"
       description="Major runtime versions and package update status"
-      actions={canRun ? <IconButton label="Refresh software revisions" disabled={!online || versionsLoading} icon={<RotateCw className={versionsLoading ? 'size-4 animate-spin' : 'size-4'} />} onClick={() => void loadVersions()} /> : undefined}
+      actions={canRun ? <Button size="sm" className="whitespace-nowrap" disabled={!online} loading={versionsLoading} icon={<RotateCw className="size-4" />} onClick={() => void checkVersions()}>Check versions</Button> : undefined}
     >
       <dl className="m-0 grid gap-2 text-sm">
         {SOFTWARE_NAMES.map((name) => (
@@ -119,6 +117,7 @@ export function SoftwareCard({ nodeId, nodeName, online, canRun, ask }: { nodeId
           </div>
         ))}
       </dl>
+      <p className="m-0 mt-2 text-xs text-text-muted">{versionsAt ? `Last checked: ${formatTime(versionsAt)}` : 'Not checked yet. Checking runs a command on the node.'}</p>
       {versionsError ? <p className="m-0 mt-2 text-sm break-words text-danger">{versionsError}</p> : null}
       {!canRun ? <p className="m-0 mt-2 text-xs text-text-muted">Reading versions runs a command on the node, which needs the operator role.</p> : null}
       {canRun && !online ? <p className="m-0 mt-2 text-xs text-text-muted">The node must be ONLINE to read versions.</p> : null}
@@ -127,11 +126,11 @@ export function SoftwareCard({ nodeId, nodeName, online, canRun, ask }: { nodeId
           <span className="text-xs font-semibold text-text-muted">APT updates</span>
           <Badge tone={aptCount ? 'warning' : aptCount === 0 ? 'success' : 'neutral'}>{aptChecking ? 'Checking…' : `${aptCount ?? '—'} pending`}</Badge>
         </div>
-        <p className="m-0 text-xs text-text-muted">Refreshed hourly via apt update{aptChecked ? ` · Last check: ${formatTime(aptChecked)}` : ''}</p>
+        <p className="m-0 text-xs text-text-muted">{aptAt ? `Last checked: ${formatTime(aptAt)}` : 'Not checked yet. Checking runs apt update on the node.'}</p>
         {aptError ? <p className="m-0 text-sm break-words text-danger">{aptError}</p> : null}
         {canRun ? (
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" disabled={!online || aptChecking} icon={<RotateCw className={aptChecking ? 'size-4 animate-spin' : 'size-4'} />} onClick={() => void refreshApt()}>Refresh</Button>
+            <Button size="sm" disabled={!online} loading={aptChecking} icon={<RotateCw className="size-4" />} onClick={() => void checkApt()}>Check for updates</Button>
             <Button size="sm" variant="primary" disabled={!online} loading={upgrading} onClick={() => ask({ title: 'Run apt upgrade', message: `Run apt upgrade on "${nodeName}"?`, label: 'Run apt upgrade', action: () => upgrade() })}>{upgrading ? 'Dispatching…' : 'APT upgrade'}</Button>
           </div>
         ) : null}

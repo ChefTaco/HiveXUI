@@ -4,6 +4,7 @@ import { Button, Drawer, Field, Select, TextInput, Toggle } from '@ui';
 import { magnus, segment } from '../../../api/client';
 import { errorMessage } from '../../../api/errors';
 import { useMagnusSession } from '../../../session';
+import { ActionConfirm } from '../../../ui/action-confirm';
 import { parseTags, type NodeRow } from './nodes-api';
 
 const splitTags = (value: string) => value.split(',').map((tag) => tag.trim()).filter(Boolean);
@@ -133,6 +134,7 @@ export function AssignRoleDrawer({ node, onClose, onSaved }: { node: Omit<NodeRo
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [confirming, setConfirming] = useState<'unassign' | 'change' | null>(null);
   const current = node?.role?.id;
   useEffect(() => {
     if (!node) return;
@@ -167,8 +169,27 @@ export function AssignRoleDrawer({ node, onClose, onSaved }: { node: Omit<NodeRo
     }
   }
   const unassign = (roleId: string) => magnus.post(`/roles/${segment(roleId)}/unassign`, unassignRoleResponseSchema, { body: { nodeIds: [node!.id] } });
+  const assign = () => magnus.post(`/roles/${segment(selected)}/assign`, assignRoleResponseSchema, { body: { nodeIds: [node!.id], defer: !applyNow } });
+  function confirmed() {
+    setConfirming(null);
+    if (!current) return;
+    void run(async () => {
+      await unassign(current);
+      if (confirming === 'change') await assign();
+    });
+  }
   return (
-    <Drawer open={!!node} title={node?.role ? 'Change role' : 'Assign role'} {...(node ? { eyebrow: node.name } : {})} onClose={onClose}>
+    <>
+    <ActionConfirm
+      open={!!confirming && !!node}
+      title={confirming === 'change' ? 'Change this role?' : 'Unassign this role?'}
+      message={`${confirming === 'change' ? 'Change the role of' : 'Unassign the role from'} ${node?.name ?? 'this node'}? This removes the current role's configuration from it.`}
+      confirmLabel={confirming === 'change' ? 'Change role' : 'Unassign'}
+      onConfirm={confirmed}
+      onCancel={() => setConfirming(null)}
+    />
+    {/* The drawer steps aside: two dialogs would both trap the keyboard. */}
+    <Drawer open={!!node && !confirming} title={node?.role ? 'Change role' : 'Assign role'} {...(node ? { eyebrow: node.name } : {})} onClose={onClose}>
       <div className="grid gap-4">
         {loading ? (
           <p role="status" className="text-sm text-text-muted">Loading roles…</p>
@@ -182,19 +203,17 @@ export function AssignRoleDrawer({ node, onClose, onSaved }: { node: Omit<NodeRo
         )}
         <FormError message={error} />
         <div className="flex flex-wrap justify-between gap-2">
-          <div>{current ? <Button variant="ghost" disabled={saving} onClick={() => void run(() => unassign(current))}>Unassign role</Button> : null}</div>
+          <div>{current ? <Button variant="ghost" disabled={saving} onClick={() => setConfirming('unassign')}>Unassign role</Button> : null}</div>
           <div className="flex gap-2">
             <Button variant="ghost" onClick={onClose}>Cancel</Button>
             <Button
               variant="primary"
               loading={saving}
               disabled={!selected || roles.length === 0}
-              onClick={() =>
-                void run(async () => {
-                  if (current && current !== selected) await unassign(current);
-                  await magnus.post(`/roles/${segment(selected)}/assign`, assignRoleResponseSchema, { body: { nodeIds: [node!.id], defer: !applyNow } });
-                })
-              }
+              onClick={() => {
+                if (current && current !== selected) setConfirming('change');
+                else void run(assign);
+              }}
             >
               {node?.role ? 'Change role' : 'Assign role'}
             </Button>
@@ -202,5 +221,6 @@ export function AssignRoleDrawer({ node, onClose, onSaved }: { node: Omit<NodeRo
         </div>
       </div>
     </Drawer>
+    </>
   );
 }

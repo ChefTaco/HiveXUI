@@ -11,7 +11,7 @@ import { FxPanel, PageItem } from '../../../../effects';
 import Link, { useRouter, useSearchParams } from '../../../../navigation';
 import { ADMIN_ONLY, useMagnusSession, WRITE_ROLES } from '../../../../session';
 import { LoadingRows, ResourceError } from '../../../../ui/resource-state';
-import { ActionConfirm } from '../../shared/action-confirm';
+import { ActionConfirm } from '../../../../ui/action-confirm';
 import { severityTone } from '../../shared/severity';
 import { useSweep } from '../../shared/sweep';
 import { executionIsLive, executionTone, filterRules } from '../model';

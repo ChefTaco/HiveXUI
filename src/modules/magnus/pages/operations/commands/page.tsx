@@ -6,8 +6,9 @@ import { cn } from '@lib/cn';
 import { idempotencyKey, magnus, segment } from '../../../api/client';
 import { errorMessage, MagnusApiError } from '../../../api/errors';
 import { FxPanel, PageItem } from '../../../effects';
+import { ActionConfirm } from '../../../ui/action-confirm';
 import { NodeMultiSelect } from './node-multi-select';
-import { QUICK_ACTIONS, resultText } from './quick-actions';
+import { destructiveWarning, executeMessage, nodeCount, QUICK_ACTIONS, resultText } from './quick-actions';
 
 type Dispatched = { id: string; nodeId: string; status: string };
 type Preview = { id: string; name: string; status: string; stale: boolean; allowed: boolean };
@@ -25,17 +26,19 @@ export default function CommandsPage() {
   const [running, setRunning] = useState(false);
   const [output, setOutput] = useState<string | null>(null);
   const [preview, setPreview] = useState<Preview[] | null>(null);
+  // What the operator is asked about is what runs, whatever else changes behind the dialog.
+  const [confirming, setConfirming] = useState<{ command: string; nodeIds: string[] } | null>(null);
   const ready = command.trim() !== '' && nodeIds.length > 0;
 
   /** Every click is a new key, in the body and the header as before. A request is sent once and never repeated. */
-  async function dispatch() {
-    if (!ready) return;
+  async function dispatch(target: { command: string; nodeIds: string[] }) {
+    setConfirming(null);
     setRunning(true);
     setOutput(null);
     try {
       const key = idempotencyKey();
       const { data } = await magnus.post('/commands', commandDispatchedResponseSchema, {
-        body: { nodeIds, command, args: [], timeoutSeconds: 300, idempotencyKey: key },
+        body: { nodeIds: target.nodeIds, command: target.command, args: [], timeoutSeconds: 300, idempotencyKey: key },
         idempotencyKey: key,
       });
       setResults(data.commands);
@@ -108,8 +111,8 @@ export default function CommandsPage() {
             </Field>
             <div className="flex flex-wrap gap-2">
               <Button icon={<ShieldCheck className="size-4" />} loading={running} disabled={!ready} onClick={() => void dryRun()}>Dry run</Button>
-              <Button variant="primary" icon={<Play className="size-4" />} loading={running} disabled={!ready} onClick={() => void dispatch()}>
-                {running ? 'Dispatching…' : `Execute on ${nodeIds.length} node${nodeIds.length === 1 ? '' : 's'}`}
+              <Button variant="primary" icon={<Play className="size-4" />} loading={running} disabled={!ready} onClick={() => setConfirming({ command, nodeIds })}>
+                {running ? 'Dispatching…' : `Execute on ${nodeCount(nodeIds.length)}`}
               </Button>
             </div>
           </div>
@@ -160,6 +163,14 @@ export default function CommandsPage() {
           </FxPanel>
         </PageItem>
       ) : null}
+      <ActionConfirm
+        open={!!confirming}
+        title={confirming && destructiveWarning(confirming.command) ? 'Run a destructive command?' : 'Run this command?'}
+        message={confirming ? executeMessage(confirming.command, confirming.nodeIds.length) : ''}
+        confirmLabel={confirming ? `Execute on ${nodeCount(confirming.nodeIds.length)}` : 'Execute'}
+        onConfirm={() => { if (confirming) void dispatch(confirming); }}
+        onCancel={() => setConfirming(null)}
+      />
     </div>
   );
 }

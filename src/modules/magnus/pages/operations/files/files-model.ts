@@ -61,6 +61,12 @@ export function pushProblem(tasks: ReadonlyArray<{ status: string; error: string
   return failed.length > 0 ? `Push failed: ${failed.map((task) => task.error || 'Unknown error').join('; ')}` : null;
 }
 
+/** What the confirmation says before a push overwrites a file on a node. */
+export function pushMessage({ filePath, nodeName, content, backup }: { filePath: string; nodeName: string; content: string; backup: boolean }): string {
+  const emptied = content === '' ? ' The file will be empty.' : '';
+  return `Write ${new TextEncoder().encode(content).byteLength} bytes to ${filePath} on ${nodeName || 'the selected node'}?${emptied} ${backup ? 'A remote backup is made first.' : 'No backup is made, so the current file is lost.'}`;
+}
+
 export const libraryFileName = (filePath: string): string => filePath.split('/').pop() || filePath || 'untitled.md';
 export const libraryDisplayName = (fileName: string): string => fileName.replace(/\.[^/.]+$/, '');
 export const libraryMimeType = (fileName: string): string => (fileName.endsWith('.json') ? 'application/json' : 'text/markdown');
