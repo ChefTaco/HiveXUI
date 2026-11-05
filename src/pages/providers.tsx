@@ -3,9 +3,10 @@ import { adminApi, ApiError } from '../lib/api';
 import { useStore } from '../lib/store';
 import { useToast } from '../components/toast';
 import { can } from '../lib/permissions';
-import type { AdminUser, CodexOAuthCheck, CodexOAuthStart, CodexOAuthStatus, Provider, ProviderModelWriteRequest, ProviderWriteRequest } from '../lib/types';
+import type { AdminUser, CodexOAuthCheck, CodexOAuthStart, CodexOAuthStatus, Provider } from '../lib/types';
 import { AUTH_MODES, PROVIDER_KINDS } from '../lib/constants';
-import { formatJson, parseJsonObject, relativeTime } from '../lib/format';
+import { relativeTime } from '../lib/format';
+import { emptyForm, formFromProvider, providerFormForWrite, type ProviderForm } from './provider-form';
 import {
   Badge,
   Button,
@@ -24,87 +25,6 @@ import {
   Toggle,
 } from '../components/ui';
 import { Icon } from '../components/icons';
-
-function parseStringRecord(value: string): Record<string, string> {
-  const parsed = parseJsonObject(value);
-  for (const [key, entry] of Object.entries(parsed)) {
-    if (typeof entry !== 'string') {
-      throw new Error('Header ' + key + ' must be a string');
-    }
-  }
-  return parsed as Record<string, string>;
-}
-
-function parseProviderModels(value: string): ProviderModelWriteRequest[] {
-  const parsed = JSON.parse(value) as unknown;
-  if (!Array.isArray(parsed) || parsed.some((entry) => !entry || typeof entry !== 'object' || Array.isArray(entry))) {
-    throw new Error('Models must be a JSON array of objects');
-  }
-  return parsed as ProviderModelWriteRequest[];
-}
-interface ProviderForm {
-  slug: string;
-  name: string;
-  kind: string;
-  baseUrl: string;
-  authMode: string;
-  authHeaderName: string;
-  authSecret: string;
-  defaultHeaders: string;
-  capabilities: string;
-  models: string;
-  timeoutMs: string;
-  maxRetries: string;
-  concurrency: string;
-  priority: string;
-  weight: string;
-  failoverGroup: string;
-  enabled: boolean;
-}
-
-function emptyForm(): ProviderForm {
-  return {
-    slug: '',
-    name: '',
-    kind: 'OPENAI_GENERIC',
-    baseUrl: 'https://api.openai.com/v1',
-    authMode: 'BEARER',
-    authHeaderName: 'Authorization',
-    authSecret: '',
-    defaultHeaders: '{}',
-    capabilities: '{}',
-    models: '[]',
-    timeoutMs: '120000',
-    maxRetries: '1',
-    concurrency: '16',
-    priority: '100',
-    weight: '100',
-    failoverGroup: '',
-    enabled: true,
-  };
-}
-
-function formFromProvider(provider: Provider): ProviderForm {
-  return {
-    slug: provider.slug,
-    name: provider.name,
-    kind: provider.kind,
-    baseUrl: provider.baseUrl,
-    authMode: provider.authMode,
-    authHeaderName: provider.authHeaderName,
-    authSecret: '',
-    defaultHeaders: formatJson(provider.defaultHeaders ?? {}),
-    capabilities: formatJson(provider.capabilities ?? {}),
-    models: formatJson(provider.models ?? []),
-    timeoutMs: String(provider.timeoutMs),
-    maxRetries: String(provider.maxRetries),
-    concurrency: String(provider.concurrency),
-    priority: String(provider.priority),
-    weight: String(provider.weight),
-    failoverGroup: provider.failoverGroup ?? '',
-    enabled: provider.enabled,
-  };
-}
 
 export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }) {
   const { data, refresh } = useStore();
@@ -131,33 +51,20 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
   }
 
   function openEdit(provider: Provider) {
-    setEditing(provider);
-    setForm(formFromProvider(provider));
-    setDrawerOpen(true);
+    try {
+      const next = formFromProvider(provider);
+      setEditing(provider);
+      setForm(next);
+      setDrawerOpen(true);
+    } catch (error) {
+      toast.error('Provider could not be edited', error instanceof Error ? error.message : 'Invalid provider model data');
+    }
   }
 
   async function handleSave() {
     setSaving(true);
     try {
-      const body: ProviderWriteRequest = {
-        slug: form.slug.trim(),
-        name: form.name.trim(),
-        kind: form.kind,
-        baseUrl: form.baseUrl.trim(),
-        authMode: form.authMode,
-        authHeaderName: form.authHeaderName.trim() || 'Authorization',
-        ...(form.authSecret ? { authSecret: form.authSecret } : {}),
-        defaultHeaders: parseStringRecord(form.defaultHeaders),
-        capabilities: parseJsonObject(form.capabilities),
-        models: parseProviderModels(form.models),
-        timeoutMs: Number(form.timeoutMs),
-        maxRetries: Number(form.maxRetries),
-        concurrency: Number(form.concurrency),
-        priority: Number(form.priority),
-        weight: Number(form.weight),
-        ...(form.failoverGroup.trim() ? { failoverGroup: form.failoverGroup.trim() } : {}),
-        enabled: form.enabled,
-      };
+      const body = providerFormForWrite(form);
       if (editing) {
         await adminApi.updateProvider(editing.id, body);
         toast.success('Provider updated', form.name);
@@ -451,7 +358,7 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
             </div>
 
             <p className="codex-oauth-copy">
-              Connect Codex through OpenAI OAuth so hive-router can route eligible requests through the ChatGPT/Codex subscription path without storing an API key.
+              Connect Codex through OpenAI OAuth so Emberpath can route eligible requests through the ChatGPT/Codex subscription path without storing an API key.
             </p>
 
             <div className="codex-oauth-status">

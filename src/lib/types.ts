@@ -278,9 +278,9 @@ export interface ProviderModel {
 
 export interface ProviderModelWriteRequest {
   model: string;
-  displayName?: string | null;
+  displayName?: string;
   enabled?: boolean;
-  maxContextWindow?: number | null;
+  maxContextWindow?: number;
   capabilityJson?: Record<string, unknown>;
 }
 

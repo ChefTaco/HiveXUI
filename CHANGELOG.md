@@ -1,5 +1,9 @@
 # Changelog
 
+- Convert provider model read records into validated edit requests, preserving
+  capabilities and model settings while excluding persistence metadata and native
+  nulls. Report invalid capability JSON before editing and retain saved credentials.
+
 - Keep chat member checkboxes at their native control width so group selection labels remain readable in the console rail.
 
 - Append, drop, paste and remove pending chat files with atomic ten-file limits; protect drafts during sending and reuse each completed upload on manual retries. Keep mobile channel navigation readable.
