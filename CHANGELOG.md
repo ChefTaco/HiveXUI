@@ -1,6 +1,21 @@
 # Changelog
 
-## 0.1.0 - 2026-11-05
+## 0.1.1 - 2026-11-05
+
+### Security
+
+- Serve from `nginxinc/nginx-unprivileged:1.30.6-alpine` (nginx 1.30.6 stable on Alpine 3.24),
+  pinned by digest, in place of `1.29-alpine`. The 1.29 line has no newer image. The image build
+  applies current Alpine fixes and removes curl and libcurl, which nothing in it uses. 0.1.0
+  scanned at 1 critical and 49 high findings with fixes available, from curl, libcurl, OpenSSL,
+  c-ares, brotli and others in the base. A Trivy 0.70.0 scan of this image finds no high or
+  critical findings, fixed or unfixed.
+- Send the Content-Security-Policy, `X-Content-Type-Options` and `Referrer-Policy` headers on every
+  response. The console page, its assets and `runtime.json` went without them, because a location
+  that set its own `Cache-Control` dropped the server's headers. Only `/health`, `/api/` and error
+  pages had them.
+
+
 
 First release of the HiveXUI console image.
 
