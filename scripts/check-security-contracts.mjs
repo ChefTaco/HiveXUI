@@ -1,0 +1,6 @@
+// Verify a product-owned immutable export without sibling implementation imports.
+import{createHash}from'node:crypto';import{readFileSync}from'node:fs';
+const root=new URL('../contracts/cindertrace/',import.meta.url),manifest=JSON.parse(readFileSync(new URL('provenance.json',root),'utf8')),names=['index.ts','lab.ts','browser-auth.ts','browser.ts'];
+if(manifest.schema!==1||manifest.product!=='cindertrace-browser'||manifest.version!==1||manifest.repository!=='https://github.com/ChefTaco/cindertrace'||!/^[a-f0-9]{40}$/u.test(manifest.revision)||JSON.stringify(manifest.files.map(file=>file.path))!==JSON.stringify(names))throw Error('Cindertrace immutable browser contract provenance drift');
+for(const file of manifest.files){const bytes=readFileSync(new URL(file.path,root));if(file.source!=='packages/contracts/src/'+file.path||file.sha256!==createHash('sha256').update(bytes).digest('hex'))throw Error('Cindertrace browser contract drift');for(const match of bytes.toString('utf8').matchAll(/from\s+['"]([^'"]+)['"]/gu))if(match[1]!=='zod'&&!names.some(name=>'./'+name.replace(/\.ts$/u,'.js')===match[1]))throw Error('Browser contract imports backend implementation');}
+console.log('Cindertrace immutable browser contracts verified.');

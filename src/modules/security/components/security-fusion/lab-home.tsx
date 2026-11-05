@@ -1,4 +1,4 @@
-import { apiFetch } from '../../../../lib/transport';
+import { securityPost } from '@security/lib/security-api';
 'use client';
 import type { LabStatus } from '@security/contracts/index';
 import { useState } from 'react';
@@ -6,10 +6,7 @@ import Link from '@security/navigation';
 import { useRouter } from '@security/navigation';
 
 export async function labPost(path: string, body: unknown = {}): Promise<Record<string, unknown>> {
-  const response = await apiFetch(`/api/security/security-fusion/${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error?.message ?? payload.error ?? 'Request failed');
-  return payload.data as Record<string, unknown>;
+  return securityPost('security-fusion/'+path,body);
 }
 export const labButton = 'border border-primary/50 px-4 py-2 text-xs text-primary hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-40';
 export function LabHome({canAdmin, runs}: Pick<LabStatus, 'canAdmin' | 'runs'>) {

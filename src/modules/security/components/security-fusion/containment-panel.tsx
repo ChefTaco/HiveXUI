@@ -1,4 +1,4 @@
-import { apiFetch } from '../../../../lib/transport';
+import { securityPost,securityFetch } from '@security/lib/security-api';
 "use client";
 
 import { useState, useEffect } from "react";
@@ -15,20 +15,7 @@ async function post(
   path: string,
   body?: unknown,
 ): Promise<Record<string, unknown>> {
-  const response = await apiFetch(`/api/security/security-fusion/${path}`, {
-    method: "POST",
-    ...(body === undefined ? {} : {headers:{"content-type":"application/json"},body:JSON.stringify(body)}),
-  });
-  const payload = (await response.json()) as Record<string, unknown>;
-  if (!response.ok) {
-    const error = payload["error"] as Record<string, unknown> | undefined;
-    throw new Error(
-      String(
-        error?.["message"] ?? payload["error"] ?? `HTTP ${response.status}`,
-      ),
-    );
-  }
-  return payload["data"] as Record<string, unknown>;
+  return securityPost('security-fusion/'+path,body);
 }
 
 export function ContainmentPanel({
@@ -196,9 +183,7 @@ export function ContainmentPanel({
             <button disabled={busy} onClick={() => void run("Response ready for review; no action executed", async () => {
               if (action.status === "previewed") setDraft(await post(`actions/${action.id}/request`));
               else {
-                const response = await apiFetch(`/api/security/security-fusion/approval-plans/${encodeURIComponent(`containment:${action.id}`)}`);
-                if (!response.ok) throw new Error("Response plan is unavailable or expired");
-                const result = await response.json() as { data: unknown };
+                const result = await securityFetch<{data:unknown}>(`security-fusion/approval-plans/${encodeURIComponent(`containment:${action.id}`)}`);
                 setDraft({ id: action.id, previewSha256: action.previewSha256, plan: result.data });
               }
             })} className="border border-primary/40 px-3 py-2 text-[10px] uppercase tracking-wider text-primary">

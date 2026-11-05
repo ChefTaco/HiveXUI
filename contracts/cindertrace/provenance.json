@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "product": "cindertrace-browser",
+  "version": 1,
+  "repository": "https://github.com/ChefTaco/cindertrace",
+  "revision": "54fa032cba1eedf58ad5f63768558f2ff85457fd",
+  "files": [
+    {
+      "path": "index.ts",
+      "source": "packages/contracts/src/index.ts",
+      "sha256": "721c3e600e23dc4a8139041bc1dbd9a7deb0c740502827c4325bd1bf9cb0cf69"
+    },
+    {
+      "path": "lab.ts",
+      "source": "packages/contracts/src/lab.ts",
+      "sha256": "be790852f67e91fcdfa38f4c2a3474e39ca0c776b0fa6fad2aa510bae65b7651"
+    },
+    {
+      "path": "browser-auth.ts",
+      "source": "packages/contracts/src/browser-auth.ts",
+      "sha256": "896f0af4c2ff826255f9cdee3c52d9e533b41888e077d67f088e7c75eff78b26"
+    },
+    {
+      "path": "browser.ts",
+      "source": "packages/contracts/src/browser.ts",
+      "sha256": "e6906fdab9671b857b251e824c4c68fa4aa3650da5ed32e237ab4f192c735137"
+    }
+  ]
+}

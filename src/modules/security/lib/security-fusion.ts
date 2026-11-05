@@ -1,62 +1,8 @@
 import { securityFetch } from "@security/lib/security-api";
 
-export type FusionSeverity = "info" | "low" | "medium" | "high" | "critical";
-
-export interface FusionCase {
-  id: string;
-  title: string;
-  severity: FusionSeverity;
-  status: string;
-  confidence: number;
-  summary: string;
-  firstSeenAt: string;
-  lastSeenAt: string;
-  recommendedInvestigation: string[];
-  evidenceSteps: string[];
-}
-
-export interface FusionEvent {
-  id: string;
-  eventId: string;
-  source: string;
-  kind: string;
-  observedAt: string;
-  severity: FusionSeverity;
-  confidence: number;
-  summary: string;
-  integritySha256: string;
-  confidenceContribution?: number;
-  attributes?: Record<string, unknown>;
-}
-
-export interface FusionEntity {
-  id: string;
-  type: string;
-  canonical: string;
-  label: string;
-  lastSeenAt: string;
-}
-
-export interface FusionSource {
-  source: string;
-  status: string;
-  lastEventAt?: string;
-  lastSuccessAt?: string;
-  lastError?: string;
-}
-
-export interface FusionCollector {
-  id: string;
-  displayName: string;
-  allowedSources: string[];
-  schemaVersion: string;
-  dataClassification: string;
-  status: string;
-  cursorHealth: string;
-  lastReceiptAt?: string;
-  lastSuccessAt?: string;
-  revokedAt?: string;
-}
+import type { SecurityFusionSeverity as FusionSeverity } from "../../../../contracts/cindertrace/index";
+export type { SecurityFusionSeverity as FusionSeverity } from "../../../../contracts/cindertrace/index";
+export type { FusionCase,FusionEvent,FusionEntity,FusionSource,FusionCollector } from "../../../../contracts/cindertrace/browser";
 
 export async function fusionFetch<T>(path: string): Promise<T> {
   const result = await securityFetch<{ success: boolean; data: T }>(

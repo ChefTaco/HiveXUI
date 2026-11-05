@@ -1,4 +1,4 @@
-import { apiFetch } from '../../../../lib/transport';
+import { securityPost } from '@security/lib/security-api';
 'use client';
 import {useState} from 'react';
 import {useRouter} from '@security/navigation';
@@ -7,8 +7,7 @@ export function CaseWorkflow({caseId,eventId,preserveOnly=false}:{caseId:string;
  async function send(path:string,body?:unknown){
   setBusy(true);setMessage('');
   try {
-   const response=await apiFetch(`/api/security/security-fusion/cases/${encodeURIComponent(caseId)}/${path}`,{method:'POST',headers:{'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
-   const payload=await response.json();if(!response.ok)throw new Error(payload.error?.message??'Request failed');
+   await securityPost(`security-fusion/cases/${encodeURIComponent(caseId)}/${path}`,body);
    setMessage(body?'Investigation draft saved.':'Evidence preserved and hashed.');if(body)setSummary('');router.refresh();
   }catch(error){setMessage(error instanceof Error?error.message:'Request failed');}finally{setBusy(false);}
  }

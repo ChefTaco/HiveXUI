@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "product": "chattermost-browser-chat",
+  "version": 1,
+  "repository": "https://github.com/ChefTaco/ChatterMost",
+  "revision": "a80d0432b82d65555a47edfc51f6e36935acc72e",
+  "source": "src/shared/browser-chat.ts",
+  "sha256": "9e04987019a59ba5f83922caaff7dbc1bf9f940bb8a514c81f94b3f2ef71f911"
+}
