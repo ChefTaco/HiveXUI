@@ -34,6 +34,11 @@ const NOTICE_CLASS = {
   danger: 'border-danger bg-danger-soft',
 };
 
+function idleLimit(seconds: number): string {
+  const minutes = Math.round(seconds / 60);
+  return minutes < 2 ? `${seconds} seconds` : `${minutes} minutes`;
+}
+
 function terminalTheme(): ITheme {
   const colors = readThemeColors();
   return {
@@ -176,7 +181,7 @@ export default function TerminalPanel({ nodeId, nodeName, onClose, createGateway
         </header>
         <p className="m-0 text-xs text-text-muted">
           Alt+Shift+Q moves focus to Close. Closing ends the shell.
-          {opened ? ` Ends after ${Math.round(opened.idleTimeoutSeconds / 60)} minutes without input, and by ${formatTime(opened.expiresAt)} at the latest.` : ''}
+          {opened ? ` Ends after ${idleLimit(opened.idleTimeoutSeconds)} without input, and by ${formatTime(opened.expiresAt)} at the latest.` : ''}
         </p>
         {notice ? (
           <div role="alert" className={cn('flex flex-wrap items-center gap-x-4 gap-y-2 rounded-control border px-3 py-2 text-sm', NOTICE_CLASS[notice.tone])}>
