@@ -1,4 +1,3 @@
-import { apiFetch } from '../lib/transport';
 import { useRef, useState } from 'react';
 import { adminApi, ApiError } from '../lib/api';
 import { useStore } from '../lib/store';
@@ -89,7 +88,7 @@ export function KeysPage({ currentUser }: { currentUser: AdminUser | null }) {
   const openEdit = (key: ClientKey) => {
     setUsage(null); setUsageError(null);
     const generation = ++usageGeneration.current;
-    void apiFetch(`/api/client-keys/${encodeURIComponent(key.id)}/usage`).then(async (response) => { if (!response.ok) throw new Error('Usage accounting unavailable'); const value = await response.json(); if (generation === usageGeneration.current) setUsage(value); }).catch((error: unknown) => { if (generation === usageGeneration.current) setUsageError(error instanceof Error ? error.message : 'Usage unavailable'); });
+    void adminApi.clientKeyUsage(key.id).then((value) => { if (generation === usageGeneration.current) setUsage(value); }).catch((error: unknown) => { if (generation === usageGeneration.current) setUsageError(error instanceof Error ? error.message : 'Usage unavailable'); });
     setMode('edit');
     setName(key.name);
     setMetadataText(metadataToText(key.metadataJson));

@@ -18,7 +18,7 @@ export function parseProviderModels(value: string): ProviderModelWriteRequest[] 
 }
 
 /** Read DTO rows contain persistence metadata and JSON text; writes do not. */
-export function providerModelForWrite(model: ProviderModel): ProviderModelWriteRequest {
+export function providerModelForWrite(model: Pick<ProviderModel, 'model'> & Partial<Pick<ProviderModel, 'capabilityJson' | 'displayName' | 'enabled' | 'maxContextWindow'>>): ProviderModelWriteRequest {
   let capabilities: Record<string, unknown> | undefined;
   if (model.capabilityJson !== undefined && model.capabilityJson !== null) {
     try { capabilities = parseJsonObject(model.capabilityJson); }

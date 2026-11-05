@@ -201,7 +201,7 @@ export function DocsPage({
                 <tbody>
                   {docs.map((doc, i) => (
                     <tr
-                      key={doc.id ?? `${scope}-${i}`}
+                      key={`${scope}-${doc.method}-${doc.route}-${i}`}
                       className="row-clickable"
                       onClick={() => setSelected(doc)}
                     >
@@ -211,9 +211,9 @@ export function DocsPage({
                         </Badge>
                       </td>
                       <td className="cell-mono">
-                        {doc.path ?? doc.title ?? '—'}
+                        {doc.route}
                       </td>
-                      <td>{doc.summary ?? doc.description ?? '—'}</td>
+                      <td>{doc.summary}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -227,7 +227,7 @@ export function DocsPage({
         open={Boolean(selected)}
         onClose={() => setSelected(null)}
         eyebrow={selected?.method ?? 'Endpoint'}
-        title={selected?.path ?? selected?.title ?? ''}
+        title={selected?.route ?? ''}
         footer={
           <Button variant="ghost" onClick={() => setSelected(null)}>
             Close
@@ -236,9 +236,9 @@ export function DocsPage({
       >
         {selected ? (
           <>
-            {selected.description ? (
+            {selected.summary ? (
               <p style={{ color: 'var(--text)', lineHeight: 1.6 }}>
-                {selected.description}
+                {selected.summary}
               </p>
             ) : null}
             <p className="panel-eyebrow" style={{ marginTop: 18 }}>

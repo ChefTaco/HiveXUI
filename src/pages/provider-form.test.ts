@@ -1,19 +1,19 @@
 import {describe, expect, it} from 'vitest';
 import type {Provider} from '../lib/types';
-import {providerSchema, providerReadSchema} from '@contracts/emberpath-model-admin.generated';
+import {providerSchema, providerReadSchema, providerCapabilitySchema} from '@contracts/emberpath-model-admin.generated';
 import {formFromProvider, parseProviderModels, providerFormForWrite, providerModelForWrite} from './provider-form';
 
-const capabilities = {streaming: true, tools: false, supportedRoutes: ['v1.responses'], tags: ['synthetic'],
-  inputCostPerMillionTokens: 0, qualityScore: 87, maxContextWindow: 65536};
+const capabilities = providerCapabilitySchema.parse({streaming: true, tools: false, supportedRoutes: ['v1.responses'], tags: ['synthetic'],
+  inputCostPerMillionTokens: 0, qualityScore: 87, maxContextWindow: 65536});
 function readProvider(): Provider {
   return {id: 'provider-fixture', slug: 'synthetic', name: 'Synthetic provider', kind: 'OPENAI_GENERIC',
     baseUrl: 'https://provider.example.com/v1', authMode: 'BEARER', authHeaderName: 'Authorization',
     authSecretMasked: 'masked-only', defaultHeaders: {'x-fixture': 'synthetic'}, capabilities,
-    timeoutMs: 120000, maxRetries: 1, concurrency: 16, priority: 100, weight: 100, failoverGroup: null, enabled: true,
+    timeoutMs: 120000, maxRetries: 1, concurrency: 16, priority: 100, weight: 100, failoverGroup: null, enabled: true, lastHealthStatus: null, lastHealthError: null, lastHealthAt: null,
     models: [Object.assign({model: 'synthetic-model', displayName: null, maxContextWindow: null, enabled: false,
       capabilityJson: JSON.stringify(capabilities)}, {id: 'row-fixture', providerId: 'provider-fixture',
       createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z'}),
-      {model: 'named-model', displayName: '', maxContextWindow: 32768, enabled: true, capabilityJson: '{}'}]};
+      {model: 'named-model', displayName: '', maxContextWindow: 32768, enabled: true, capabilityJson: '{}', id: 'named-row-fixture', providerId: 'provider-fixture', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z'}]};
 }
 
 describe('provider read DTO to edit request', () => {

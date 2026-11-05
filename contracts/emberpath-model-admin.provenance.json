@@ -4,7 +4,7 @@
   "contractVersion": 1,
   "productVersion": "1.2.2",
   "repository": "https://github.com/ChefTaco/Emberpath",
-  "revision": "8f00cedf4899f7b372f796056c408f999d044e1b",
+  "revision": "4420a466830b2c5fe1535ee7207c53d4e05579f2",
   "source": "src/contracts/model-admin.ts",
-  "sha256": "b07556b24b9e2c8054db15b6334c7fb8bb323e9971a0ddcba571dcdd75228936"
+  "sha256": "63164f125040437d137ad1a6ee220abecd292492020046c1dd55f893a3cf6ef5"
 }

@@ -1,3 +1,4 @@
+import {routeRuleSchema, heuristicSchema} from '@contracts/emberpath-model-admin.generated';
 import { useState } from 'react';
 import { adminApi, ApiError } from '../lib/api';
 import { useStore } from '../lib/store';
@@ -323,14 +324,14 @@ function RuleSection({ canWrite }: { canWrite: boolean }) {
   async function save() {
     setSaving(true);
     try {
-      const body = {
+      const body = routeRuleSchema.parse({
         name: form.name.trim(),
         kind: form.kind,
         priority: Number(form.priority),
         enabled: form.enabled,
         matchJson: parseJsonObject(form.matchJson),
         actionJson: parseJsonObject(form.actionJson),
-      };
+      });
       if (editing) {
         await adminApi.updateRouteRule(editing.id, body);
         toast.success('Rule updated', form.name);
@@ -511,14 +512,14 @@ function HeuristicSection({ canWrite }: { canWrite: boolean }) {
   async function save() {
     setSaving(true);
     try {
-      const body = {
+      const body = heuristicSchema.parse({
         name: form.name.trim(),
         category: form.category.trim(),
         pattern: form.pattern,
         score: Number(form.score),
         enabled: form.enabled,
         actionJson: parseJsonObject(form.actionJson),
-      };
+      });
       if (editing) {
         await adminApi.updateHeuristic(editing.id, body);
         toast.success('Heuristic updated', form.name);

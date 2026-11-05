@@ -1,4 +1,3 @@
-import { apiFetch } from '../lib/transport';
 import { useMemo, useState } from 'react';
 import { adminApi, ApiError } from '../lib/api';
 import { can } from '../lib/permissions';
@@ -598,8 +597,7 @@ export function TestingPage({
         </Field>
         <Button
           onClick={() => {
-            void apiFetch('/api/routing/revisions')
-              .then((response) => response.json())
+            void adminApi.routingRevisions()
               .then((value) => {
                 setBaseRevision(value.revision);
                 setProposed(JSON.stringify(value.config, null, 2));
@@ -612,14 +610,8 @@ export function TestingPage({
         <Button
           disabled={!canChangeRouting || !baseRevision || !proposedObject}
           onClick={() => {
-            void apiFetch('/api/routing/revisions', {
-              method: 'POST',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({ baseRevision, patch: proposedObject }),
-            })
-              .then(async (response) => {
-                const value = await response.json();
-                if (!response.ok) throw new Error(value.error);
+            void adminApi.applyRoutingRevision(baseRevision, proposedObject)
+              .then((value) => {
                 setPreviousRevision(value.previousRevision);
                 setBaseRevision(value.revision);
                 toast.success('Routing configuration applied');
@@ -636,17 +628,8 @@ export function TestingPage({
         <Button
           disabled={!canChangeRouting || !previousRevision}
           onClick={() => {
-            void apiFetch(
-              '/api/routing/revisions/' + previousRevision + '/rollback',
-              {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ baseRevision }),
-              },
-            )
-              .then(async (response) => {
-                const value = await response.json();
-                if (!response.ok) throw new Error(value.error);
+            void adminApi.rollbackRoutingRevision(previousRevision, baseRevision)
+              .then((value) => {
                 setBaseRevision(value.revision);
                 setProposed(JSON.stringify(value.config, null, 2));
                 setPreviousRevision('');
@@ -660,20 +643,10 @@ export function TestingPage({
         <Button
           disabled={!proposedObject}
           onClick={() => {
-            void apiFetch('/api/testing/preview', {
-              method: 'POST',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({
+            void adminApi.previewRouting({
                 ...proposedObject,
-                cases: TEST_CASES.map((sample) => ({
-                  modelAlias: sample.alias,
-                  prompt: sample.prompt,
-                })),
-              }),
-            })
-              .then(async (response) => {
-                const value = await response.json();
-                if (!response.ok) throw new Error(value.message ?? value.error);
+                cases: TEST_CASES.map((sample) => ({modelAlias: sample.alias, prompt: sample.prompt})),
+              }).then((value) => {
                 setPreview(value);
               })
               .catch((error: unknown) =>
