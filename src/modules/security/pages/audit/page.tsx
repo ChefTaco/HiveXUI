@@ -46,7 +46,7 @@ export default async function AuditPage({
               defaultValue={date}
             />
           </label>
-          <button className="rounded border border-primary/40 px-3 py-2 text-xs text-primary hover:border-primary">
+          <button className="rounded border border-primary/40 bg-surface px-3 py-2 text-xs text-primary hover:border-primary">
             Load day
           </button>
         </form>

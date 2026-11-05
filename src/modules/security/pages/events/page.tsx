@@ -22,7 +22,7 @@ export default async function EventsPage(): Promise<React.ReactElement> {
       {!events?.length ? (
         <EmptyState>No normalized events received.</EmptyState>
       ) : (
-        <div className="overflow-x-auto border border-border/60">
+        <div className="overflow-x-auto border border-border/60" role="region" aria-label="Security event records" tabIndex={0}>
           <table className="w-full min-w-[760px] text-left text-xs">
             <thead className="bg-white/[.02] font-mono text-[9px] uppercase tracking-wider text-text-muted">
               <tr>

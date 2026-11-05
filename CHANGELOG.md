@@ -1,5 +1,9 @@
 # Changelog
 
+- Give investigation and evidence controls explicit theme backgrounds so enabled
+  security actions retain readable contrast in dark mode. Adapt warning text to
+  each theme and make scrolling event and collector records reachable by keyboard.
+
 - Compute suite incident summaries from independently authorized product APIs,
   project safe event details and surface unavailable sources; retain investigations
   in their owning products and update installation-health guidance for the suite.

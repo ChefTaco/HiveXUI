@@ -160,7 +160,7 @@ export function SourceGrid({ sources }: { sources: FusionSource[] }): React.Reac
 export function CollectorRegistry({ collectors }: { collectors: FusionCollector[] }): React.ReactElement {
   if (!collectors.length) return <EmptyState>No collector identity has completed an authenticated receipt.</EmptyState>;
   return (
-    <div className="max-h-[70vh] overflow-auto rounded-panel border border-border/60 bg-surface">
+    <div className="max-h-[70vh] overflow-auto rounded-panel border border-border/60 bg-surface" role="region" aria-label="Collector identity records" tabIndex={0}>
       <table className="w-full min-w-[760px] text-left text-xs">
         <thead className="sticky top-0 border-b border-accent/30 bg-surface/95 text-[9px] uppercase tracking-wider text-text-muted backdrop-blur-sm">
           <tr>
