@@ -2,7 +2,8 @@ import { ScanSearch } from "lucide-react";
 import { cn } from "@lib/cn";
 import { Badge, EmptyState as SharedEmptyState, Meter, PageHeader, Panel, StatusDot, TableFrame, type Tone } from "@ui";
 import Link from "@security/navigation";
-import { mergeSourceAliases, severityTone, sourceLabel } from "@security/lib/security-fusion";
+import { productInstalled } from "@lib/runtime";
+import { mergeSourceAliases, severityTone, sourceLabel, sourceRelevant } from "@security/lib/security-fusion";
 import type { FusionCase, FusionCollector, FusionEvent, FusionSource } from "@security/lib/security-fusion";
 
 export function FusionHeader({ eyebrow, title, copy }: { eyebrow: string; title: string; copy: string }): React.ReactElement {
@@ -95,11 +96,14 @@ export function EvidenceBraid({ events }: { events: FusionEvent[] }): React.Reac
 
 const STALE_MS = 15 * 60 * 1000;
 
-export function SourceGrid({ sources }: { sources: FusionSource[] }): React.ReactElement {
-  if (!sources.length) return <EmptyState>No source has reported its posture yet.</EmptyState>;
+export function SourceGrid({ sources, collectors }: { sources: FusionSource[]; collectors?: FusionCollector[] }): React.ReactElement {
+  const shown = sources.filter((source) => sourceRelevant(source, productInstalled, collectors));
+  const hidden = [...new Set(sources.filter((source) => !shown.includes(source)).map((source) => sourceLabel(source.source)))];
   return (
+    <div className="grid gap-3">
+    {shown.length ? (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {mergeSourceAliases(sources).map((source) => {
+      {mergeSourceAliases(shown).map((source) => {
         const healthy = source.status === "healthy";
         const lastSuccess = source.lastSuccessAt ? Date.parse(source.lastSuccessAt) : null;
         const stale = lastSuccess === null || Date.now() - lastSuccess > STALE_MS;
@@ -116,6 +120,13 @@ export function SourceGrid({ sources }: { sources: FusionSource[] }): React.Reac
           </Panel>
         );
       })}
+    </div>
+    ) : (
+      <EmptyState>No source has reported its posture yet.</EmptyState>
+    )}
+    {hidden.length ? (
+      <p className="text-sm text-text-muted">Not configured here, so not shown: {hidden.join(", ")}. A feed appears once a collector is allowed to send it or it reports data.</p>
+    ) : null}
     </div>
   );
 }
@@ -147,7 +158,7 @@ export function CollectorRegistry({ collectors }: { collectors: FusionCollector[
                   {collector.id} · {collector.status}
                 </span>
               </td>
-              <td className="text-text-muted">{collector.allowedSources.join(", ")}</td>
+              <td className="text-text-muted">{[...new Set(collector.allowedSources.map(sourceLabel))].join(", ")}</td>
               <td className="num text-text-muted">{collector.schemaVersion}</td>
               <td className="text-text-muted">{collector.dataClassification}</td>
               <td>

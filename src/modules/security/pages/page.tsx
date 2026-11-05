@@ -1,4 +1,5 @@
-import { StatCard } from "@ui";
+import { Panel, StatCard } from "@ui";
+import Link from "@security/navigation";
 import {
   CaseTable,
   FusionHeader,
@@ -6,6 +7,7 @@ import {
 } from "@security/components/security-fusion/fusion-ui";
 import {
   fusionFetch,
+  labEnabled,
   severityTone,
   type FusionCase,
   type FusionSource,
@@ -21,7 +23,10 @@ interface Overview {
 }
 
 export default async function SecurityFusionOverview(): Promise<React.ReactElement> {
-  const data = await fusionFetch<Overview>("overview");
+  const [data, lab] = await Promise.all([
+    fusionFetch<Overview>("overview"),
+    labEnabled(),
+  ]);
   const counts = Object.fromEntries(
     (data?.bySeverity ?? []).map((row) => [row.severity, row._count.id]),
   );
@@ -32,6 +37,12 @@ export default async function SecurityFusionOverview(): Promise<React.ReactEleme
         title="Cindertrace"
         copy="Investigate security findings, connect related activity, and preserve evidence. Response requires explicit approval."
       />
+      {lab ? (
+        <Panel as="div" eyebrow="Disposable investigation lab" title="Practice on evolving evidence">
+          <p className="text-sm">Follow evolving evidence, revisit your hypotheses and review how your confidence changed.</p>
+          <Link className="btn w-fit" href="/security-fusion/lab">Start or resume investigation</Link>
+        </Panel>
+      ) : null}
       <section className="stats-grid" aria-label="Open cases by severity">
         {(["critical", "high", "medium", "low"] as const).map((severity) => (
           <StatCard

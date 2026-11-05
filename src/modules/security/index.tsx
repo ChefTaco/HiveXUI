@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactElement } from 'react';
 import { FusionNav } from './components/security-fusion/fusion-nav';
 import { usePathname } from './navigation';
 import { productEnabled } from '../../lib/runtime';
+import { labEnabled } from './lib/security-fusion';
 
 const pages = {
   overview: () => import('./pages/page'),
@@ -36,6 +37,16 @@ function ConfiguredSecurityModule() {
   const [revision, setRevision] = useState(0);
   const [content, setContent] = useState<ReactElement | null>(null);
   const [error, setError] = useState('');
+  const [lab, setLab] = useState(false);
+  useEffect(() => {
+    let current = true;
+    void labEnabled().then((enabled) => {
+      if (current) setLab(enabled);
+    });
+    return () => {
+      current = false;
+    };
+  }, []);
   useEffect(() => {
     const refresh = () => setRevision((value) => value + 1);
     window.addEventListener('security-refresh', refresh);
@@ -81,7 +92,7 @@ function ConfiguredSecurityModule() {
   }, [path, revision]);
   return (
     <section className="security-module">
-      <FusionNav labEnabled={false} />
+      <FusionNav labEnabled={lab} />
       {error ? (
         <p className="error-banner" role="alert">
           {error}
