@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "product": "magnus-browser",
+  "version": 1,
+  "repository": "https://github.com/ChefTaco/magnus",
+  "revision": "859458867bb8be3ff308789172ec9a6b8a624c21",
+  "files": [
+    {
+      "path": "browser.ts",
+      "source": "packages/contracts/src/browser.ts",
+      "sha256": "e78c6b1df55c19ba76f3566e32edebaa8c1aecec56e8d13e072fb0b477963ef9"
+    }
+  ]
+}
