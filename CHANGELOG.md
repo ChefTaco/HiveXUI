@@ -2,6 +2,9 @@
 
 ## Unreleased ecosystem extraction
 
+- Match HiveMem native queue administration: general agent wildcards do not grant
+  administrator actions without an explicit administrator scope or role.
+
 - Port sessions, workspace webhook administration and delivery history, graph evidence,
   conflict review, consolidation history and queue controls through owned HiveMem APIs.
   Separate product read/write permissions and retain consolidation request IDs after
