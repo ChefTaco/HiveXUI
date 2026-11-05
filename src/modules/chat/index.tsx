@@ -509,6 +509,21 @@ function ConnectedChat() {
   }
   const selected = channels.find((item) => item.id === channel);
   const byUser = Object.fromEntries(users.map((user) => [user.id, user]));
+  const channelLabel = (value: MattermostChannel) => {
+    if (value.display_name) return value.display_name;
+    if (value.type === "D" || value.type === "G")
+      return (
+        value.name
+          .split("__")
+          .filter((id) => id !== me?.id)
+          .map(
+            (id) =>
+              byUser[id]?.nickname || byUser[id]?.username || "Chat member",
+          )
+          .join(", ") || "Saved conversation"
+      );
+    return value.name;
+  };
   return (
     <section className="chat-module">
       <aside className="chat-rail">
@@ -536,7 +551,7 @@ function ConnectedChat() {
               }}
             >
               {value.type === "D" ? "↗ " : "# "}
-              {value.display_name || value.name}
+              {channelLabel(value)}
             </button>
           ))}
         </nav>
@@ -603,9 +618,9 @@ function ConnectedChat() {
             <h2>
               {thread
                 ? "Thread"
-                : selected?.display_name ||
-                  selected?.name ||
-                  "Choose a channel"}
+                : selected
+                  ? channelLabel(selected)
+                  : "Choose a channel"}
             </h2>
             <p role="status">{online ? "Connected" : "Reconnecting chat…"}</p>
           </div>
