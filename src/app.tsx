@@ -45,6 +45,7 @@ import {
   productEnabled,
   productInstalled,
 } from './lib/runtime';
+import { useRegistry } from './lib/registry';
 import type { AdminUser } from './lib/types';
 import { StoreProvider, useStore } from './lib/store';
 import { Icon, HiveSigil } from './components/icons';
@@ -467,7 +468,9 @@ function Shell({
   const [deepLink] = useState(() => resolveDeepLink(location, productInstalled));
   const [view, setView] = useState<ViewKey>(deepLink.view);
   const [magnusNav, setMagnusNav] = useState<MagnusNavContext>({});
-  const products = useMemo(() => navProducts(visibleNavGroups(productInstalled, magnusNav)), [magnusNav]);
+  // The sections follow the Registry, which may answer after the first paint when it is slow.
+  const registry = useRegistry();
+  const products = useMemo(() => navProducts(visibleNavGroups(productInstalled, magnusNav)), [magnusNav, registry]);
   const screens = useMemo(() => paletteScreens(products), [products]);
   const [magnusPath, setMagnusPath] = useState(() => toConsolePath(location.pathname));
   const [pathname, setPathname] = useState(location.pathname);
@@ -523,6 +526,13 @@ function Shell({
     window.addEventListener('keydown', open);
     return () => window.removeEventListener('keydown', open);
   }, []);
+  // A late answer can remove the page on screen. Leave it the way a dead bookmark does.
+  useEffect(() => {
+    if (viewAvailable(viewRef.current, productInstalled)) return;
+    history.replaceState(null, '', '/');
+    setPathname('/');
+    setView('hive');
+  }, [registry]);
   const [navOpen, setNavOpen] = useState(false);
   const navigationRef = useRef<HTMLElement>(null);
   const navigationToggleRef = useRef<HTMLButtonElement>(null);

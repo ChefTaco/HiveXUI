@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { createBrowserAuth } from './browser-auth';
+import { registryAllows, startRegistry } from './registry';
 import {
   configureEndpoint,
   setAccessProvider,
@@ -92,14 +93,23 @@ export function selectEnrollmentInstallation(value: string): void {
   if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(value)) throw new Error('Select an explicit installation identifier');
   enrollmentInstallation = value;
 }
-export const productEnabled = (product: Product) => enabled.has(product);
+/** A console product must be both configured in runtime.json and, when known, installed. */
+export const productEnabled = (product: Product) => enabled.has(product) && registryAllows(product);
 export const browserIdentity = () => identity;
 /**
  * Whether the console should present a product. Legacy standalone recovery has no suite
  * identity and talks to the retained native console API, so its surface stays unfiltered.
  */
 export const productInstalled = (product: Product) =>
-  !identity || enabled.has(product);
+  !identity || productEnabled(product);
+/**
+ * Whether the console can show a Registry entry. One of its own products must be installed by the
+ * rule above; the rest (the ingress, the Registry itself, external products) have no section.
+ */
+export const registryEntryPresented = (id: string) => {
+  const known = product.safeParse(id);
+  return !known.success || productInstalled(known.data);
+};
 export async function initializeRuntime(): Promise<void> {
   const response = await fetch('/runtime.json', {
     cache: 'no-store',
@@ -121,5 +131,7 @@ export async function initializeRuntime(): Promise<void> {
     identity = createBrowserAuth(config.identity);
     setAccessProvider(identity.ensure);
     setStepUpProvider(identity.stepUp);
+    // The authorization portal shows no sections and serves other applications' sign-ins.
+    if (location.pathname !== '/auth/authorize') await startRegistry([...enabled]);
   }
 }

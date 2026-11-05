@@ -1,5 +1,5 @@
-import { beforeEach, expect, it, vi } from 'vitest';
-import { readSuiteHealth } from './suite-health';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readRegistryHealth, readSuiteHealth } from './suite-health';
 import { configureEndpoint } from './transport';
 
 beforeEach(() => {
@@ -29,4 +29,37 @@ it('still reports denied and unavailable states for installed products', async (
     .mockRejectedValueOnce(new Error('offline'));
   const rows = await readSuiteHealth(send);
   expect(rows.slice(0, 2).map((row) => row.state)).toEqual(['denied', 'unavailable']);
+});
+
+describe('the Registry row', () => {
+  const answering = (body: BodyInit | null, status = 200) => vi.fn<typeof fetch>().mockImplementation(async () => new Response(body, { status }));
+  it('is reported ready only with the Registry\'s own answer, anonymously and at its own path', async () => {
+    const request = answering(JSON.stringify({ status: 'ready', readOnly: false }));
+    await expect(readRegistryHealth(request)).resolves.toMatchObject({ product: 'hive-registry', name: 'Registry', path: '/api/registry/health/ready', required: true, state: 'ready' });
+    const [url, init] = request.mock.calls[0]!;
+    expect(url).toBe('/api/registry/health/ready');
+    expect(init).toMatchObject({ credentials: 'omit', redirect: 'error' });
+    expect(new Headers(init?.headers).has('authorization')).toBe(false);
+  });
+  it.each([
+    ['a 404 from a stack without it', answering('API unavailable', 404)],
+    ['a 500', answering('{}', 500)],
+    ['a page served in its place', answering('<!doctype html>')],
+    ['another body', answering(JSON.stringify({ status: 'starting', readOnly: false }))],
+    ['a network failure', vi.fn<typeof fetch>().mockRejectedValue(new Error('offline'))],
+  ])('is required and unavailable on %s', async (_name, request) => {
+    await expect(readRegistryHealth(request)).resolves.toMatchObject({ required: true, state: 'unavailable' });
+  });
+  it('leads the rows and does not go through the product transport', async () => {
+    const send = vi.fn<typeof fetch>().mockImplementation(async () => new Response('{}'));
+    const registry = vi.fn(() => readRegistryHealth(answering('API unavailable', 404)));
+    const rows = await readSuiteHealth(send, registry);
+    expect(rows[0]).toMatchObject({ name: 'Registry', state: 'unavailable', required: true });
+    expect(rows.length).toBeGreaterThan(1);
+    expect(send.mock.calls.map(([path]) => path)).not.toContain('/api/registry/health/ready');
+  });
+  it('is left out where there is no Registry to ask, as in legacy recovery', async () => {
+    const send = vi.fn<typeof fetch>().mockImplementation(async () => new Response('{}'));
+    expect((await readSuiteHealth(send)).map((row) => row.product)).not.toContain('hive-registry');
+  });
 });
