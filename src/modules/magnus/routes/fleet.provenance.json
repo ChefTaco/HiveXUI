@@ -2,12 +2,36 @@
   "workPackage": "fleet",
   "files": [
     {
+      "source": "apps/dashboard/src/app/anomalies/[anomalyId]/page.tsx",
+      "sha256": "eefd0ad0adb9e93b171f295e6cad6a2442c114663c9b2cea8cb5a6836d301cf5"
+    },
+    {
+      "source": "apps/dashboard/src/app/anomalies/page.tsx",
+      "sha256": "3155c6a442f24e075e78f4882be0a5ec1dfa4be83b3cd6e5691c01c203dcb66c"
+    },
+    {
+      "source": "apps/dashboard/src/app/anomalies/remediation/page.tsx",
+      "sha256": "e99e0ab060561c51f554aa9a48de0c5bd15e294ef25a6ec6005456dff59fcf7e"
+    },
+    {
+      "source": "apps/dashboard/src/app/application-operations/page.tsx",
+      "sha256": "354db41d6c87ee4b966d23f52caf60ecb0cc9a3f1005501597317bad9bfe3a93"
+    },
+    {
       "source": "apps/dashboard/src/app/dashboard-client.tsx",
       "sha256": "ef712c3f0c3d4d7055bf2a4ee7447a4d4ff4fd64cb20d7274f1865ca2286c000"
     },
     {
       "source": "apps/dashboard/src/app/error.tsx",
       "sha256": "59d5656dc84a734a3a4f510db485de56814022508ba06608e98be225835bc27b"
+    },
+    {
+      "source": "apps/dashboard/src/app/fleet-readiness/page.tsx",
+      "sha256": "f67a270abb43abb48ed26fc0fb2a589b53cc05aaeda7db25b7d749ba4c7a01e1"
+    },
+    {
+      "source": "apps/dashboard/src/app/fleet-timeline/page.tsx",
+      "sha256": "e8270474ce826a4067c4455734da7caf6e026cc6e738c5b6d37f2fba8e3e5cbb"
     },
     {
       "source": "apps/dashboard/src/app/globals.css",
@@ -30,8 +54,20 @@
       "sha256": "ef722b228b9e01bfc565125bf1fd38d027d116439a39cc79f01782a590268dee"
     },
     {
+      "source": "apps/dashboard/src/app/notifications/notification-prefs-client.tsx",
+      "sha256": "add4f2ebeec0c402b831f02ab1e577881e59c6dfebe4978b5fd6b0e70bd5d1ed"
+    },
+    {
+      "source": "apps/dashboard/src/app/notifications/page.tsx",
+      "sha256": "7777183a0fc5a1150302e2d200d30ab698f336dd58be8524e49309b9c1e9d194"
+    },
+    {
       "source": "apps/dashboard/src/app/page.tsx",
       "sha256": "baa0c0c36a64148db1ee9ffd993a5582f7506051beddeeabe7911ccaa603a81a"
+    },
+    {
+      "source": "apps/dashboard/src/app/retention/page.tsx",
+      "sha256": "db626ad3e87329bc438b4a8544d672f659378aa4ecada94337150d64ce535b07"
     },
     {
       "source": "apps/dashboard/src/components/layout/header.tsx",
@@ -56,6 +92,10 @@
     {
       "source": "apps/dashboard/src/components/nodes/upgrade-readiness-badge.tsx",
       "sha256": "009cecccdf11a9be2aba6094b70b4f200dec590d56cc643c32849dc7a2f4d5ba"
+    },
+    {
+      "source": "apps/dashboard/src/components/notifications/notification-dropdown.tsx",
+      "sha256": "48d77d594b1e4661a714e59faa2db16a064340a972c1d683a2082e05f34082ea"
     },
     {
       "source": "apps/dashboard/src/components/overview/fleet-radar.tsx",
