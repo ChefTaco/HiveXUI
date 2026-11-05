@@ -11,6 +11,7 @@ import {
 } from '../components/ui';
 import { Icon } from '../components/icons';
 import { viewAvailable } from '../lib/navigation';
+import { RegistryProducts } from '../components/registry-products';
 import { browserIdentity, productInstalled } from '../lib/runtime';
 
 const SUITE_RUNBOOKS = [
@@ -186,6 +187,8 @@ export function DocsPage({
           ))}
         </div>
       </Panel>
+
+      <RegistryProducts title="Product links" />
 
       {!endpoints ? null : data.docs.length === 0 ? (
         <Panel title="Endpoints" eyebrow="0 documented">

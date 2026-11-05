@@ -6,7 +6,9 @@ import { Radar, radarRandom, type RadarBlip } from '../../components/radar';
 import { Sparkline, TileTrend } from '../../components/sparkline';
 import { latencyTone } from '../../components/tones';
 import { series, useSessionSamples } from '../../lib/session-samples';
+import { refreshRegistry, registryWarning, useRegistry } from '../../lib/registry';
 import { readSuiteHealth } from '../../lib/suite-health';
+import { RegistryProducts } from '../../components/registry-products';
 import { UpgradesPanel } from '../../components/upgrades';
 type Status = Awaited<ReturnType<typeof readSuiteHealth>>;
 const POLL_MS = 30_000;
@@ -16,13 +18,16 @@ export default function SuiteOverview() {
   const [rows, setRows] = useState<Status>([]),
     [busy, setBusy] = useState(false),
     [checked, setChecked] = useState(false);
+  const registry = useRegistry();
+  const registryProblem = registryWarning(registry);
   const running = useRef(false);
   async function refresh() {
     if (running.current) return;
     running.current = true;
     setBusy(true);
     try {
-      setRows(await readSuiteHealth());
+      const [health] = await Promise.all([readSuiteHealth(), refreshRegistry()]);
+      setRows(health);
       setChecked(true);
     } finally {
       running.current = false;
@@ -57,11 +62,13 @@ export default function SuiteOverview() {
             <Badge tone={posture.tone} dot>{posture.label}</Badge>
           </div>
           <p>Independent products connected through your Oathweave identity.</p>
+          {registry.status === 'ready' ? <p>Installation <code className="font-mono text-text-strong">{registry.installationId}</code></p> : null}
         </div>
         <Button loading={busy} onClick={() => void refresh()}>
           Check readiness
         </Button>
       </div>
+      {registryProblem ? <p role="status" className="warning-banner">{registryProblem}</p> : null}
       <Panel className="grid-bg" aria-label="Installation status">
         <div className="hero-row">
           <Radar blips={blips} value={rows.length} unit="products" label={`Product radar: ${ready} ready of ${rows.length}`} />
@@ -96,7 +103,10 @@ export default function SuiteOverview() {
                   <Badge tone={tone} dot>{row.state}</Badge>
                 </div>
                 <span className="text-sm text-text-muted">{row.message}</span>
-                {row.latencyMs !== undefined ? <span className="num data-figure text-xs text-text-muted">{row.latencyMs} ms</span> : null}
+                <div className="product-tile__row">
+                  {row.latencyMs !== undefined ? <span className="num data-figure text-xs text-text-muted">{row.latencyMs} ms</span> : <span />}
+                  {row.required ? <Badge>Required</Badge> : null}
+                </div>
               </div>
             );
           })}
@@ -106,6 +116,7 @@ export default function SuiteOverview() {
           acceptance are recorded separately by the Hive controller.
         </p>
       </Panel>
+      <RegistryProducts title="Installed products" />
       <UpgradesPanel canUpgrade={false} />
     </>
   );

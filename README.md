@@ -93,6 +93,13 @@ artifacts; each producer separately checks source/export drift. These local
 candidate contracts remain unpublished pending independent product releases. Recovery codes and
 MFA setup material stay in memory and disappear when dismissed or on navigation.
 
+The Hive Registry is the mandatory install catalog of one installation. `runtime.json` stays the
+bootstrap, with API prefixes and OAuth clients, and a section shows only for a product that it
+configures and the Registry lists. The console reads the Registry's public `/api/registry` routes
+anonymously. If they fail, send something unreadable or list no configured product, it follows
+`runtime.json` and warns on the overview. Hive has no browser contract export for the Registry yet,
+so `contracts/hive-registry` is pinned locally to a source revision and checksum.
+
 Memory and workspace administration use the reviewed immutable HiveMem OpenAPI
 artifact in `contracts/`, pinned by source revision and checksum with license and
 notice attribution. `npm run check:contracts` checks provenance and generated

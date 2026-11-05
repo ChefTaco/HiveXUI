@@ -1,5 +1,12 @@
 # Changelog
 
+- Use the Hive Registry as the source of what is installed: a section shows only for a product that
+  `runtime.json` configures and the Registry lists. An unreachable, malformed or empty Registry falls
+  back to `runtime.json` with a warning on the overview, and the portal and sign-in never wait on it.
+- Show the installation ID on the Hive overview, and each installed product's documentation,
+  repository, license and native API URLs there and on API Docs. Add a required `Registry` row to the
+  readiness checks. The browser contract is pinned locally until Hive exports one.
+
 - Give the whole console the Magnus look, as its one theme: near-black surfaces, neon cyan and
   magenta, saturated status colors that glow, a grid backdrop, and display headings and labels in
   mono. The light theme, its toggle and the operating system preference are gone for now; tokens
