@@ -1,10 +1,12 @@
+import { Badge, TableFrame } from "@ui";
 import {
   EmptyState,
   FusionHeader,
 } from "@security/components/security-fusion/fusion-ui";
 import {
   fusionFetch,
-  severityClass,
+  severityTone,
+  sourceLabel,
   type FusionEvent,
 } from "@security/lib/security-fusion";
 
@@ -13,7 +15,7 @@ export const dynamic = "force-dynamic";
 export default async function EventsPage(): Promise<React.ReactElement> {
   const events = await fusionFetch<FusionEvent[]>("events?limit=100");
   return (
-    <div className="p-5 lg:p-7">
+    <div className="page-stack">
       <FusionHeader
         eyebrow="Normalized observations"
         title="Events"
@@ -22,11 +24,11 @@ export default async function EventsPage(): Promise<React.ReactElement> {
       {!events?.length ? (
         <EmptyState>No normalized events received.</EmptyState>
       ) : (
-        <div className="overflow-x-auto border border-border/60" role="region" aria-label="Security event records" tabIndex={0}>
-          <table className="w-full min-w-[760px] text-left text-xs">
-            <thead className="bg-white/[.02] font-mono text-[9px] uppercase tracking-wider text-text-muted">
+        <TableFrame label="Security event records">
+          <table className="min-w-[47.5rem]">
+            <thead>
               <tr>
-                <th className="p-3">Time</th>
+                <th>Time</th>
                 <th>Source</th>
                 <th>Kind</th>
                 <th>Summary</th>
@@ -35,23 +37,23 @@ export default async function EventsPage(): Promise<React.ReactElement> {
             </thead>
             <tbody>
               {events.map((event) => (
-                <tr key={event.id} className="border-t border-border/40">
-                  <td className="p-3 font-mono text-[10px] text-text-muted">
+                <tr key={event.id}>
+                  <td className="num whitespace-nowrap text-xs text-text-muted">
                     {new Date(event.observedAt).toLocaleString()}
                   </td>
-                  <td className="uppercase text-primary">{event.source}</td>
+                  <td>{sourceLabel(event.source)}</td>
                   <td>{event.kind}</td>
-                  <td className="max-w-md py-3 text-text-muted">
+                  <td className="max-w-md text-text-muted">
                     {event.summary}
                   </td>
-                  <td className={severityClass[event.severity]}>
-                    {Math.round(event.confidence * 100)}%
+                  <td>
+                    <Badge tone={severityTone[event.severity]}>{Math.round(event.confidence * 100)}%</Badge>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </TableFrame>
       )}
     </div>
   );

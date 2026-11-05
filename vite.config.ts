@@ -10,6 +10,8 @@ export default defineConfig({
     alias: {
       '@contracts': resolve(import.meta.dirname, './contracts'),
       '@security': resolve(import.meta.dirname,'./src/modules/security'),
+      '@ui': resolve(import.meta.dirname, './src/components/ui.tsx'),
+      '@lib': resolve(import.meta.dirname, './src/lib'),
     },
   },
   build: {

@@ -227,7 +227,7 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
                       <div className="cell-mono">{provider.slug}</div>
                     </td>
                     <td>
-                      <Badge tone="sky">{provider.kind}</Badge>
+                      <Badge tone="info">{provider.kind}</Badge>
                     </td>
                     <td className="cell-mono">{provider.baseUrl}</td>
                     <td className="cell-mono">{provider.priority}</td>
@@ -365,11 +365,11 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
               <div>
                 <span className="panel-eyebrow">Current authorization</span>
                 <div className="inline-actions">
-                  <Badge tone={codexStatus?.authorized ? 'teal' : codexStatus?.refreshTokenQuarantined ? 'coral' : 'amber'} dot>
+                  <Badge tone={codexStatus?.authorized ? 'success' : codexStatus?.refreshTokenQuarantined ? 'danger' : 'warning'} dot>
                     {codexStatus?.authorized ? 'authorized' : codexStatus?.refreshTokenQuarantined ? 'reauthorize' : 'not authorized'}
                   </Badge>
-                  {codexStatus?.provider ? <Badge tone="sky">{codexStatus.provider.slug}</Badge> : null}
-                  {codexStatus?.planType ? <Badge tone="muted">{codexStatus.planType}</Badge> : null}
+                  {codexStatus?.provider ? <Badge tone="info">{codexStatus.provider.slug}</Badge> : null}
+                  {codexStatus?.planType ? <Badge tone="neutral">{codexStatus.planType}</Badge> : null}
                 </div>
               </div>
               <Button variant="ghost" size="sm" loading={codexBusy && !codexFlow} onClick={() => void loadCodexStatus()}>
@@ -397,7 +397,7 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
                     <span className="panel-eyebrow">Device authorization</span>
                     <strong>Enter this code at OpenAI</strong>
                   </div>
-                  <Badge tone={codexCheck?.status === 'authorized' ? 'teal' : codexCheck?.status === 'error' ? 'coral' : 'amber'}>
+                  <Badge tone={codexCheck?.status === 'authorized' ? 'success' : codexCheck?.status === 'error' ? 'danger' : 'warning'}>
                     {codexCheck?.status ?? 'pending'}
                   </Badge>
                 </div>

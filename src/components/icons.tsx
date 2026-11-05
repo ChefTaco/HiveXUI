@@ -163,8 +163,8 @@ export const HiveSigil = (props: { className?: string }) => (
   <svg className={props.className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <linearGradient id="hs-g" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="var(--teal)" />
-        <stop offset="100%" stopColor="var(--amber)" />
+        <stop offset="0%" stopColor="var(--accent)" />
+        <stop offset="100%" stopColor="var(--accent-hover)" />
       </linearGradient>
     </defs>
     <g transform="translate(32,32)">
@@ -183,7 +183,7 @@ export const HiveSigil = (props: { className?: string }) => (
         strokeLinejoin="round"
         opacity="0.7"
       />
-      <circle r="3.5" fill="var(--teal)" />
+      <circle r="3.5" fill="var(--accent)" />
     </g>
   </svg>
 );

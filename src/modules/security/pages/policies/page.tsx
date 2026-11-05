@@ -1,3 +1,4 @@
+import { Badge, Panel } from "@ui";
 import { FusionHeader } from "@security/components/security-fusion/fusion-ui";
 import { fusionFetch } from "@security/lib/security-fusion";
 
@@ -31,18 +32,15 @@ export default async function PoliciesPage(): Promise<React.ReactElement> {
     (policy?.perCaseCeilings.preservedEvidenceBytes ?? 8388608) / 1048576,
   );
   return (
-    <div className="p-5 lg:p-7">
+    <div className="page-stack">
       <FusionHeader
         eyebrow="Hard safety boundaries"
         title="Policies"
         copy="Policy is descriptive here; expanding executable authority requires a code and deployment review."
       />
-      <div className="grid gap-4 lg:grid-cols-3">
-        <section className="border border-border/60 p-5">
-          <h2 className="text-sm font-semibold text-text">
-            Retention lifecycle
-          </h2>
-          <dl className="mt-4 grid grid-cols-2 gap-3 text-xs text-text-muted">
+      <div className="grid items-start gap-4 lg:grid-cols-3">
+        <Panel title="Retention lifecycle">
+          <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm [&_dd]:text-text-strong [&_dt]:text-text-muted">
             <dt>Normalized events</dt>
             <dd>{policy?.eventRetentionDays ?? 90} days</dd>
             <dt>Preserved evidence</dt>
@@ -54,10 +52,9 @@ export default async function PoliciesPage(): Promise<React.ReactElement> {
             <dt>Deletion receipts</dt>
             <dd>{policy?.deletionReceiptDays ?? 2555} days</dd>
           </dl>
-        </section>
-        <section className="border border-border/60 p-5">
-          <h2 className="text-sm font-semibold text-text">Per-case ceilings</h2>
-          <dl className="mt-4 grid grid-cols-2 gap-3 text-xs text-text-muted">
+        </Panel>
+        <Panel title="Per-case ceilings">
+          <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm [&_dd]:text-text-strong [&_dt]:text-text-muted">
             <dt>Correlated events</dt>
             <dd>{policy?.perCaseCeilings.events ?? 1000}</dd>
             <dt>Entities</dt>
@@ -71,29 +68,26 @@ export default async function PoliciesPage(): Promise<React.ReactElement> {
             <dt>Approval token</dt>
             <dd>{policy?.approvalTtlMinutes ?? 10} minutes</dd>
           </dl>
-        </section>
-        <section className="border border-border/60 p-5">
-          <h2 className="text-sm font-semibold text-text">
-            Containment boundary
-          </h2>
-          <p className="mt-4 font-mono text-[10px] uppercase tracking-wider text-success">
-            Available
-          </p>
-          <p className="mt-2 text-xs text-text-muted">
+        </Panel>
+        <Panel title="Containment boundary">
+          <div>
+          <Badge tone="success">Available</Badge>
+          <p className="mt-2 text-sm text-text-muted">
             {policy?.allowedActions.join(" · ") ??
               "service restart · host isolation"}
           </p>
-          <p className="mt-5 font-mono text-[10px] uppercase tracking-wider text-danger">
-            Unavailable
-          </p>
-          <p className="mt-2 text-xs text-text-muted">
+          </div>
+          <div>
+          <Badge tone="danger">Unavailable</Badge>
+          <p className="mt-2 text-sm text-text-muted">
             {policy?.deniedActions.join(" · ") ??
               "credential rotation · permanent block · arbitrary command"}
           </p>
-          <p className="mt-5 text-xs text-text-muted">
+          </div>
+          <p className="text-sm text-text-muted">
             Isolation ceiling: {policy?.isolation.maximumMinutes ?? 30} minutes.
           </p>
-        </section>
+        </Panel>
       </div>
     </div>
   );

@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function CasesPage(): Promise<React.ReactElement> {
   const cases = await fusionFetch<FusionCase[]>("cases");
   return (
-    <div className="p-5 lg:p-7">
+    <div className="page-stack">
       <FusionHeader
         eyebrow="Correlated work queue"
         title="Cases"

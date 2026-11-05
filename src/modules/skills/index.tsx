@@ -361,7 +361,7 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
                       {release.minHermesVersion ?? 'Any minimum'} –{' '}
                       {release.maxHermesVersion ?? 'Any maximum'}
                     </span>
-                    <code style={{ overflowWrap: 'anywhere' }}>
+                    <code className="break-all">
                       {release.sha256}
                     </code>
                   </div>

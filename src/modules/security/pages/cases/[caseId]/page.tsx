@@ -1,3 +1,4 @@
+import { Badge, Panel } from "@ui";
 import { decodeRouteSegment } from "@security/lib/route-segment";
 import { LabCase } from "@security/components/security-fusion/lab-case";
 import type { LabRun, LabComparison } from "@security/contracts/index";
@@ -58,58 +59,54 @@ export default async function CasePage({
   const lab = detail.labRunId ? await fusionFetch<LabRun>(`lab/runs/${encodeURIComponent(detail.labRunId)}`) : null;
   const comparison = lab?.status === "completed" ? await fusionFetch<LabComparison>(`lab/runs/${encodeURIComponent(lab.id)}/comparison`) : null;
   return (
-    <div className="p-5 lg:p-7">
+    <div className="page-stack">
       <FusionHeader
         eyebrow={`${detail.case.severity} · ${Math.round(detail.case.confidence * 100)}% ${lab ? "correlation confidence" : "confidence"}`}
         title={detail.case.title}
         copy={detail.case.summary}
       />
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <section className="min-w-0">
-          <h2 className="mb-3 text-xs font-bold uppercase tracking-[.2em] text-text-muted">
-            Evidence braid
-          </h2>
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_21.25rem]">
+        <div className="page-stack">
+          <section className="grid gap-3">
+          <h3 className="section-title">Evidence braid</h3>
           <EvidenceBraid events={detail.events} />
+          </section>
           {lab ? <>
             <LabCase key={`${lab.id}:${lab.stage}:${lab.latestRevision}:${lab.status}`} run={lab} comparison={comparison} />
             <CaseWorkflow caseId={detail.case.id} eventId={detail.events.at(-1)?.id} preserveOnly />
           </> : <CaseWorkflow caseId={detail.case.id} eventId={detail.events.at(-1)?.id} />}
-          <section className="mt-6 space-y-3">
-            <h2 className="text-xs uppercase tracking-widest text-text-muted">Saved investigations</h2>
-            {detail.investigations.length===0?<p className="text-xs text-text-muted">No investigation drafts yet.</p>:detail.investigations.map(item=><article key={item.id} className="space-y-2 border border-border/60 p-4 text-sm text-text">
-              <p className="font-mono text-xs text-primary">Revision {item.revision} · {item.authorId}</p>
+          <section className="grid gap-3">
+            <h3 className="section-title">Saved investigations</h3>
+            {detail.investigations.length===0?<p className="text-text-muted">No investigation drafts yet.</p>:detail.investigations.map(item=><Panel as="article" key={item.id} padding="sm" className="gap-2">
+              <p className="text-xs text-text-muted">Revision {item.revision} · {item.authorId}</p>
               <p className="whitespace-pre-wrap">{item.draft.summary}</p>
-              {[...(item.draft.hypotheses??[]),...(item.draft.prioritizedChecks??[]),...(item.draft.evidenceSteps??[])].map((text,i)=><p key={i} className="text-xs text-text-muted">{text}</p>)}
-              {item.draft.proposedActions?.map((action,i)=><p key={i} className="text-xs text-text-muted">Proposed: {action.description} · {action.risk} risk · approval required</p>)}
-            </article>)}
+              {[...(item.draft.hypotheses??[]),...(item.draft.prioritizedChecks??[]),...(item.draft.evidenceSteps??[])].map((text,i)=><p key={i} className="text-sm text-text-muted">{text}</p>)}
+              {item.draft.proposedActions?.map((action,i)=><p key={i} className="text-sm text-text-muted">Proposed: {action.description} · {action.risk} risk · approval required</p>)}
+            </Panel>)}
           </section>
-          <section className="mt-6 space-y-2">
-            <h2 className="text-xs uppercase tracking-widest text-text-muted">Preserved evidence</h2>
-            {detail.evidence.map(item=><p key={item.id} className="break-all border border-border/60 p-3 font-mono text-xs text-text-muted">{item.sha256}</p>)}
+          <section className="grid gap-3">
+            <h3 className="section-title">Preserved evidence</h3>
+            {detail.evidence.length===0?<p className="text-text-muted">No evidence preserved yet.</p>:detail.evidence.map(item=><p key={item.id} className="code-block break-all">{item.sha256}</p>)}
           </section>
-        </section>
-        <aside className="min-w-0 space-y-4">
-          <section className="border border-border/60 p-4">
-            <h2 className="font-mono text-[10px] uppercase tracking-widest text-primary">
-              Affected entities
-            </h2>
+        </div>
+        <aside className="page-stack gap-4">
+          <Panel title="Affected entities" padding="sm">
+            <div className="grid gap-2">
             {detail.entities.map((entity) => (
-              <p key={entity.id} className="mt-3 text-xs text-text">
-                <span className="mr-2 text-text-muted">{entity.type}</span>
+              <p key={entity.id} className="flex flex-wrap items-center gap-2 text-sm text-text">
+                <Badge>{entity.type}</Badge>
                 {entity.label}
               </p>
             ))}
-          </section>
-          <section className="border border-border/60 p-4">
-            <h2 className="font-mono text-[10px] uppercase tracking-widest text-primary">
-              Recommended investigation
-            </h2>
-            <ol className="mt-3 list-decimal space-y-2 pl-4 text-xs leading-5 text-text-muted">
+            </div>
+          </Panel>
+          <Panel title="Recommended investigation" padding="sm">
+            <ol className="list-decimal space-y-2 pl-4 text-sm text-text-muted">
               {detail.case.recommendedInvestigation.map((step) => (
                 <li key={step}>{step}</li>
               ))}
             </ol>
-          </section>
+          </Panel>
           {!lab && <ContainmentPanel available={detail.responseAvailable} canApprove={detail.canApprove} approvalMode={detail.approvalMode} caseId={detail.case.id} actions={detail.actions} />}
         </aside>
       </div>

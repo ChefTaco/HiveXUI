@@ -1,3 +1,4 @@
+import { Panel } from "@ui";
 import {
   EmptyState,
   FusionHeader,
@@ -16,7 +17,7 @@ interface Evidence {
 export default async function EvidencePage(): Promise<React.ReactElement> {
   const evidence = await fusionFetch<Evidence[]>("evidence");
   return (
-    <div className="p-5 lg:p-7">
+    <div className="page-stack">
       <FusionHeader
         eyebrow="Chain of custody"
         title="Evidence"
@@ -25,20 +26,18 @@ export default async function EvidencePage(): Promise<React.ReactElement> {
       {!evidence?.length ? (
         <EmptyState>No evidence has been preserved.</EmptyState>
       ) : (
-        <div className="space-y-2">
+        <div className="grid gap-2">
           {evidence.map((item) => (
-            <div
+            <Panel
               key={item.id}
-              className="grid gap-2 border border-border/60 p-4 md:grid-cols-[1fr_160px_2fr]"
+              as="div"
+              padding="sm"
+              className="gap-2 md:grid-cols-[1fr_10rem_2fr]"
             >
-              <span className="text-xs text-text">{item.sourceLocator}</span>
-              <span className="font-mono text-[10px] text-text-muted">
-                {item.mediaType}
-              </span>
-              <span className="truncate font-mono text-[10px] text-primary/70">
-                {item.sha256}
-              </span>
-            </div>
+              <span className="text-sm text-text-strong">{item.sourceLocator}</span>
+              <span className="text-xs text-text-muted">{item.mediaType}</span>
+              <span className="truncate font-mono text-xs text-text-muted">{item.sha256}</span>
+            </Panel>
           ))}
         </div>
       )}

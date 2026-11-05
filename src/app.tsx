@@ -158,7 +158,7 @@ function AuthorizationPortal() {
     <HiveSigil className="login-sigil" />
     <p className="login-eyebrow">Hive:Magnus</p><h1 id="authorization-title">Oathweave sign-in</h1>
     <p className="login-sub">Continue securely to your application.</p>
-    <p role={error || !identity ? 'alert' : 'status'}>{message}</p>
+    <p role={error || !identity ? 'alert' : 'status'} className={error || !identity ? 'error-banner' : 'muted'}>{message}</p>
     {!error && identity && selection.request && <button className="btn" onClick={() => {
       identity.invalidate(); setError('Authorization cancelled. Return to the application to start again.');
     }}>Cancel authorization</button>}
@@ -169,8 +169,6 @@ function Background() {
   return (
     <>
       <div className="honeycomb-bg" aria-hidden />
-      <div className="atmosphere" aria-hidden />
-      <div className="scanline" aria-hidden />
     </>
   );
 }

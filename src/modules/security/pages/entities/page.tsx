@@ -1,3 +1,4 @@
+import { Badge, Panel } from "@ui";
 import {
   EmptyState,
   FusionHeader,
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function EntitiesPage(): Promise<React.ReactElement> {
   const entities = await fusionFetch<FusionEntity[]>("entities");
   return (
-    <div className="p-5 lg:p-7">
+    <div className="page-stack">
       <FusionHeader
         eyebrow="Identity graph"
         title="Entities"
@@ -20,15 +21,11 @@ export default async function EntitiesPage(): Promise<React.ReactElement> {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {entities.map((entity) => (
-            <div key={entity.id} className="border border-border/60 p-4">
-              <p className="font-mono text-[9px] uppercase tracking-widest text-primary">
-                {entity.type}
-              </p>
-              <p className="mt-2 text-sm text-text">{entity.label}</p>
-              <p className="mt-2 truncate font-mono text-[10px] text-text-muted">
-                {entity.canonical}
-              </p>
-            </div>
+            <Panel key={entity.id} as="div" padding="sm" className="gap-2">
+              <Badge className="w-fit">{entity.type}</Badge>
+              <p className="text-base text-text-strong">{entity.label}</p>
+              <p className="truncate font-mono text-xs text-text-muted">{entity.canonical}</p>
+            </Panel>
           ))}
         </div>
       )}

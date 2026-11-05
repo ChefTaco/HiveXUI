@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactElement } from 'react';
 import { FusionNav } from './components/security-fusion/fusion-nav';
 import { usePathname } from './navigation';
-import './security.css';
 import { productEnabled } from '../../lib/runtime';
 
 const pages = {
@@ -88,7 +87,7 @@ function ConfiguredSecurityModule() {
           {error}
         </p>
       ) : (
-        (content ?? <p role="status">Loading security information…</p>)
+        (content ?? <p role="status" className="center-load">Loading security information…</p>)
       )}
     </section>
   );

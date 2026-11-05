@@ -58,7 +58,7 @@ export function SettingsAdministration({
           <>
             <div className="chat-admin-grid">
               {chatPrivacyKeys.map((key) => (
-                <label key={key} className="chat-admin-check">
+                <label key={key} className="check-field">
                   <input
                     type="checkbox"
                     checked={privacy[key]}
@@ -71,7 +71,7 @@ export function SettingsAdministration({
               ))}
             </div>
             <div>
-              <button disabled={busy}>Save privacy settings</button>
+              <button className="btn" disabled={busy}>Save privacy settings</button>
             </div>
           </>
         ) : (
@@ -100,17 +100,17 @@ export function SettingsAdministration({
           }}
         >
           <div className="chat-admin-grid">
-            <label>
+            <label className="field">
               Short name
               <input name="name" pattern="[a-zA-Z0-9_+-]+" required />
             </label>
-            <label>
+            <label className="field">
               Emoji character
               <input name="emoji" required maxLength={32} />
             </label>
           </div>
           <div>
-            <button disabled={busy || !privacy?.EnableCustomEmoji}>
+            <button className="btn" disabled={busy || !privacy?.EnableCustomEmoji}>
               Add custom emoji
             </button>
           </div>
@@ -124,6 +124,7 @@ export function SettingsAdministration({
                   <span aria-hidden="true">{value.emoji}</span> :{value.name}:
                 </span>
                 <button
+                  className="btn"
                   disabled={busy}
                   onClick={() =>
                     confirm(
@@ -191,7 +192,7 @@ export function SupervisionAdministration({
         <h4>Message supervision</h4>
         {policy ? (
           <>
-            <label>
+            <label className="field">
               Mode
               <select
                 value={policy.mode}
@@ -209,7 +210,7 @@ export function SupervisionAdministration({
                 ))}
               </select>
             </label>
-            <label>
+            <label className="field">
               Blocked terms, one per line
               <textarea
                 value={terms}
@@ -222,7 +223,7 @@ export function SupervisionAdministration({
               existing product policy.
             </p>
             <div>
-              <button disabled={busy}>Save supervision policy</button>
+              <button className="btn" disabled={busy}>Save supervision policy</button>
             </div>
           </>
         ) : (
@@ -233,6 +234,7 @@ export function SupervisionAdministration({
         <div className="chat-admin-actions">
           <h4>Review and history</h4>
           <button
+            className="btn"
             disabled={busy}
             onClick={() => void perform(load, "Supervision history refreshed")}
           >
@@ -259,6 +261,7 @@ export function SupervisionAdministration({
                 <div className="chat-admin-actions">
                   {(["approved", "rejected"] as const).map((decision) => (
                     <button
+                      className="btn"
                       key={decision}
                       disabled={busy}
                       onClick={() =>

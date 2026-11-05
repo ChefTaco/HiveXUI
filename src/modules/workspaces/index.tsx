@@ -148,7 +148,7 @@ export default function WorkspacesModule({
         </p>
       )}
       {notice && <p role="status">{notice}</p>}
-      <div className="grid grid--2">
+      <div className="page-grid page-grid--2">
         <Panel title="Workspace directory">
           <Toggle
             label="Include archived workspaces"
@@ -316,7 +316,7 @@ export default function WorkspacesModule({
               Save workspace
             </Button>
           </Panel>
-          <div className="grid grid--2">
+          <div className="page-grid page-grid--2">
             <Panel title="Members">
               <div className="stack-list">
                 {selected.members.map((member) => (

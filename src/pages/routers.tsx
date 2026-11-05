@@ -23,20 +23,20 @@ export function RoutersPage({ onNavigate }: { onNavigate: (view: string) => void
           <p>Provider fleet, route policy, health, and trace evidence in one operations page.</p>
         </div>
         {app ? (
-          <Badge tone={app.status === 'online' ? 'teal' : app.status === 'degraded' ? 'amber' : 'coral'} dot>
+          <Badge tone={app.status === 'online' ? 'success' : app.status === 'degraded' ? 'warning' : 'danger'} dot>
             {app.status}
           </Badge>
         ) : null}
       </div>
 
       <div className="stats-grid">
-        <StatCard label="Providers" value={data.providers.length} sub={`${enabledProviders} enabled / ${healthy} healthy`} accent="amber" emphasize />
-        <StatCard label="Route Rules" value={data.routeRules.length} sub={`${data.heuristics.length} heuristics`} accent="violet" />
-        <StatCard label="Traces" value={compactNumber(totals.traces)} sub={`${successRate}% succeeded`} accent="sky" emphasize />
-        <StatCard label="Failures" value={compactNumber(totals.failures)} sub={`${totals.failovers} failovers`} accent="coral" />
+        <StatCard label="Providers" value={data.providers.length} sub={`${enabledProviders} enabled / ${healthy} healthy`} tone="accent" />
+        <StatCard label="Route Rules" value={data.routeRules.length} sub={`${data.heuristics.length} heuristics`} tone="accent" />
+        <StatCard label="Traces" value={compactNumber(totals.traces)} sub={`${successRate}% succeeded`} tone="accent" />
+        <StatCard label="Failures" value={compactNumber(totals.failures)} sub={`${totals.failovers} failovers`} tone="danger" />
       </div>
 
-      <div className="grid-2">
+      <div className="page-grid page-grid--2">
         <Panel title="Router Workbench" eyebrow="Controls">
           <div className="workbench-actions">
             <button className="btn btn--ghost" onClick={() => onNavigate('providers')}>
@@ -74,9 +74,9 @@ export function RoutersPage({ onNavigate }: { onNavigate: (view: string) => void
                   <span className="pulse-name">{provider.name}</span>
                   <HealthBadge status={provider.lastHealthStatus} />
                 </div>
-                <p className="pulse-meta"><Badge tone="muted">{provider.kind}</Badge></p>
-                <p className="pulse-meta" style={{ marginTop: 8 }}>{provider.baseUrl}</p>
-                {provider.lastHealthAt ? <p className="pulse-meta" style={{ marginTop: 6 }}>checked {relativeTime(provider.lastHealthAt)}</p> : null}
+                <p className="pulse-meta"><Badge tone="neutral">{provider.kind}</Badge></p>
+                <p className="pulse-meta mt-2">{provider.baseUrl}</p>
+                {provider.lastHealthAt ? <p className="pulse-meta mt-1">checked {relativeTime(provider.lastHealthAt)}</p> : null}
               </article>
             ))}
           </div>

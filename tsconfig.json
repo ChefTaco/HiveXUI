@@ -26,6 +26,12 @@
       ],
       "@security/*": [
         "./src/modules/security/*"
+      ],
+      "@ui": [
+        "./src/components/ui.tsx"
+      ],
+      "@lib/*": [
+        "./src/lib/*"
       ]
     }
   },

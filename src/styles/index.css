@@ -1,0 +1,37 @@
+/*
+ * HiveXUI stylesheet entry. Cascade layers make the order explicit and independent of
+ * load order, including lazily loaded module styles: a Tailwind utility always beats a
+ * component class or element default, whatever their specificity or import order.
+ *
+ * Any CSS added elsewhere must sit inside `@layer components { ... }`. Unlayered CSS
+ * would beat every utility. styles/theme-guard.test.ts enforces this.
+ */
+@layer theme, base, components, utilities;
+
+@import 'tailwindcss/theme.css' layer(theme);
+@import './tokens.css' layer(theme);
+@import 'tailwindcss/preflight.css' layer(base);
+@import './base.css' layer(base);
+@import './app.css' layer(components);
+@import 'tailwindcss/utilities.css' layer(utilities) source('..');
+
+/*
+ * A page written for a wide screen still fits a phone: an unprefixed `grid-cols-3` or more
+ * stacks below Tailwind's `sm` breakpoint. Use `grid-cols-2` where two columns fit; `sm:`
+ * and larger variants are unaffected. Placed after the utilities so it can win over them.
+ */
+@layer utilities {
+  @media (max-width: 639.98px) {
+    .content [class~='grid-cols-3'],
+    .content [class~='grid-cols-4'],
+    .content [class~='grid-cols-5'],
+    .content [class~='grid-cols-6'],
+    .content [class~='grid-cols-8'],
+    .content [class~='grid-cols-12'] {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}
+
+/* `dark:` follows the console's theme control, not only the operating system. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));

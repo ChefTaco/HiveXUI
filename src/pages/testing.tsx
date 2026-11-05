@@ -193,8 +193,8 @@ function diffRow(
   };
 }
 
-function diffTone(status: AuditDiffRow['status']): 'teal' | 'coral' | 'amber' {
-  return status === 'match' ? 'teal' : status === 'missing' ? 'amber' : 'coral';
+function diffTone(status: AuditDiffRow['status']): 'success' | 'danger' | 'warning' {
+  return status === 'match' ? 'success' : status === 'missing' ? 'warning' : 'danger';
 }
 
 function buildAuditJson(
@@ -418,7 +418,7 @@ function RouteAuditDiff({
           <strong>{rule?.name ?? 'No model rule matched'}</strong>
         </div>
         <Badge
-          tone={audit.checks.every((check) => check.ok) ? 'teal' : 'coral'}
+          tone={audit.checks.every((check) => check.ok) ? 'success' : 'danger'}
         >
           {audit.checks.every((check) => check.ok)
             ? 'audit pass'
@@ -431,7 +431,7 @@ function RouteAuditDiff({
           <div className="audit-check" key={check.label}>
             <div className="audit-check-top">
               <span>{check.label}</span>
-              <Badge tone={check.ok ? 'teal' : 'coral'}>
+              <Badge tone={check.ok ? 'success' : 'danger'}>
                 {check.ok ? 'match' : 'diff'}
               </Badge>
             </div>
@@ -701,13 +701,13 @@ export function TestingPage({
                 : expected.includes(result.selectedProvider.kind)
                   ? true
                   : false;
-            const statusTone: 'amber' | 'teal' | 'coral' = result
+            const statusTone: 'warning' | 'success' | 'danger' = result
               ? !result.success
-                ? 'coral'
+                ? 'danger'
                 : expectedRoutingMatch === false
-                  ? 'amber'
-                  : 'teal'
-              : 'amber';
+                  ? 'warning'
+                  : 'success'
+              : 'warning';
 
             return (
               <Panel
@@ -716,8 +716,8 @@ export function TestingPage({
                 eyebrow={alias?.description ?? category.rationale}
                 actions={
                   <div className="inline-actions">
-                    <Badge tone="amber">{category.alias}</Badge>
-                    <span className="muted">/</span>
+                    <Badge tone="accent">{category.alias}</Badge>
+                    <span className="neutral">/</span>
                     <Badge tone={statusTone}>
                       {result
                         ? result.success
@@ -763,7 +763,7 @@ export function TestingPage({
                     <span className="panel-eyebrow">Expected providers</span>
                     <div className="test-tags">
                       {expected.map((kind) => (
-                        <Badge key={kind} tone="sky">
+                        <Badge key={kind} tone="info">
                           {kind}
                         </Badge>
                       ))}
@@ -772,7 +772,7 @@ export function TestingPage({
                 ) : null}
 
                 {result ? (
-                  <div className="kv-list" style={{ marginTop: 12 }}>
+                  <div className="kv-list mt-3">
                     <div className="kv-row">
                       <span>Latency</span>
                       <span className="cell-mono">{result.latencyMs} ms</span>
@@ -798,7 +798,7 @@ export function TestingPage({
                     <div className="kv-row">
                       <span>Route status</span>
                       <span>
-                        <Badge tone={result.success ? 'teal' : 'coral'}>
+                        <Badge tone={result.success ? 'success' : 'danger'}>
                           {result.success ? 'succeeded' : 'failed'}
                         </Badge>
                       </span>
@@ -838,8 +838,7 @@ export function TestingPage({
                       />
                     </Field>
                     <div
-                      className="inline-actions"
-                      style={{ justifyContent: 'flex-end' }}
+                      className="inline-actions justify-end"
                     >
                       <Button
                         variant="ghost"
@@ -895,15 +894,15 @@ export function TestingPage({
                 </span>
               </div>
             </div>
-            <p className="panel-eyebrow" style={{ marginTop: 18 }}>
+            <p className="panel-eyebrow mt-4">
               Decision payload
             </p>
             <JsonBlock value={selected.decision} />
-            <p className="panel-eyebrow" style={{ marginTop: 18 }}>
+            <p className="panel-eyebrow mt-4">
               Candidate providers
             </p>
             <JsonBlock value={selected.candidates} />
-            <p className="panel-eyebrow" style={{ marginTop: 18 }}>
+            <p className="panel-eyebrow mt-4">
               Provider attempts
             </p>
             <JsonBlock value={selected.attempts} />

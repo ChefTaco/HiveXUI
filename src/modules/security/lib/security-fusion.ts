@@ -1,3 +1,4 @@
+import type { Tone } from "@ui";
 import { securityFetch } from "@security/lib/security-api";
 
 import type { SecurityFusionSeverity as FusionSeverity } from "../../../../contracts/cindertrace/index";
@@ -11,12 +12,12 @@ export async function fusionFetch<T>(path: string): Promise<T> {
   return result.data;
 }
 
-export const severityClass: Record<FusionSeverity, string> = {
-  info: "text-text-muted border-border",
-  low: "text-primary border-primary/30",
-  medium: "text-warning border-warning/40",
-  high: "text-accent border-accent/40 shadow-[0_0_10px_var(--color-glow-accent)]",
-  critical: "text-danger border-danger/50 bg-danger/5 shadow-[0_0_14px_var(--color-glow-danger)]",
+export const severityTone: Record<FusionSeverity, Tone> = {
+  info: "neutral",
+  low: "info",
+  medium: "warning",
+  high: "danger",
+  critical: "danger",
 };
 
 /** Product labels do not alter historical source IDs or signed event contents. */

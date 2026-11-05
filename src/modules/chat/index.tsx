@@ -560,7 +560,7 @@ function ConnectedChat() {
     <section className="chat-module">
       <aside className="chat-rail">
         <h2>ChatterMost</h2>
-        <label>
+        <label className="field">
           Team
           <select
             value={team}
@@ -577,7 +577,7 @@ function ConnectedChat() {
           {channels.map((value) => (
             <button
               key={value.id}
-              className={value.id === channel ? "active" : ""}
+              className={value.id === channel ? "nav-item nav-item--active" : "nav-item"}
               onClick={() => {
                 navigate(value.id);
               }}
@@ -587,7 +587,7 @@ function ConnectedChat() {
             </button>
           ))}
         </nav>
-        <label>
+        <label className="field">
           Direct message
           <select
             value={person}
@@ -603,7 +603,7 @@ function ConnectedChat() {
               ))}
           </select>
         </label>
-        <button onClick={() => void direct()} disabled={!person}>
+        <button className="btn" onClick={() => void direct()} disabled={!person}>
           Open conversation
         </button>
         {me && (
@@ -657,7 +657,7 @@ function ConnectedChat() {
             <p role="status">{online ? "Connected" : "Reconnecting chat…"}</p>
           </div>
           {thread ? (
-            <button onClick={() => navigate(channel)}>Back to channel</button>
+            <button className="btn" onClick={() => navigate(channel)}>Back to channel</button>
           ) : null}
           <form onSubmit={(event) => void find(event)}>
             <input
@@ -665,9 +665,9 @@ function ConnectedChat() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
-            <button>Search</button>
+            <button className="btn">Search</button>
             {results ? (
-              <button type="button" onClick={() => setResults(null)}>
+              <button className="btn" type="button" onClick={() => setResults(null)}>
                 Clear search
               </button>
             ) : null}
@@ -702,7 +702,7 @@ function ConnectedChat() {
           </p>
         ) : null}
         {more && !results && !thread && (
-          <button disabled={busy} onClick={() => void earlier()}>
+          <button className="btn" disabled={busy} onClick={() => void earlier()}>
             Load earlier messages
           </button>
         )}
@@ -746,6 +746,7 @@ function ConnectedChat() {
                 ))}
                 <footer>
                   <button
+                    className="btn btn--sm btn--ghost"
                     onClick={() => {
                       navigate(post.channel_id, post.root_id || post.id);
                     }}
@@ -765,6 +766,7 @@ function ConnectedChat() {
                     );
                     return (
                       <button
+                        className="btn btn--sm btn--ghost"
                         key={name}
                         aria-pressed={values.some(
                           (value) => value.user_id === me?.id,
@@ -801,6 +803,7 @@ function ConnectedChat() {
                     </select>
                   </label>
                   <button
+                    className="btn btn--sm btn--ghost"
                     aria-pressed={post.is_pinned}
                     onClick={() => {
                       void chat(
@@ -823,8 +826,8 @@ function ConnectedChat() {
                   </button>
                   {post.user_id === me?.id ? (
                     <>
-                      <button onClick={() => void edit(post)}>Edit</button>
-                      <button onClick={() => void remove(post)}>Delete</button>
+                      <button className="btn btn--sm btn--ghost" onClick={() => void edit(post)}>Edit</button>
+                      <button className="btn btn--sm btn--ghost" onClick={() => void remove(post)}>Delete</button>
                     </>
                   ) : null}
                 </footer>
@@ -862,6 +865,7 @@ function ConnectedChat() {
                 {commands.map((command) => (
                   <li key={command.id || command.trigger}>
                     <button
+                      className="btn btn--sm btn--ghost"
                       type="button"
                       disabled={busy}
                       onClick={() => {
@@ -881,7 +885,7 @@ function ConnectedChat() {
               </ul>
             </details>
           )}
-          <label>
+          <label className="field">
             {thread ? "Reply" : "Message"}
             <textarea
               disabled={busy || !channel}
@@ -910,6 +914,7 @@ function ConnectedChat() {
                 <li key={index}>
                   <span>{file.name}</span>
                   <button
+                    className="btn btn--sm btn--ghost"
                     type="button"
                     disabled={busy}
                     aria-label={"Remove attachment " + file.name}
@@ -929,7 +934,7 @@ function ConnectedChat() {
             </ul>
           )}
           <div>
-            <label className="chat-attach">
+            <label className="field chat-attach">
               Attach files
               <input
                 type="file"
@@ -945,6 +950,7 @@ function ConnectedChat() {
             </label>
 
             <button
+              className="btn btn--primary"
               disabled={
                 busy ||
                 !channel ||

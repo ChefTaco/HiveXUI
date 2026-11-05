@@ -36,7 +36,7 @@ export function ConversationFiles({
   return (
     <details className="chat-tools">
       <summary>Files and image gallery</summary>
-      <label>
+      <label className="check-field">
         <input
           type="checkbox"
           checked={imagesOnly}
@@ -118,7 +118,7 @@ export function BrowseChannels({
     <details className="chat-tools">
       <summary>Browse channels</summary>
       {error && <p role="alert">{error}</p>}
-      <label>
+      <label className="field">
         Filter this page
         <input value={filter} onChange={(e) => setFilter(e.target.value)} />
       </label>
@@ -134,6 +134,7 @@ export function BrowseChannels({
               {value.display_name || value.name}{" "}
               {value.type === "P" ? "(private)" : ""}
               <button
+                className="btn"
                 disabled={busy}
                 onClick={() => {
                   if (joined.some((item) => item.id === value.id)) {
@@ -159,12 +160,14 @@ export function BrowseChannels({
           ))}
       </ul>
       <button
+        className="btn"
         disabled={!page || busy}
         onClick={() => setPage((old) => old - 1)}
       >
         Previous channels
       </button>
       <button
+        className="btn"
         disabled={channels.length < 50 || busy}
         onClick={() => setPage((old) => old + 1)}
       >
@@ -220,7 +223,7 @@ export function NewConversation({
     <details className="chat-tools">
       <summary>New channel or group</summary>
       <form onSubmit={(event) => void create(event)}>
-        <label>
+        <label className="field">
           Conversation type
           <select value={kind} onChange={(e) => setKind(e.target.value)}>
             <option value="O">Public channel</option>
@@ -234,7 +237,7 @@ export function NewConversation({
             {users
               .filter((user) => user.id !== me.id && !user.delete_at)
               .map((user) => (
-                <label key={user.id}>
+                <label className="field" key={user.id}>
                   <input
                     type="checkbox"
                     checked={people.includes(user.id)}
@@ -252,7 +255,7 @@ export function NewConversation({
           </fieldset>
         ) : (
           <>
-            <label>
+            <label className="field">
               Channel address
               <input
                 required
@@ -260,7 +263,7 @@ export function NewConversation({
                 onChange={(e) => setName(e.target.value)}
               />
             </label>
-            <label>
+            <label className="field">
               Channel title
               <input
                 required
@@ -270,7 +273,7 @@ export function NewConversation({
             </label>
           </>
         )}
-        <button disabled={busy || (kind === "G" && people.length < 2)}>
+        <button className="btn" disabled={busy || (kind === "G" && people.length < 2)}>
           {busy ? "Creating…" : "Create conversation"}
         </button>
       </form>
@@ -355,7 +358,7 @@ export function ChannelTools({
       <p>
         {channel.header || "No header"} · {channel.purpose || "No purpose"}
       </p>
-      <button disabled={busy} onClick={() => setRevision((value) => value + 1)}>
+      <button className="btn" disabled={busy} onClick={() => setRevision((value) => value + 1)}>
         Refresh channel details
       </button>
       {error && <p role="alert">{error}</p>}
@@ -368,6 +371,7 @@ export function ChannelTools({
               "Member"}
             {(canManage || value.user_id === me.id) && (
               <button
+                className="btn"
                 disabled={busy}
                 onClick={() => {
                   if (
@@ -411,7 +415,7 @@ export function ChannelTools({
             });
           }}
         >
-          <label>
+          <label className="field">
             Add member
             <select value={member} onChange={(e) => setMember(e.target.value)}>
               <option value="">Choose a member</option>
@@ -428,7 +432,7 @@ export function ChannelTools({
                 ))}
             </select>
           </label>
-          <button disabled={!member || busy}>Add to channel</button>
+          <button className="btn" disabled={!member || busy}>Add to channel</button>
         </form>
       )}
       <h3>Pinned messages</h3>
@@ -436,7 +440,7 @@ export function ChannelTools({
         <ul>
           {pins.map((post) => (
             <li key={post.id}>
-              <button onClick={() => openPost(post)}>
+              <button className="btn" onClick={() => openPost(post)}>
                 {post.message || "Attachment message"}
               </button>
             </li>
@@ -466,7 +470,7 @@ export function ChannelTools({
           });
         }}
       >
-        <label>
+        <label className="field">
           Display name
           <input
             required
@@ -475,18 +479,18 @@ export function ChannelTools({
             onChange={(e) => setTitle(e.target.value)}
           />
         </label>
-        <label>
+        <label className="field">
           Header
           <input value={header} onChange={(e) => setHeader(e.target.value)} />
         </label>
-        <label>
+        <label className="field">
           Purpose
           <textarea
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
           />
         </label>
-        <button disabled={busy}>Save channel</button>
+        <button className="btn" disabled={busy}>Save channel</button>
       </form>
       {isAdmin && policy && (
         <form
@@ -506,7 +510,7 @@ export function ChannelTools({
               "direct_messages_enabled",
             ] as const
           ).map((key) => (
-            <label key={key}>
+            <label className="field" key={key}>
               <input
                 type="checkbox"
                 checked={
@@ -525,7 +529,7 @@ export function ChannelTools({
                   : "Allow direct messages"}
             </label>
           ))}
-          <label>
+          <label className="field">
             Allowed agent usernames (comma separated)
             <input
               value={
@@ -544,7 +548,7 @@ export function ChannelTools({
               }
             />
           </label>
-          <label>
+          <label className="field">
             Retention days (blank uses default)
             <input
               type="number"
@@ -563,11 +567,12 @@ export function ChannelTools({
               }}
             />
           </label>
-          <button disabled={busy}>Save agent policy</button>
+          <button className="btn" disabled={busy}>Save agent policy</button>
         </form>
       )}
       {canManage && (
         <button
+          className="btn"
           disabled={busy}
           onClick={() => {
             if (confirm("Delete this channel?"))
@@ -645,29 +650,29 @@ export function ChatProfile({
           );
         }}
       >
-        <label>
+        <label className="field">
           Nickname
           <input
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
           />
         </label>
-        <label>
+        <label className="field">
           First name
           <input value={first} onChange={(e) => setFirst(e.target.value)} />
         </label>
-        <label>
+        <label className="field">
           Last name
           <input value={last} onChange={(e) => setLast(e.target.value)} />
         </label>
-        <label>
+        <label className="field">
           Position
           <input
             value={position}
             onChange={(e) => setPosition(e.target.value)}
           />
         </label>
-        <label>
+        <label className="field">
           Language
           <select value={locale} onChange={(e) => setLocale(e.target.value)}>
             <option value="en">English</option>
@@ -678,7 +683,7 @@ export function ChatProfile({
             )}
           </select>
         </label>
-        <button disabled={busy}>Save profile</button>
+        <button className="btn" disabled={busy}>Save profile</button>
       </form>
       <form
         onSubmit={(e) => {
@@ -696,7 +701,7 @@ export function ChatProfile({
           });
         }}
       >
-        <label>
+        <label className="field">
           Profile image
           <input
             type="file"
@@ -704,8 +709,9 @@ export function ChatProfile({
             onChange={(e) => setImage(e.target.files?.[0] ?? null)}
           />
         </label>
-        <button disabled={busy || !image}>Upload avatar</button>
+        <button className="btn" disabled={busy || !image}>Upload avatar</button>
         <button
+          className="btn"
           type="button"
           disabled={busy}
           onClick={() =>

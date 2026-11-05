@@ -395,7 +395,7 @@ export function IamOperationsPage({
             Identity, access, service credentials, sessions, and audit controls.
           </p>
         </div>
-        <Badge tone="teal" dot>
+        <Badge tone="success" dot>
           {browserIdentity() ? 'Oathweave sign-in' : 'Console sign-in'}
         </Badge>
       </div>
@@ -495,8 +495,7 @@ export function IamOperationsPage({
                 ? `${activeUsers} active`
                 : 'Permission required'
             }
-            accent="violet"
-            emphasize
+            tone="accent"
           />
           <StatCard
             label="Service Accounts"
@@ -510,7 +509,7 @@ export function IamOperationsPage({
                 ? `${activeTechnical} active`
                 : 'Permission required'
             }
-            accent="sky"
+            tone="accent"
           />
           <StatCard
             label="Clients"
@@ -524,7 +523,7 @@ export function IamOperationsPage({
                 ? `${activeBots} active`
                 : 'Permission required'
             }
-            accent="amber"
+            tone="accent"
           />
           <StatCard
             label="Active Sessions"
@@ -534,18 +533,18 @@ export function IamOperationsPage({
                 ? `${auditStats.totalEvents} audit events / 30d`
                 : 'Audit summary unavailable'
             }
-            accent="teal"
+            tone="accent"
           />
         </div>
-        <div className="grid-2">
+        <div className="page-grid page-grid--2">
           <Panel title="IAM Core" eyebrow="Health">
             <Badge
               tone={
                 status === 'healthy'
-                  ? 'teal'
+                  ? 'success'
                   : status === 'unknown'
-                    ? 'muted'
-                    : 'coral'
+                    ? 'neutral'
+                    : 'danger'
               }
               dot
             >
@@ -718,7 +717,7 @@ export function IamOperationsPage({
         <Panel
           title="Users"
           eyebrow="Directory"
-          style={{ gridColumn: '1 / -1' }}
+          className="col-span-full"
         >
           <EntityTable
             empty="No IAM users found."
@@ -761,7 +760,7 @@ export function IamOperationsPage({
                   </span>
                 </td>
                 <td>
-                  <Badge tone={user.active ? 'teal' : 'muted'} dot>
+                  <Badge tone={user.active ? 'success' : 'neutral'} dot>
                     {user.active ? 'active' : 'disabled'}
                   </Badge>
                 </td>
@@ -946,30 +945,30 @@ export function IamOperationsPage({
             ) : null}
           </div>
         </Panel>
-        <Panel title="Roles" eyebrow="RBAC" style={{ gridColumn: '1 / -1' }}>
+        <Panel title="Roles" eyebrow="RBAC" className="col-span-full">
           <div className="pulse-grid">
             {roles.map((role) => (
               <article className="pulse-card" key={role.id}>
                 <div className="pulse-top">
                   <span className="pulse-name">{role.label}</span>
-                  <Badge tone={role.isSystem ? 'amber' : 'teal'}>
+                  <Badge tone={role.isSystem ? 'accent' : 'neutral'}>
                     {role.isSystem ? 'system' : 'custom'}
                   </Badge>
                 </div>
                 <p className="pulse-meta">
                   {role.description ?? 'No description'}
                 </p>
-                <p className="cell-mono" style={{ marginTop: 8 }}>
+                <p className="cell-mono mt-2">
                   {role.name}
                 </p>
-                <div className="role-chip-list" style={{ marginTop: 10 }}>
+                <div className="role-chip-list mt-3">
                   {role.permissions.slice(0, 6).map((permission) => (
                     <span className="role-chip" key={permission}>
                       {permission}
                     </span>
                   ))}
                 </div>
-                <div className="row-actions" style={{ marginTop: 12 }}>
+                <div className="row-actions mt-3">
                   <Button
                     size="sm"
                     variant="ghost"
@@ -1082,7 +1081,7 @@ export function IamOperationsPage({
         <Panel
           title="Service accounts"
           eyebrow="Keys"
-          style={{ gridColumn: '1 / -1' }}
+          className="col-span-full"
         >
           <EntityTable
             empty="No service accounts found."
@@ -1100,7 +1099,7 @@ export function IamOperationsPage({
                 <td>{account.client?.name ?? 'unlinked'}</td>
                 <td>{roleNames(account.roles)}</td>
                 <td>
-                  <Badge tone={account.active ? 'teal' : 'muted'} dot>
+                  <Badge tone={account.active ? 'success' : 'neutral'} dot>
                     {account.active ? 'active' : 'disabled'}
                   </Badge>
                 </td>
@@ -1241,7 +1240,7 @@ export function IamOperationsPage({
             Create client
           </Button>
         </Panel>
-        <Panel title="Clients" eyebrow="OAuth" style={{ gridColumn: '1 / -1' }}>
+        <Panel title="Clients" eyebrow="OAuth" className="col-span-full">
           <EntityTable
             empty="No clients found."
             headers={['Client', 'Type', 'Grants', 'Status', 'Actions']}
@@ -1257,7 +1256,7 @@ export function IamOperationsPage({
                 <td>{client.clientType}</td>
                 <td>{client.grantTypes.join(', ') || 'none'}</td>
                 <td>
-                  <Badge tone={client.active ? 'teal' : 'muted'} dot>
+                  <Badge tone={client.active ? 'success' : 'neutral'} dot>
                     {client.active ? 'active' : 'disabled'}
                   </Badge>
                 </td>
@@ -1432,7 +1431,7 @@ export function IamOperationsPage({
         <Panel
           title="System users"
           eyebrow="Host access"
-          style={{ gridColumn: '1 / -1' }}
+          className="col-span-full"
         >
           <EntityTable
             empty="No system users mapped."
@@ -1448,7 +1447,7 @@ export function IamOperationsPage({
                   {entry.authorizedHosts.join(', ') || 'all governed hosts'}
                 </td>
                 <td>
-                  <Badge tone={entry.sudoEnabled ? 'amber' : 'muted'}>
+                  <Badge tone={entry.sudoEnabled ? 'warning' : 'neutral'}>
                     {entry.sudoEnabled ? 'sudo' : 'standard'}
                   </Badge>
                 </td>
@@ -1516,30 +1515,29 @@ export function IamOperationsPage({
             label="MFA Enabled"
             value={mfaEnabled}
             sub={`${users.length - mfaEnabled} without MFA`}
-            accent={users.length - mfaEnabled > 0 ? 'amber' : 'teal'}
-            emphasize
+            tone={users.length - mfaEnabled > 0 ? 'warning' : 'success'}
           />
           <StatCard
             label="Passkeys"
             value={passkeyTotal}
             sub="registered WebAuthn credentials"
-            accent="violet"
+            tone="accent"
           />
           <StatCard
             label="Trusted Devices"
             value={trustedDeviceTotal}
             sub="registered device fingerprints"
-            accent="sky"
+            tone="accent"
           />
           <StatCard
             label="Risky Sessions"
             value={riskySessions.length}
             sub="step-up candidates"
-            accent={riskySessions.length ? 'coral' : 'teal'}
+            tone={riskySessions.length ? 'danger' : 'success'}
           />
         </div>
 
-        <div className="grid-2">
+        <div className="page-grid page-grid--2">
           <Panel title="MFA And Passkeys" eyebrow="Users">
             <EntityTable
               empty="No IAM users found."
@@ -1552,7 +1550,7 @@ export function IamOperationsPage({
                     <span className="row-sub">{user.email}</span>
                   </td>
                   <td>
-                    <Badge tone={user.mfaEnabled ? 'teal' : 'amber'} dot>
+                    <Badge tone={user.mfaEnabled ? 'success' : 'warning'} dot>
                       {user.mfaEnabled ? 'enabled' : 'off'}
                     </Badge>
                   </td>
@@ -1584,7 +1582,7 @@ export function IamOperationsPage({
                   <td>
                     <Badge
                       tone={
-                        (session.riskScore ?? 0) >= 0.75 ? 'coral' : 'amber'
+                        (session.riskScore ?? 0) >= 0.75 ? 'danger' : 'warning'
                       }
                     >
                       {Math.round((session.riskScore ?? 0) * 100)}%
@@ -1624,7 +1622,7 @@ export function IamOperationsPage({
           <Panel
             title="Password Policy"
             eyebrow="Step-up foundation"
-            style={{ gridColumn: '1 / -1' }}
+            className="col-span-full"
           >
             {passwordPolicy ? (
               <>
@@ -1758,26 +1756,25 @@ export function IamOperationsPage({
             label="Total Events"
             value={auditStats?.totalEvents ?? 0}
             sub="last 30 days"
-            accent="sky"
-            emphasize
+            tone="accent"
           />
           <StatCard
             label="Successful"
             value={auditStats?.successCount ?? 0}
             sub="authorized actions"
-            accent="teal"
+            tone="accent"
           />
           <StatCard
             label="Failures"
             value={auditStats?.failureCount ?? 0}
             sub="failed auth"
-            accent="coral"
+            tone="danger"
           />
           <StatCard
             label="Denied"
             value={auditStats?.deniedCount ?? 0}
             sub="policy blocks"
-            accent="amber"
+            tone="accent"
           />
         </div>
         <Panel title="Audit events" eyebrow="Recent">
@@ -1799,10 +1796,10 @@ export function IamOperationsPage({
                   <Badge
                     tone={
                       event.outcome === 'SUCCESS'
-                        ? 'teal'
+                        ? 'success'
                         : event.outcome === 'DENIED'
-                          ? 'amber'
-                          : 'coral'
+                          ? 'warning'
+                          : 'danger'
                     }
                   >
                     {event.outcome}

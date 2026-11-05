@@ -1,6 +1,6 @@
 import { apiFetch } from '../lib/transport';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Badge, Button, Drawer, EmptyState, Field, JsonBlock, Panel, Select, StatCard, TextArea, TextInput } from '../components/ui';
+import { Badge, Button, Drawer, EmptyState, Field, JsonBlock, Panel, Select, StatCard, TextArea, TextInput, type Tone } from '../components/ui';
 import { useToast } from '../components/toast';
 import { Icon } from '../components/icons';
 import { useStore } from '../lib/store';
@@ -19,13 +19,11 @@ const KIND_LABELS: Record<HiveActor['kind'], string> = {
   'memory-agent': 'Memory Agent',
 };
 
-function actorTone(actor: HiveActor): 'amber' | 'teal' | 'sky' | 'violet' | 'coral' | 'muted' {
-  if (actor.status === 'inactive') return 'muted';
-  if (actor.kind === 'user') return 'amber';
-  if (actor.kind === 'memory-agent') return 'teal';
-  if (actor.kind === 'router-key') return 'sky';
-  if (actor.kind === 'service-account') return 'violet';
-  return 'coral';
+function actorTone(actor: HiveActor): Tone {
+  if (actor.status === 'inactive') return 'neutral';
+  if (actor.kind === 'user') return 'accent';
+  if (actor.kind === 'memory-agent' || actor.kind === 'router-key') return 'info';
+  return 'neutral';
 }
 
 function splitList(value: string): string[] {
@@ -229,11 +227,11 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
       }} /></Field></Panel>}
       {suite && installations?.length === 0 && <Panel title="Enrollment unconfigured"><p>No product enrollment APIs are configured for your authorized installations.</p></Panel>}
 
-      <div className="grid grid--4">
-        <StatCard label="Actors" value={data.actors.length} sub="linked identities" accent="amber" emphasize />
-        <StatCard label="IAM" value={(counts.user ?? 0) + (counts['service-account'] ?? 0)} sub="users and services" accent="violet" />
-        <StatCard label="Router" value={counts['router-key'] ?? 0} sub="client keys" accent="sky" />
-        <StatCard label="Memory" value={counts['memory-agent'] ?? 0} sub="registered agents" accent="teal" />
+      <div className="page-grid--4">
+        <StatCard label="Actors" value={data.actors.length} sub="linked identities" tone="accent" />
+        <StatCard label="IAM" value={(counts.user ?? 0) + (counts['service-account'] ?? 0)} sub="users and services" tone="accent" />
+        <StatCard label="Router" value={counts['router-key'] ?? 0} sub="client keys" tone="accent" />
+        <StatCard label="Memory" value={counts['memory-agent'] ?? 0} sub="registered agents" tone="accent" />
       </div>
 
       <Panel title="Create Technical Actor" eyebrow="IAM + Router + Memory">
@@ -306,7 +304,7 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
         eyebrow={selected ? KIND_LABELS[selected.kind] : ''}
         title={selected?.label ?? ''}
         footer={selected ? (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'flex-end' }}>
+          <div className="inline-actions justify-end">
             <Button variant="ghost" onClick={() => setSelected(null)}>Close</Button>
             {suite && (selected as CoordinatedActor).latestOperation && <Button variant="ghost" disabled={!canWriteActors} onClick={() => void recoverOrResume(selected, false)}>Recover receipt</Button>}
             {suite && (selected as CoordinatedActor).legacyReceiptAvailable && <Button variant="ghost" disabled={!canWriteActors} onClick={() => void recoverLegacy(selected)}>Legacy enrollment receipt</Button>}
@@ -327,13 +325,13 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
               <div className="kv-row"><span>Last Activity</span><span className="cell-mono">{selected.lastActivityAt ? formatTime(selected.lastActivityAt) : 'unknown'}</span></div>
             </div>
             {suite && ((selected as CoordinatedActor).enrollmentStatus === 'migration-review' || (selected as CoordinatedActor).latestOperation?.status === 'migration-review') && <p role="status">This legacy operation has an unknown outcome. Capture any unexpired receipt, inspect the recorded product resources, and explicitly contain incomplete enrollment before issuing new credentials.</p>}
-            <p className="panel-eyebrow" style={{ marginTop: 22 }}>Identifiers</p>
+            <p className="panel-eyebrow mt-5">Identifiers</p>
             <JsonBlock value={selected.identifiers} />
-            <p className="panel-eyebrow" style={{ marginTop: 22 }}>Capabilities</p>
+            <p className="panel-eyebrow mt-5">Capabilities</p>
             <JsonBlock value={selected.capabilities} />
             {actionResult ? (
               <>
-                <p className="panel-eyebrow" style={{ marginTop: 22 }}>Latest Lifecycle Result</p>
+                <p className="panel-eyebrow mt-5">Latest Lifecycle Result</p>
                 <JsonBlock value={actionResult} />
               </>
             ) : null}

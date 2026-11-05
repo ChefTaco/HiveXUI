@@ -112,19 +112,19 @@ const RUNBOOKS = [
 
 function methodTone(
   method?: string,
-): 'teal' | 'sky' | 'amber' | 'coral' | 'muted' {
+): 'success' | 'info' | 'warning' | 'danger' | 'neutral' {
   switch ((method ?? '').toUpperCase()) {
     case 'GET':
-      return 'sky';
+      return 'info';
     case 'POST':
-      return 'teal';
+      return 'success';
     case 'PUT':
     case 'PATCH':
-      return 'amber';
+      return 'warning';
     case 'DELETE':
-      return 'coral';
+      return 'danger';
     default:
-      return 'muted';
+      return 'neutral';
   }
 }
 
@@ -245,11 +245,11 @@ export function DocsPage({
         {selected ? (
           <>
             {selected.summary ? (
-              <p style={{ color: 'var(--text)', lineHeight: 1.6 }}>
+              <p>
                 {selected.summary}
               </p>
             ) : null}
-            <p className="panel-eyebrow" style={{ marginTop: 18 }}>
+            <p className="panel-eyebrow mt-4">
               Definition
             </p>
             <JsonBlock value={selected} />

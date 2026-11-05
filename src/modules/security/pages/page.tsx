@@ -1,4 +1,4 @@
-import Link from "@security/navigation";
+import { StatCard } from "@ui";
 import {
   CaseTable,
   FusionHeader,
@@ -6,6 +6,7 @@ import {
 } from "@security/components/security-fusion/fusion-ui";
 import {
   fusionFetch,
+  severityTone,
   type FusionCase,
   type FusionSource,
 } from "@security/lib/security-fusion";
@@ -25,37 +26,30 @@ export default async function SecurityFusionOverview(): Promise<React.ReactEleme
     (data?.bySeverity ?? []).map((row) => [row.severity, row._count.id]),
   );
   return (
-    <div className="p-5 lg:p-7">
+    <div className="page-stack">
       <FusionHeader
         eyebrow="Security operations"
         title="Cindertrace"
         copy="Investigate security findings, connect related activity, and preserve evidence. Response requires explicit approval."
       />
-      {false && <Link href="/security-fusion/lab" className="mb-6 block border-l-2 border-primary bg-surface p-5 text-sm text-text">
-        <span className="block text-xs uppercase tracking-widest text-primary">Disposable investigation lab</span>
-        <span className="mt-2 block">Follow evolving evidence. Revisit your hypotheses. Review how your confidence changed.</span>
-        <span className="mt-3 block text-primary">Start or resume investigation →</span>
-      </Link>}
-      <section className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {["critical", "high", "medium", "low"].map((severity) => (
-          <div key={severity} className="border border-border/60 p-4">
-            <p className="font-mono text-[10px] uppercase tracking-widest text-text-muted">
-              {severity}
-            </p>
-            <p className="mt-2 text-3xl font-semibold text-text">
-              {counts[severity] ?? 0}
-            </p>
-          </div>
+      <section className="stats-grid" aria-label="Open cases by severity">
+        {(["critical", "high", "medium", "low"] as const).map((severity) => (
+          <StatCard
+            key={severity}
+            label={severity[0]!.toUpperCase() + severity.slice(1)}
+            value={counts[severity] ?? 0}
+            tone={counts[severity] ? severityTone[severity] : "neutral"}
+          />
         ))}
       </section>
-      <h2 className="mb-3 text-xs font-bold uppercase tracking-[.2em] text-text-muted">
-        Source posture
-      </h2>
-      <SourceGrid sources={data?.sources ?? []} />
-      <h2 className="mb-3 mt-7 text-xs font-bold uppercase tracking-[.2em] text-text-muted">
-        Active cases
-      </h2>
-      <CaseTable cases={data?.openCases ?? []} />
+      <section className="grid gap-3">
+        <h3 className="section-title">Source posture</h3>
+        <SourceGrid sources={data?.sources ?? []} />
+      </section>
+      <section className="grid gap-3">
+        <h3 className="section-title">Active cases</h3>
+        <CaseTable cases={data?.openCases ?? []} />
+      </section>
     </div>
   );
 }

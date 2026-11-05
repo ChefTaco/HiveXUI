@@ -197,7 +197,7 @@ function AliasSection({ canWrite }: { canWrite: boolean }) {
                 <tr key={alias.id} className="row-clickable" onClick={() => openEdit(alias)}>
                   <td className="cell-strong">{alias.alias}</td>
                   <td className="cell-mono">{modelSummary(alias)}</td>
-                  <td>{alias.provider ? <Badge tone={alias.provider.kind === 'LLAMACPP' ? 'teal' : 'sky'}>{alias.provider.name}</Badge> : <Badge tone="muted">dynamic</Badge>}</td>
+                  <td>{alias.provider ? <Badge tone={alias.provider.kind === 'LLAMACPP' ? 'accent' : 'info'}>{alias.provider.name}</Badge> : <Badge tone="neutral">dynamic</Badge>}</td>
                   <td>
                     <EnabledBadge enabled={alias.enabled} />
                   </td>
@@ -392,7 +392,7 @@ function RuleSection({ canWrite }: { canWrite: boolean }) {
                 <tr key={rule.id} className="row-clickable" onClick={() => openEdit(rule)}>
                   <td className="cell-strong">{rule.name}</td>
                   <td>
-                    <Badge tone="violet">{rule.kind}</Badge>
+                    <Badge tone="neutral">{rule.kind}</Badge>
                   </td>
                   <td className="cell-mono">{rule.priority}</td>
                   <td>
@@ -581,7 +581,7 @@ function HeuristicSection({ canWrite }: { canWrite: boolean }) {
                 <tr key={rule.id} className="row-clickable" onClick={() => openEdit(rule)}>
                   <td className="cell-strong">{rule.name}</td>
                   <td>
-                    <Badge tone="amber">{rule.category}</Badge>
+                    <Badge tone="accent">{rule.category}</Badge>
                   </td>
                   <td className="cell-mono">{rule.pattern}</td>
                   <td className="cell-mono">{rule.score}</td>

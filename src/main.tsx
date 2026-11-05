@@ -12,8 +12,7 @@ import { ToastProvider } from './components/toast';
 import { ThemeToggle } from './components/theme-toggle';
 import { initializeRuntime } from './lib/runtime';
 import { applyTheme } from './lib/theme';
-import './styles/app.css';
-import './styles/ecosystem.css';
+import './styles/index.css';
 
 applyTheme();
 

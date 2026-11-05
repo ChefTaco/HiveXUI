@@ -2,6 +2,7 @@ import { securityPost,securityFetch } from '@security/lib/security-api';
 "use client";
 
 import { useState, useEffect } from "react";
+import { Panel } from "@ui";
 import { useRouter } from "@security/navigation";
 
 interface ExistingAction {
@@ -60,18 +61,15 @@ export function ContainmentPanel({
 
   if (!available) return null;
   return (
-    <section className="border border-border/60 p-4">
-      <h2 className="font-mono text-[10px] uppercase tracking-widest text-primary">
-        Containment
-      </h2>
-      <p className="mt-3 text-xs leading-5 text-text-muted">
+    <Panel title="Containment" padding="sm">
+      <p className="text-sm text-text-muted">
         Preview creates no effect. An administrator must explicitly approve the exact response plan before it can execute. Approval expires after ten minutes.
       </p>
-      <div className="mt-4 grid gap-2">
+      <div className="grid gap-2">
         <select
+          aria-label="Response type"
           value={kind}
           onChange={(event) => setKind(event.target.value as typeof kind)}
-          className="border border-border bg-bg p-2 text-xs text-text"
         >
           <option value="service_restart">Service restart</option>
           <option value="host_isolation">Temporary host isolation</option>
@@ -80,21 +78,19 @@ export function ContainmentPanel({
           value={nodeId}
           onChange={(event) => setNodeId(event.target.value)}
           placeholder="Magnus node ID"
-          className="border border-border bg-bg p-2 text-xs text-text"
         />
         {kind === "service_restart" && (
           <input
             value={serviceName}
             onChange={(event) => setServiceName(event.target.value)}
             placeholder="Allowlisted active unit.service"
-            className="border border-border bg-bg p-2 text-xs text-text"
           />
         )}
         <textarea
           value={rationale}
           onChange={(event) => setRationale(event.target.value)}
           placeholder="Rationale (minimum 10 characters)"
-          className="min-h-20 border border-border bg-bg p-2 text-xs text-text"
+          className="min-h-20"
         />
         <button
           disabled={busy}
@@ -112,17 +108,17 @@ export function ContainmentPanel({
               ),
             )
           }
-          className="border border-primary/40 px-3 py-2 text-[10px] uppercase tracking-wider text-primary disabled:opacity-40"
+          className="btn btn--primary"
         >
           Preview
         </button>
       </div>
       {draft && (
-        <div className="mt-4 border border-primary/20 bg-primary/[.03] p-3">
-          <p className="font-mono text-[9px] text-text-muted">
+        <div className="grid gap-2">
+          <p className="break-all font-mono text-xs text-text-muted">
             SHA-256 {String(draft["previewSha256"])}
           </p>
-          <pre className="mt-2 whitespace-pre-wrap text-xs text-text-muted">{JSON.stringify(draft["preview"], null, 2)}</pre>
+          <pre className="code-block">{JSON.stringify(draft["preview"], null, 2)}</pre>
           <button
             disabled={busy}
             onClick={() =>
@@ -133,25 +129,25 @@ export function ContainmentPanel({
                 setDraft(result);
               })
             }
-            className="mt-3 border border-primary/40 px-3 py-2 text-[10px] uppercase tracking-wider text-primary"
+            className="btn justify-self-start"
           >
             Request approval
           </button>
         </div>
       )}
-      {draft?.["plan"] != null && <div className="mt-4 space-y-3 border border-warning/40 p-3">
-        <h3 className="text-xs uppercase text-warning">Approve exact response</h3>
-        <pre className="whitespace-pre-wrap break-all text-xs">{JSON.stringify(draft["plan"], null, 2)}</pre>
-        {approvalMode === "external" ? <p className="text-xs">This installation requires its signed external approval channel.</p> : canApprove && <>
-          <label className="flex gap-2 text-xs"><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />I reviewed the target, effect, risks, and rollback for this exact plan.</label>
-          <button disabled={busy || !confirmed} className="border border-warning px-3 py-2 text-xs disabled:opacity-40" onClick={() => void run("Decision recorded", async () => {
+      {draft?.["plan"] != null && <div className="warning-banner grid">
+        <h3 className="text-base text-warning">Approve exact response</h3>
+        <pre className="code-block">{JSON.stringify(draft["plan"], null, 2)}</pre>
+        {approvalMode === "external" ? <p>This installation requires its signed external approval channel.</p> : canApprove && <>
+          <label className="check-field"><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />I reviewed the target, effect, risks, and rollback for this exact plan.</label>
+          <div className="inline-actions"><button disabled={busy || !confirmed} className="btn btn--warning" onClick={() => void run("Decision recorded", async () => {
             const plan = draft["plan"] as Record<string, unknown>;
             await post(`actions/${String(draft["id"])}/approve`, { confirmed: true, planSha256: plan["plan_sha256"], previewSha256: draft["previewSha256"] }); setDraft(null);
           })}>Approve and execute</button>
-          <button disabled={busy} className="ml-2 border border-border px-3 py-2 text-xs" onClick={() => void run("Response rejected", async () => {
+          <button disabled={busy} className="btn" onClick={() => void run("Response rejected", async () => {
             const plan = draft["plan"] as Record<string, unknown>;
             await post(`actions/${String(draft["id"])}/reject`, { confirmed: true, planSha256: plan["plan_sha256"], previewSha256: draft["previewSha256"] }); setDraft(null);
-          })}>Reject</button>
+          })}>Reject</button></div>
         </>}
       </div>}
       {actions
@@ -169,7 +165,7 @@ export function ContainmentPanel({
                 await post(`actions/${action.id}/release`);
               })
             }
-            className="mt-3 block border border-danger/50 px-3 py-2 text-[10px] uppercase tracking-wider text-danger"
+            className="btn btn--danger justify-self-start"
           >
             Release isolation {action.id.slice(-6)}
           </button>
@@ -179,14 +175,14 @@ export function ContainmentPanel({
           ["previewed", "pending_approval"].includes(action.status),
         )
         .map((action) => (
-          <div key={action.id} className="mt-3 flex gap-2">
+          <div key={action.id} className="inline-actions">
             <button disabled={busy} onClick={() => void run("Response ready for review; no action executed", async () => {
               if (action.status === "previewed") setDraft(await post(`actions/${action.id}/request`));
               else {
                 const result = await securityFetch<{data:unknown}>(`security-fusion/approval-plans/${encodeURIComponent(`containment:${action.id}`)}`);
                 setDraft({ id: action.id, previewSha256: action.previewSha256, plan: result.data });
               }
-            })} className="border border-primary/40 px-3 py-2 text-[10px] uppercase tracking-wider text-primary">
+            })} className="btn">
               Review response {action.id.slice(-6)}
             </button>
             <button
@@ -196,19 +192,19 @@ export function ContainmentPanel({
                   await post(`actions/${action.id}/cancel`);
                 })
               }
-              className="border border-border px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted"
+              className="btn btn--ghost"
             >
               Cancel {action.id.slice(-6)}
             </button>
           </div>
         ))}
-      {actions.length > 0 && <div className="mt-4 space-y-2" aria-label="Action history">
-        {actions.map(action => <div key={action.id} className="border border-border/60 p-2 text-xs text-text-muted">
+      {actions.length > 0 && <div className="stack-list" aria-label="Action history">
+        {actions.map(action => <div key={action.id} className="stack-item flex-col items-start gap-1 text-sm text-text-muted">
           <p>{action.kind.replaceAll('_', ' ')} · {action.status.replaceAll('_', ' ')} · {action.id.slice(-6)}</p>
-          {action.status === 'unknown' && <p className="mt-2 text-warning">Execution outcome unknown. Verify the target before creating another action.</p>}
+          {action.status === 'unknown' && <p className="text-warning">Execution outcome unknown. Verify the target before creating another action.</p>}
         </div>)}
       </div>}
-      {message && <p className="mt-3 text-[10px] text-text-muted">{message}</p>}
-    </section>
+      {message && <p className="text-sm text-text-muted">{message}</p>}
+    </Panel>
   );
 }

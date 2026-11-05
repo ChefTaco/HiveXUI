@@ -7,7 +7,7 @@ import type { HiveAppState, HiveAppStatus, HiveHealthCheck } from '../lib/types'
 
 type ActionItem = {
   id: string;
-  tone: 'amber' | 'coral' | 'sky';
+  tone: 'warning' | 'danger' | 'info';
   title: string;
   detail: string;
   target: string;
@@ -16,7 +16,7 @@ type ActionItem = {
 
 type ActivityItem = {
   id: string;
-  tone: 'amber' | 'coral' | 'sky' | 'teal' | 'muted';
+  tone: 'warning' | 'danger' | 'info' | 'success' | 'neutral';
   title: string;
   meta: string;
   target: string;
@@ -28,12 +28,12 @@ const APP_TARGETS: Record<string, string> = {
   router: 'routers',
 };
 
-function stateTone(state: HiveAppState | string | undefined): 'teal' | 'amber' | 'coral' | 'muted' {
-  return state === 'online' ? 'teal' : state === 'degraded' ? 'amber' : state === 'offline' ? 'coral' : 'muted';
+function stateTone(state: HiveAppState | string | undefined): 'success' | 'warning' | 'danger' | 'neutral' {
+  return state === 'online' ? 'success' : state === 'degraded' ? 'warning' : state === 'offline' ? 'danger' : 'neutral';
 }
 
-function checkTone(status: string | undefined): 'teal' | 'amber' | 'coral' | 'muted' {
-  return status === 'pass' ? 'teal' : status === 'warn' ? 'amber' : status === 'fail' ? 'coral' : 'muted';
+function checkTone(status: string | undefined): 'success' | 'warning' | 'danger' | 'neutral' {
+  return status === 'pass' ? 'success' : status === 'warn' ? 'warning' : status === 'fail' ? 'danger' : 'neutral';
 }
 
 function serviceTarget(app: HiveAppStatus): string {
@@ -79,7 +79,7 @@ export function OverviewPage({ onNavigate }: { onNavigate: (view: string) => voi
     for (const incident of openIncidents.slice(0, 2)) {
       items.push({
         id: `incident-${incident.id}`,
-        tone: incident.severity === 'critical' ? 'coral' : 'amber',
+        tone: incident.severity === 'critical' ? 'danger' : 'warning',
         title: incident.title,
         detail: incident.summary,
         target: 'incidents',
@@ -89,7 +89,7 @@ export function OverviewPage({ onNavigate }: { onNavigate: (view: string) => voi
     for (const { app, check } of nonPassingChecks.slice(0, Math.max(0, 4 - items.length))) {
       items.push({
         id: `${app.key}-${check.name}`,
-        tone: check.status === 'fail' ? 'coral' : 'amber',
+        tone: check.status === 'fail' ? 'danger' : 'warning',
         title: `${app.name}: ${check.name}`,
         detail: check.message ? `${check.message} ${guidanceFor(app, check)}` : guidanceFor(app, check),
         target: serviceTarget(app),
@@ -99,7 +99,7 @@ export function OverviewPage({ onNavigate }: { onNavigate: (view: string) => voi
     if (items.length < 4 && unhealthyProviders.length > 0) {
       items.push({
         id: 'providers-unhealthy',
-        tone: 'amber',
+        tone: 'warning',
         title: `${unhealthyProviders.length} provider${unhealthyProviders.length === 1 ? '' : 's'} need health review`,
         detail: 'Open provider health, refresh checks, and disable failing upstreams before they affect routing.',
         target: 'providers',
@@ -111,21 +111,21 @@ export function OverviewPage({ onNavigate }: { onNavigate: (view: string) => voi
   const activity = useMemo<ActivityItem[]>(() => {
     const incidentItems = data.incidents.slice(0, 4).map((incident): ActivityItem => ({
       id: `incident-${incident.id}`,
-      tone: incident.severity === 'critical' ? 'coral' : incident.severity === 'warning' ? 'amber' : 'sky',
+      tone: incident.severity === 'critical' ? 'danger' : incident.severity === 'warning' ? 'warning' : 'info',
       title: incident.title,
       meta: `${incident.services.join(', ') || 'hive'} · ${relativeTime(incident.startedAt)}`,
       target: 'incidents',
     }));
     const auditItems = data.audit.slice(0, 5).map((event): ActivityItem => ({
       id: `audit-${event.id}`,
-      tone: event.action.toLowerCase().includes('fail') ? 'coral' : event.action.toLowerCase().includes('denied') ? 'amber' : 'muted',
+      tone: event.action.toLowerCase().includes('fail') ? 'danger' : event.action.toLowerCase().includes('denied') ? 'warning' : 'neutral',
       title: event.action,
       meta: `${event.adminUser?.username ?? event.actorType} · ${relativeTime(event.createdAt)}`,
       target: 'audit',
     }));
     const traceItems = data.traces.slice(0, 3).map((trace): ActivityItem => ({
       id: `trace-${trace.id}`,
-      tone: trace.outcome === 'SUCCEEDED' ? 'teal' : trace.outcome.includes('FAIL') ? 'coral' : 'sky',
+      tone: trace.outcome === 'SUCCEEDED' ? 'success' : trace.outcome.includes('FAIL') ? 'danger' : 'info',
       title: trace.providerModel ?? trace.routeKey ?? trace.path,
       meta: `${trace.provider?.name ?? 'provider'} · ${relativeTime(trace.createdAt)}`,
       target: 'traces',
@@ -140,7 +140,7 @@ export function OverviewPage({ onNavigate }: { onNavigate: (view: string) => voi
           <h2>Command Center</h2>
           <p>Identity, memory, routing, incidents, and traffic posture.</p>
         </div>
-        {data.hiveStatus?.generatedAt ? <Badge tone="muted">sampled {relativeTime(data.hiveStatus.generatedAt)}</Badge> : null}
+        {data.hiveStatus?.generatedAt ? <Badge tone="neutral">sampled {relativeTime(data.hiveStatus.generatedAt)}</Badge> : null}
       </div>
 
       <div className="stats-grid">
@@ -148,17 +148,16 @@ export function OverviewPage({ onNavigate }: { onNavigate: (view: string) => voi
           label="Hive Apps"
           value={`${appCounts.online}/${apps.length || 3}`}
           sub={`${appCounts.degraded} degraded · ${appCounts.offline} offline`}
-          accent={appCounts.offline > 0 ? 'coral' : appCounts.degraded > 0 ? 'amber' : 'teal'}
-          emphasize
+          tone={appCounts.offline > 0 ? 'danger' : appCounts.degraded > 0 ? 'warning' : 'success'}
         />
-        <StatCard label="Open Incidents" value={openIncidents.length} sub={`${criticalIncidents} critical`} accent={criticalIncidents > 0 ? 'coral' : openIncidents.length > 0 ? 'amber' : 'teal'} />
-        <StatCard label="Providers" value={data.providers.length} sub={`${enabledProviders} enabled · ${healthy} healthy`} accent={unhealthyProviders.length > 0 ? 'amber' : 'sky'} />
-        <StatCard label="Traces" value={compactNumber(totals.traces)} sub={`${successRate}% succeeded`} accent="teal" emphasize />
-        <StatCard label="Actors" value={data.actors.length} sub={`${data.actors.filter((actor) => actor.status === 'active').length} active`} accent="violet" />
-        <StatCard label="Attention" value={actionItems.length} sub={`${nonPassingChecks.length} checks flagged`} accent={actionItems.some((item) => item.tone === 'coral') ? 'coral' : actionItems.length > 0 ? 'amber' : 'teal'} />
+        <StatCard label="Open Incidents" value={openIncidents.length} sub={`${criticalIncidents} critical`} tone={criticalIncidents > 0 ? 'danger' : openIncidents.length > 0 ? 'warning' : 'success'} />
+        <StatCard label="Providers" value={data.providers.length} sub={`${enabledProviders} enabled · ${healthy} healthy`} tone={unhealthyProviders.length > 0 ? 'warning' : 'info'} />
+        <StatCard label="Traces" value={compactNumber(totals.traces)} sub={`${successRate}% succeeded`} tone="accent" />
+        <StatCard label="Actors" value={data.actors.length} sub={`${data.actors.filter((actor) => actor.status === 'active').length} active`} tone="accent" />
+        <StatCard label="Attention" value={actionItems.length} sub={`${nonPassingChecks.length} checks flagged`} tone={actionItems.some((item) => item.tone === 'danger') ? 'danger' : actionItems.length > 0 ? 'warning' : 'success'} />
       </div>
 
-      <div className="grid-2">
+      <div className="page-grid page-grid--2">
         <Panel
           title="Attention Queue"
           eyebrow="Now"
@@ -242,7 +241,7 @@ export function OverviewPage({ onNavigate }: { onNavigate: (view: string) => voi
         ))}
       </div>
 
-      <div className="grid-2">
+      <div className="page-grid page-grid--2">
         <Panel
           title="Provider Pulse"
           eyebrow="Health"
@@ -263,13 +262,13 @@ export function OverviewPage({ onNavigate }: { onNavigate: (view: string) => voi
                     <HealthBadge status={provider.lastHealthStatus} />
                   </div>
                   <p className="pulse-meta">
-                    <Badge tone="muted">{provider.kind}</Badge>
+                    <Badge tone="neutral">{provider.kind}</Badge>
                   </p>
-                  <p className="pulse-meta" style={{ marginTop: 8 }}>
+                  <p className="pulse-meta mt-2">
                     {provider.baseUrl}
                   </p>
                   {provider.lastHealthAt ? (
-                    <p className="pulse-meta" style={{ marginTop: 6 }}>
+                    <p className="pulse-meta mt-1">
                       checked {relativeTime(provider.lastHealthAt)}
                     </p>
                   ) : null}

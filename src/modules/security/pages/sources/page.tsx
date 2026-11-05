@@ -17,17 +17,15 @@ export default async function SourcesPage(): Promise<React.ReactElement> {
     fusionFetch<FusionCollector[]>("source-registry"),
   ]);
   return (
-    <div className="p-5 lg:p-7">
+    <div className="page-stack">
       <FusionHeader
         eyebrow="Required feeds"
         title="Sources"
         copy="Checkpointed, replay-safe ingestion posture for each feed this installation reports."
       />
       <SourceGrid sources={sources ?? []} />
-      <section className="mt-7">
-        <h2 className="mb-3 text-sm font-semibold text-text">
-          Collector identity registry
-        </h2>
+      <section className="grid gap-3">
+        <h3 className="section-title">Collector identity registry</h3>
         <CollectorRegistry collectors={collectors ?? []} />
       </section>
     </div>

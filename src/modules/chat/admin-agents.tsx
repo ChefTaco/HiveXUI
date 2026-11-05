@@ -71,10 +71,11 @@ export function AgentsAdministration({
       <section>
         <div className="chat-admin-actions">
           <h4>Registered agents</h4>
-          <button disabled={busy} onClick={() => setSelected(null)}>
+          <button className="btn" disabled={busy} onClick={() => setSelected(null)}>
             New registration
           </button>
           <button
+            className="btn"
             disabled={busy}
             onClick={() => void perform(load, "Agent registry refreshed")}
           >
@@ -91,7 +92,7 @@ export function AgentsAdministration({
                   {agent.verified ? "Verified" : "Unverified"}
                 </small>
               </div>
-              <button disabled={busy} onClick={() => setSelected(agent)}>
+              <button className="btn" disabled={busy} onClick={() => setSelected(agent)}>
                 Edit registration
               </button>
             </li>
@@ -108,15 +109,15 @@ export function AgentsAdministration({
           {selected ? "Edit agent registration" : "New agent registration"}
         </h4>
         <div className="chat-admin-grid">
-          <label>
+          <label className="field">
             Name
             <input name="name" defaultValue={selected?.name} required />
           </label>
-          <label>
+          <label className="field">
             Chat username
             <input name="username" defaultValue={selected?.username} required />
           </label>
-          <label>
+          <label className="field">
             Default channel ID
             <input
               name="default_channel"
@@ -127,7 +128,7 @@ export function AgentsAdministration({
               }
             />
           </label>
-          <label className="chat-admin-check">
+          <label className="check-field">
             <input
               name="verified"
               type="checkbox"
@@ -136,7 +137,7 @@ export function AgentsAdministration({
             Verified identity
           </label>
           {(["post", "files", "webhooks"] as const).map((key) => (
-            <label key={key} className="chat-admin-check">
+            <label key={key} className="check-field">
               <input
                 name={key}
                 type="checkbox"
@@ -147,7 +148,7 @@ export function AgentsAdministration({
           ))}
         </div>
         <div className="chat-admin-grid">
-          <label>
+          <label className="field">
             Allowed users, one ID or username per line
             <textarea
               name="users"
@@ -155,7 +156,7 @@ export function AgentsAdministration({
               defaultValue={strings(selected?.userAllowlists.users)}
             />
           </label>
-          <label>
+          <label className="field">
             No-memory channels, one ID per line
             <textarea
               name="no_memory"
@@ -163,7 +164,7 @@ export function AgentsAdministration({
               defaultValue={strings(selected?.memoryPolicy.no_memory_channels)}
             />
           </label>
-          <label>
+          <label className="field">
             Ephemeral channels, one ID per line
             <textarea
               name="ephemeral"
@@ -173,7 +174,7 @@ export function AgentsAdministration({
           </label>
         </div>
         <div>
-          <button disabled={busy}>Save agent registration</button>
+          <button className="btn" disabled={busy}>Save agent registration</button>
         </div>
       </form>
       <section className="chat-admin-block">
@@ -198,7 +199,7 @@ export function AgentsAdministration({
           }}
         >
           <div className="chat-admin-grid">
-            <label>
+            <label className="field">
               Agent
               <select name="agent" required>
                 <option value="">Choose an agent</option>
@@ -209,21 +210,21 @@ export function AgentsAdministration({
                 ))}
               </select>
             </label>
-            <label>
+            <label className="field">
               Channel ID
               <input name="channel" required />
             </label>
-            <label>
+            <label className="field">
               User ID
               <input name="user" required />
             </label>
           </div>
-          <label>
+          <label className="field">
             Example message
             <textarea name="message" rows={3} />
           </label>
           <div>
-            <button disabled={busy}>Simulate policy</button>
+            <button className="btn" disabled={busy}>Simulate policy</button>
           </div>
         </form>
         {result ? (

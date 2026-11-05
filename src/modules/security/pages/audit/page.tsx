@@ -1,3 +1,4 @@
+import { Badge, Button, statusTone, TableFrame } from "@ui";
 import { securityFetch } from "@security/lib/security-api";
 import { FusionHeader } from "@security/components/security-fusion/fusion-ui";
 export default async function AuditPage({
@@ -30,44 +31,36 @@ export default async function AuditPage({
       };
     }>(`security-fusion/audit?date=${date}&page=${page}`);
     return (
-      <div className="min-w-0 space-y-5 p-5 lg:p-7">
+      <div className="page-stack">
         <FusionHeader
           eyebrow="Decision and integrity trail"
           title="Audit"
           copy="Review security changes and verify the retained audit chain."
         />
         <form className="flex flex-wrap items-end gap-3">
-          <label className="grid gap-2 text-xs text-text-muted">
+          <label className="field">
             Audit date
             <input
-              className="rounded border border-border bg-bg px-3 py-2 text-text"
               type="date"
               name="date"
               defaultValue={date}
             />
           </label>
-          <button className="rounded border border-primary/40 bg-surface px-3 py-2 text-xs text-primary hover:border-primary">
-            Load day
-          </button>
+          <Button>Load day</Button>
         </form>
-        <p role="status">
+        <p role="status" className="text-text-muted">
           Chain: {data.verification.state} · {data.verification.totalEntries}{" "}
           records · {data.verification.legacyEntries} legacy entries with
           partial integrity
         </p>
         {data.verification.legacyEntries > 0 && (
-          <p className="text-xs text-warning">
+          <p className="warning-banner">
             Legacy signatures do not protect targets, details, actor type or IP
             address.
           </p>
         )}
-        <div
-          className="max-w-full overflow-x-auto border border-border"
-          role="region"
-          aria-label="Audit records"
-          tabIndex={0}
-        >
-          <table className="w-full min-w-[680px] text-left text-xs [&_th]:px-3 [&_th]:py-3 [&_td]:px-3 [&_td]:py-3 [&_tr]:border-b [&_tr]:border-border/50">
+        <TableFrame label="Audit records">
+          <table className="min-w-[42.5rem]">
             <caption className="sr-only">
               Security audit records for {date}
             </caption>
@@ -91,29 +84,31 @@ export default async function AuditPage({
                   <td>{e.action}</td>
                   <td>{e.actorId}</td>
                   <td>{e.targetId}</td>
-                  <td>{e.verificationState}</td>
+                  <td>
+                    <Badge tone={statusTone(e.verificationState)}>{e.verificationState}</Badge>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </TableFrame>
         {page > 1 && (
-          <a href={`?date=${date}&page=${page - 1}`}>Newer records</a>
+          <a className="btn" href={`?date=${date}&page=${page - 1}`}>Newer records</a>
         )}{" "}
         {page * 100 < data.total && page < 100 && (
-          <a href={`?date=${date}&page=${page + 1}`}>Older records</a>
+          <a className="btn" href={`?date=${date}&page=${page + 1}`}>Older records</a>
         )}
       </div>
     );
   } catch {
     return (
-      <div className="p-5 lg:p-7">
+      <div className="page-stack">
         <FusionHeader
           eyebrow="Decision and integrity trail"
           title="Audit"
           copy="Review security changes and verify the retained audit chain."
         />
-        <p role="alert">
+        <p role="alert" className="error-banner">
           Audit history is unavailable or access is denied. Integrity is
           unverified.
         </p>

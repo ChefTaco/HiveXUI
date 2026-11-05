@@ -49,7 +49,7 @@ export function AuditPage() {
                     </td>
                     <td className="cell-mono">{event.adminUser?.username ?? '—'}</td>
                     <td>
-                      <Badge tone={event.actorType === 'admin' ? 'amber' : 'muted'}>{event.actorType}</Badge>
+                      <Badge tone={event.actorType === 'admin' ? 'accent' : 'neutral'}>{event.actorType}</Badge>
                     </td>
                   </tr>
                 ))}
@@ -92,7 +92,7 @@ export function AuditPage() {
             </div>
             {selected.metadataJson ? (
               <>
-                <p className="panel-eyebrow" style={{ marginTop: 22 }}>
+                <p className="panel-eyebrow mt-5">
                   Metadata
                 </p>
                 <JsonBlock value={selected.metadataJson} />

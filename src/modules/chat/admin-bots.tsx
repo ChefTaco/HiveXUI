@@ -166,6 +166,7 @@ export function BotsAdministration({
         <div className="chat-admin-actions">
           <h4>Hermes connection health</h4>
           <button
+            className="btn"
             disabled={busy}
             onClick={() => void perform(load, "Bot health refreshed")}
           >
@@ -239,6 +240,7 @@ export function BotsAdministration({
           </p>
           <div className="chat-admin-actions">
             <button
+              className="btn"
               disabled={busy}
               onClick={() =>
                 void perform(reconcile, "Committed bot operation verified")
@@ -248,6 +250,7 @@ export function BotsAdministration({
             </button>
             {pending.status === "committed" ? (
               <button
+                className="btn"
                 disabled={busy}
                 onClick={() =>
                   confirm(
@@ -268,17 +271,17 @@ export function BotsAdministration({
       <form onSubmit={create} className="chat-admin-block">
         <h4>Create a new bot</h4>
         <div className="chat-admin-grid">
-          <label>
+          <label className="field">
             Bot username
             <input name="username" pattern="[a-z0-9][a-z0-9._-]+" required />
           </label>
-          <label>
+          <label className="field">
             Display name
             <input name="display_name" required />
           </label>
         </div>
         <div>
-          <button disabled={disabled}>Create chat bot</button>
+          <button className="btn" disabled={disabled}>Create chat bot</button>
         </div>
       </form>
       <section className="chat-admin-block">
@@ -302,11 +305,11 @@ export function BotsAdministration({
                 </small>
               </div>
               <div className="chat-admin-actions">
-                <button disabled={busy} onClick={() => setSelected(bot)}>
+                <button className="btn" disabled={busy} onClick={() => setSelected(bot)}>
                   Edit bot identity
                 </button>
                 <button
-                  className="chat-admin-danger"
+                  className="btn btn--danger"
                   disabled={disabled}
                   onClick={() =>
                     confirm(
@@ -345,12 +348,12 @@ export function BotsAdministration({
         >
           <div className="chat-admin-actions">
             <h4>Edit @{selected.username}</h4>
-            <button type="button" onClick={() => setSelected(null)}>
+            <button className="btn" type="button" onClick={() => setSelected(null)}>
               Close bot identity
             </button>
           </div>
           <div className="chat-admin-grid">
-            <label>
+            <label className="field">
               Bot username
               <input
                 name="username"
@@ -358,7 +361,7 @@ export function BotsAdministration({
                 required
               />
             </label>
-            <label>
+            <label className="field">
               Display name
               <input
                 name="display_name"
@@ -368,7 +371,7 @@ export function BotsAdministration({
             </label>
           </div>
           <div>
-            <button disabled={disabled}>Save bot identity</button>
+            <button className="btn" disabled={disabled}>Save bot identity</button>
           </div>
         </form>
       ) : null}

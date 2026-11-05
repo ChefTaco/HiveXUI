@@ -1,248 +1,138 @@
-.chat-admin {
-  grid-column: 1 / -1;
-  margin-top: 24px;
-  border: 1px solid var(--border);
-  border-top: 3px solid var(--teal);
-  border-radius: var(--radius);
-  background: var(--surface);
-  min-width: 0;
-  color: var(--text);
-}
-.chat-admin > header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  padding: 20px;
-}
-.chat-admin h2 {
-  font-size: 21px;
-}
-.chat-admin h3 {
-  font-size: 19px;
-  margin: 0 0 18px;
-}
-.chat-admin h4 {
-  font-size: 15px;
-  margin: 0 0 12px;
-}
-.chat-admin p {
-  line-height: 1.5;
-}
-.chat-admin-layout {
-  display: grid;
-  grid-template-columns: 190px minmax(0, 1fr);
-  border-top: 1px solid var(--border);
-}
-.chat-admin-layout > nav {
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border-right: 1px solid var(--border);
-}
-.chat-admin-layout > nav button {
-  text-align: left;
-}
-.chat-admin-layout > nav button[aria-pressed="true"] {
-  background: var(--teal);
-  color: var(--surface-raised);
-}
-.chat-admin-content {
-  padding: 24px;
-  min-width: 0;
-}
-.chat-admin button,
-.chat-admin input,
-.chat-admin select,
-.chat-admin textarea {
-  font: inherit;
-  color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border-light);
-  border-radius: 6px;
-  padding: 8px 10px;
-  max-width: 100%;
-}
-.chat-admin button {
-  cursor: pointer;
-}
-.chat-admin button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-.chat-admin button:focus-visible,
-.chat-admin input:focus-visible,
-.chat-admin select:focus-visible,
-.chat-admin textarea:focus-visible {
-  outline: 2px solid var(--teal);
-  outline-offset: 3px;
-}
-.chat-admin .chat-admin-primary {
-  background: var(--teal);
-  color: var(--surface-raised);
-}
-.chat-admin .chat-admin-danger {
-  border-color: var(--coral);
-  color: var(--coral);
-}
-.chat-admin form {
-  display: grid;
-  gap: 16px;
-}
-.chat-admin label {
-  display: grid;
-  gap: 6px;
-  font-size: 13px;
-  min-width: 0;
-}
-.chat-admin label.chat-admin-check {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-}
-.chat-admin-check input {
-  margin-top: 3px;
-}
-.chat-admin label > small,
-.chat-admin small {
-  color: var(--muted);
-  line-height: 1.4;
-}
-.chat-admin input:not([type="checkbox"]),
-.chat-admin select,
-.chat-admin textarea {
-  width: 100%;
-  min-width: 0;
-}
-.chat-admin input[type="checkbox"] {
-  accent-color: var(--teal);
-  width: auto;
-}
-.chat-admin textarea {
-  resize: vertical;
-}
-.chat-admin-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-.chat-admin-block {
-  padding: 20px 0;
-  border-top: 1px solid var(--border);
-  margin-top: 24px;
-}
-.chat-admin-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.chat-admin-list {
-  list-style: none;
-  padding: 0;
-  display: grid;
-  gap: 10px;
-}
-.chat-admin-row {
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  padding: 14px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.chat-admin-row > div {
-  min-width: 0;
-}
-.chat-admin-row small {
-  display: block;
-  margin-top: 4px;
-}
-.chat-admin-status {
-  border-left: 3px solid var(--teal);
-  padding: 10px 14px;
-  background: var(--surface-hover);
-}
-.chat-admin-secret,
-.chat-admin-receipt {
-  padding: 16px;
-  border: 1px solid var(--teal);
-  border-left: 4px solid var(--teal);
-  border-radius: 6px;
-  margin: 18px 0;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.chat-admin-receipt code {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  word-break: break-all;
-}
-.chat-admin-secret textarea {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  margin: 10px 0;
-}
-.chat-admin-summary {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-.chat-admin-summary dt {
-  font-size: 12px;
-  color: var(--muted);
-}
-.chat-admin-summary dd {
-  margin: 4px 0;
-  font-size: 18px;
-}
-.chat-admin [role="alert"] {
-  overflow-wrap: anywhere;
-}
-.chat-admin .confirm-box {
-  max-width: calc(100vw - 32px);
-}
-@media (max-width: 800px) {
+/* Chat administration layout. Controls are the shared ones. */
+@layer components {
+  .chat-admin {
+    min-width: 0;
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--border);
+    color: var(--text);
+  }
   .chat-admin > header {
-    align-items: flex-start;
-    flex-direction: column;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-5);
+  }
+  .chat-admin h3 {
+    margin-bottom: var(--space-4);
+    font-size: var(--text-xl);
+  }
+  .chat-admin h4 {
+    margin-bottom: var(--space-3);
+    font-size: var(--text-lg);
+  }
+  .chat-admin small {
+    display: block;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
   }
   .chat-admin-layout {
-    grid-template-columns: minmax(0, 1fr);
+    display: grid;
+    grid-template-columns: 12rem minmax(0, 1fr);
+    border-top: 1px solid var(--border);
   }
   .chat-admin-layout > nav {
-    flex-direction: row;
-    flex-wrap: wrap;
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-3);
+    border-right: 1px solid var(--border);
   }
   .chat-admin-content {
-    padding: 18px;
+    display: grid;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    gap: var(--space-4);
+    padding: var(--space-5);
+  }
+  .chat-admin form {
+    display: grid;
+    gap: var(--space-4);
   }
   .chat-admin-grid {
-    grid-template-columns: minmax(0, 1fr);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+  .chat-admin-block {
+    margin-top: var(--space-5);
+    padding: var(--space-5) 0 0;
+    border-top: 1px solid var(--border);
+  }
+  .chat-admin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .chat-admin-list {
+    display: grid;
+    gap: var(--space-2);
   }
   .chat-admin-row {
-    flex-direction: column;
+    display: flex;
+    min-width: 0;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
+    background: var(--surface-raised);
+    overflow-wrap: anywhere;
   }
-  .chat-admin-row .chat-admin-actions {
-    width: 100%;
+  .chat-admin-row > div {
+    min-width: 0;
   }
-  .chat-admin-row button {
-    flex: 1;
+  .chat-admin-row small {
+    margin-top: var(--space-1);
   }
-  .chat-admin h2 {
-    font-size: 19px;
+  .chat-admin-secret,
+  .chat-admin-receipt {
+    display: grid;
+    min-width: 0;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border: 1px solid color-mix(in srgb, var(--success) 45%, transparent);
+    border-radius: var(--radius-control);
+    background: var(--success-soft);
+    overflow-wrap: anywhere;
   }
-}
-@media (prefers-reduced-motion: reduce) {
-  .chat-admin * {
-    scroll-behavior: auto;
-    transition: none;
-    animation: none;
+  .chat-admin-receipt code {
+    font-size: var(--text-xs);
+    word-break: break-all;
+  }
+  .chat-admin-secret textarea {
+    min-height: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+  }
+  @media (max-width: 800px) {
+    .chat-admin > header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .chat-admin-layout {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .chat-admin-layout > nav {
+      flex-direction: row;
+      flex-wrap: wrap;
+      border-right: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .chat-admin-layout > nav .nav-item {
+      width: auto;
+    }
+    .chat-admin-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .chat-admin-row {
+      flex-direction: column;
+    }
+    .chat-admin-row .chat-admin-actions {
+      width: 100%;
+    }
   }
 }

@@ -15,11 +15,11 @@ function failureSources(): string {
   return new Intl.ListFormat('en', { style: 'long', type: 'conjunction' }).format(names);
 }
 
-function severityTone(severity: HiveIncident['severity']): 'amber' | 'teal' | 'coral' | 'muted' {
-  if (severity === 'critical') return 'coral';
-  if (severity === 'warning') return 'amber';
-  if (severity === 'info') return 'teal';
-  return 'muted';
+function severityTone(severity: HiveIncident['severity']): 'warning' | 'success' | 'danger' | 'neutral' {
+  if (severity === 'critical') return 'danger';
+  if (severity === 'warning') return 'warning';
+  if (severity === 'info') return 'success';
+  return 'neutral';
 }
 
 export function IncidentsPage() {
@@ -44,11 +44,11 @@ export function IncidentsPage() {
 
       {unavailable.length > 0 && <p role="status">Some failure summaries are unavailable: {unavailable.join(' · ')}.</p>}
 
-      <div className="grid grid--4">
-        <StatCard label="Open" value={open} sub="needs attention" accent={open ? 'coral' : 'teal'} emphasize />
-        <StatCard label="Critical" value={critical} sub="hard failures" accent="coral" />
-        <StatCard label="Cross-Service" value={crossService} sub="shared request IDs" accent="sky" />
-        <StatCard label="Total" value={data.incidents.length} sub="recent groups" accent="amber" />
+      <div className="page-grid--4">
+        <StatCard label="Open" value={open} sub="needs attention" tone={open ? 'danger' : 'success'} />
+        <StatCard label="Critical" value={critical} sub="hard failures" tone="danger" />
+        <StatCard label="Cross-Service" value={crossService} sub="shared request IDs" tone="accent" />
+        <StatCard label="Total" value={data.incidents.length} sub="recent groups" tone="accent" />
       </div>
 
       <Panel title="Timeline" eyebrow={`${data.incidents.length} groups`}>
@@ -93,7 +93,7 @@ export function IncidentsPage() {
               <div className="kv-row"><span>Request IDs</span><span className="cell-mono">{selected.requestIds.join(', ') || 'none'}</span></div>
             </div>
 
-            <p className="panel-eyebrow" style={{ marginTop: 22 }}>Events</p>
+            <p className="panel-eyebrow mt-5">Events</p>
             <div className="stack-list">
               {selected.events.map((event) => (
                 <div className="stack-item" key={event.id}>
@@ -106,7 +106,7 @@ export function IncidentsPage() {
               ))}
             </div>
 
-            <p className="panel-eyebrow" style={{ marginTop: 22 }}>Raw Incident</p>
+            <p className="panel-eyebrow mt-5">Raw Incident</p>
             <JsonBlock value={selected} />
           </>
         ) : null}

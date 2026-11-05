@@ -226,7 +226,7 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
         </div>
         <div className="panel-actions">
           {app ? (
-            <Badge tone={app.status === 'online' ? 'teal' : app.status === 'degraded' ? 'amber' : 'coral'} dot>
+            <Badge tone={app.status === 'online' ? 'success' : app.status === 'degraded' ? 'warning' : 'danger'} dot>
               {app.status}
             </Badge>
           ) : null}
@@ -251,14 +251,14 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
         {profile ? <MemoryOperationsModule profile={profile} /> : <MemoryAccess>{identity => <MemoryOperationsModule profile={identity} />}</MemoryAccess>}
       </Suspense>}
 
-      <div className="grid grid--4">
-        <StatCard label="Memories" value={compactCount(memoryTotal)} sub="visible to your product account" accent="amber" emphasize />
-        <StatCard label="Sessions" value={compactCount(stats.sessions ?? data?.sessions.length)} sub="active history containers" accent="sky" />
-        <StatCard label="Agents" value={compactCount(stats.agents ?? data?.agents.length)} sub="registered memory actors" accent="teal" />
-        <StatCard label="Queue" value={compactCount(dashboardQueue.pending_count ?? queueCounts.pending ?? dashboardQueue.pending ?? 0)} sub="pending jobs" accent={numberValue(queueCounts.failed) ? 'coral' : 'violet'} />
+      <div className="page-grid--4">
+        <StatCard label="Memories" value={compactCount(memoryTotal)} sub="visible to your product account" tone="accent" />
+        <StatCard label="Sessions" value={compactCount(stats.sessions ?? data?.sessions.length)} sub="active history containers" tone="accent" />
+        <StatCard label="Agents" value={compactCount(stats.agents ?? data?.agents.length)} sub="registered memory actors" tone="accent" />
+        <StatCard label="Queue" value={compactCount(dashboardQueue.pending_count ?? queueCounts.pending ?? dashboardQueue.pending ?? 0)} sub="pending jobs" tone={numberValue(queueCounts.failed) ? 'danger' : 'neutral'} />
       </div>
 
-      <div className="grid grid--2">
+      <div className="page-grid page-grid--2">
         <Panel title="Search And Create" eyebrow="native operations">
           <div className="form-grid form-grid--compact">
             <Field label="Search">
@@ -289,7 +289,7 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
           <Field label="Create memory">
             <TextArea value={newContent} onChange={setNewContent} rows={4} placeholder="What should Hive remember?" />
           </Field>
-          <div className="inline-actions" style={{ justifyContent: 'flex-end' }}>
+          <div className="inline-actions justify-end">
             <Button variant="primary" loading={busy === 'create-memory'} disabled={!canWriteMemory || !newContent.trim()} onClick={() => void createMemory()}>
               Create
             </Button>
@@ -309,7 +309,7 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
                       {text(memory.type)} · {text(memory.scope)} · {text(memory.workspace_id, 'default')}
                     </span>
                   </div>
-                  <Badge tone={text(memory.confidence).startsWith('0.') ? 'amber' : 'teal'}>
+                  <Badge tone={text(memory.confidence).startsWith('0.') ? 'warning' : 'success'}>
                     {typeof memory.confidence === 'number' ? `${Math.round(memory.confidence * 100)}%` : text(memory.confidence, 'stored')}
                   </Badge>
                 </button>
@@ -370,7 +370,7 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
                     <strong>{text(webhook.name, text(webhook.url, 'Webhook'))}</strong>
                     <span className="muted-line">{text(webhook.status, text(webhook.last_status, 'configured'))}</span>
                   </div>
-                  <Badge tone={webhook.enabled === false ? 'muted' : 'teal'}>{webhook.enabled === false ? 'off' : 'on'}</Badge>
+                  <Badge tone={webhook.enabled === false ? 'neutral' : 'success'}>{webhook.enabled === false ? 'off' : 'on'}</Badge>
                 </div>
               ))}
             </div>
@@ -380,7 +380,7 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
         </Panel>
       </div>
 
-      <div className="grid grid--2">
+      <div className="page-grid page-grid--2">
         <Panel title="Memory Detail" eyebrow={latestMemory ? memoryId(latestMemory) || 'selected record' : 'raw service payload'}>
           {latestMemory ? (
             <>
@@ -399,7 +399,7 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
         <Panel title="Graph And Conflicts" eyebrow="selected memory">
           <p className="panel-eyebrow">Graph</p>
           <JsonBlock value={graph ?? { message: 'Select a memory to load graph neighborhood.' }} />
-          <p className="panel-eyebrow" style={{ marginTop: 18 }}>Conflicts</p>
+          <p className="panel-eyebrow mt-4">Conflicts</p>
           <JsonBlock value={conflicts ?? { message: 'Select a memory to detect conflicts.' }} />
         </Panel>
       </div>

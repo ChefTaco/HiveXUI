@@ -148,6 +148,7 @@ function ConnectedAdministration({ owner }: { owner: string }) {
           <h2>Manage your chat installation</h2>
         </div>
         <button
+          className="btn"
           type="button"
           disabled={busy}
           onClick={() => setOpen((value) => !value)}
@@ -161,6 +162,7 @@ function ConnectedAdministration({ owner }: { owner: string }) {
           <nav aria-label="Chat administration sections">
             {sections.map((value) => (
               <button
+                className={value === section ? "nav-item nav-item--active" : "nav-item"}
                 key={value}
                 type="button"
                 disabled={busy}
@@ -179,7 +181,7 @@ function ConnectedAdministration({ owner }: { owner: string }) {
               </p>
             ) : null}
             {message ? (
-              <p role="status" className="chat-admin-status">
+              <p role="status" className="success-banner">
                 {message}
               </p>
             ) : null}
@@ -200,6 +202,7 @@ function ConnectedAdministration({ owner }: { owner: string }) {
                 />
                 <div className="chat-admin-actions">
                   <button
+                    className="btn"
                     type="button"
                     onClick={() =>
                       void navigator.clipboard
@@ -213,7 +216,7 @@ function ConnectedAdministration({ owner }: { owner: string }) {
                   >
                     Copy value
                   </button>
-                  <button type="button" onClick={() => setSecret(null)}>
+                  <button className="btn" type="button" onClick={() => setSecret(null)}>
                     Clear value
                   </button>
                 </div>

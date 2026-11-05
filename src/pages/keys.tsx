@@ -267,7 +267,7 @@ export function KeysPage({ currentUser }: { currentUser: AdminUser | null }) {
       >
         {created && isCreate ? (
           <>
-            <div className="error-banner" style={{ borderColor: 'var(--teal)', color: 'var(--teal)' }}>
+            <div className="success-banner">
               <Icon.Info />
               {createdKeyMessage}
             </div>
@@ -295,7 +295,7 @@ export function KeysPage({ currentUser }: { currentUser: AdminUser | null }) {
         <Field label="Metadata" hint='Optional JSON object e.g. {"service":"my-api","env":"prod"}'>
               <TextArea value={metadataText} onChange={setMetadataText} rows={7} placeholder="{}" />
             </Field>
-            <Badge tone={isCreate ? 'sky' : 'muted'}>{created ? createdKeyMessage : ''}</Badge>
+            <Badge tone={isCreate ? 'info' : 'neutral'}>{created ? createdKeyMessage : ''}</Badge>
           </>
         )}
       </Drawer>

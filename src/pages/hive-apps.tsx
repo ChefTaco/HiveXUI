@@ -6,16 +6,10 @@ import { useStore } from '../lib/store';
 import type { HiveAppKey, HiveAppState, HiveAppStatus, TlsCertificateStatus } from '../lib/types';
 import { compactNumber, relativeTime } from '../lib/format';
 
-const APP_ACCENTS: Record<HiveAppKey, 'amber' | 'teal' | 'sky' | 'violet' | 'coral'> = {
-  iam: 'violet',
-  memory: 'teal',
-  router: 'amber',
-};
-
-function stateTone(status: HiveAppState): 'teal' | 'amber' | 'coral' {
-  if (status === 'online') return 'teal';
-  if (status === 'degraded') return 'amber';
-  return 'coral';
+function stateTone(status: HiveAppState): 'success' | 'warning' | 'danger' {
+  if (status === 'online') return 'success';
+  if (status === 'degraded') return 'warning';
+  return 'danger';
 }
 
 function findApp(apps: HiveAppStatus[], key: HiveAppKey): HiveAppStatus | null {
@@ -50,10 +44,10 @@ function jwksLifetimeFrom(app: HiveAppStatus | null): JwksLifetimeStatus | null 
   return status as JwksLifetimeStatus;
 }
 
-function certTone(status: TlsCertificateStatus['status']): 'teal' | 'amber' | 'coral' {
-  if (status === 'pass') return 'teal';
-  if (status === 'warn') return 'amber';
-  return 'coral';
+function certTone(status: TlsCertificateStatus['status']): 'success' | 'warning' | 'danger' {
+  if (status === 'pass') return 'success';
+  if (status === 'warn') return 'warning';
+  return 'danger';
 }
 
 function formatCertDate(value?: string): string {
@@ -84,7 +78,7 @@ function CertificatePanel({ certificate }: { certificate: TlsCertificateStatus |
             <strong>{certificate.expectedHost ?? 'public host'}</strong>
             <span>{certificate.message}</span>
           </div>
-          <Badge tone={certificate.hostnameMatched === false ? 'coral' : 'teal'} dot>
+          <Badge tone={certificate.hostnameMatched === false ? 'danger' : 'success'} dot>
             {certificate.hostnameMatched === false ? 'mismatch' : 'matched'}
           </Badge>
         </div>
@@ -115,7 +109,7 @@ function AppStatusCard({ app, onNavigate }: { app: HiveAppStatus; onNavigate?: (
   const openLabel = app.key === 'router' ? 'Open console' : 'Open native';
   const focusTarget = app.key === 'iam' ? 'iam-overview' : app.key === 'memory' ? 'memories' : 'routers';
   return (
-    <article className={`app-status-card app-status-card--${app.key}`}>
+    <article className="app-status-card">
       <div className="app-status-top">
         <div>
           <p className="panel-eyebrow">{app.key}</p>
@@ -163,7 +157,7 @@ function CheckList({ app }: { app: HiveAppStatus | null }) {
             <strong>{check.name}</strong>
             {check.message ? <span>{check.message}</span> : null}
           </div>
-          <Badge tone={check.status === 'pass' ? 'teal' : check.status === 'warn' ? 'amber' : 'coral'} dot>
+          <Badge tone={check.status === 'pass' ? 'success' : check.status === 'warn' ? 'warning' : 'danger'} dot>
             {check.status}
           </Badge>
         </div>
@@ -192,7 +186,7 @@ export function HiveOverviewPage({ onNavigate }: { onNavigate: (view: string) =>
           <h2>Hive Control Surface</h2>
           <p>Identity, memory, and routing status in one operator shell.</p>
         </div>
-        {generatedAt ? <Badge tone="muted">sampled {relativeTime(generatedAt)}</Badge> : null}
+        {generatedAt ? <Badge tone="neutral">sampled {relativeTime(generatedAt)}</Badge> : null}
       </div>
 
       {skills?.configured && <Panel title="Skills registry" eyebrow={skills.ready ? 'Ready' : 'Unavailable'}>
@@ -218,16 +212,16 @@ export function HiveOverviewPage({ onNavigate }: { onNavigate: (view: string) =>
       </section>
 
       <div className="stats-grid">
-        <StatCard label="Apps Online" value={online} sub={`${apps.length} registered`} accent="teal" emphasize />
-        <StatCard label="Degraded" value={degraded} sub="needs attention" accent="amber" />
-        <StatCard label="Offline" value={offline} sub="not reachable" accent="coral" />
-        <StatCard label="Router Traces" value={compactNumber(data.telemetry?.totals.traces ?? 0)} sub="traffic evidence" accent="sky" />
-        <StatCard label="TLS Cert" value={tlsCertificate?.status ?? 'unknown'} sub={tlsCertificate?.message ?? 'not reported'} accent={tlsCertificate?.status === 'pass' ? 'teal' : tlsCertificate?.status === 'warn' ? 'amber' : 'coral'} />
+        <StatCard label="Apps Online" value={online} sub={`${apps.length} registered`} tone="success" />
+        <StatCard label="Degraded" value={degraded} sub="needs attention" tone="warning" />
+        <StatCard label="Offline" value={offline} sub="not reachable" tone="danger" />
+        <StatCard label="Router Traces" value={compactNumber(data.telemetry?.totals.traces ?? 0)} sub="traffic evidence" tone="accent" />
+        <StatCard label="TLS Cert" value={tlsCertificate?.status ?? 'unknown'} sub={tlsCertificate?.message ?? 'not reported'} tone={tlsCertificate?.status === 'pass' ? 'success' : tlsCertificate?.status === 'warn' ? 'warning' : 'danger'} />
         <StatCard
           label="Exporter JWKS"
           value={jwksLifetime?.state ?? 'unknown'}
           sub={jwksLifetime ? `${Math.ceil(jwksLifetime.remainingMs / 1000)}s remaining; ${jwksLifetime.trustedKeyCount} keys` : 'not reported'}
-          accent={jwksLifetime?.state === 'healthy' ? 'teal' : jwksLifetime?.state === 'expired' ? 'coral' : 'amber'}
+          tone={jwksLifetime?.state === 'healthy' ? 'success' : jwksLifetime?.state === 'expired' ? 'danger' : 'warning'}
         />
       </div>
 
@@ -261,12 +255,12 @@ export function IamPage() {
       </div>
 
       <div className="stats-grid">
-        <StatCard label="State" value={app?.status ?? 'unknown'} sub={app?.summary} accent={APP_ACCENTS.iam} emphasize />
-        <StatCard label="Checks" value={app?.checks.length ?? 0} sub="health probes" accent="sky" />
-        <StatCard label="Endpoint" value="4200" sub={app?.internalUrl ?? 'unconfigured'} accent="violet" />
+        <StatCard label="State" value={app?.status ?? 'unknown'} sub={app?.summary} tone={stateTone(app?.status ?? 'offline')} />
+        <StatCard label="Checks" value={app?.checks.length ?? 0} sub="health probes" tone="accent" />
+        <StatCard label="Endpoint" value="4200" sub={app?.internalUrl ?? 'unconfigured'} tone="accent" />
       </div>
 
-      <div className="grid-2">
+      <div className="page-grid page-grid--2">
         <Panel
           title="IAM Health"
           eyebrow="Checks"
@@ -308,12 +302,12 @@ export function MemoryPage() {
       </div>
 
       <div className="stats-grid">
-        <StatCard label="State" value={app?.status ?? 'unknown'} sub={app?.summary} accent={APP_ACCENTS.memory} emphasize />
-        <StatCard label="Checks" value={app?.checks.length ?? 0} sub="memory service probes" accent="amber" />
-        <StatCard label="Dashboard" value="/dashboard" sub={app?.publicUrl ?? 'unconfigured'} accent="teal" />
+        <StatCard label="State" value={app?.status ?? 'unknown'} sub={app?.summary} tone={stateTone(app?.status ?? 'offline')} />
+        <StatCard label="Checks" value={app?.checks.length ?? 0} sub="memory service probes" tone="accent" />
+        <StatCard label="Dashboard" value="/dashboard" sub={app?.publicUrl ?? 'unconfigured'} tone="accent" />
       </div>
 
-      <div className="grid-2">
+      <div className="page-grid page-grid--2">
         <Panel
           title="Memory Health"
           eyebrow="Checks"
@@ -357,13 +351,13 @@ export function RouterPage({ onNavigate }: { onNavigate: (view: string) => void 
       </div>
 
       <div className="stats-grid">
-        <StatCard label="Providers" value={data.providers.length} sub={`${enabledProviders} enabled`} accent="amber" emphasize />
-        <StatCard label="Route Rules" value={data.routeRules.length} sub={`${data.heuristics.length} heuristics`} accent="violet" />
-        <StatCard label="Traces" value={compactNumber(totals.traces)} sub={`${totals.failures} failures`} accent="sky" />
-        <StatCard label="Failovers" value={compactNumber(totals.failovers)} sub="provider re-routes" accent="teal" />
+        <StatCard label="Providers" value={data.providers.length} sub={`${enabledProviders} enabled`} tone="accent" />
+        <StatCard label="Route Rules" value={data.routeRules.length} sub={`${data.heuristics.length} heuristics`} tone="accent" />
+        <StatCard label="Traces" value={compactNumber(totals.traces)} sub={`${totals.failures} failures`} tone="accent" />
+        <StatCard label="Failovers" value={compactNumber(totals.failovers)} sub="provider re-routes" tone="accent" />
       </div>
 
-      <div className="grid-2">
+      <div className="page-grid page-grid--2">
         <Panel title="Router Workbench" eyebrow="Controls">
           <div className="workbench-actions">
             <button className="btn btn--ghost" onClick={() => onNavigate('providers')}>

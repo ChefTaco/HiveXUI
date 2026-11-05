@@ -51,7 +51,7 @@ export function TracesPage() {
                         {trace.method} {trace.path}
                       </div>
                     </td>
-                    <td>{trace.provider?.name ? <Badge tone="sky">{trace.provider.name}</Badge> : <Badge tone="muted">—</Badge>}</td>
+                    <td>{trace.provider?.name ? <Badge tone="info">{trace.provider.name}</Badge> : <Badge tone="neutral">—</Badge>}</td>
                     <td className="cell-mono">{trace.providerModel ?? '—'}</td>
                     <td>
                       <OutcomeBadge outcome={trace.outcome} />
@@ -107,14 +107,14 @@ export function TracesPage() {
 
             {selected.events && selected.events.length > 0 ? (
               <>
-                <p className="panel-eyebrow" style={{ marginTop: 22 }}>
+                <p className="panel-eyebrow mt-5">
                   Event timeline
                 </p>
                 <JsonBlock value={selected.events} />
               </>
             ) : null}
 
-            <p className="panel-eyebrow" style={{ marginTop: 22 }}>
+            <p className="panel-eyebrow mt-5">
               Raw trace
             </p>
             <JsonBlock value={selected} />

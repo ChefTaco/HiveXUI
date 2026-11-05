@@ -98,7 +98,7 @@ export function UsersAdministration({
       <form onSubmit={create}>
         <h4>Create a native chat account</h4>
         <div className="chat-admin-grid">
-          <label>
+          <label className="field">
             Username
             <input
               name="username"
@@ -107,11 +107,11 @@ export function UsersAdministration({
               autoComplete="off"
             />
           </label>
-          <label>
+          <label className="field">
             Email
             <input name="email" type="email" required />
           </label>
-          <label>
+          <label className="field">
             Initial password
             <input
               name="password"
@@ -121,28 +121,28 @@ export function UsersAdministration({
               autoComplete="new-password"
             />
           </label>
-          <label>
+          <label className="field">
             Role
             <select name="role">
               <option value="system_user">Member</option>
               <option value="system_admin system_user">Administrator</option>
             </select>
           </label>
-          <label>
+          <label className="field">
             First name
             <input name="first_name" />
           </label>
-          <label>
+          <label className="field">
             Last name
             <input name="last_name" />
           </label>
-          <label>
+          <label className="field">
             Display name
             <input name="nickname" />
           </label>
         </div>
         <div>
-          <button disabled={busy} className="chat-admin-primary">
+          <button disabled={busy} className="btn btn--primary">
             Create user
           </button>
         </div>
@@ -151,13 +151,14 @@ export function UsersAdministration({
         <div className="chat-admin-actions">
           <h4>Accounts</h4>
           <button
+            className="btn"
             disabled={busy}
             onClick={() => void perform(load, "Accounts refreshed")}
           >
             Refresh accounts
           </button>
         </div>
-        <label>
+        <label className="field">
           Find a chat account
           <input
             value={filter}
@@ -189,10 +190,11 @@ export function UsersAdministration({
                   </small>
                 </div>
                 <div className="chat-admin-actions">
-                  <button disabled={busy} onClick={() => setSelected(user)}>
+                  <button className="btn" disabled={busy} onClick={() => setSelected(user)}>
                     Manage account
                   </button>
                   <button
+                    className="btn"
                     disabled={busy}
                     onClick={() =>
                       confirm(
@@ -207,7 +209,7 @@ export function UsersAdministration({
                     Revoke sessions
                   </button>
                   <button
-                    className="chat-admin-danger"
+                    className="btn btn--danger"
                     disabled={busy}
                     onClick={() =>
                       confirm(
@@ -235,7 +237,7 @@ export function UsersAdministration({
         <section className="chat-admin-block">
           <div className="chat-admin-actions">
             <h4>Manage @{selected.username}</h4>
-            <button type="button" onClick={() => setSelected(null)}>
+            <button className="btn" type="button" onClick={() => setSelected(null)}>
               Close account
             </button>
           </div>
@@ -257,29 +259,29 @@ export function UsersAdministration({
             }}
           >
             <div className="chat-admin-grid">
-              <label>
+              <label className="field">
                 Display name
                 <input name="nickname" defaultValue={selected.nickname} />
               </label>
-              <label>
+              <label className="field">
                 First name
                 <input name="first_name" defaultValue={selected.first_name} />
               </label>
-              <label>
+              <label className="field">
                 Last name
                 <input name="last_name" defaultValue={selected.last_name} />
               </label>
-              <label>
+              <label className="field">
                 Position
                 <input name="position" defaultValue={selected.position} />
               </label>
             </div>
             <div>
-              <button disabled={busy}>Save account details</button>
+              <button className="btn" disabled={busy}>Save account details</button>
             </div>
           </form>
           <form onSubmit={reset} className="chat-admin-block">
-            <label>
+            <label className="field">
               New native Chat password
               <input
                 name="password"
@@ -290,7 +292,7 @@ export function UsersAdministration({
               />
             </label>
             <div>
-              <button disabled={busy} className="chat-admin-danger">
+              <button disabled={busy} className="btn btn--danger">
                 Reset password
               </button>
             </div>
@@ -301,7 +303,7 @@ export function UsersAdministration({
         <h4>One-use invitations</h4>
         <form onSubmit={invite}>
           <div className="chat-admin-grid">
-            <label>
+            <label className="field">
               Expires in hours
               <input
                 name="expires"
@@ -312,7 +314,7 @@ export function UsersAdministration({
                 required
               />
             </label>
-            <label>
+            <label className="field">
               Invited role
               <select name="role">
                 <option value="system_user">Member</option>
@@ -321,7 +323,7 @@ export function UsersAdministration({
             </label>
           </div>
           <div>
-            <button disabled={busy}>Create invite</button>
+            <button className="btn" disabled={busy}>Create invite</button>
           </div>
         </form>
         <ul className="chat-admin-list">
@@ -335,6 +337,7 @@ export function UsersAdministration({
                 </small>
               </div>
               <button
+                className="btn"
                 disabled={busy}
                 onClick={() =>
                   confirm(
@@ -362,6 +365,7 @@ export function UsersAdministration({
           removing their access.
         </p>
         <button
+          className="btn"
           disabled={busy}
           onClick={() =>
             void perform(async () => {
@@ -390,7 +394,7 @@ export function UsersAdministration({
             </ul>
             {cleanup.dry_run ? (
               <button
-                className="chat-admin-danger"
+                className="btn btn--danger"
                 disabled={busy}
                 onClick={() =>
                   confirm(

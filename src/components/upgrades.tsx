@@ -126,7 +126,7 @@ function SuiteLifecyclePanel() {
         {steps[workflow].map(([label, command]) => (
           <li key={command}>
             <p>{label}</p>
-            <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+            <pre className="code-block">
               <code>{command}</code>
             </pre>
             <Button

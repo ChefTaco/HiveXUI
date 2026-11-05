@@ -119,7 +119,7 @@ export function SettingsPage({ currentUser }: { currentUser: AdminUser | null })
       </div>
 
       <UpgradesPanel canUpgrade={can(currentUser, 'hive:upgrades:write')} />
-      <div className="grid-2">
+      <div className="page-grid page-grid--2">
         <Panel title="Routing Objective" eyebrow="Provider scoring">
           <div className="segmented-grid">
             {ROUTING_GOALS.map((goal) => (
@@ -146,7 +146,7 @@ export function SettingsPage({ currentUser }: { currentUser: AdminUser | null })
             </Button>
           }
         >
-          <p style={{ color: 'var(--muted-light)', lineHeight: 1.6 }}>
+          <p className="text-text-muted">
             Download a complete snapshot of providers, aliases, routing rules, and heuristics as a portable JSON file.
           </p>
         </Panel>
@@ -161,7 +161,7 @@ export function SettingsPage({ currentUser }: { currentUser: AdminUser | null })
               placeholder='{ "providers": [], "aliases": [] }'
             />
           </Field>
-          <div className="inline-actions" style={{ justifyContent: 'flex-end' }}>
+          <div className="inline-actions justify-end">
             <Button
               variant="primary"
               icon={<Icon.Upload className="btn-ico" />}

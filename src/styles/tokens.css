@@ -1,0 +1,228 @@
+/*
+ * HiveXUI design tokens: the only place colors, type, radii and spacing are defined.
+ *
+ * Runtime tokens are plain custom properties and describe meaning, never a hue.
+ * The @theme blocks below expose them to Tailwind, so utilities such as `bg-surface`,
+ * `text-text-muted`, `border-border`, `bg-accent`, `text-danger`, `rounded-panel`,
+ * `text-sm` and `p-4` follow the active theme. See docs/THEME.md.
+ *
+ * tokens.test.ts requires both themes to define the same names and checks WCAG contrast.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces, from furthest back to closest to the reader. */
+  --surface-sunken: #dbe7e4;
+  --surface-page: #e9f0ef;
+  --surface: #f6f9f7;
+  --surface-raised: #ffffff;
+  --surface-hover: #e1ece8;
+  --scrim: rgb(16 47 63 / 0.45);
+  /* Translucent backdrop behind blurred bars and the navigation rail. */
+  --surface-glass: rgb(246 249 247 / 0.86);
+
+  /* Text. */
+  --text-strong: #102f3f;
+  --text: #173246;
+  --text-muted: #46656e;
+
+  /* Borders. `--border` separates; `--border-strong` outlines controls (3:1). */
+  --border: #bdceca;
+  --border-strong: #6f8f88;
+
+  /* Accent: the brand teal. Primary actions, selection, links and focus. */
+  --accent: #216d69;
+  --accent-hover: #185951;
+  --accent-soft: rgb(33 109 105 / 0.1);
+  --on-accent: #ffffff;
+  --focus: #216d69;
+
+  /* Status. `-soft` is a tint for backgrounds, `on-` is text on the solid color. */
+  --success: #2a6c43;
+  --success-soft: rgb(42 108 67 / 0.12);
+  --on-success: #ffffff;
+  --warning: #85560f;
+  --warning-soft: rgb(150 96 34 / 0.14);
+  --on-warning: #ffffff;
+  --danger: #a33a2b;
+  --danger-soft: rgb(163 58 43 / 0.11);
+  --on-danger: #ffffff;
+  --info: #30597f;
+  --info-soft: rgb(54 95 133 / 0.12);
+  --on-info: #ffffff;
+
+  /* Elevation. */
+  --shadow-panel: 0 1px 2px rgb(23 50 70 / 0.05);
+  --shadow-overlay: 0 24px 70px rgb(23 50 70 / 0.22);
+
+  /* Spacing: one step per Tailwind unit, so `--space-4` equals `p-4`. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+
+  --sidebar-width: 17rem;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --surface-sunken: #0b1d28;
+  --surface-page: #102934;
+  --surface: #173642;
+  --surface-raised: #1d424b;
+  --surface-hover: #254f56;
+  --scrim: rgb(5 20 27 / 0.65);
+  --surface-glass: rgb(23 54 66 / 0.86);
+
+  --text-strong: #f2f8f5;
+  --text: #dcebe7;
+  --text-muted: #b4cbc6;
+
+  --border: #355c63;
+  --border-strong: #6f979c;
+
+  --accent: #8ccbbb;
+  --accent-hover: #a8dfcd;
+  --accent-soft: rgb(140 203 187 / 0.12);
+  --on-accent: #0b1d28;
+  --focus: #a8dfcd;
+
+  --success: #a3dcae;
+  --success-soft: rgb(163 220 174 / 0.13);
+  --on-success: #0b1d28;
+  --warning: #eec27c;
+  --warning-soft: rgb(231 187 114 / 0.14);
+  --on-warning: #0b1d28;
+  --danger: #f5b9ab;
+  --danger-soft: rgb(239 182 168 / 0.14);
+  --on-danger: #0b1d28;
+  --info: #b0d0ef;
+  --info-soft: rgb(162 199 234 / 0.14);
+  --on-info: #0b1d28;
+
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.2);
+  --shadow-overlay: 0 24px 80px rgb(0 0 0 / 0.5);
+}
+
+/*
+ * Tailwind colors. Clearing the default palette keeps `bg-red-500` and friends from
+ * rendering at all: a ported page uses these names or it visibly has no color.
+ * `primary` is the same teal as `accent`; it stays only because ported pages use it.
+ */
+@theme inline {
+  --color-*: initial;
+
+  --color-bg: var(--surface-page);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-hover: var(--surface-hover);
+
+  --color-text: var(--text);
+  --color-text-strong: var(--text-strong);
+  --color-text-muted: var(--text-muted);
+
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-primary: var(--accent);
+  --color-primary-hover: var(--accent-hover);
+  --color-on-primary: var(--on-accent);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-on-success: var(--on-success);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-on-warning: var(--on-warning);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-on-danger: var(--on-danger);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-on-info: var(--on-info);
+
+  --shadow-panel: var(--shadow-panel);
+  --shadow-overlay: var(--shadow-overlay);
+  --shadow-sm: var(--shadow-panel);
+  --shadow-md: var(--shadow-panel);
+  --shadow-lg: var(--shadow-overlay);
+  --shadow-xl: var(--shadow-overlay);
+  --shadow-2xl: var(--shadow-overlay);
+}
+
+/* Theme-independent tokens. These also exist at runtime as var(--font-mono) and so on. */
+@theme static {
+  --font-sans: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Space Grotesk', 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Type scale. 12px is the floor: captions and labels only. Reading text is sm or base. */
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.45;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.5;
+  --text-base: 0.875rem;
+  --text-base--line-height: 1.55;
+  --text-lg: 1rem;
+  --text-lg--line-height: 1.45;
+  --text-xl: 1.125rem;
+  --text-xl--line-height: 1.35;
+  --text-2xl: 1.375rem;
+  --text-2xl--line-height: 1.25;
+  --text-3xl: 1.75rem;
+  --text-3xl--line-height: 1.2;
+  --text-4xl: 2.25rem;
+  --text-4xl--line-height: 1.15;
+
+  /* Radii, by what is being rounded. Tailwind's size names resolve to the same four. */
+  --radius-chip: 4px;
+  --radius-control: 6px;
+  --radius-panel: 10px;
+  --radius-dialog: 14px;
+  --radius-pill: 999px;
+  --radius-xs: 4px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 10px;
+  --radius-2xl: 14px;
+  --radius-3xl: 14px;
+  --radius-4xl: 14px;
+  --radius: 4px;
+
+  --spacing: 0.25rem;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-halo: halo 2s ease-out infinite;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+
+  @keyframes halo {
+    0% {
+      transform: scale(1);
+      opacity: 0.6;
+    }
+    100% {
+      transform: scale(2.4);
+      opacity: 0;
+    }
+  }
+  @keyframes shimmer {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
+  }
+}

@@ -1,123 +1,95 @@
-import { sourceLabel, mergeSourceAliases } from "@security/lib/security-fusion";
-import Link from '@security/navigation';
-import { ScanSearch } from 'lucide-react';
-import type { FusionCase, FusionCollector, FusionEvent, FusionSource } from '@security/lib/security-fusion';
-import { severityClass } from '@security/lib/security-fusion';
-import { cn } from '@security/lib/cn';
-import { PageHeader } from '@security/components/ui/page-header';
-import { EmptyState as UiEmptyState } from '@security/components/ui/empty-state';
-import { MeterBar } from '@security/components/ui/meter-bar';
-import { StatusDot } from '@security/components/ui/status-dot';
-import { Badge } from '@security/components/ui/badge';
-
-// Shared verbatim between apps/dashboard and apps/security-console (see scripts/check-ui-parity.mjs).
+import { ScanSearch } from "lucide-react";
+import { cn } from "@lib/cn";
+import { Badge, EmptyState as SharedEmptyState, Meter, PageHeader, Panel, StatusDot, TableFrame, type Tone } from "@ui";
+import Link from "@security/navigation";
+import { mergeSourceAliases, severityTone, sourceLabel } from "@security/lib/security-fusion";
+import type { FusionCase, FusionCollector, FusionEvent, FusionSource } from "@security/lib/security-fusion";
 
 export function FusionHeader({ eyebrow, title, copy }: { eyebrow: string; title: string; copy: string }): React.ReactElement {
-  return (
-    <header className="mb-6 border-b border-border/50 pb-5">
-      <PageHeader eyebrow={eyebrow} title={title} description={copy} tone="accent" />
-    </header>
-  );
+  return <PageHeader eyebrow={eyebrow} title={title} description={copy} />;
 }
 
 export function EmptyState({ children }: { children: React.ReactNode }): React.ReactElement {
-  return <UiEmptyState icon={<ScanSearch className="h-5 w-5" />} title="Nothing to show" description={children} />;
+  return <SharedEmptyState framed icon={<ScanSearch />} title="Nothing to show" message={children} />;
 }
 
-const SEVERITY_BAR: Record<FusionCase['severity'], string> = {
-  info: 'shadow-[inset_2px_0_0_var(--color-border-strong)]',
-  low: 'shadow-[inset_2px_0_0_var(--color-primary)]',
-  medium: 'shadow-[inset_2px_0_0_var(--color-warning)]',
-  high: 'shadow-[inset_3px_0_0_var(--color-accent)]',
-  critical: 'shadow-[inset_3px_0_0_var(--color-danger)] bg-danger/[.04]',
+/** Severity shown as a badge; critical is the one solid fill, so it stands out in a list. */
+export function SeverityBadge({ severity, className }: { severity: FusionCase["severity"]; className?: string }): React.ReactElement {
+  return (
+    <Badge tone={severityTone[severity]} className={cn(severity === "critical" && "badge--solid-danger", className)}>
+      {severity}
+    </Badge>
+  );
+}
+
+const SEVERITY_RAIL: Record<FusionCase["severity"], string> = {
+  info: "border-l-border-strong",
+  low: "border-l-info",
+  medium: "border-l-warning",
+  high: "border-l-danger",
+  critical: "border-l-danger bg-danger-soft",
 };
+
+function confidenceTone(confidence: number): Tone {
+  return confidence >= 0.8 ? "accent" : confidence >= 0.5 ? "warning" : "neutral";
+}
 
 export function CaseTable({ cases }: { cases: FusionCase[] }): React.ReactElement {
   if (!cases.length)
-    return (
-      <EmptyState>
-        No correlated cases yet. Source observations remain quiet until a deterministic rule has enough evidence.
-      </EmptyState>
-    );
+    return <EmptyState>No correlated cases yet. Source observations remain quiet until a deterministic rule has enough evidence.</EmptyState>;
   return (
-    <div className="overflow-hidden rounded-panel border border-border/60 bg-surface">
+    <Panel as="div" padding="none" className="gap-0 overflow-hidden">
       {cases.map((item) => (
         <Link
           key={item.id}
           href={`/security-fusion/cases/${item.id}`}
           prefetch={false}
           className={cn(
-            'grid items-center gap-2 border-b border-border/40 p-4 transition-colors last:border-0 hover:bg-accent/[.05] md:grid-cols-[110px_1fr_140px_110px]',
-            SEVERITY_BAR[item.severity],
+            "grid items-center gap-3 border-b border-l-[3px] border-b-border p-4 text-text transition-colors last:border-b-0 hover:bg-surface-hover md:grid-cols-[6.5rem_1fr_11rem_7rem]",
+            SEVERITY_RAIL[item.severity],
           )}
         >
-          <span
-            className={cn(
-              'inline-flex w-fit items-center gap-1.5 rounded-chip border px-2 py-1 text-[10px] font-bold uppercase tracking-wider',
-              severityClass[item.severity],
-            )}
-          >
-            {item.severity === 'critical' && <StatusDot status="CRITICAL" size="xs" />}
-            {item.severity}
-          </span>
+          <SeverityBadge severity={item.severity} className="w-fit" />
           <span className="min-w-0">
-            <strong className="block truncate text-sm text-text">{item.title}</strong>
-            <span className="mt-1 line-clamp-1 block text-xs text-text-muted">{item.summary}</span>
+            <strong className="block truncate text-base text-text-strong">{item.title}</strong>
+            <span className="mt-1 line-clamp-1 block text-sm text-text-muted">{item.summary}</span>
           </span>
-          <MeterBar
+          <Meter
             value={item.confidence * 100}
-            tone={item.confidence >= 0.8 ? 'accent' : item.confidence >= 0.5 ? 'warning' : 'muted'}
+            tone={confidenceTone(item.confidence)}
             label={`${item.title} confidence`}
             valueLabel={`${Math.round(item.confidence * 100)}% conf.`}
-            showValue
-            className="[&>span]:w-16"
           />
-          <span className="text-right text-[10px] uppercase tracking-wider text-primary">{item.status}</span>
+          <span className="text-sm text-text-muted md:text-right">{item.status}</span>
         </Link>
       ))}
-    </div>
+    </Panel>
   );
 }
-
-const laneColor: Record<string, string> = {
-  unifi_dns: 'bg-primary text-primary',
-  unifi_ids: 'bg-accent text-accent',
-  netflow: 'bg-info text-info',
-  wazuh: 'bg-warning text-warning',
-  tailscale: 'bg-primary-hover text-primary-hover',
-  magnus: 'bg-success text-success',
-  hive: 'bg-accent-hover text-accent-hover',
-  chattermost: 'bg-danger text-danger',
-};
 
 export function EvidenceBraid({ events }: { events: FusionEvent[] }): React.ReactElement {
   if (!events.length) return <EmptyState>No event lanes are attached to this case.</EmptyState>;
   return (
-    <div className="grid-bg relative overflow-hidden rounded-panel border border-border/60 bg-bg/50 p-4">
-      <div className="absolute bottom-0 left-6 top-0 sm:left-1/2 w-px bg-gradient-to-b from-transparent via-accent/40 to-accent shadow-[0_0_8px_var(--color-accent)]" />
+    <Panel as="div" className="relative overflow-hidden">
+      <div className="absolute inset-y-0 left-8 w-px bg-border-strong sm:left-1/2" />
       <div className="space-y-3">
         {events.map((event, index) => (
-          <div key={event.id} className={`relative grid grid-cols-[20px_minmax(0,1fr)] sm:grid-cols-[minmax(0,1fr)_28px_minmax(0,1fr)] items-center ${index % 2 ? '' : 'sm:text-right'}`}>
-            <div className={cn('min-w-0 break-words rounded-chip border border-border/50 bg-surface/80 px-3 py-2 col-start-2', index % 2 ? 'sm:col-start-3' : 'sm:col-start-1')}>
-              <p className="num text-[9px] uppercase tracking-wider text-text-muted">
+          <div key={event.id} className={`relative grid grid-cols-[1.25rem_minmax(0,1fr)] items-center sm:grid-cols-[minmax(0,1fr)_1.75rem_minmax(0,1fr)] ${index % 2 ? "" : "sm:text-right"}`}>
+            <div className={cn("col-start-2 min-w-0 rounded-control border border-border bg-surface-raised px-3 py-2 break-words", index % 2 ? "sm:col-start-3" : "sm:col-start-1")}>
+              <p className="text-xs text-text-muted">
                 {sourceLabel(event.source)} · {new Date(event.observedAt).toLocaleString()}
               </p>
-              <p className="mt-1 text-xs text-text">{event.summary}</p>
-              <p className="num mt-1 text-[9px] text-accent/80">
-                {Math.round((event.confidenceContribution ?? event.confidence) * 100)}% confidence contribution
-              </p>
+              <p className="mt-1 text-sm text-text">{event.summary}</p>
+              <p className="num mt-1 text-xs text-text-muted">{Math.round((event.confidenceContribution ?? event.confidence) * 100)}% confidence contribution</p>
             </div>
-            <span className="relative col-start-1 sm:col-start-2 row-start-1 mx-auto flex h-3 w-3 items-center justify-center">
-              <span className={cn('absolute inset-0 rounded-full opacity-40 animate-halo', laneColor[event.source] ?? 'bg-primary')} />
-              <span className={cn('relative h-2.5 w-2.5 rounded-full shadow-[0_0_9px_currentColor]', laneColor[event.source] ?? 'bg-primary text-primary')} />
+            <span className="relative col-start-1 row-start-1 mx-auto flex h-3 w-3 items-center justify-center sm:col-start-2">
+              <span className="relative h-2.5 w-2.5 rounded-full bg-accent" />
             </span>
           </div>
         ))}
       </div>
-      <div className="relative mx-auto mt-5 w-fit rounded-panel border border-accent/60 bg-bg px-4 py-2 text-center shadow-[0_0_24px_var(--color-glow-accent)]">
-        <p className="text-[9px] font-bold uppercase tracking-[.24em] text-accent glow-text-accent">Correlated case</p>
-      </div>
-    </div>
+      <div className="relative mx-auto w-fit rounded-control border border-accent bg-accent-soft px-4 py-2 text-center text-sm font-semibold text-accent">Correlated case</div>
+    </Panel>
   );
 }
 
@@ -127,30 +99,20 @@ export function SourceGrid({ sources }: { sources: FusionSource[] }): React.Reac
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {mergeSourceAliases(sources).map((source) => {
-        const healthy = source.status === 'healthy';
+        const healthy = source.status === "healthy";
         const lastSuccess = source.lastSuccessAt ? Date.parse(source.lastSuccessAt) : null;
         const stale = lastSuccess === null || Date.now() - lastSuccess > STALE_MS;
         return (
-          <div
-            key={source.source}
-            className={cn(
-              'panel-corners rounded-panel border bg-surface p-4 transition-colors',
-              healthy ? 'border-border/60 hover:border-success/40' : 'border-warning/30 [--panel-corner-color:var(--color-warning)]',
-            )}
-          >
-            <div className="flex items-center justify-between">
-              <strong className="text-xs uppercase tracking-wider text-text">{sourceLabel(source.source)}</strong>
-              <StatusDot status={healthy ? 'HEALTHY' : source.status === 'error' ? 'ERROR' : 'DEGRADED'} label={source.status} />
+          <Panel key={source.source} as="div" padding="sm" tone={healthy ? undefined : "warning"} className="gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <strong className="text-sm text-text-strong">{sourceLabel(source.source)}</strong>
+              <StatusDot status={healthy ? "HEALTHY" : source.status === "error" ? "ERROR" : "DEGRADED"} label={source.status} />
             </div>
-            <p className={cn('mt-3 text-[10px] uppercase tracking-wider', healthy ? 'text-success' : 'text-warning')}>{source.status}</p>
-            <p className={cn('num mt-1 text-[10px]', stale ? 'text-warning' : 'text-text-muted')}>
-              Last successful poll: {source.lastSuccessAt ? new Date(source.lastSuccessAt).toLocaleString() : 'Never'}
-            </p>
-            <p className="num mt-1 text-[10px] text-text-muted">
-              Last event: {source.lastEventAt ? new Date(source.lastEventAt).toLocaleString() : 'No evidence received'}
-            </p>
-            {source.lastError && <p className="mt-2 line-clamp-2 text-[10px] text-danger">{source.lastError}</p>}
-          </div>
+            <p className={cn("text-sm font-medium", healthy ? "text-success" : "text-warning")}>{source.status}</p>
+            <p className={cn("text-xs", stale ? "text-warning" : "text-text-muted")}>Last successful poll: {source.lastSuccessAt ? new Date(source.lastSuccessAt).toLocaleString() : "Never"}</p>
+            <p className="text-xs text-text-muted">Last event: {source.lastEventAt ? new Date(source.lastEventAt).toLocaleString() : "No evidence received"}</p>
+            {source.lastError && <p className="line-clamp-2 text-xs text-danger">{source.lastError}</p>}
+          </Panel>
         );
       })}
     </div>
@@ -160,48 +122,43 @@ export function SourceGrid({ sources }: { sources: FusionSource[] }): React.Reac
 export function CollectorRegistry({ collectors }: { collectors: FusionCollector[] }): React.ReactElement {
   if (!collectors.length) return <EmptyState>No collector identity has completed an authenticated receipt.</EmptyState>;
   return (
-    <div className="max-h-[70vh] overflow-auto rounded-panel border border-border/60 bg-surface" role="region" aria-label="Collector identity records" tabIndex={0}>
-      <table className="w-full min-w-[760px] text-left text-xs">
-        <thead className="sticky top-0 border-b border-accent/30 bg-surface/95 text-[9px] uppercase tracking-wider text-text-muted backdrop-blur-sm">
+    <TableFrame label="Collector identity records" className="max-h-[70vh]">
+      <table className="min-w-[47.5rem]">
+        <thead>
           <tr>
-            <th className="p-3">Identity</th>
-            <th className="p-3">Allowed sources</th>
-            <th className="p-3">Schema</th>
-            <th className="p-3">Classification</th>
-            <th className="p-3">Cursor health</th>
-            <th className="p-3">Last receipt</th>
+            <th>Identity</th>
+            <th>Allowed sources</th>
+            <th>Schema</th>
+            <th>Classification</th>
+            <th>Cursor health</th>
+            <th>Last receipt</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border/40">
+        <tbody>
           {collectors.map((collector) => (
-            <tr key={collector.id} className="transition-colors hover:bg-accent/[.04]">
-              <td className="p-3">
-                <strong className="flex items-center gap-2 text-text">
-                  <StatusDot status={collector.revokedAt ? 'FAILED' : collector.status === 'active' ? 'ACTIVE' : collector.status} size="xs" />
+            <tr key={collector.id}>
+              <td>
+                <strong className="flex items-center gap-2 text-text-strong">
+                  <StatusDot status={collector.revokedAt ? "FAILED" : collector.status === "active" ? "ACTIVE" : collector.status} />
                   {collector.displayName}
                 </strong>
-                <span className="num text-[9px] text-text-muted">
+                <span className="row-sub mono">
                   {collector.id} · {collector.status}
                 </span>
               </td>
-              <td className="p-3 text-text-muted">{collector.allowedSources.join(', ')}</td>
-              <td className="num p-3 text-text-muted">{collector.schemaVersion}</td>
-              <td className="p-3 uppercase text-text-muted">{collector.dataClassification}</td>
-              <td className="p-3">
-                <Badge
-                  variant={collector.cursorHealth === 'healthy' || collector.cursorHealth === 'ok' ? 'success' : collector.cursorHealth === 'unknown' ? 'default' : 'warning'}
-                  dot
-                >
+              <td className="text-text-muted">{collector.allowedSources.join(", ")}</td>
+              <td className="num text-text-muted">{collector.schemaVersion}</td>
+              <td className="text-text-muted">{collector.dataClassification}</td>
+              <td>
+                <Badge tone={collector.cursorHealth === "healthy" || collector.cursorHealth === "ok" ? "success" : collector.cursorHealth === "unknown" ? "neutral" : "warning"} dot>
                   {collector.cursorHealth}
                 </Badge>
               </td>
-              <td className="num p-3 text-[10px] text-text-muted">
-                {collector.lastReceiptAt ? new Date(collector.lastReceiptAt).toLocaleString() : 'Never'}
-              </td>
+              <td className="num text-xs text-text-muted">{collector.lastReceiptAt ? new Date(collector.lastReceiptAt).toLocaleString() : "Never"}</td>
             </tr>
           ))}
         </tbody>
       </table>
-    </div>
+    </TableFrame>
   );
 }

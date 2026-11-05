@@ -4,9 +4,12 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type CSSProperties,
+  type HTMLAttributes,
   type PropsWithChildren,
   type ReactNode,
 } from 'react';
+import { cn } from '../lib/cn';
 import { Icon } from './icons';
 
 /* ===== Button ===== */
@@ -18,17 +21,14 @@ export function Button({
   children,
   ...rest
 }: {
-  variant?: 'default' | 'primary' | 'ghost' | 'danger';
+  variant?: 'default' | 'primary' | 'ghost' | 'danger' | 'warning';
   size?: 'sm';
   icon?: ReactNode;
   loading?: boolean | undefined;
 } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  const classes = ['btn'];
-  if (variant !== 'default') classes.push(`btn--${variant}`);
-  if (size === 'sm') classes.push('btn--sm');
-  const { disabled, ...buttonProps } = rest;
+  const { disabled, className, ...buttonProps } = rest;
   return (
-    <button className={classes.join(' ')} disabled={loading || disabled} {...buttonProps}>
+    <button className={cn('btn', variant !== 'default' && `btn--${variant}`, size === 'sm' && 'btn--sm', className)} disabled={loading || disabled} {...buttonProps}>
       {loading ? <span className="spinner" /> : icon}
       {children}
     </button>
@@ -54,12 +54,52 @@ export function IconButton({
   );
 }
 
-/* ===== Badge ===== */
-type BadgeTone = 'amber' | 'teal' | 'sky' | 'violet' | 'coral' | 'muted';
+/* ===== Tones ===== */
+/** What a color means. Every badge, dot, meter, stat and empty state takes one of these. */
+export type Tone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger' | 'info';
 
-export function Badge({ tone = 'muted', dot, children }: PropsWithChildren<{ tone?: BadgeTone; dot?: boolean }>) {
+/** Map a service, node or job status onto a tone. */
+export function statusTone(status: string): Tone {
+  switch (status.toUpperCase()) {
+    case 'ONLINE':
+    case 'COMPLETED':
+    case 'ACTIVE':
+    case 'RUNNING':
+    case 'INSTALLED':
+    case 'HEALTHY':
+    case 'SUCCEEDED':
+      return 'success';
+    case 'DEGRADED':
+    case 'PAUSED':
+    case 'QUEUED':
+    case 'PENDING':
+    case 'INSTALLING':
+      return 'warning';
+    case 'OFFLINE':
+    case 'FAILED':
+    case 'ERROR':
+    case 'TIMEOUT':
+    case 'CANCELLED':
+    case 'DECOMMISSIONED':
+    case 'CRITICAL':
+      return 'danger';
+    case 'PROVISIONING':
+    case 'UPDATING':
+      return 'info';
+    default:
+      return 'neutral';
+  }
+}
+
+/* ===== Badge ===== */
+export function Badge({
+  tone = 'neutral',
+  dot,
+  className,
+  children,
+}: PropsWithChildren<{ tone?: Tone; dot?: boolean; className?: string }>) {
   return (
-    <span className={`badge badge--${tone}`}>
+    <span className={cn('badge', tone !== 'neutral' && `badge--${tone}`, className)}>
       {dot ? <span className="dot" /> : null}
       {children}
     </span>
@@ -67,20 +107,81 @@ export function Badge({ tone = 'muted', dot, children }: PropsWithChildren<{ ton
 }
 
 export function EnabledBadge({ enabled }: { enabled: boolean }) {
-  return <Badge tone={enabled ? 'teal' : 'muted'} dot>{enabled ? 'Enabled' : 'Disabled'}</Badge>;
+  return <Badge tone={enabled ? 'success' : 'neutral'} dot>{enabled ? 'Enabled' : 'Disabled'}</Badge>;
 }
 
 export function HealthBadge({ status }: { status?: string | null | undefined }) {
   const value = (status ?? 'unknown').toLowerCase();
-  const tone: BadgeTone = value === 'healthy' ? 'teal' : value === 'unknown' ? 'muted' : 'coral';
+  const tone: Tone = value === 'healthy' ? 'success' : value === 'unknown' ? 'neutral' : 'danger';
   return <Badge tone={tone} dot>{value}</Badge>;
 }
 
 export function OutcomeBadge({ outcome }: { outcome: string }) {
   const value = outcome.toUpperCase();
-  const tone: BadgeTone =
-    value === 'SUCCEEDED' ? 'teal' : value === 'DENIED' ? 'amber' : value.includes('FAIL') ? 'coral' : 'sky';
+  const tone: Tone =
+    value === 'SUCCEEDED' ? 'success' : value === 'DENIED' ? 'warning' : value.includes('FAIL') ? 'danger' : 'info';
   return <Badge tone={tone}>{outcome.toLowerCase()}</Badge>;
+}
+
+/* ===== Status dot ===== */
+const LIVE_STATUS = new Set(['ONLINE', 'RUNNING', 'ACTIVE', 'HEALTHY', 'CRITICAL', 'UPDATING', 'PROVISIONING']);
+
+export function StatusDot({
+  status,
+  pulse,
+  label,
+  className,
+}: {
+  status: string;
+  /** Halo animation; defaults on for live states. */
+  pulse?: boolean;
+  label?: string;
+  className?: string;
+}) {
+  const tone = statusTone(status);
+  return (
+    <span
+      className={cn('status-dot', tone !== 'neutral' && `status-dot--${tone}`, (pulse ?? LIVE_STATUS.has(status.toUpperCase())) && 'status-dot--live', className)}
+      role={label ? 'img' : undefined}
+      aria-label={label}
+      aria-hidden={label ? undefined : true}
+    />
+  );
+}
+
+/* ===== Meter ===== */
+export function Meter({
+  value,
+  max = 100,
+  tone = 'accent',
+  label,
+  valueLabel,
+  className,
+}: {
+  value: number | null | undefined;
+  max?: number;
+  tone?: Tone;
+  label: string;
+  /** Text shown beside the bar, in place of the computed percentage. */
+  valueLabel?: string;
+  className?: string;
+}) {
+  const known = typeof value === 'number' && Number.isFinite(value);
+  const percent = known ? Math.max(0, Math.min(100, (value / (max || 1)) * 100)) : 0;
+  const text = valueLabel ?? (known ? `${Math.round(percent)}%` : '—');
+  return (
+    <div className={cn('meter', `tone-${known ? tone : 'neutral'}`, className)}>
+      <div className="meter__track" role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={max} aria-valuenow={known ? value : undefined} aria-valuetext={text}>
+        <div className="meter__fill" style={{ '--meter': `${percent}%` } as CSSProperties} />
+      </div>
+      <span className="meter__value">{text}</span>
+    </div>
+  );
+}
+
+/* ===== Skeleton ===== */
+export function Skeleton({ className }: { className?: string }) {
+  return <div aria-hidden="true" className={cn('skeleton h-3 w-full', className)} />;
 }
 
 /* ===== Stat card ===== */
@@ -88,50 +189,99 @@ export function StatCard({
   label,
   value,
   sub,
-  accent = 'amber',
-  emphasize,
+  tone = 'neutral',
 }: {
   label: string;
   value: ReactNode;
   sub?: ReactNode;
-  accent?: 'amber' | 'teal' | 'sky' | 'violet' | 'coral';
-  emphasize?: boolean;
+  tone?: Tone;
 }) {
-  const accentVar: Record<string, string> = {
-    amber: 'var(--amber)',
-    teal: 'var(--teal)',
-    sky: 'var(--sky)',
-    violet: 'var(--violet)',
-    coral: 'var(--coral)',
-  };
   return (
-    <div className="stat-card" style={{ ['--card-accent' as string]: accentVar[accent] }}>
+    <div className={cn('stat-card', tone !== 'neutral' && `stat-card--${tone}`)}>
       <span className="stat-label">{label}</span>
-      <span className={emphasize ? 'stat-value accent' : 'stat-value'}>{value}</span>
+      <span className="stat-value">{value}</span>
       {sub ? <span className="stat-sub">{sub}</span> : null}
     </div>
   );
 }
 
-/* ===== Panel ===== */
-export function Panel({
+/* ===== Page header ===== */
+export function PageHeader({
   title,
   eyebrow,
+  description,
+  icon,
+  status,
   actions,
-  children,
-  style,
-}: PropsWithChildren<{ title: string; eyebrow?: string; actions?: ReactNode; style?: React.CSSProperties }>) {
+  className,
+}: {
+  title: ReactNode;
+  eyebrow?: ReactNode;
+  description?: ReactNode;
+  icon?: ReactNode;
+  /** A badge shown beside the title. */
+  status?: ReactNode;
+  actions?: ReactNode;
+  className?: string;
+}) {
   return (
-    <section className="panel" style={style}>
-      <div className="panel-header">
-        <div>
-          {eyebrow ? <p className="panel-eyebrow">{eyebrow}</p> : null}
-          <h3>{title}</h3>
+    <div className={cn('page-head', className)}>
+      <div className="flex items-start gap-3">
+        {icon ? <span className="page-head__icon" aria-hidden="true">{icon}</span> : null}
+        <div className="min-w-0">
+          {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
+          <div className="flex flex-wrap items-center gap-3">
+            <h2>{title}</h2>
+            {status}
+          </div>
+          {description ? <p>{description}</p> : null}
         </div>
-        {actions ? <div className="panel-actions">{actions}</div> : null}
       </div>
+      {actions ? <div className="page-head__actions">{actions}</div> : null}
+    </div>
+  );
+}
+
+/* ===== Panel ===== */
+type PanelProps = PropsWithChildren<
+  {
+    title?: ReactNode;
+    eyebrow?: ReactNode;
+    description?: ReactNode;
+    actions?: ReactNode;
+    /** `warning` and `danger` color the outline for content that needs care. */
+    tone?: 'warning' | 'danger' | undefined;
+    /** `sm` for cards in a grid; `none` when a table or list fills the panel edge to edge. */
+    padding?: 'sm' | 'md' | 'none';
+    as?: 'section' | 'div' | 'article' | 'form';
+  } & Omit<HTMLAttributes<HTMLElement>, 'title'>
+>;
+
+export function Panel({ title, eyebrow, description, actions, tone, padding = 'md', as: Tag = 'section', className, children, ...rest }: PanelProps) {
+  return (
+    <Tag {...rest} className={cn('panel', padding !== 'md' && `panel--${padding}`, tone && `panel--${tone}`, className)}>
+      {title || eyebrow || actions ? (
+        <div className="panel-header">
+          <div>
+            {eyebrow ? <p className="panel-eyebrow">{eyebrow}</p> : null}
+            {title ? <h3>{title}</h3> : null}
+            {description ? <p>{description}</p> : null}
+          </div>
+          {actions ? <div className="panel-actions">{actions}</div> : null}
+        </div>
+      ) : null}
       {children}
-    </section>
+    </Tag>
+  );
+}
+
+/* ===== Table ===== */
+/** A labelled, keyboard-scrollable frame; put a plain <table> inside. */
+export function TableFrame({ label, className, children }: PropsWithChildren<{ label: string; className?: string }>) {
+  return (
+    <div className={cn('table-wrap', className)} role="region" aria-label={label} tabIndex={0}>
+      {children}
+    </div>
   );
 }
 
@@ -194,11 +344,35 @@ export function Toggle({ checked, onChange, label, disabled = false }: { checked
 }
 
 /* ===== Empty state ===== */
-export function EmptyState({ icon, message }: { icon?: ReactNode; message: string }) {
+export function EmptyState({
+  icon,
+  title,
+  message,
+  action,
+  tone = 'neutral',
+  compact = false,
+  framed = false,
+  className,
+}: {
+  icon?: ReactNode;
+  title?: ReactNode;
+  message?: ReactNode;
+  action?: ReactNode;
+  tone?: 'neutral' | 'warning' | 'danger';
+  compact?: boolean;
+  /** A dashed outline, for an empty state that stands alone on the page rather than inside a panel. */
+  framed?: boolean;
+  className?: string;
+}) {
   return (
-    <div className="empty-state">
+    <div
+      role={tone === 'neutral' ? undefined : 'alert'}
+      className={cn('empty-state', tone !== 'neutral' && `empty-state--${tone}`, compact && 'empty-state--compact', framed && 'empty-state--framed', className)}
+    >
       {icon ? <div className="empty-ico">{icon}</div> : null}
-      {message}
+      {title ? <p className="empty-state__title">{title}</p> : null}
+      {message ? <p className="empty-state__message">{message}</p> : null}
+      {action ? <div className="empty-state__action">{action}</div> : null}
     </div>
   );
 }
@@ -335,7 +509,7 @@ export function CopyField({ value, label }: { value: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="secret-reveal">
-      <span style={{ flex: 1 }}>{value}</span>
+      <span className="flex-1">{value}</span>
       <IconButton
         label={label ?? 'Copy'}
         icon={copied ? <Icon.Check /> : <Icon.Copy />}

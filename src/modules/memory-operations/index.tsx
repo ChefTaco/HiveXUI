@@ -1,4 +1,3 @@
-import "./memory-operations.css";
 import { useEffect, useRef, useState } from "react";
 import type {
   MemoryProfile,
@@ -392,7 +391,7 @@ export default function MemoryOperationsModule({
         )}
       </Panel>
       {can(scopes[tab]) && tab === "sessions" && (
-        <div className="grid grid--2">
+        <div className="page-grid page-grid--2">
           <Panel title="Session history">
             <p>
               Choose a session to inspect its current memories and build
@@ -590,7 +589,7 @@ export default function MemoryOperationsModule({
       )}
       {can(scopes[tab]) && tab === "webhooks" && (
         <>
-          <div className="grid grid--2">
+          <div className="page-grid page-grid--2">
             <Panel title="Webhook endpoints">
               <Button disabled={busy} onClick={() => showWebhook(null)}>
                 New webhook
@@ -882,7 +881,7 @@ export default function MemoryOperationsModule({
         </Panel>
       )}
       {can(scopes[tab]) && tab === "consolidation" && (
-        <div className="grid grid--2">
+        <div className="page-grid page-grid--2">
           <Panel title="Consolidation status">
             <JsonBlock value={consolidation} />
             <Field
@@ -1001,6 +1000,7 @@ export default function MemoryOperationsModule({
             return (
               <div key={id} className="stack-item">
                 <button
+                  className="stack-item__main"
                   disabled={busy}
                   onClick={() =>
                     void action(async () => setJob(await api.job(id)))

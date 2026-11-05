@@ -7,5 +7,5 @@ export const dynamic = 'force-dynamic';
 export default async function LabPage() {
   const data = await fusionFetch<LabStatus>('lab');
   if (!data?.enabled) notFound();
-  return <div className="p-5 lg:p-7"><FusionHeader eyebrow="Investigation practice" title="Evolving evidence lab" copy="A disposable case. A record of what you knew at each decision." /><LabHome canAdmin={data.canAdmin} runs={data.runs} /></div>;
+  return <div className="page-stack"><FusionHeader eyebrow="Investigation practice" title="Evolving evidence lab" copy="A disposable case. A record of what you knew at each decision." /><LabHome canAdmin={data.canAdmin} runs={data.runs} /></div>;
 }
