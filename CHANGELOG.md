@@ -1,5 +1,8 @@
 # Changelog
 
+- Keep the mobile navigation backdrop below its menu so product links remain
+  visible and pointer-accessible. Retain the higher backdrop for modal drawers.
+
 - Give mobile navigation an explicit themed surface, a comfortable target and a
   visible keyboard focus indicator in both themes.
 

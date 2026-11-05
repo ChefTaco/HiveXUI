@@ -1374,6 +1374,7 @@ tbody tr:hover {
   backdrop-filter: blur(3px);
   animation: fadeIn 0.2s ease-out;
 }
+.scrim--nav { z-index: 80; }
 .drawer {
   position: fixed;
   top: 0;
