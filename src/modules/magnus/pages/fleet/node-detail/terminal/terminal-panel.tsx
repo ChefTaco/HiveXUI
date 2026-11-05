@@ -11,7 +11,6 @@ import '@xterm/xterm/css/xterm.css';
 import { Badge, Button } from '@ui';
 import { cn } from '@lib/cn';
 import { formatTime } from '@lib/format';
-import { subscribeTheme } from '@lib/theme';
 import { readThemeColors } from '@lib/theme-colors';
 import { createTerminalGateway, type TerminalGateway } from './gateway';
 import { endedNotice } from './messages';
@@ -126,7 +125,6 @@ export default function TerminalPanel({ nodeId, nodeName, onClose, createGateway
         resizeTimer = setTimeout(() => fit.fit(), RESIZE_DEBOUNCE_MS);
       });
       observer.observe(element);
-      const unsubscribeTheme = subscribeTheme(() => { term.options.theme = terminalTheme(); });
       // Closing the tab: there is no time to mint a token, and the gateway would otherwise wait for its limits.
       const leaving = () => {
         session.leave();
@@ -135,7 +133,6 @@ export default function TerminalPanel({ nodeId, nodeName, onClose, createGateway
       window.addEventListener('pagehide', leaving);
       stop = () => {
         window.removeEventListener('pagehide', leaving);
-        unsubscribeTheme();
         observer.disconnect();
         clearTimeout(resizeTimer);
         for (const subscription of subscriptions) subscription.dispose();

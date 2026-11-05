@@ -23,7 +23,7 @@ import { button, click, dialog, mount, settle, stubApi, stubBrowser, type, type 
 
 const AT = '2026-11-05T12:00:00.000Z';
 const node = (id: string, name: string) => ({
-  id, name, hostname: `${id}.example.com`, ipAddress: '192.0.2.10', port: 4100, status: 'ONLINE', os: 'linux', arch: 'x64', tags: '[]', metadata: '{}', roleId: null,
+  health: null, id, name, hostname: `${id}.example.com`, ipAddress: '192.0.2.10', port: 4100, status: 'ONLINE', os: 'linux', arch: 'x64', tags: '[]', metadata: '{}', roleId: null,
   lastHeartbeatAt: AT, createdAt: AT, updatedAt: AT, role: null, upgradeReadiness: null,
   agent: { id: `agent-${id}`, nodeId: id, version: '1.1.1', status: 'RUNNING', pid: 1, startedAt: AT, lastCheckIn: AT, capabilities: '{}' },
 });
