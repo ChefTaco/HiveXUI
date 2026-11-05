@@ -1,0 +1,7 @@
+.memory-operations { display: grid; gap: 1.25rem; margin-block: 1.25rem; }
+.memory-operations .stack-item { min-width: 0; flex-wrap: wrap; overflow-wrap: anywhere; }
+.memory-operations .stack-item > button { min-width: 0; max-width: 100%; text-align: left; overflow-wrap: anywhere; }
+.memory-operations .stack-item--button { width: 100%; text-align: left; }
+.memory-operations .inline-actions { flex-wrap: wrap; }
+.memory-operations input, .memory-operations select { max-width: 100%; }
+.memory-operations .panel { min-width: 0; }

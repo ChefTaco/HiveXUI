@@ -84,3 +84,30 @@ Workspace administration uses the released HiveMem OpenAPI snapshot in `contract
 queue administration and workspace ownership are checked independently; the owning
 API enforces them when console controls are bypassed. Archived workspace IDs remain
 reserved, and restoration preserves existing ownership, membership and stored memories.
+
+
+### Memory workflow coverage
+
+Open **Memories → Open memory operations** for session creation, metadata editing,
+current memory history, source-cited context/chat and session archival; workspace
+webhook creation, editing, archival, signing-secret rotation, test emission and
+paginated delivery history; graph neighborhoods, entities, relations and source
+evidence; unresolved conflict review; consolidation scheduling/history; and queue
+inspection, run, retry and pre-execution cancellation. The workspace selector limits
+each operation. Product scopes govern reads and mutations independently; HiveMem
+also checks current ownership and workspace permissions when UI controls are bypassed.
+
+The module consumes HiveMem's owned OpenAPI snapshot and generated browser schemas.
+It calls product APIs directly using the resource token held in memory. Webhook
+signing secrets are submitted only to HiveMem and cleared from the form on success;
+existing secrets are never returned. Tests emit to all enabled endpoints owned by
+the caller in the selected workspace. Delivery acceptance means queued, with actual
+HTTPS outcomes visible in history. Consolidation uses an explicit durable operation
+ID and retains that ID for retry after a failed response. Check the original queue
+record before creating replacement work after a browser reload.
+
+Deep links use `?view=memories&memoryTab=sessions&workspace=default` (also `webhooks`,
+`graph`, `conflicts`, `consolidation`, `queue`); optional `session` and `webhook` IDs
+reopen permitted records. Disabled operations explain the missing product permission.
+Legacy frontends remain available until restored-data and authenticated browser parity
+checks pass. These workflows do not certify a production migration or enable cutover.

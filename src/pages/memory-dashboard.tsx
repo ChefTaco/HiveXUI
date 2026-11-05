@@ -1,6 +1,8 @@
 import type { MemoryProfile } from '../../contracts/hivemem.generated';
 import { memoryCan } from '../lib/memory-access';
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { MemoryAccess } from '../components/memory-access';
+const MemoryOperationsModule = lazy(() => import('../modules/memory-operations'));
 import { Badge, Button, EmptyState, Field, JsonBlock, Panel, StatCard, TextArea, TextInput } from '../components/ui';
 import { Icon } from '../components/icons';
 import { useStore } from '../lib/store';
@@ -72,6 +74,7 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
   const [webhooks, setWebhooks] = useState<Record<string, unknown> | null>(null);
   const [newContent, setNewContent] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [operationsOpen, setOperationsOpen] = useState(() => new URLSearchParams(location.search).has('memoryTab'));
   const allowed = (permission: string) => profile ? memoryCan(profile, permission) : can(currentUser, permission.endsWith(':read') ? 'memory:read' : 'memory:write');
   const canWriteMemory = allowed('memories:write');
   const canManageQueue = allowed('admin:queue');
@@ -239,6 +242,14 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
           {error}
         </div>
       ) : null}
+
+      <Panel title="Sessions, integrations and reasoning">
+        <p>Manage session history, webhook delivery, graph evidence, conflicts, consolidation and the reasoning queue.</p>
+        <Button onClick={() => setOperationsOpen(value => !value)}>{operationsOpen ? 'Hide memory operations' : 'Open memory operations'}</Button>
+      </Panel>
+      {operationsOpen && <Suspense fallback={<p role="status">Loading memory operations…</p>}>
+        {profile ? <MemoryOperationsModule profile={profile} /> : <MemoryAccess>{identity => <MemoryOperationsModule profile={identity} />}</MemoryAccess>}
+      </Suspense>}
 
       <div className="grid grid--4">
         <StatCard label="Memories" value={compactCount(memoryTotal)} sub="visible to your product account" accent="amber" emphasize />

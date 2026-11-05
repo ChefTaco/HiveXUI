@@ -5,7 +5,7 @@ const bytes = readFileSync(
 );
 const spec = JSON.parse(bytes);
 const names = [
-  'MemoryProfile',
+  'MemoryProfile', 'Session', 'SessionCreate', 'SessionUpdate', 'Webhook', 'WebhookWrite', 'WebhookTest', 'WebhookTestResult', 'WebhookDelivery', 'WebhookDeliveries', 'GraphNode', 'GraphEdge', 'Graph', 'MemoryOperation', 'ConflictResolve', 'ConsolidationRequest',
   'Workspace',
   'WorkspaceMember',
   'WorkspacePolicy',

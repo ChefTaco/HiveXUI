@@ -11,7 +11,7 @@ import {
   type WorkspaceMemberUpdate,
 } from '../../contracts/hivemem.generated';
 
-async function memoryRequest(
+export async function memoryRequest(
   path: string,
   method = 'GET',
   body?: object,

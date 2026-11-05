@@ -2,6 +2,11 @@
 
 ## Unreleased ecosystem extraction
 
+- Port sessions, workspace webhook administration and delivery history, graph evidence,
+  conflict review, consolidation history and queue controls through owned HiveMem APIs.
+  Separate product read/write permissions and retain consolidation request IDs after
+  uncertain network outcomes. Destructive and dispatch actions require explicit review.
+
 - Add workspace creation, policy/membership editing, archive/restore, resolved policy
   and consolidation scheduling through owned HiveMem contracts. Use resource scopes
   for memory writes and queue administration, and skip unrelated unauthorized reads.
