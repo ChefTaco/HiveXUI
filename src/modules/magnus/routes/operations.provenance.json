@@ -1,4 +1,85 @@
 {
   "workPackage": "operations",
-  "files": []
+  "files": [
+    {
+      "source": "apps/dashboard/src/app/api-docs/api-docs-client.tsx",
+      "sha256": "a0885d10c392ef1bd2c4004fb9d96ea9c5b987a08b0652444e0a983b074975ae"
+    },
+    {
+      "source": "apps/dashboard/src/app/api-docs/page.tsx",
+      "sha256": "73d25b9fe34ab5b5938dd27a2985ecf1527e78be0dd3df5e7b08109fa4f3b402"
+    },
+    {
+      "source": "apps/dashboard/src/app/audit/audit-client.tsx",
+      "sha256": "646b6a905aeb4b8c9963b4f6da7eb8e0e724d6f5a9dcd118e2ed0c2ba667d8cf"
+    },
+    {
+      "source": "apps/dashboard/src/app/audit/audit-streamed-body.tsx",
+      "sha256": "0cd56f0be9cbbee5d640016b515ec1aaeb835771a334e9cc65854ac18411a73a"
+    },
+    {
+      "source": "apps/dashboard/src/app/audit/page.tsx",
+      "sha256": "537bd077f85f6d7cab44b2a04941979be376dbf94fc7a22ecc7e21ee607ff041"
+    },
+    {
+      "source": "apps/dashboard/src/app/commands/page.tsx",
+      "sha256": "bfe665c32f4852f47586fb73c8ce942961666da955d73f666b0030a9f10f7304"
+    },
+    {
+      "source": "apps/dashboard/src/app/cron/page.tsx",
+      "sha256": "43192a2d5cd4fd91e922459d17645d46760131d2a83a1355d1787330e6ac9996"
+    },
+    {
+      "source": "apps/dashboard/src/app/files/page.tsx",
+      "sha256": "a0a60e75e3c32af60e04d2330e28e58837330a581b855918f7bf2d48d6a97f4e"
+    },
+    {
+      "source": "apps/dashboard/src/app/governor/operations/page.tsx",
+      "sha256": "d4a7eb5c093974c4ca1aafd111d736069ebabdad36ce26935688c886b6af11fa"
+    },
+    {
+      "source": "apps/dashboard/src/app/incidents/evidence-review.tsx",
+      "sha256": "d8c4eb9c4a18070fef4e50752c1ef548fe0c681e9478b815ce2a19832266b06c"
+    },
+    {
+      "source": "apps/dashboard/src/app/incidents/page.tsx",
+      "sha256": "3297b397f6c5ac69f9ab5d85316eb1a044f57ce0c94e477c39c8f422c6c32698"
+    },
+    {
+      "source": "apps/dashboard/src/app/logs/page.tsx",
+      "sha256": "fae9d379612a39adec9839eee6c07121308e86365bd87542d70ceb9326f98f41"
+    },
+    {
+      "source": "apps/dashboard/src/app/rollouts/page.tsx",
+      "sha256": "7bd54ab6f1649e515c86f5f3b0d282203c5f5a7f223da985d307b773b42941f3"
+    },
+    {
+      "source": "apps/dashboard/src/app/webhooks/[id]/page.tsx",
+      "sha256": "e113ea91c848cf852b474e906c3e0c7057da15a79f507cf8b2ec7bf3900b766e"
+    },
+    {
+      "source": "apps/dashboard/src/app/webhooks/new/page.tsx",
+      "sha256": "e5d96992609836bc3b4da342541b95d1a509da8cdc1d057f7bfb05b732c5c0a0"
+    },
+    {
+      "source": "apps/dashboard/src/app/webhooks/page.tsx",
+      "sha256": "4d42a5fbd436e0f975b312af61820cebc3d844d65f7cb55f0ccbd03781404ab5"
+    },
+    {
+      "source": "apps/dashboard/src/app/webhooks/webhook-form.tsx",
+      "sha256": "66561cf71cc4b476dcf414c18c5c48f04c7cea782a0ca8efb52d5889bbc93f63"
+    },
+    {
+      "source": "apps/dashboard/src/components/files/file-browser-modal.tsx",
+      "sha256": "03e166d6ac655540681d3df73daa1d88d17565ec486bb85ae1b920406733fca3"
+    },
+    {
+      "source": "apps/dashboard/src/components/library/library-picker.tsx",
+      "sha256": "2548528f2cc290ae5b86ac9788ac6932ecc0064c9ee13a6b2a3121b4af1a8b32"
+    },
+    {
+      "source": "apps/dashboard/src/components/ui/node-selector.tsx",
+      "sha256": "8f75da9ef6e91a85eede6fee0812d8a7d04855e720839f304b02ec49c6052113"
+    }
+  ]
 }
