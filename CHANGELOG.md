@@ -1,5 +1,13 @@
 # Changelog
 
+- Port chat channel creation/discovery, membership and policy controls, group
+  messages, pinned messages, profiles/avatars, attachment previews, reactions,
+  slash-command discovery and paginated history. Preserve conversation deep links
+  and reject stale responses after navigation between channels or threads.
+- Add product-owned chat administration for users, invitations, privacy, emoji,
+  supervision, agents and bots. Reconcile uncertain bot operations by their exact
+  receipts; tokens remain one-time values cleared on section or visibility changes.
+
 - Add exact HiveSkills publication review, expiring one-use approval and original Magnus job receipt reconciliation with explicit unconfigured states.
 
 ## Unreleased ecosystem extraction

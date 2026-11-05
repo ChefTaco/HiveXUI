@@ -4,7 +4,7 @@ import {
   useRef,
   useState,
   type FormEvent,
-} from 'react';
+} from "react";
 import type {
   MattermostChannel,
   MattermostPost,
@@ -12,35 +12,29 @@ import type {
   MattermostTeam,
   MattermostUser,
   MattermostFileInfo,
-} from '../../../contracts/chattermost.generated';
-import { apiFetch, productPrefix } from '../../lib/transport';
-import { productEnabled } from '../../lib/runtime';
-import './chat.css';
-
-async function chat<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await apiFetch('/api/chat/api/v4' + path, init);
-  if (!response.ok) {
-    const error: unknown = await response.json().catch(() => null);
-    throw new Error(
-      error &&
-        typeof error === 'object' &&
-        'message' in error &&
-        typeof error.message === 'string'
-        ? error.message
-        : 'Chat could not complete this request',
-    );
-  }
-  return response.json() as Promise<T>;
-}
-const json = (body: object, method = 'POST'): RequestInit => ({
-  method,
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(body),
-});
-const safeId = (id: string) => encodeURIComponent(id);
+  MattermostReaction,
+  MattermostCommand,
+} from "../../../contracts/chattermost.generated";
+import { productPrefix } from "../../lib/transport";
+import { productEnabled } from "../../lib/runtime";
+import { chat, chatResource, json, safeId } from "./api";
+import ChatAdministration from "./admin";
+import {
+  ChatViewRequests,
+  readChatLocation,
+  writeChatLocation,
+} from "./location";
+import {
+  BrowseChannels,
+  ChannelTools,
+  ChatProfile,
+  NewConversation,
+  ConversationFiles,
+} from "./conversation-controls";
+import "./chat.css";
 
 export default function ChatModule() {
-  if (!productEnabled('chattermost'))
+  if (!productEnabled("chattermost"))
     return (
       <section className="panel">
         <h2>ChatterMost is not configured</h2>
@@ -50,64 +44,151 @@ export default function ChatModule() {
   return <ConnectedChat />;
 }
 function ConnectedChat() {
+  const initial = useRef(readChatLocation(location.search));
   const [me, setMe] = useState<MattermostUser | null>(null);
   const [teams, setTeams] = useState<MattermostTeam[]>([]);
-  const [team, setTeam] = useState('');
+  const [team, setTeam] = useState(initial.current.team);
   const [channels, setChannels] = useState<MattermostChannel[]>([]);
-  const [channel, setChannel] = useState('');
+  const [channel, setChannel] = useState(initial.current.channel);
   const [users, setUsers] = useState<MattermostUser[]>([]);
   const [posts, setPosts] = useState<MattermostPost[]>([]);
-  const [thread, setThread] = useState('');
+  const [thread, setThread] = useState(initial.current.thread);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [attachments, setAttachments] = useState<Record<string, File[]>>({});
-  const [error, setError] = useState('');
+  const uploadedAttachments = useRef(
+    new Map<string, { files: File[]; ids: string[] }>(),
+  );
+  const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [online, setOnline] = useState(false);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [results, setResults] = useState<MattermostPost[] | null>(null);
-  const [person, setPerson] = useState('');
-  const active = useRef('');
-  active.current = channel;
-  const composerKey = channel + ':' + thread;
+  const [person, setPerson] = useState("");
+  const active = useRef("");
+  active.current = channel + ":" + thread;
+  const requests = useRef(new ChatViewRequests());
+  const [more, setMore] = useState(false);
+  function navigate(nextChannel: string, nextThread = "", nextTeam = team) {
+    requests.current.invalidate();
+    setPosts([]);
+    setResults(null);
+    setChannel(nextChannel);
+    setThread(nextThread);
+    setTeam(nextTeam);
+    history.pushState(
+      null,
+      "",
+      writeChatLocation(new URL(location.href), {
+        team: nextTeam,
+        channel: nextChannel,
+        thread: nextThread,
+      }),
+    );
+  }
+  useEffect(() => {
+    const restore = () => {
+      const next = readChatLocation(location.search);
+      requests.current.invalidate();
+      setTeam(next.team);
+      setChannel(next.channel);
+      setThread(next.thread);
+      setPosts([]);
+      setResults(null);
+    };
+    window.addEventListener("popstate", restore);
+    return () => {
+      requests.current.invalidate();
+      window.removeEventListener("popstate", restore);
+    };
+  }, []);
+  const composerKey = channel + ":" + thread;
   const [files, setFiles] = useState<Record<string, MattermostFileInfo>>({});
+  const [reactions, setReactions] = useState<
+    Record<string, MattermostReaction[]>
+  >({});
+  const [emoji, setEmoji] = useState<{ name: string; emoji: string }[]>([]);
+  const [commands, setCommands] = useState<MattermostCommand[]>([]);
   const refresh = useCallback(async () => {
     if (!channel) return;
-    const captured = channel;
+    const captured = channel + ":" + thread,
+      sequence = requests.current.begin();
     const data = await chat<MattermostPostList>(
       thread
         ? `/posts/${safeId(thread)}/thread`
         : `/channels/${safeId(channel)}/posts`,
     );
-    if (active.current !== captured) return;
-    setPosts(
-      data.order
-        .map((id) => data.posts[id]!)
-        .filter(Boolean)
-        .reverse(),
-    );
+    if (active.current !== captured || !requests.current.current(sequence))
+      return;
+    const incoming = data.order
+      .map((id) => data.posts[id]!)
+      .filter(Boolean)
+      .reverse();
+    if (incoming.some((post) => post.channel_id !== channel))
+      throw new Error("This thread belongs to another channel");
+    setMore(!thread && incoming.length === 60);
+    setPosts((previous) => {
+      const oldest = incoming[0]?.create_at ?? Infinity;
+      return thread || !incoming.length
+        ? incoming
+        : [
+            ...previous.filter(
+              (post) =>
+                post.channel_id === channel &&
+                post.create_at < oldest &&
+                !data.posts[post.id],
+            ),
+            ...incoming,
+          ];
+    });
   }, [channel, thread]);
   const refreshRef = useRef(refresh);
   refreshRef.current = refresh;
   useEffect(() => {
     let current = true;
     void Promise.all([
-      chat<MattermostUser>('/users/me'),
-      chat<MattermostTeam[]>('/users/me/teams'),
-      chat<MattermostUser[]>('/users/search', json({ term: '' })),
+      chat<MattermostUser>("/users/me"),
+      chat<MattermostTeam[]>("/users/me/teams"),
+      chat<MattermostUser[]>("/users/search", json({ term: "" })),
     ])
       .then(([user, available, people]) => {
         if (!current) return;
         setMe(user);
         setTeams(available);
         setUsers(people);
-        setTeam(available[0]?.id ?? '');
+        setTeam((previous) =>
+          available.some((value) => value.id === previous)
+            ? previous
+            : (available[0]?.id ?? ""),
+        );
       })
       .catch((reason) => {
         if (current)
           setError(
-            reason instanceof Error ? reason.message : 'Chat is unavailable',
+            reason instanceof Error ? reason.message : "Chat is unavailable",
           );
       });
+    return () => {
+      current = false;
+    };
+  }, []);
+  useEffect(() => {
+    let current = true;
+    void chat<MattermostCommand[]>("/commands?team_id=" + safeId(team))
+      .then((values) => {
+        if (current) setCommands(values);
+      })
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, [team]);
+  useEffect(() => {
+    let current = true;
+    void chat<{ name: string; emoji: string }[]>("/emoji")
+      .then((values) => {
+        if (current) setEmoji(values);
+      })
+      .catch(() => undefined);
     return () => {
       current = false;
     };
@@ -116,43 +197,127 @@ function ConnectedChat() {
     if (!me) return;
     let current = true;
     void chat<MattermostChannel[]>(
-      team ? `/users/me/teams/${safeId(team)}/channels` : '/users/me/channels',
+      team ? `/users/me/teams/${safeId(team)}/channels` : "/users/me/channels",
     )
       .then((available) => {
         if (!current) return;
         setChannels(available);
-        setChannel((previous) =>
-          available.some((item) => item.id === previous)
-            ? previous
-            : (available[0]?.id ?? ''),
-        );
-        setThread('');
+        if (!available.some((item) => item.id === channel)) {
+          const next = available[0]?.id ?? "";
+          setChannel(next);
+          setThread("");
+          setPosts([]);
+          history.replaceState(
+            null,
+            "",
+            writeChatLocation(new URL(location.href), {
+              team,
+              channel: next,
+              thread: "",
+            }),
+          );
+        }
       })
       .catch((reason) => {
         if (current)
           setError(
             reason instanceof Error
               ? reason.message
-              : 'Channels are unavailable',
+              : "Channels are unavailable",
           );
       });
     return () => {
       current = false;
     };
-  }, [team, me]);
+  }, [team, me, channel]);
   useEffect(() => {
-    setError('');
-    void refresh().catch((reason) =>
-      setError(
-        reason instanceof Error ? reason.message : 'Messages are unavailable',
-      ),
-    );
+    let current = true;
+    setError("");
+    void refresh().catch((reason) => {
+      if (current)
+        setError(
+          reason instanceof Error ? reason.message : "Messages are unavailable",
+        );
+    });
+    return () => {
+      current = false;
+    };
   }, [refresh]);
+  useEffect(() => {
+    let current = true;
+    const missing = [
+      ...new Set((results ?? posts).flatMap((post) => post.file_ids)),
+    ].filter((id) => !files[id]);
+    void Promise.allSettled(
+      missing.map(
+        async (id) =>
+          [
+            id,
+            await chat<MattermostFileInfo>("/files/" + safeId(id) + "/info"),
+          ] as const,
+      ),
+    ).then((values) => {
+      if (current)
+        setFiles((old) => ({
+          ...old,
+          ...Object.fromEntries(
+            values.flatMap((value) =>
+              value.status === "fulfilled" ? [value.value] : [],
+            ),
+          ),
+        }));
+    });
+    const ids = (results ?? posts).map((post) => post.id);
+    if (ids.length)
+      void chat<Record<string, MattermostReaction[]>>(
+        "/posts/ids/reactions",
+        json(ids),
+      )
+        .then((values) => {
+          if (current) setReactions(values);
+        })
+        .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, [posts, results]);
+  async function earlier() {
+    if (!channel || thread || !posts.length || busy) return;
+    const captured = active.current;
+    setBusy(true);
+    try {
+      const data = await chat<MattermostPostList>(
+        "/channels/" +
+          safeId(channel) +
+          "/posts?per_page=60&before=" +
+          safeId(posts[0]!.id),
+      );
+      if (active.current !== captured) return;
+      const older = data.order
+        .map((id) => data.posts[id]!)
+        .filter(Boolean)
+        .reverse();
+      setMore(older.length === 60);
+      setPosts((old) => [
+        ...older.filter((post) => !old.some((value) => value.id === post.id)),
+        ...old,
+      ]);
+    } catch (reason) {
+      if (active.current === captured)
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "Earlier messages are unavailable",
+        );
+    } finally {
+      setBusy(false);
+    }
+  }
   useEffect(() => {
     if (!me) return;
     const timer = setInterval(() => {
-      void chat('/users/me').catch(() =>
-        setError('Sign in again to continue this conversation'),
+      void chat("/users/me").catch(() =>
+        setError("Sign in again to continue this conversation"),
       );
     }, 60000);
     return () => clearInterval(timer);
@@ -169,10 +334,10 @@ function ConnectedChat() {
       socket = null;
       old?.close();
       const url = new URL(
-        (productPrefix('chattermost') ?? '/api/chat') + '/api/v4/websocket',
+        (productPrefix("chattermost") ?? "/api/chat") + "/api/v4/websocket",
         location.origin,
       );
-      url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
       const next = new WebSocket(url);
       socket = next;
       next.onopen = () => setOnline(true);
@@ -181,7 +346,7 @@ function ConnectedChat() {
         refreshTimer = setTimeout(() => {
           void refreshRef
             .current()
-            .catch(() => setError('Messages could not refresh'));
+            .catch(() => setError("Messages could not refresh"));
         }, 120);
       };
       next.onclose = () => {
@@ -191,34 +356,41 @@ function ConnectedChat() {
       };
     };
     connect();
-    window.addEventListener('chat-session-refreshed', connect);
+    window.addEventListener("chat-session-refreshed", connect);
     return () => {
       stopped = true;
       socket?.close();
       if (reconnect) clearTimeout(reconnect);
       if (refreshTimer) clearTimeout(refreshTimer);
-      window.removeEventListener('chat-session-refreshed', connect);
+      window.removeEventListener("chat-session-refreshed", connect);
     };
   }, [me]);
   async function send(event: FormEvent) {
     event.preventDefault();
     if (!channel || busy) return;
     setBusy(true);
-    setError('');
+    setError("");
     const target = channel,
       key = composerKey;
     try {
       const pending = attachments[key] ?? [];
-      let ids: string[] = [];
-      if (pending.length) {
+      const cached = uploadedAttachments.current.get(key);
+      let ids: string[] =
+        cached &&
+        cached.files.length === pending.length &&
+        cached.files.every((file, index) => file === pending[index])
+          ? cached.ids
+          : [];
+      if (pending.length && !ids.length) {
         const form = new FormData();
-        form.set('channel_id', target);
-        for (const file of pending) form.append('files', file);
+        form.set("channel_id", target);
+        for (const file of pending) form.append("files", file);
         const uploaded = await chat<{ file_infos: MattermostFileInfo[] }>(
-          '/files',
-          { method: 'POST', body: form },
+          "/files",
+          { method: "POST", body: form },
         );
         ids = uploaded.file_infos.map((file) => file.id);
+        uploadedAttachments.current.set(key, { files: pending, ids });
         setFiles((previous) => ({
           ...previous,
           ...Object.fromEntries(
@@ -226,62 +398,77 @@ function ConnectedChat() {
           ),
         }));
       }
-      const message = drafts[key] ?? '';
-      if (message.startsWith('/'))
+      const message = drafts[key] ?? "";
+      if (message.startsWith("/"))
         await chat(
-          '/commands/execute',
+          "/commands/execute",
           json({ channel_id: target, command: message }),
         );
       else
         await chat(
-          '/posts',
+          "/posts",
           json({ channel_id: target, message, root_id: thread, file_ids: ids }),
         );
-      setDrafts((previous) => ({ ...previous, [key]: '' }));
+      setDrafts((previous) => ({ ...previous, [key]: "" }));
       setAttachments((previous) => ({ ...previous, [key]: [] }));
+      uploadedAttachments.current.delete(key);
       await refresh();
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : 'Message was not sent',
+        reason instanceof Error ? reason.message : "Message was not sent",
       );
     } finally {
       setBusy(false);
     }
   }
-  async function react(post: MattermostPost) {
+  async function react(post: MattermostPost, name = "thumbsup") {
     if (!me) return;
     try {
-      await chat(
-        '/reactions',
-        json({ user_id: me.id, post_id: post.id, emoji_name: 'thumbsup' }),
+      const own = reactions[post.id]?.some(
+        (value) => value.user_id === me.id && value.emoji_name === name,
       );
+      if (own)
+        await chat(
+          "/users/" +
+            safeId(me.id) +
+            "/posts/" +
+            safeId(post.id) +
+            "/reactions/" +
+            safeId(name),
+          { method: "DELETE" },
+        );
+      else
+        await chat(
+          "/reactions",
+          json({ user_id: me.id, post_id: post.id, emoji_name: name }),
+        );
       await refresh();
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : 'Reaction was not saved',
+        reason instanceof Error ? reason.message : "Reaction was not saved",
       );
     }
   }
   async function edit(post: MattermostPost) {
-    const message = prompt('Edit message', post.message);
+    const message = prompt("Edit message", post.message);
     if (message === null) return;
     try {
-      await chat(`/posts/${safeId(post.id)}/patch`, json({ message }, 'PUT'));
+      await chat(`/posts/${safeId(post.id)}/patch`, json({ message }, "PUT"));
       await refresh();
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : 'Message was not updated',
+        reason instanceof Error ? reason.message : "Message was not updated",
       );
     }
   }
   async function remove(post: MattermostPost) {
-    if (!confirm('Delete this message?')) return;
+    if (!confirm("Delete this message?")) return;
     try {
-      await chat(`/posts/${safeId(post.id)}`, { method: 'DELETE' });
+      await chat(`/posts/${safeId(post.id)}`, { method: "DELETE" });
       await refresh();
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : 'Message was not deleted',
+        reason instanceof Error ? reason.message : "Message was not deleted",
       );
     }
   }
@@ -289,13 +476,13 @@ function ConnectedChat() {
     event.preventDefault();
     try {
       const data = await chat<MattermostPostList>(
-        '/posts/search',
+        "/posts/search",
         json({ terms: search, is_or_search: false }),
       );
       setResults(data.order.map((id) => data.posts[id]!).filter(Boolean));
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : 'Search is unavailable',
+        reason instanceof Error ? reason.message : "Search is unavailable",
       );
     }
   }
@@ -303,7 +490,7 @@ function ConnectedChat() {
     if (!me || !person) return;
     try {
       const result = await chat<MattermostChannel>(
-        '/channels/direct',
+        "/channels/direct",
         json([me.id, person]),
       );
       setChannels((previous) =>
@@ -311,13 +498,12 @@ function ConnectedChat() {
           ? previous
           : [...previous, result],
       );
-      setChannel(result.id);
-      setThread('');
+      navigate(result.id);
     } catch (reason) {
       setError(
         reason instanceof Error
           ? reason.message
-          : 'Conversation could not open',
+          : "Conversation could not open",
       );
     }
   }
@@ -331,7 +517,7 @@ function ConnectedChat() {
           Team
           <select
             value={team}
-            onChange={(event) => setTeam(event.target.value)}
+            onChange={(event) => navigate("", "", event.target.value)}
           >
             {teams.map((value) => (
               <option key={value.id} value={value.id}>
@@ -344,14 +530,12 @@ function ConnectedChat() {
           {channels.map((value) => (
             <button
               key={value.id}
-              className={value.id === channel ? 'active' : ''}
+              className={value.id === channel ? "active" : ""}
               onClick={() => {
-                setChannel(value.id);
-                setThread('');
-                setResults(null);
+                navigate(value.id);
               }}
             >
-              {value.type === 'D' ? '↗ ' : '# '}
+              {value.type === "D" ? "↗ " : "# "}
               {value.display_name || value.name}
             </button>
           ))}
@@ -375,21 +559,58 @@ function ConnectedChat() {
         <button onClick={() => void direct()} disabled={!person}>
           Open conversation
         </button>
+        {me && (
+          <>
+            <BrowseChannels
+              team={team}
+              me={me}
+              joined={channels}
+              opened={(value) => {
+                setChannels((old) => [
+                  ...old.filter((item) => item.id !== value.id),
+                  value,
+                ]);
+                navigate(value.id);
+              }}
+            />
+            <NewConversation
+              team={team}
+              me={me}
+              users={users}
+              opened={(value) => {
+                setChannels((old) => [
+                  ...old.filter((item) => item.id !== value.id),
+                  value,
+                ]);
+                navigate(value.id);
+              }}
+            />
+            <ChatProfile
+              me={me}
+              changed={(value) => {
+                setMe(value);
+                setUsers((old) =>
+                  old.map((item) => (item.id === value.id ? value : item)),
+                );
+              }}
+            />
+          </>
+        )}
       </aside>
       <section className="chat-conversation">
         <header>
           <div>
             <h2>
               {thread
-                ? 'Thread'
+                ? "Thread"
                 : selected?.display_name ||
                   selected?.name ||
-                  'Choose a channel'}
+                  "Choose a channel"}
             </h2>
-            <p role="status">{online ? 'Connected' : 'Reconnecting chat…'}</p>
+            <p role="status">{online ? "Connected" : "Reconnecting chat…"}</p>
           </div>
           {thread ? (
-            <button onClick={() => setThread('')}>Back to channel</button>
+            <button onClick={() => navigate(channel)}>Back to channel</button>
           ) : null}
           <form onSubmit={(event) => void find(event)}>
             <input
@@ -405,11 +626,39 @@ function ConnectedChat() {
             ) : null}
           </form>
         </header>
+        {selected && me && (
+          <ChannelTools
+            key={selected.id}
+            channel={selected}
+            me={me}
+            users={users}
+            changed={(value) =>
+              setChannels((old) =>
+                old.map((item) => (item.id === value.id ? value : item)),
+              )
+            }
+            deleted={() => {
+              setChannels((old) => old.filter((item) => item.id !== channel));
+              navigate("");
+            }}
+            openPost={(post) =>
+              navigate(post.channel_id, post.root_id || post.id)
+            }
+          />
+        )}
+        {channel && (
+          <ConversationFiles posts={posts} files={files} users={users} />
+        )}
         {error ? (
           <p role="alert" className="error-banner">
             {error}
           </p>
         ) : null}
+        {more && !results && !thread && (
+          <button disabled={busy} onClick={() => void earlier()}>
+            Load earlier messages
+          </button>
+        )}
         <ol className="chat-posts" aria-label="Messages">
           {(results ?? posts).map((post) => (
             <li key={post.id}>
@@ -418,7 +667,7 @@ function ConnectedChat() {
                   <strong>
                     {byUser[post.user_id]?.nickname ||
                       byUser[post.user_id]?.username ||
-                      'Member'}
+                      "Member"}
                   </strong>
                   <time dateTime={new Date(post.create_at).toISOString()}>
                     {new Date(post.create_at).toLocaleString()}
@@ -428,27 +677,104 @@ function ConnectedChat() {
                 {post.file_ids.map((id) => (
                   <a
                     key={id}
-                    href={
-                      (productPrefix('chattermost') ?? '/api/chat') +
-                      '/api/v4/files/' +
-                      safeId(id)
-                    }
+                    href={chatResource("/files/" + safeId(id))}
                     target="_blank"
                     rel="noreferrer"
                   >
-                    {files[id]?.name || 'Open attachment'}
+                    {files[id] &&
+                      /^image\/(png|jpeg|gif|webp)$/.test(
+                        files[id].mime_type,
+                      ) && (
+                        <img
+                          className="chat-preview"
+                          src={chatResource(
+                            "/files/" + safeId(id) + "/preview",
+                          )}
+                          alt={files[id].name}
+                          loading="lazy"
+                        />
+                      )}
+                    {files[id]?.name || "Open attachment"}
                   </a>
                 ))}
                 <footer>
                   <button
                     onClick={() => {
-                      setThread(post.root_id || post.id);
-                      setResults(null);
+                      navigate(post.channel_id, post.root_id || post.id);
                     }}
                   >
                     Reply in thread
                   </button>
-                  <button onClick={() => void react(post)}>👍 React</button>
+                  {[
+                    ...new Set([
+                      "thumbsup",
+                      ...(reactions[post.id] ?? []).map(
+                        (value) => value.emoji_name,
+                      ),
+                    ]),
+                  ].map((name) => {
+                    const values = (reactions[post.id] ?? []).filter(
+                      (value) => value.emoji_name === name,
+                    );
+                    return (
+                      <button
+                        key={name}
+                        aria-pressed={values.some(
+                          (value) => value.user_id === me?.id,
+                        )}
+                        onClick={() => void react(post, name)}
+                      >
+                        {name === "thumbsup"
+                          ? "👍"
+                          : emoji.find((value) => value.name === name)?.emoji ||
+                            ":" + name + ":"}{" "}
+                        {values.length || "React"}
+                      </button>
+                    );
+                  })}
+                  <label className="chat-reaction-picker">
+                    Add reaction
+                    <select
+                      value=""
+                      onChange={(event) => {
+                        if (event.target.value)
+                          void react(post, event.target.value);
+                      }}
+                    >
+                      <option value="">Choose emoji</option>
+                      {[
+                        { name: "heart", emoji: "♥" },
+                        { name: "tada", emoji: "🎉" },
+                        { name: "eyes", emoji: "👀" },
+                        ...emoji,
+                      ].map((value) => (
+                        <option key={value.name} value={value.name}>
+                          {value.emoji} {value.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    aria-pressed={post.is_pinned}
+                    onClick={() => {
+                      void chat(
+                        "/posts/" +
+                          safeId(post.id) +
+                          (post.is_pinned ? "/unpin" : "/pin"),
+                        { method: "POST" },
+                      )
+                        .then(() => refresh())
+                        .catch((reason) =>
+                          setError(
+                            reason instanceof Error
+                              ? reason.message
+                              : "Pin was not saved",
+                          ),
+                        );
+                    }}
+                  >
+                    {post.is_pinned ? "Unpin" : "Pin"}
+                  </button>
                   {post.user_id === me?.id ? (
                     <>
                       <button onClick={() => void edit(post)}>Edit</button>
@@ -461,10 +787,34 @@ function ConnectedChat() {
           ))}
         </ol>
         <form className="chat-composer" onSubmit={(event) => void send(event)}>
+          {commands.length > 0 && (
+            <details className="chat-command-deck">
+              <summary>Slash commands</summary>
+              <ul>
+                {commands.map((command) => (
+                  <li key={command.id || command.trigger}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDrafts((old) => ({
+                          ...old,
+                          [composerKey]: "/" + command.trigger + " ",
+                        }))
+                      }
+                    >
+                      /{command.trigger}
+                    </button>{" "}
+                    {command.auto_complete_desc || command.description}{" "}
+                    {command.auto_complete_hint}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
           <label>
-            {thread ? 'Reply' : 'Message'}
+            {thread ? "Reply" : "Message"}
             <textarea
-              value={drafts[composerKey] ?? ''}
+              value={drafts[composerKey] ?? ""}
               onChange={(event) => {
                 const text = event.target.value;
                 setDrafts((previous) => ({ ...previous, [composerKey]: text }));
@@ -490,21 +840,22 @@ function ConnectedChat() {
             <span>
               {(attachments[composerKey] ?? [])
                 .map((file) => file.name)
-                .join(', ')}
+                .join(", ")}
             </span>
             <button
               disabled={
                 busy ||
                 !channel ||
-                (!(drafts[composerKey] ?? '').trim() &&
+                (!(drafts[composerKey] ?? "").trim() &&
                   !attachments[composerKey]?.length)
               }
             >
-              {busy ? 'Sending…' : 'Send'}
+              {busy ? "Sending…" : "Send"}
             </button>
           </div>
         </form>
       </section>
+      {me ? <ChatAdministration user={me} /> : null}
     </section>
   );
 }
