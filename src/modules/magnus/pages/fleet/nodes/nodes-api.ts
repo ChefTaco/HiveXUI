@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { diskInfoSchema, nodeHealthResponseSchema, nodeListResponseSchema } from '@contracts/magnus/browser';
 import { magnus, segment } from '../../../api/client';
-import { MagnusApiError } from '../../../api/errors';
 
 export type NodeRow = z.output<typeof nodeListResponseSchema>['data'][number];
 export type NodeHealth = z.output<typeof nodeHealthResponseSchema>['data'];
@@ -10,7 +9,6 @@ type Disk = z.output<typeof diskInfoSchema>;
 const PAGE_SIZE = 100;
 /** A fleet larger than this needs paging on screen. It is reported rather than silently cut off. */
 const MAX_PAGES = 20;
-const HEALTH_CONCURRENCY = 6;
 
 /** Every node. The old console read only the first page, which hid nodes in a large fleet. */
 export async function listAllNodes(signal: AbortSignal): Promise<{ nodes: NodeRow[]; total: number }> {

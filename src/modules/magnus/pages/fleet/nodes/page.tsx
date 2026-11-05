@@ -19,7 +19,6 @@ import { AssignRoleDrawer, EditNodeDrawer, RegisterNodeDrawer } from './node-act
 import { diskSeverity, listAllNodes, nodeError, worstPersistentDisk, type NodeRow } from './nodes-api';
 
 const TRANSIENT_POLL_MS = 5000;
-const HEALTH_REFRESH_MS = 30_000;
 
 export default function NodesPage() {
   const toast = useToast();
