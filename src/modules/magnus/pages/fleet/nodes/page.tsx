@@ -16,7 +16,7 @@ import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { TailscaleExpiryAlert } from '../shared/tailscale-alert';
 import { AgentUpgradeDrawer } from './agent-upgrade';
 import { AssignRoleDrawer, EditNodeDrawer, RegisterNodeDrawer } from './node-actions';
-import { diskSeverity, listAllNodes, nodeError, readNodeHealth, worstPersistentDisk, type NodeHealth, type NodeRow } from './nodes-api';
+import { diskSeverity, listAllNodes, nodeError, worstPersistentDisk, type NodeRow } from './nodes-api';
 
 const TRANSIENT_POLL_MS = 5000;
 const HEALTH_REFRESH_MS = 30_000;
@@ -32,20 +32,6 @@ export default function NodesPage() {
   useEffect(() => setTransient(!!rows?.some((node) => node.status === 'PROVISIONING' || node.agent?.status === 'UPDATING')), [rows]);
   const updates = useMagnusResource((signal) => magnus.get('/nodes/system-updates/summary', systemUpdatesSummaryResponseSchema, { signal }));
   const tailscale = useMagnusResource((signal) => magnus.get('/nodes/tailscale/summary', tailscaleSummaryResponseSchema, { signal }));
-  const [health, setHealth] = useState<Record<string, NodeHealth>>({});
-  const healthAt = useRef(0);
-  const healthFor = useRef('');
-  useEffect(() => {
-    if (!rows) return;
-    // Polling a provisioning node must not repeat one request per node every few seconds.
-    const key = rows.map((node) => node.id).join();
-    if (key === healthFor.current && Date.now() - healthAt.current < HEALTH_REFRESH_MS) return;
-    healthFor.current = key;
-    healthAt.current = Date.now();
-    const controller = new AbortController();
-    void readNodeHealth(rows, controller.signal).then(setHealth, () => {});
-    return () => controller.abort();
-  }, [rows]);
   const router = useRouter();
   // The update banner links here with ?upgrade=agents. Closing clears it, so the same link opens it again.
   const upgradeLinked = useSearchParams().get('upgrade') === 'agents';
@@ -63,7 +49,6 @@ export default function NodesPage() {
   const [deleting, setDeleting] = useState<NodeRow | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const refreshAll = () => {
-    healthFor.current = '';
     void nodes.refresh();
     void updates.refresh();
     void tailscale.refresh();
@@ -155,7 +140,7 @@ export default function NodesPage() {
                       <NodeTableRow
                         key={node.id}
                         node={node}
-                        health={health[node.id]}
+                        health={node.health}
                         updates={updatesById.get(node.id) ?? null}
                         tailscale={tailscaleById.get(node.id) ?? null}
                         canWrite={canWrite}
@@ -218,7 +203,7 @@ function TailscaleBadge({ tailscale }: { tailscale: Tailscale }) {
 
 function NodeTableRow({ node, health, updates, tailscale, canWrite, canDelete, onEdit, onAssign, onDelete }: {
   node: NodeRow;
-  health: NodeHealth | undefined;
+  health: NodeRow['health'];
   updates: Updates;
   tailscale: Tailscale;
   canWrite: boolean;

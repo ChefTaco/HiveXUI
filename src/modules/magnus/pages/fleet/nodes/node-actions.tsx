@@ -15,7 +15,7 @@ function FormError({ message }: { message: string }) {
   return message ? <p role="alert" className="m-0 rounded-control border border-danger bg-danger-soft px-3 py-2 text-sm text-danger">{message}</p> : null;
 }
 
-export function EditNodeDrawer({ node, onClose, onSaved }: { node: NodeRow | null; onClose: () => void; onSaved: () => void }) {
+export function EditNodeDrawer({ node, onClose, onSaved }: { node: Omit<NodeRow, 'health'> | null; onClose: () => void; onSaved: () => void }) {
   const [name, setName] = useState('');
   const [tags, setTags] = useState('');
   const [status, setStatus] = useState('');
@@ -126,7 +126,7 @@ export function RegisterNodeDrawer({ open, onClose, onRegistered }: { open: bool
   );
 }
 
-export function AssignRoleDrawer({ node, onClose, onSaved }: { node: NodeRow | null; onClose: () => void; onSaved: () => void }) {
+export function AssignRoleDrawer({ node, onClose, onSaved }: { node: Omit<NodeRow, 'health'> | null; onClose: () => void; onSaved: () => void }) {
   const [roles, setRoles] = useState<ReadonlyArray<{ id: string; name: string }>>([]);
   const [selected, setSelected] = useState('');
   const [applyNow, setApplyNow] = useState(true);

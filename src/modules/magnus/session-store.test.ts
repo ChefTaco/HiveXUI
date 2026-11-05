@@ -19,7 +19,7 @@ describe('the Magnus session', () => {
     await sessionStore.load();
     expect(request).toHaveBeenCalledTimes(1);
     const state = sessionStore.get();
-    expect(state).toEqual({ status: 'ready', session: { userId: 'alice', role: 'VIEWER', capabilities: { hermes: true, agentVersion: '1.2.3', magnusVersion: '1.2.3' } } });
+    expect(state).toEqual({ status: 'ready', session: { userId: 'alice', role: 'VIEWER', capabilities: { terminal: false, hermes: true, agentVersion: '1.2.3', magnusVersion: '1.2.3' } } });
     expect(JSON.stringify(state)).not.toContain('security.example.com');
   });
   it('separates an identity with no Magnus access from an unreachable API, and Retry reloads', async () => {

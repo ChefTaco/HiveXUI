@@ -25,28 +25,6 @@ export async function listAllNodes(signal: AbortSignal): Promise<{ nodes: NodeRo
   return { nodes, total };
 }
 
-/**
- * The list carries no health, so each row costs a request. Bounded, and skipped for nodes that have
- * never reported, because the API answers those with 404.
- */
-export async function readNodeHealth(nodes: readonly NodeRow[], signal: AbortSignal): Promise<Record<string, NodeHealth>> {
-  const result: Record<string, NodeHealth> = {};
-  const queue = nodes.filter((node) => node.lastHeartbeatAt !== null);
-  const worker = async () => {
-    for (let node = queue.shift(); node; node = queue.shift()) {
-      try {
-        result[node.id] = (await magnus.get(`/nodes/${segment(node.id)}/health`, nodeHealthResponseSchema, { signal })).data;
-      } catch (error) {
-        if (signal.aborted) throw error;
-        // A node with no snapshot, or one failing read, shows a dash in its row and nothing else.
-        if (!(error instanceof MagnusApiError)) console.warn('Node health could not be read');
-      }
-    }
-  };
-  await Promise.all(Array.from({ length: HEALTH_CONCURRENCY }, worker));
-  return result;
-}
-
 export function nodeError(metadata: string): { label: string; message: string } | null {
   try {
     const parsed = JSON.parse(metadata) as Record<string, unknown>;
