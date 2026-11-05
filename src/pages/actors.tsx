@@ -1,5 +1,5 @@
 import { apiFetch } from '../lib/transport';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Drawer, EmptyState, Field, JsonBlock, Panel, StatCard, TextArea, TextInput } from '../components/ui';
 import { useToast } from '../components/toast';
 import { Icon } from '../components/icons';
@@ -8,6 +8,8 @@ import { adminApi, ApiError } from '../lib/api';
 import { can } from '../lib/permissions';
 import type { AdminUser, HiveActor, HiveActorLifecycleResponse } from '../lib/types';
 import { formatTime, relativeTime } from '../lib/format';
+import { browserIdentity } from '../lib/runtime';
+type CoordinatedActor = HiveActor & { enrollmentStatus?: string; credentialExpiresAt?: string | null; latestOperation?: { id: string; action: string; status: string } | null };
 
 const KIND_LABELS: Record<HiveActor['kind'], string> = {
   user: 'User',
@@ -34,7 +36,23 @@ function splitList(value: string): string[] {
 }
 
 export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
-  const { data, refresh, refreshing } = useStore();
+  const { data: legacyData, refresh: legacyRefresh, refreshing: legacyRefreshing } = useStore();
+  const suite = !!browserIdentity();
+  const [enrollments, setEnrollments] = useState<CoordinatedActor[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const canRead = can(currentUser, suite ? 'iam:sa:read' : 'hive:actors:read');
+  const refresh = useCallback(async () => {
+    if (!suite) { await legacyRefresh(); return; }
+    if (!canRead) { setEnrollments([]); return; }
+    setLoading(true); setLoadError(null);
+    try { setEnrollments((await adminApi.hiveActors()).data); }
+    catch (error) { setLoadError(error instanceof Error ? error.message : 'Identity enrollment APIs are unavailable'); }
+    finally { setLoading(false); }
+  }, [suite, canRead, currentUser?.id, legacyRefresh]);
+  useEffect(() => { if (suite) void refresh(); }, [suite, refresh]);
+  const data = { actors: suite ? enrollments : legacyData.actors };
+  const refreshing = suite ? loading : legacyRefreshing;
   const toast = useToast();
   const [selectedId, setSelectedId] = useState<string | null>(() => new URLSearchParams(location.search).get('actor'));
   const selected = data.actors.find((actor) => actor.id === selectedId) ?? null;
@@ -70,7 +88,17 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
       return acc;
     }, {});
   }, [data.actors]);
-  const canWriteActors = can(currentUser, 'hive:actors:write');
+  const canWriteActors = can(currentUser, suite ? 'iam:sa:write' : 'hive:actors:write');
+  useEffect(() => { setActionResult(null); }, [currentUser?.id]);
+  async function recoverOrResume(actor: CoordinatedActor, resume: boolean) {
+    if (!actor.latestOperation) return;
+    setBusy('resume-' + actor.id);
+    try {
+      setActionResult(await (resume ? adminApi.resumeHiveActor(actor.id, actor.latestOperation.id) : adminApi.recoverHiveActorOperation(actor.id, actor.latestOperation.id)));
+      await refresh();
+    } catch (error) { toast.error(resume ? 'Resume refused' : 'Recovery refused', error instanceof Error ? error.message : 'Inspect the owning product before retrying'); }
+    finally { setBusy(null); }
+  }
 
   async function runLifecycle(action: 'disable' | 'rotate', actor: HiveActor) {
     if (action === 'disable' && !window.confirm(`Disable ${actor.label} across linked Hive services?`)) return;
@@ -103,7 +131,7 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
     if (!actionResult || typeof actionResult.actorId !== 'string') return;
     const operationId = typeof actionResult.operationId === 'string' ? actionResult.operationId : null;
     const suffix = operationId ? `/operations/${encodeURIComponent(operationId)}/receipt` : '/receipt';
-    const response = await apiFetch(`/api/hive/actors/${encodeURIComponent(actionResult.actorId)}${suffix}`, { method: 'DELETE' });
+    const response = await apiFetch(`${suite ? '/api/iam/enrollments' : '/api/hive/actors'}/${encodeURIComponent(actionResult.actorId)}${suffix}`, { method: 'DELETE' });
     if (!response.ok) throw new Error('Receipt acknowledgement failed');
     if (typeof actionResult.action === 'string') sessionStorage.removeItem(`hive.actor.operation:${actionResult.actorId}:${actionResult.action}`);
     setActionResult(null);
@@ -159,13 +187,15 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
     <>
       <div className="page-head">
         <div>
-          <h2>Hive Actors</h2>
-          <p>Users, service accounts, host identities, Router keys, and Memory agents in one inventory.</p>
+          <h2>{suite ? 'Identity enrollment' : 'Hive Actors'}</h2>
+          <p>{suite ? 'Oathweave coordinates explicitly linked technical identities. Each product owns its credentials and permissions.' : 'Users, service accounts, host identities, Router keys, and Memory agents in one inventory.'}</p>
         </div>
         <Button variant="ghost" icon={<Icon.Refresh className="btn-ico" />} loading={refreshing} onClick={() => void refresh()}>
           Refresh
         </Button>
       </div>
+      {suite && !canRead && <Panel title="Access unavailable"><p>Your Oathweave account needs identity inventory permission.</p></Panel>}
+      {loadError && <Panel title="Identity enrollment unavailable"><p role="alert">{loadError}</p><p>Configure the owning product APIs or inspect installation health before retrying.</p></Panel>}
 
       <div className="grid grid--4">
         <StatCard label="Actors" value={data.actors.length} sub="linked identities" accent="amber" emphasize />
@@ -184,7 +214,7 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
           <Field label="IAM client ID"><TextInput value={createForm.iamClientId} onChange={(iamClientId) => setCreateForm((current) => ({ ...current, iamClientId }))} /></Field>
           <Field label="Host label"><TextInput value={createForm.hostLabel} onChange={(hostLabel) => setCreateForm((current) => ({ ...current, hostLabel }))} placeholder="memory-host" /></Field>
           <Field label="Role IDs" hint="Comma or newline separated"><TextArea rows={3} value={createForm.roleIds} onChange={(roleIds) => setCreateForm((current) => ({ ...current, roleIds }))} /></Field>
-          <Field label="Router and Memory scopes" hint="Comma or newline separated"><TextArea rows={3} value={createForm.scopes} onChange={(scopes) => setCreateForm((current) => ({ ...current, scopes }))} /></Field>
+          <Field label="Memory permissions" hint="Explicit non-admin permissions; model credentials use Emberpath's native inference policy"><TextArea rows={3} value={createForm.scopes} onChange={(scopes) => setCreateForm((current) => ({ ...current, scopes }))} /></Field>
           <Field label="Allowed IPs" hint="Comma or newline separated IPv4 addresses"><TextArea rows={3} value={createForm.allowedIps} onChange={(allowedIps) => setCreateForm((current) => ({ ...current, allowedIps }))} /></Field>
           <Field label="Description"><TextArea rows={3} value={createForm.description} onChange={(description) => setCreateForm((current) => ({ ...current, description }))} /></Field>
         </div>
@@ -205,7 +235,7 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
 
       <Panel title="Actor Graph" eyebrow={`${data.actors.length} records`}>
         {data.actors.length === 0 ? (
-          <EmptyState icon={<Icon.Key width={34} height={34} />} message="No actors could be assembled from IAM, Router, or Memory." />
+          <EmptyState icon={<Icon.Key width={34} height={34} />} message={suite ? 'No technical identities have been explicitly enrolled or migrated into this installation.' : 'No actors could be assembled from IAM, Router, or Memory.'} />
         ) : (
           <div className="table-wrap">
             <table>
@@ -246,8 +276,10 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
         footer={selected ? (
           <>
             <Button variant="ghost" onClick={() => setSelected(null)}>Close</Button>
-            <Button variant="ghost" loading={busy === `rotate-${selected.id}`} disabled={!canWriteActors} onClick={() => void runLifecycle('rotate', selected)}>Rotate</Button>
-            <Button variant="danger" loading={busy === `disable-${selected.id}`} disabled={!canWriteActors} onClick={() => void runLifecycle('disable', selected)}>Disable</Button>
+            {suite && (selected as CoordinatedActor).latestOperation && <Button variant="ghost" disabled={!canWriteActors} onClick={() => void recoverOrResume(selected, false)}>Recover receipt</Button>}
+            {suite && ['pending','partial'].includes((selected as CoordinatedActor).latestOperation?.status ?? '') && <Button variant="ghost" loading={busy === 'resume-' + selected.id} disabled={!canWriteActors} onClick={() => void recoverOrResume(selected, true)}>Resume operation</Button>}
+            <Button variant="ghost" loading={busy === `rotate-${selected.id}`} disabled={!canWriteActors || suite && !selected.capabilities.includes('credential:rotate')} onClick={() => void runLifecycle('rotate', selected)}>Rotate</Button>
+            <Button variant="danger" loading={busy === `disable-${selected.id}`} disabled={!canWriteActors || suite && !selected.capabilities.includes('credential:disable')} onClick={() => void runLifecycle('disable', selected)}>Disable</Button>
           </>
         ) : <Button variant="ghost" onClick={() => setSelected(null)}>Close</Button>}
       >

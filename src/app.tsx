@@ -819,7 +819,7 @@ function ViewContent({
         {(principal) => renderView(view, onNavigate, principal)}
       </ProductAccess>
     );
-  if (view.startsWith('iam-'))
+  if (view.startsWith('iam-') || view === 'actors')
     return (
       <ProductAccess product="oathweave" fallback={user}>
         {(principal) => renderView(view, onNavigate, principal)}

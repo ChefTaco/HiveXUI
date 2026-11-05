@@ -1,6 +1,14 @@
-// Generated from Oathweave OpenAPI 1.2.2; SHA256 18d6a6279e21d917ddfe9076ce928f163df99e9da3530fa017ce43a29c082298.
+// Generated from Oathweave OpenAPI 1.2.2; SHA256 ac4632f69546a7678de121daeb9e1635009db83c511bbb235d2a3337183809c3.
 // Apache-2.0. Source attribution: Oathweave, extracted from Hive.
 import {z} from 'zod';
+export const EnrollmentRequestSchema=z.object({"agentId":z.string().min(2).max(32).regex(new RegExp("^[a-z0-9_-]+$")),"allowedIps":z.array(z.string()).optional(),"description":z.string().max(512).optional(),"displayName":z.string().min(2).max(128),"expiresHours":z.number().int().min(1).max(720).optional(),"hostLabel":z.string().max(128).optional(),"iamClientId":z.string().min(1).max(200),"owningProject":z.string().max(100).optional(),"roleIds":z.array(z.string().min(1).max(200)).optional(),"scopes":z.array(z.string().regex(new RegExp("^[a-z][a-z0-9-]*(?::[a-z0-9-]+)+$"))),"workspaceId":z.string().min(1).max(100).regex(new RegExp("^[a-z0-9_-]+$")).optional()});
+export type EnrollmentRequest=z.infer<typeof EnrollmentRequestSchema>;
+export const EnrollmentLifecycleRequestSchema=z.object({"operationId":z.string()});
+export type EnrollmentLifecycleRequest=z.infer<typeof EnrollmentLifecycleRequestSchema>;
+export const EnrollmentResultSchema=z.object({"action":z.enum(["enroll","rotate","disable"]),"actorId":z.string(),"identifiers":z.record(z.string(),z.string().nullable()),"ok":z.boolean(),"operationId":z.string(),"receiptExpiresAt":z.string().nullable(),"remediation":z.string().nullable(),"secrets":z.record(z.string(),z.string()),"steps":z.array(z.object({"ok":z.boolean(),"service":z.string(),"state":z.enum(["sent","completed","unknown"]),"status":z.number()}))});
+export type EnrollmentResult=z.infer<typeof EnrollmentResultSchema>;
+export const EnrollmentInventorySchema=z.object({"data":z.array(z.object({"capabilities":z.array(z.string()),"credentialExpiresAt":z.string().nullable(),"enrollmentStatus":z.string(),"id":z.string(),"identifiers":z.record(z.string(),z.string().nullable()),"kind":z.enum(["service-account"]),"label":z.string(),"lastActivityAt":z.string().nullable(),"latestOperation":z.object({"action":z.string(),"id":z.string(),"status":z.string()}).nullable(),"linkedResourceCount":z.number(),"sources":z.array(z.string()),"status":z.enum(["active","inactive"])})),"installationId":z.string()});
+export type EnrollmentInventory=z.infer<typeof EnrollmentInventorySchema>;
 export const LoginRequestSchema=z.object({"password":z.string().min(1).max(256),"username":z.string().min(1).max(254)});
 export type LoginRequest=z.infer<typeof LoginRequestSchema>;
 export const MfaChallengeRequestSchema=z.object({"code":z.string().min(1).max(12),"mfaToken":z.string().min(1)});

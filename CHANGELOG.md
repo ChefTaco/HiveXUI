@@ -2,6 +2,8 @@
 
 ## Unreleased ecosystem extraction
 
+- Move technical identity enrollment, explicit resume, native credential rotation, containment and one-time receipt recovery to owned Oathweave APIs. Use product-specific sign-in permissions and validate the released enrollment contract; retained standalone console paths remain available for recovery.
+
 - Match HiveMem native queue administration: general agent wildcards do not grant
   administrator actions without an explicit administrator scope or role.
 

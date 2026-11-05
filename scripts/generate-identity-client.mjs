@@ -5,6 +5,10 @@ const bytes = readFileSync(
 );
 const spec = JSON.parse(bytes);
 const names = [
+  'EnrollmentRequest',
+  'EnrollmentLifecycleRequest',
+  'EnrollmentResult',
+  'EnrollmentInventory',
   'LoginRequest',
   'MfaChallengeRequest',
   'ForgotPasswordRequest',

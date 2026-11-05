@@ -5,6 +5,7 @@ import {
 import { apiFetch, clearAccess } from './transport';
 import { browserIdentity } from './runtime';
 import { readConsoleHealth } from './suite-health';
+import { EnrollmentInventorySchema, EnrollmentResultSchema, EnrollmentRequestSchema } from '@contracts/oathweave.generated.js';
 import type {
   AdminUser,
   ApiDoc,
@@ -219,26 +220,36 @@ export const adminApi = {
       ? readConsoleHealth()
       : request<HiveStatus>('/api/hive/status');
   },
-  hiveActors() {
+  async hiveActors() {
+    if (browserIdentity()) return EnrollmentInventorySchema.parse(await request('/api/iam/enrollments'));
     return request<{ data: HiveActor[] }>('/api/hive/actors');
   },
   createHiveActor(body: HiveActorCreateRequest) {
+    if (browserIdentity()) return request('/api/iam/enrollments', { method: 'POST', body: EnrollmentRequestSchema.parse(body) }).then(value => EnrollmentResultSchema.parse(value));
     return request<HiveActorLifecycleResponse, HiveActorCreateRequest>(
       '/api/hive/actors',
       { method: 'POST', body },
     );
   },
   disableHiveActor(id: string, body: HiveActorLifecycleRequest) {
+    if (browserIdentity()) return request(`/api/iam/enrollments/${encodeURIComponent(id)}/disable`, { method: 'POST', body: { operationId: body.operationId } }).then(value => EnrollmentResultSchema.parse(value));
     return request<HiveActorLifecycleResponse, HiveActorLifecycleRequest>(
       `/api/hive/actors/${encodeURIComponent(id)}/disable`,
       { method: 'POST', body },
     );
   },
   rotateHiveActor(id: string, body: HiveActorLifecycleRequest) {
+    if (browserIdentity()) return request(`/api/iam/enrollments/${encodeURIComponent(id)}/rotate`, { method: 'POST', body: { operationId: body.operationId } }).then(value => EnrollmentResultSchema.parse(value));
     return request<HiveActorLifecycleResponse, HiveActorLifecycleRequest>(
       `/api/hive/actors/${encodeURIComponent(id)}/rotate`,
       { method: 'POST', body },
     );
+  },
+  resumeHiveActor(id: string, operationId: string) {
+    return request(`/api/iam/enrollments/${encodeURIComponent(id)}/operations/${encodeURIComponent(operationId)}/resume`, { method: 'POST' }).then(value => EnrollmentResultSchema.parse(value));
+  },
+  recoverHiveActorOperation(id: string, operationId: string) {
+    return request(`/api/iam/enrollments/${encodeURIComponent(id)}/operations/${encodeURIComponent(operationId)}`).then(value => EnrollmentResultSchema.parse(value));
   },
   hiveIncidents() {
     return request<{ data: HiveIncident[] }>('/api/hive/incidents');
