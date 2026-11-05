@@ -1,9 +1,10 @@
-// The server allows each subject 20 /hermes/* and 30 /orchestra/* requests a minute. Every request
+// The server allows each subject 20 /hermes/*, 30 /orchestra/* and 30 /roles/* requests a minute. Every request
 // to those prefixes waits here for a slot, so no page, however it polls, can reach the limit.
 export const HERMES_POLL_MS = 60_000;
 const WINDOW_MS = 60_000;
 const BUDGETS: ReadonlyArray<readonly [prefix: string, limit: number]> = [
   ['/hermes/', 18],
+  ['/roles/', 27],
   ['/orchestra/', 27],
 ];
 

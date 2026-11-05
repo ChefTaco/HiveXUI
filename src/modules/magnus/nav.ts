@@ -68,22 +68,21 @@ export const MAGNUS_NAV: readonly MagnusNavSection[] = [
       { path: '/orchestra/installations', label: 'Hermes installations', icon: 'Server' },
       { path: '/orchestra/profiles', label: 'Hermes profiles', icon: 'Key' },
       { path: '/hermes-drift', label: 'Drift cockpit', icon: 'Route' },
-      { path: '/hermes-security', label: 'Proxy security', icon: 'Alert' },
     ],
   },
   {
     label: 'Magnus Ardent',
     items: [
-      { path: '/ardent', label: 'Ardent overview', icon: 'Hexagon' },
-      { path: '/ardent/installations', label: 'Ardent installations', icon: 'Server' },
-      { path: '/ardent/profiles', label: 'Ardent profiles', icon: 'Key' },
+      { path: '/ardent', label: 'Ardent overview', icon: 'Hexagon', roles: ['ADMIN'] },
+      { path: '/ardent/installations', label: 'Ardent installations', icon: 'Server', roles: ['ADMIN'] },
+      { path: '/ardent/profiles', label: 'Ardent profiles', icon: 'Key', roles: ['ADMIN'] },
     ],
   },
   {
     label: 'Codex Agent',
     items: [
-      { path: '/codex', label: 'Codex overview', icon: 'Hexagon' },
-      { path: '/codex/installations', label: 'Codex installations', icon: 'Server' },
+      { path: '/codex', label: 'Codex overview', icon: 'Hexagon', roles: ['ADMIN'] },
+      { path: '/codex/installations', label: 'Codex installations', icon: 'Server', roles: ['ADMIN'] },
     ],
   },
 ];
