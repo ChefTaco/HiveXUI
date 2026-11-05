@@ -1,4 +1,6 @@
-import { Panel, StatCard } from "@ui";
+import { Panel, StatCard, StatusDot } from "@ui";
+import { Gauge } from "../../../components/gauge";
+import { Radar, radarRandom, type RadarBlip } from "../../../components/radar";
 import Link from "@security/navigation";
 import {
   CaseTable,
@@ -30,6 +32,18 @@ export default async function SecurityFusionOverview(): Promise<React.ReactEleme
   const counts = Object.fromEntries(
     (data?.bySeverity ?? []).map((row) => [row.severity, row._count.id]),
   );
+  const sources = data?.sources ?? [];
+  const healthySources = sources.filter((source) => source.status === "healthy").length;
+  const open = (["critical", "high", "medium", "low"] as const).reduce((total, severity) => total + (counts[severity] ?? 0), 0);
+  const worst = counts.critical ? "danger" : counts.high ? "danger" : counts.medium ? "warning" : open ? "info" : "success";
+  const cases = data?.openCases ?? [];
+  const blips: RadarBlip[] = cases.slice(0, 48).map((item, index) => ({
+    key: item.id,
+    tone: item.severity === "critical" || item.severity === "high" ? "danger" : item.severity === "medium" ? "warning" : "info",
+    distance: item.severity === "critical" ? 0.15 + radarRandom(index + 1) * 0.2 : 0.35 + radarRandom(index + 1) * 0.55,
+    angle: radarRandom(index + 200) * 360,
+  }));
+  const confidence = cases.length ? (cases.reduce((total, item) => total + item.confidence, 0) / cases.length) * 100 : null;
   return (
     <div className="page-stack">
       <FusionHeader
@@ -43,6 +57,27 @@ export default async function SecurityFusionOverview(): Promise<React.ReactEleme
           <Link className="btn w-fit" href="/security-fusion/lab">Start or resume investigation</Link>
         </Panel>
       ) : null}
+      <Panel as="div" className="grid-bg" aria-label="Security posture">
+        <div className="hero-row">
+          <Radar blips={blips} value={open} unit="open cases" label={`Case radar: ${open} open cases, ${counts.critical ?? 0} critical`} />
+          <Gauge value={sources.length ? (healthySources / sources.length) * 100 : null} label="Sources healthy" higherIsBetter display={sources.length ? `${healthySources}/${sources.length}` : undefined} size={150} />
+          <Gauge value={confidence} label="Mean confidence" tone={confidence === null ? "neutral" : "accent"} size={150} />
+          <div className="hero-trend">
+            <span className="stat-label">Posture</span>
+            <p className={`data-figure text-2xl font-bold ${worst === "success" ? "glow-text-success text-success" : worst === "danger" ? "glow-text-danger text-danger" : worst === "warning" ? "glow-text-warning text-warning" : "glow-text-info text-info"}`}>
+              {open === 0 ? "No open cases" : `${open} open case${open === 1 ? "" : "s"}`}
+            </p>
+            <span className="flex flex-wrap items-center gap-3 text-xs text-text-muted">
+              {(["critical", "high", "medium", "low"] as const).map((severity) => (
+                <span key={severity} className="flex items-center gap-1.5">
+                  <StatusDot status={counts[severity] ? (severity === "critical" || severity === "high" ? "FAILED" : severity === "medium" ? "DEGRADED" : "PROVISIONING") : "UNKNOWN"} pulse={severity === "critical" && !!counts.critical} />
+                  {counts[severity] ?? 0} {severity}
+                </span>
+              ))}
+            </span>
+          </div>
+        </div>
+      </Panel>
       <section className="stats-grid" aria-label="Open cases by severity">
         {(["critical", "high", "medium", "low"] as const).map((severity) => (
           <StatCard

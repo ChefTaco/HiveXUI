@@ -14,9 +14,7 @@ function block(selector: string): Map<string, string> {
   return tokens;
 }
 
-const light = block(':root');
-const dark = new Map([...light, ...block(":root[data-theme='dark']")]);
-const darkOverrides = block(":root[data-theme='dark']");
+const tokens = block(':root');
 
 function parse(value: string): Rgb {
   const hex = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(value);
@@ -42,12 +40,9 @@ function contrast(a: Rgb, b: Rgb): number {
 }
 
 const SOLID = ['--surface-sunken', '--surface-page', '--surface', '--surface-raised', '--surface-hover'];
-const STATUS = ['--success', '--warning', '--danger', '--info'];
+const STATUS = ['--success', '--warning', '--danger', '--info', '--signal'];
 
-describe.each([
-  ['light', light],
-  ['dark', dark],
-] as const)('%s theme contrast', (_name, tokens) => {
+describe('theme contrast', () => {
   const color = (name: string) => parse(tokens.get(name)!);
   it.each(SOLID.flatMap((surface) => ['--text-strong', '--text', '--text-muted'].map((text) => [text, surface] as const)))('%s on %s is AA', (text, surface) => {
     expect(contrast(color(text), color(surface))).toBeGreaterThanOrEqual(4.5);
@@ -73,17 +68,18 @@ describe.each([
   });
 });
 
-describe('theme completeness', () => {
-  const themed = [...light.keys()].filter((name) => !name.startsWith('--space-') && name !== '--sidebar-width');
+describe('the theme', () => {
   it('stops motion for people who ask for reduced motion', () => {
     const base = readFileSync(new URL('./base.css', import.meta.url), 'utf8');
     expect(base).toMatch(/prefers-reduced-motion: reduce[\s\S]*animation: none !important/);
   });
-  it('dark defines every color the light theme defines, and no others', () => {
-    expect([...darkOverrides.keys()].sort()).toEqual(themed.sort());
+  it('is one set of tokens, dark whatever the operating system prefers', () => {
+    expect(tokensSource.match(/:root\b/g)).toHaveLength(1);
+    expect(tokensSource).not.toMatch(/prefers-color-scheme|data-theme/);
+    expect(tokensSource).toMatch(/^\s*color-scheme: dark;$/m);
   });
   it('uses meaning, not hue, for every token name', () => {
-    const hue = /amber|teal|coral|sky|violet|red|green|blue|gold/;
-    expect([...light.keys()].filter((name) => hue.test(name))).toEqual([]);
+    const hue = /amber|teal|coral|sky|violet|red|green|blue|gold|cyan|magenta|neon/;
+    expect([...tokens.keys()].filter((name) => hue.test(name))).toEqual([]);
   });
 });

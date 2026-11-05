@@ -56,7 +56,7 @@ export function IconButton({
 
 /* ===== Tones ===== */
 /** What a color means. Every badge, dot, meter, stat and empty state takes one of these. */
-export type Tone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger' | 'info';
+export type Tone = 'neutral' | 'accent' | 'signal' | 'success' | 'warning' | 'danger' | 'info';
 
 /** Map a service, node or job status onto a tone. */
 export function statusTone(status: string): Tone {
@@ -185,22 +185,44 @@ export function Skeleton({ className }: { className?: string }) {
 }
 
 /* ===== Stat card ===== */
+/**
+ * A figure in its tone over a footer that fades from the same tone. Pass a Sparkline as `footer` when
+ * there is a trend to show, or `false` for a tile that carries a meter instead. See docs/THEME.md.
+ */
 export function StatCard({
   label,
   value,
   sub,
   tone = 'neutral',
-}: {
-  label: string;
+  icon,
+  delta,
+  footer,
+  className,
+  children,
+}: PropsWithChildren<{
+  label: ReactNode;
   value: ReactNode;
   sub?: ReactNode;
   tone?: Tone;
-}) {
+  icon?: ReactNode;
+  /** Change since the last sample, shown beside the figure. */
+  delta?: ReactNode;
+  footer?: ReactNode;
+  className?: string;
+}>) {
   return (
-    <div className={cn('stat-card', tone !== 'neutral' && `stat-card--${tone}`)}>
-      <span className="stat-label">{label}</span>
-      <span className="stat-value">{value}</span>
+    <div className={cn('stat-card', tone !== 'neutral' && `stat-card--${tone}`, className)}>
+      <div className="stat-head">
+        <span className="stat-label">{label}</span>
+        {icon ? <span className="stat-icon" aria-hidden="true">{icon}</span> : null}
+      </div>
+      <div className="stat-figure">
+        <span className="stat-value">{value}</span>
+        {delta ? <span className="stat-delta">{delta}</span> : null}
+      </div>
       {sub ? <span className="stat-sub">{sub}</span> : null}
+      {children ? <div className="stat-body">{children}</div> : null}
+      {footer === false ? null : <div className="stat-footer" aria-hidden="true">{footer}</div>}
     </div>
   );
 }
@@ -261,7 +283,8 @@ type PanelProps = PropsWithChildren<
 
 export function Panel({ title, eyebrow, description, actions, tone, padding = 'md', glow, as: Tag = 'section', className, children, ...rest }: PanelProps) {
   return (
-    <Tag {...rest} className={cn('panel', padding !== 'md' && `panel--${padding}`, tone && `panel--${tone}`, glow && 'glow-hover', glow && glow !== 'accent' && `glow-hover--${glow}`, className)}>
+    <Tag {...rest} className={cn('panel', padding !== 'md' && `panel--${padding}`, tone && `panel--${tone}`, glow && `glow-hover--${glow}`, className)}>
+      {glow ? <span className="panel-glow" aria-hidden="true" /> : null}
       {title || eyebrow || actions ? (
         <div className="panel-header">
           <div>

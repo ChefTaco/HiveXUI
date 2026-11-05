@@ -9,14 +9,14 @@ import {
   tailscaleSummaryResponseSchema,
   unpinInsightResponseSchema,
 } from '@contracts/magnus/browser';
-import { Badge, Button, EmptyState, IconButton, PageHeader, StatusDot, statusTone, type Tone } from '@ui';
+import { Badge, Button, EmptyState, IconButton, PageHeader, StatCard, StatusDot, statusTone, type Tone } from '@ui';
 import { formatTime, relativeTime } from '@lib/format';
 import { cn } from '@lib/cn';
 import { useToast } from '../../../../../components/toast';
 import { magnus, segment } from '../../../api/client';
 import { errorMessage } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
-import { AnimatedNumber, FleetRadar, FxMeter, FxPanel, Gauge, LazyAreaChart, PageItem, series, Sparkline, TONE_TEXT, useSessionSamples } from '../../../effects';
+import { AnimatedNumber, FleetRadar, FxMeter, FxPanel, Gauge, LazyAreaChart, PageItem, series, TileTrend, useSessionSamples } from '../../../effects';
 import { LiveEventList } from '../../../live/live-list';
 import Link from '../../../navigation';
 import { hasRoute } from '../../../routes';
@@ -35,6 +35,7 @@ export default function FleetOverviewPage() {
   const samples = useSessionSamples(
     'magnus:overview',
     data ? { online: data.nodes.online, active: data.commands.running + data.commands.pending, cron: data.cron.active, cpu: data.health.avgCpuPercent, mem: data.health.avgMemoryPercent } : null,
+    stats.data,
   );
   const previous = samples.at(-2);
   const cpu = data?.health.avgCpuPercent ?? null;
@@ -78,7 +79,7 @@ export default function FleetOverviewPage() {
               </div>
               <div className="flex min-w-0 flex-col">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-3 text-xs text-text-muted">
-                  <span className="font-medium">CPU and memory, this session</span>
+                  <span className="stat-label">CPU and memory, this session</span>
                   <div className="flex flex-wrap items-center gap-3">
                     <Legend status="ONLINE" pulse={false} label={`${data.nodes.online} up`} />
                     <Legend status="DEGRADED" label={`${data.nodes.degraded} degraded`} />
@@ -87,7 +88,7 @@ export default function FleetOverviewPage() {
                   </div>
                 </div>
                 {chart.length > 1 ? (
-                  <LazyAreaChart data={chart} xKey="t" percent height={170} formatX={(value) => new Date(Number(value)).toLocaleTimeString(undefined, { hour12: false, hour: '2-digit', minute: '2-digit' })} series={[{ key: 'cpu', label: 'CPU', tone: 'accent' }, { key: 'mem', label: 'Memory', tone: 'info' }]} />
+                  <LazyAreaChart data={chart} xKey="t" percent height={170} formatX={(value) => new Date(Number(value)).toLocaleTimeString(undefined, { hour12: false, hour: '2-digit', minute: '2-digit' })} series={[{ key: 'cpu', label: 'CPU', tone: 'accent' }, { key: 'mem', label: 'Memory', tone: 'signal' }]} />
                 ) : (
                   <div className="flex h-[170px] items-center justify-center rounded-panel border border-dashed border-border-strong text-sm text-text-muted">
                     <span className="fx-pulse mr-2 inline-block size-1.5 rounded-full bg-accent" />
@@ -102,7 +103,7 @@ export default function FleetOverviewPage() {
       <PageItem>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Stat label="Total nodes" icon={<Server className="size-4" />} value={data ? <AnimatedNumber value={data.nodes.total} /> : '—'} sub={data ? `${data.nodes.online} online` : undefined} spark={series(samples, 'online')} delta={delta(previous?.online, data?.nodes.online)} deltaUnit=" up" />
-          <Stat label="Active commands" tone="accent" icon={<Terminal className="size-4" />} value={data ? <AnimatedNumber value={data.commands.running + data.commands.pending} /> : '—'} sub={data ? `${data.commands.total} total` : undefined} spark={series(samples, 'active')} />
+          <Stat label="Active commands" tone="signal" icon={<Terminal className="size-4" />} value={data ? <AnimatedNumber value={data.commands.running + data.commands.pending} /> : '—'} sub={data ? `${data.commands.total} total` : undefined} spark={series(samples, 'active')} />
           <Stat label="Cron jobs" icon={<Clock className="size-4" />} value={data ? <AnimatedNumber value={data.cron.total} /> : '—'} sub={data ? `${data.cron.active} active` : undefined} spark={series(samples, 'cron')} />
           <Stat label="System health" tone={cpu !== null && cpu >= 90 ? 'danger' : cpu !== null && cpu >= 70 ? 'warning' : 'accent'} icon={<Activity className="size-4" />} value={cpu === null ? '—' : <AnimatedNumber value={cpu} decimals={Number.isInteger(cpu) ? 0 : 1} suffix="% CPU" />} sub={data ? (data.health.reportingNodes > 0 ? `${data.health.reportingNodes} node${data.health.reportingNodes === 1 ? '' : 's'} reporting` : 'No health data') : undefined}>
             {cpu !== null ? <FxMeter value={cpu} label="Average CPU" valueLabel="" /> : null}
@@ -122,8 +123,8 @@ export default function FleetOverviewPage() {
                   <li key={`${command.id}-${command.status}`} className="scan-sweep flex items-center justify-between gap-2 rounded-chip border border-border bg-surface-raised px-3 py-2 text-sm">
                     <div className="flex min-w-0 items-center gap-2">
                       <StatusDot status={command.status} />
-                      <code className="min-w-0 truncate text-accent">{command.command}</code>
-                      <span className="shrink-0 text-text-muted">on {command.node.name}</span>
+                      <code className="shrink-0 text-accent">{command.command}</code>
+                      <span className="min-w-0 truncate text-text-muted">on {command.node.name}</span>
                     </div>
                     <div className="ml-2 flex shrink-0 items-center gap-2">
                       <Badge tone={statusTone(command.status)}>{command.status}</Badge>
@@ -172,18 +173,19 @@ function Legend({ status, label, pulse }: { status: string; label: string; pulse
   return <span className="flex items-center gap-1.5"><StatusDot status={status} {...(pulse !== undefined ? { pulse } : {})} />{label}</span>;
 }
 
-function Stat({ label, value, sub, icon, tone = 'neutral', spark, delta: change, deltaUnit = '', children }: { label: string; value: ReactNode; sub?: string | undefined; icon: ReactNode; tone?: Tone; spark?: readonly number[]; delta?: number | undefined; deltaUnit?: string; children?: ReactNode }) {
+function Stat({ label, value, sub, icon, tone = 'accent', spark, delta: change, deltaUnit = '', children }: { label: string; value: ReactNode; sub?: string | undefined; icon: ReactNode; tone?: Tone; spark?: readonly number[]; delta?: number | undefined; deltaUnit?: string; children?: ReactNode }) {
   return (
-    <FxPanel padding="sm" {...(tone === 'danger' || tone === 'warning' ? { fxTone: tone } : {})} className="grid gap-1">
-      <div className="flex items-center justify-between text-sm text-text-muted"><span>{label}</span><span className={TONE_TEXT[tone === 'neutral' ? 'accent' : tone]}>{icon}</span></div>
-      <div className="flex items-baseline gap-2">
-        <span className={cn('text-2xl font-bold', TONE_TEXT[tone === 'neutral' ? 'accent' : tone])}>{value}</span>
-        {change ? <span className={cn('num text-xs', change > 0 ? 'text-success' : 'text-warning')}>{change > 0 ? '+' : ''}{change}{deltaUnit}</span> : null}
-      </div>
-      {sub ? <span className="text-xs text-text-muted">{sub}</span> : null}
-      {spark ? <Sparkline values={spark} width={200} height={28} stretch tone={tone === 'neutral' ? 'accent' : tone} emptyLabel="" /> : null}
+    <StatCard
+      label={label}
+      icon={icon}
+      value={value}
+      sub={sub}
+      tone={tone}
+      delta={change ? <span className={change > 0 ? 'text-success' : 'text-warning'}>{change > 0 ? '+' : ''}{change}{deltaUnit}</span> : undefined}
+      footer={children ? false : spark ? <TileTrend values={spark} tone={tone} /> : undefined}
+    >
       {children}
-    </FxPanel>
+    </StatCard>
   );
 }
 

@@ -14,7 +14,7 @@ import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { EvidenceReview } from './evidence-review';
 import { CHECK_TONE, HEALTH_TONE, severityTone, windowHours } from './incident-model';
 
-const EDGE = { success: 'border-l-success', warning: 'border-l-warning', danger: 'border-l-danger', neutral: 'border-l-border', accent: 'border-l-accent', info: 'border-l-info' };
+const EDGE = { success: 'border-l-success', warning: 'border-l-warning', danger: 'border-l-danger', neutral: 'border-l-border', accent: 'border-l-accent', signal: 'border-l-signal', info: 'border-l-info' };
 
 export default function IncidentsPage() {
   const params = useSearchParams();

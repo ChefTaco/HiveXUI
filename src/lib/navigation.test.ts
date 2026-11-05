@@ -1,12 +1,19 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
+  breadcrumbs,
+  findActiveNav,
   magnusAddress,
   NAV_GROUPS,
+  navProducts,
+  paletteScreens,
   resolveDeepLink,
+  searchScreens,
+  showsShellRefresh,
   viewAvailable,
   visibleNavGroups,
   type ProductCheck,
 } from './navigation';
+import { isNavOpen, readNavChoices, revealActive, toggleNavChoice, writeNavChoices } from './nav-state';
 import { Icon } from '../components/icons';
 import type { Product } from './transport';
 
@@ -87,21 +94,20 @@ describe('navigation model', () => {
     expect(viewAvailable('incidents', only('chattermost'))).toBe(false);
   });
 
-  it('shows the Magnus section only with Magnus installed', () => {
-    const shown = layout(only('magnus'));
-    const labels = Object.keys(shown);
-    expect(labels[0]).toBe('Hive');
-    expect(labels.at(-1)).toBe('System');
-    // The port adds Magnus sections; only those may appear between Hive and System.
-    expect(labels.slice(1, -1).length).toBeGreaterThan(0);
-    for (const label of labels.slice(1, -1)) {
-      expect(label).toMatch(/^Magnus/);
-      expect(new Set(shown[label])).toEqual(new Set(['magnus']));
+  it('shows the Magnus sections only with Magnus installed, right after Hive', () => {
+    const groups = visibleNavGroups(only('magnus'));
+    expect(groups[0]!.label).toBe('Hive');
+    expect(groups.at(-1)!.label).toBe('System');
+    const sections = groups.slice(1, -1);
+    expect(sections.length).toBeGreaterThan(0);
+    for (const section of sections) {
+      expect(section.product).toBe('Magnus');
+      expect(new Set(section.items.map((item) => item.key))).toEqual(new Set(['magnus']));
     }
-    expect(shown.System).toEqual(['docs', 'settings']);
-    const magnus = visibleNavGroups(only('magnus')).find((group) => group.label === 'Magnus')!;
-    expect(magnus.items.map((item) => item.path)).toEqual(expect.arrayContaining(['/mission-control', '/', '/nodes']));
-    expect(visibleNavGroups(ALL).some((group) => /magnus/i.test(group.label))).toBe(false);
+    const fleet = groups.find((group) => group.label === 'Fleet')!;
+    expect(fleet.items.map((item) => item.path)).toEqual(expect.arrayContaining(['/mission-control', '/', '/nodes']));
+    expect(visibleNavGroups(ALL).some((group) => group.product === 'Magnus')).toBe(false);
+    expect(visibleNavGroups(only('magnus', 'oathweave')).map((group) => group.product ?? group.label).indexOf('Magnus')).toBe(1);
   });
 
   it('keeps System last, whatever is installed', () => {
@@ -120,6 +126,118 @@ describe('navigation model', () => {
   it('rejects unknown views', () => {
     expect(viewAvailable('nope', ALL)).toBe(false);
     expect(viewAvailable('constructor', ALL)).toBe(false);
+  });
+});
+
+const MAGNUS_ALL = only('magnus', 'oathweave', 'emberpath', 'hivemem', 'hiveskills', 'cindertrace', 'chattermost');
+
+describe('sidebar products', () => {
+  const products = navProducts(visibleNavGroups(MAGNUS_ALL, { role: 'ADMIN', hermes: true }));
+  it('reads Magnus as one product with sections, and everything else as itself', () => {
+    expect(products.map((product) => product.label)).toEqual(['Hive', 'Magnus', 'Oathweave', 'Emberpath', 'HiveMem', 'HiveSkills', 'Cindertrace', 'ChatterMost', 'System']);
+    const magnus = products.find((product) => product.label === 'Magnus')!;
+    expect(magnus.sections.map((section) => section.label)).toContain('Operations');
+    expect(magnus.sections.length).toBeGreaterThan(1);
+    for (const product of products.filter((entry) => entry !== magnus)) expect(product.sections).toHaveLength(1);
+  });
+  it('gives every product an icon the console has', () => {
+    for (const product of products) expect(Icon[product.icon], product.label).toBeTruthy();
+  });
+  it('finds the page a view and path are on', () => {
+    expect(findActiveNav(products, 'routers', null).product?.label).toBe('Emberpath');
+    expect(findActiveNav(products, 'magnus', '/nodes')).toMatchObject({ product: { label: 'Magnus' }, section: { label: 'Fleet' }, item: { label: 'Nodes' } });
+    expect(findActiveNav(products, 'magnus', null)).toEqual({});
+  });
+});
+
+describe('breadcrumbs', () => {
+  const products = navProducts(visibleNavGroups(MAGNUS_ALL, { role: 'ADMIN', hermes: true }));
+  const labels = (view: Parameters<typeof findActiveNav>[1], navPath: string | null, title?: string, path = '') => breadcrumbs(findActiveNav(products, view, navPath), 'Fallback', title, path).map((crumb) => crumb.label);
+  it('name the product, the section of a multi-section product, and the page', () => {
+    expect(labels('routers', null)).toEqual(['Emberpath', 'Routers']);
+    expect(labels('magnus', '/', 'Fleet Overview', '/')).toEqual(['Magnus', 'Fleet', 'Fleet Overview']);
+  });
+  it('keep a list as a link above its detail page', () => {
+    const crumbs = breadcrumbs(findActiveNav(products, 'magnus', '/nodes'), 'Fallback', 'Node', '/nodes/abc');
+    expect(crumbs.map((crumb) => crumb.label)).toEqual(['Magnus', 'Fleet', 'Nodes', 'Node']);
+    expect(crumbs[2]!.to).toEqual({ view: 'magnus', path: '/nodes' });
+    expect(crumbs[3]!.to).toBeUndefined();
+  });
+  it('do not repeat a one-page product, and follow Cindertrace into its pages', () => {
+    expect(labels('security', null, undefined, '/')).toEqual(['Cindertrace']);
+    expect(labels('security', null, undefined, '/security-fusion/cases')).toEqual(['Cindertrace', 'Cases']);
+    expect(labels('security', null, undefined, '/security-fusion/cases/abc')).toEqual(['Cindertrace', 'Cases', 'Detail']);
+  });
+  it('fall back to a title for a page the sidebar does not list', () => {
+    expect(breadcrumbs({}, 'Fallback')).toEqual([{ label: 'Fallback' }]);
+  });
+});
+
+describe('the shell refresh', () => {
+  it('appears only on pages that read the shared store and have no refresh of their own', () => {
+    for (const view of ['routers', 'providers', 'routing', 'testing', 'keys', 'settings', 'docs'] as const) expect(showsShellRefresh(view)).toBe(true);
+    for (const view of ['magnus', 'audit', 'traces', 'incidents', 'memories', 'skills', 'hive', 'security', 'chat', 'actors'] as const) expect(showsShellRefresh(view)).toBe(false);
+  });
+});
+
+describe('the command palette', () => {
+  const screens = paletteScreens(navProducts(visibleNavGroups(MAGNUS_ALL, { role: 'ADMIN', hermes: true })));
+  const search = (query: string) => searchScreens(query, screens).map((screen) => screen.label);
+  it('offers every visible screen, including Cindertrace pages', () => {
+    const labels = screens.map((screen) => screen.label);
+    for (const label of ['Installation', 'Fleet overview', 'Commands', 'Routers', 'Memories', 'HiveSkills', 'Cases', 'ChatterMost', 'Settings']) expect(labels).toContain(label);
+    expect(screens.find((screen) => screen.label === 'Cases')).toMatchObject({ view: 'security', path: '/security-fusion/cases' });
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(screens.length);
+  });
+  it('hides what this session cannot open', () => {
+    const viewer = paletteScreens(navProducts(visibleNavGroups(only('magnus'), { role: 'VIEWER' })));
+    expect(viewer.map((screen) => screen.label)).not.toContain('Commands');
+    expect(viewer.map((screen) => screen.label)).not.toContain('Routers');
+  });
+  it('ranks a name above a product, an exact name first, and needs every word', () => {
+    expect(search('nodes')[0]).toBe('Nodes');
+    expect(search('Routers')[0]).toBe('Routers');
+    expect(search('magnus cron')).toEqual(['Cron jobs']);
+    expect(search('emberpath').length).toBeGreaterThan(3);
+    expect(search('cmd zzz')).toEqual([]);
+    expect(search('').length).toBe(screens.length);
+  });
+  it('tolerates skipped letters in a name, but not in a product', () => {
+    expect(search('flmap')).toEqual(['Fleet map']);
+    expect(search('qqq')).toEqual([]);
+  });
+});
+
+describe('remembered sidebar state', () => {
+  const active = ['magnus', 'magnus/fleet'];
+  it('opens only what holds the current page until someone chooses otherwise', () => {
+    expect(isNavOpen({}, 'magnus', active)).toBe(true);
+    expect(isNavOpen({}, 'oathweave', active)).toBe(false);
+  });
+  it('remembers a choice in either direction', () => {
+    expect(isNavOpen(toggleNavChoice({}, 'oathweave', active), 'oathweave', active)).toBe(true);
+    expect(isNavOpen(toggleNavChoice({}, 'magnus', active), 'magnus', active)).toBe(false);
+  });
+  it('shows the page when someone arrives in a group they closed, and keeps other choices', () => {
+    const choices = { magnus: false, oathweave: true, hive: false };
+    expect(revealActive(choices, active)).toEqual({ oathweave: true, hive: false });
+    const untouched = { oathweave: true };
+    expect(revealActive(untouched, active)).toBe(untouched);
+  });
+  it('survives missing, broken or blocked storage', () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal('localStorage', { getItem: (key: string) => store.get(key) ?? null, setItem: (key: string, value: string) => void store.set(key, value) });
+    expect(readNavChoices()).toEqual({});
+    writeNavChoices({ magnus: true });
+    expect(readNavChoices()).toEqual({ magnus: true });
+    store.set('hivexui-nav', '{not json');
+    expect(readNavChoices()).toEqual({});
+    store.set('hivexui-nav', '{"magnus":"yes","hive":false}');
+    expect(readNavChoices()).toEqual({ hive: false });
+    vi.stubGlobal('localStorage', { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); } });
+    expect(readNavChoices()).toEqual({});
+    expect(() => writeNavChoices({ magnus: true })).not.toThrow();
+    vi.unstubAllGlobals();
   });
 });
 

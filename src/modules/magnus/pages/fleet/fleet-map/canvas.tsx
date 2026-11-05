@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Link2Off } from 'lucide-react';
 import { readThemeColors, type ThemeColors } from '@lib/theme-colors';
-import { subscribeTheme } from '@lib/theme';
 import { cn } from '@lib/cn';
 import { HaloDot, useReducedMotion } from '../../../effects';
 import Link from '../../../navigation';
@@ -109,7 +108,6 @@ export function FleetMapCanvas({ topology, inFlight, selectedNodeId, onSelectNod
 
   useEffect(() => {
     setColors(readThemeColors());
-    return subscribeTheme(() => setColors(readThemeColors()));
   }, []);
 
   useEffect(() => {
@@ -143,7 +141,7 @@ export function FleetMapCanvas({ topology, inFlight, selectedNodeId, onSelectNod
     canvas.style.height = `${size.h}px`;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const font = getComputedStyle(document.body).fontFamily || 'monospace';
+    const font = getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() || 'monospace';
     const layout = layoutNodes(topology, size.w, size.h);
     laidOut.current = layout.nodes;
     const byId = new Map(layout.nodes.map((item) => [item.node.id, item] as const));
@@ -194,8 +192,12 @@ export function FleetMapCanvas({ topology, inFlight, selectedNodeId, onSelectNod
         ctx.lineDashOffset = animate ? -(t * 60) % 20 : 0;
         ctx.lineWidth = 1.5;
         ctx.strokeStyle = `rgba(${pr},${pg},${pb},0.85)`;
+        // A running node lights two of its links: in a full mesh, all of them would hide the map.
+        const lit = new Map<string, number>();
         for (const edge of topology.edges) {
-          if (!flying.has(edge.from) && !flying.has(edge.to)) continue;
+          const owner = flying.has(edge.from) ? edge.from : flying.has(edge.to) ? edge.to : null;
+          if (!owner || (lit.get(owner) ?? 0) >= 2) continue;
+          lit.set(owner, (lit.get(owner) ?? 0) + 1);
           const a = byId.get(edge.from);
           const b = byId.get(edge.to);
           if (!a || !b) continue;
@@ -216,7 +218,7 @@ export function FleetMapCanvas({ topology, inFlight, selectedNodeId, onSelectNod
       }
 
       ctx.font = `${LABEL_FONT_PX}px ${font}`;
-      for (const { x, y, phase, stress, node } of layout.nodes) {
+      for (const { x, y, phase, stress, node, labelSide } of layout.nodes) {
         const isSelected = selected.current === node.id;
         const isHover = hover.current === node.id;
         const sprite = sprites[Math.round(stress * (GLOW_BUCKETS - 1))];
@@ -265,8 +267,9 @@ export function FleetMapCanvas({ topology, inFlight, selectedNodeId, onSelectNod
           ctx.fillStyle = isHover || isSelected ? palette.text : `rgba(${pr},${pg},${pb},0.85)`;
           // On a phone the name of a node near the edge goes above it, clear of its neighbors' names.
           const width = ctx.measureText(node.name).width;
-          if (x + 14 + width > size.w) ctx.fillText(node.name, Math.max(2, Math.min(size.w - width - 2, x - width / 2)), y - 16);
-          else ctx.fillText(node.name, x + 14, y + 4);
+          const outside = labelSide === 1 ? x + 14 : x - 14 - width;
+          if (outside < 2 || outside + width > size.w - 2) ctx.fillText(node.name, Math.max(2, Math.min(size.w - width - 2, x - width / 2)), y - 16);
+          else ctx.fillText(node.name, outside, y + 4);
         }
       }
     };

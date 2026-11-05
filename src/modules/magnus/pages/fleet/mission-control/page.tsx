@@ -121,8 +121,8 @@ function Stat({ label, value, sublabel, tone = 'accent', meter, gauge }: { label
     <div className="glow-hover relative rounded-panel border border-border bg-surface-raised p-3 hover:border-accent">
             <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-xs font-medium text-text-muted">{label}</div>
-          <div className={cn('num mt-1 truncate text-xl font-bold', TONE_TEXT[tone])}>{value}</div>
+          <div className="stat-label">{label}</div>
+          <div className={cn('num data-figure mt-1 truncate text-2xl font-bold', TONE_TEXT[tone], GLOW_TEXT[tone])}>{value}</div>
           {sublabel ? <div className="mt-0.5 truncate text-xs text-text-muted">{sublabel}</div> : null}
         </div>
         {gauge ? <Gauge value={gauge.value} max={gauge.max} label={label} higherIsBetter={gauge.higherIsBetter} thresholds={{ warn: 10, crit: 34 }} size={56} ticks={false} display="" hideLabel className="-my-1 shrink-0" /> : null}

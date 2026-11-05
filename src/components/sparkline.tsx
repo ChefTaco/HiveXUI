@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import type { Tone } from '@ui';
+import type { Tone } from './ui';
 import { cn } from '@lib/cn';
 import { TONE_COLOR } from './tones';
 
@@ -53,4 +53,13 @@ export function Sparkline({ values, tone = 'accent', width = 160, height = 32, a
       )}
     </svg>
   );
+}
+
+/**
+ * A stat tile's footer: the trend, edge to edge. A series with nothing to show renders nothing, which
+ * leaves the tile's plain gradient: a flat line over a fading fill would look the same.
+ */
+export function TileTrend({ values, tone = 'accent' }: { values: readonly number[]; tone?: Tone }) {
+  if (values.length < 2 || values.every((value) => value === values[0])) return null;
+  return <Sparkline values={values} tone={tone} width={240} height={30} stretch live={false} />;
 }

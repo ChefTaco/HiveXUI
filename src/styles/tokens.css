@@ -1,68 +1,114 @@
 /*
  * HiveXUI design tokens: the only place colors, type, radii and spacing are defined.
  *
- * Runtime tokens are plain custom properties and describe meaning, never a hue.
- * The @theme blocks below expose them to Tailwind, so utilities such as `bg-surface`,
- * `text-text-muted`, `border-border`, `bg-accent`, `text-danger`, `rounded-panel`,
- * `text-sm` and `p-4` follow the active theme. See docs/THEME.md.
+ * There is one theme for now: the Magnus look, near-black with neon cyan, magenta and saturated,
+ * glowing status colors. Runtime tokens are plain custom properties and describe meaning, never a
+ * hue, so components do not know what they resolve to and a light theme can be added here later
+ * without touching them. The @theme blocks below expose them to Tailwind, so utilities such as
+ * `bg-surface`, `text-text-muted`, `border-border`, `bg-accent`, `text-danger`, `rounded-panel`,
+ * `text-sm` and `p-4` follow these values. See docs/THEME.md.
  *
- * tokens.test.ts requires both themes to define the same names and checks WCAG contrast.
+ * tokens.test.ts checks WCAG contrast for every pair that carries text.
  */
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
   /* Surfaces, from furthest back to closest to the reader. */
-  --surface-sunken: #dbe7e4;
-  --surface-page: #e9f0ef;
-  --surface: #f6f9f7;
-  --surface-raised: #ffffff;
-  --surface-hover: #e1ece8;
-  --scrim: rgb(16 47 63 / 0.45);
+  --surface-sunken: #020207;
+  --surface-page: #000000;
+  --surface: #06060d;
+  --surface-raised: #0a0a14;
+  --surface-hover: #0e0e1a;
+  --scrim: rgb(0 0 0 / 0.72);
   /* Translucent backdrop behind blurred bars and the navigation rail. */
-  --surface-glass: rgb(246 249 247 / 0.86);
+  --surface-glass: rgb(0 0 0 / 0.82);
 
   /* Text. */
-  --text-strong: #102f3f;
-  --text: #173246;
-  --text-muted: #46656e;
+  --text-strong: #f5f7ff;
+  --text: #e0e0ec;
+  --text-muted: #9496b6;
 
   /* Borders. `--border` separates; `--border-strong` outlines controls (3:1). */
-  --border: #bdceca;
-  --border-strong: #6f8f88;
+  --border: #1a1a2e;
+  --border-strong: #63658f;
+  /* Corner brackets on panels, and the hairline that leads the eye along the bars. */
+  --corner: rgb(0 229 255 / 0.6);
+  /* The far end of the hairline under the top bar. */
+  --edge-mid: rgb(255 0 110 / 0.4);
 
-  /* Accent: the brand teal. Primary actions, selection, links and focus. */
-  --accent: #216d69;
-  --accent-hover: #185951;
-  --accent-soft: rgb(33 109 105 / 0.1);
-  --on-accent: #ffffff;
-  --focus: #216d69;
+  /* Accent: the brand color. Primary actions, selection, links and focus. */
+  --accent: #00e5ff;
+  --accent-hover: #00ffff;
+  --accent-soft: rgb(0 229 255 / 0.09);
+  --on-accent: #001317;
+  --focus: #00ffff;
+  /* Signal: the second brand color. Data that is active, the signed-in person, the unread count. Not a status. */
+  --signal: #ff006e;
+  --signal-soft: rgb(255 0 110 / 0.08);
+  --on-signal: #000000;
 
   /* Status. `-soft` is a tint for backgrounds, `on-` is text on the solid color. */
-  --success: #2a6c43;
-  --success-soft: rgb(42 108 67 / 0.12);
-  --on-success: #ffffff;
-  --warning: #85560f;
-  --warning-soft: rgb(150 96 34 / 0.14);
-  --on-warning: #ffffff;
-  --danger: #a33a2b;
-  --danger-soft: rgb(163 58 43 / 0.11);
-  --on-danger: #ffffff;
-  --info: #30597f;
-  --info-soft: rgb(54 95 133 / 0.12);
-  --on-info: #ffffff;
+  --success: #00ff41;
+  --success-soft: rgb(0 255 65 / 0.09);
+  --on-success: #001a07;
+  --warning: #ffb300;
+  --warning-soft: rgb(255 179 0 / 0.1);
+  --on-warning: #1a1200;
+  --danger: #ff1744;
+  --danger-soft: rgb(255 23 68 / 0.08);
+  --on-danger: #000000;
+  --info: #00b0ff;
+  --info-soft: rgb(0 176 255 / 0.1);
+  --on-info: #00131f;
 
   /* Elevation. */
-  --shadow-panel: 0 1px 2px rgb(23 50 70 / 0.05);
-  --shadow-overlay: 0 24px 70px rgb(23 50 70 / 0.22);
+  --shadow-panel: inset 0 1px 0 rgb(255 255 255 / 0.02);
+  --shadow-overlay: 0 24px 80px rgb(0 0 0 / 0.75), 0 0 32px rgb(0 229 255 / 0.1);
 
   /* Glow: translucent color for effects, one per accent or status. See effects.css. */
-  --glow-accent: rgb(33 109 105 / 0.28);
-  --glow-success: rgb(42 108 67 / 0.28);
-  --glow-warning: rgb(133 86 15 / 0.28);
-  --glow-danger: rgb(163 58 43 / 0.28);
-  --glow-info: rgb(48 89 127 / 0.28);
-  --glow-grid: rgb(33 109 105 / 0.07);
+  --glow-accent: rgb(0 229 255 / 0.28);
+  --glow-signal: rgb(255 0 110 / 0.3);
+  --glow-success: rgb(0 255 65 / 0.28);
+  --glow-warning: rgb(255 179 0 / 0.28);
+  --glow-danger: rgb(255 23 68 / 0.34);
+  --glow-info: rgb(0 176 255 / 0.28);
+  --glow-grid: rgb(0 229 255 / 0.05);
+  /* How much of a figure's own color burns around it, and how far a mark's glow reaches. */
+  --glow-text-strength: 100%;
+  --glow-mark-radius: 5px;
+
+  /* Backdrop behind every screen: a wash of color from the top, a grid, scanlines. */
+  --backdrop-wash: rgb(0 229 255 / 0.07);
+  --backdrop-grid: rgb(0 229 255 / 0.05);
+  --backdrop-scanline: rgb(0 229 255 / 0.015);
+
+  /* Voice. Headings, labels and navigation speak like a terminal; body text stays in the sans. */
+  --heading-font: var(--font-mono);
+  --heading-case: uppercase;
+  --heading-tracking: 0.08em;
+  --heading-color: var(--accent);
+  --heading-glow: 0 0 8px var(--glow-accent), 0 0 20px var(--glow-accent);
+  --heading-size: var(--text-xl);
+  --panel-title-font: var(--font-mono);
+  --panel-title-case: uppercase;
+  --panel-title-tracking: 0.08em;
+  --panel-title-size: var(--text-sm);
+  --label-font: var(--font-mono);
+  --label-case: uppercase;
+  --label-tracking: 0.12em;
+  --data-font: var(--font-mono);
+  --nav-font: var(--font-mono);
+  --nav-case: uppercase;
+  --nav-tracking: 0.08em;
+  --nav-size: var(--text-xs);
+  --control-font: var(--font-mono);
+  --control-case: uppercase;
+  --control-tracking: 0.08em;
+  --control-size: var(--text-xs);
+  --eyebrow-mark: '// ';
+  --eyebrow-color: var(--accent);
+  --eyebrow-tracking: 0.26em;
 
   /* Spacing: one step per Tailwind unit, so `--space-4` equals `p-4`. */
   --space-1: 0.25rem;
@@ -77,58 +123,10 @@
   --sidebar-width: 17rem;
 }
 
-:root[data-theme='dark'] {
-  color-scheme: dark;
-
-  --surface-sunken: #0b1d28;
-  --surface-page: #102934;
-  --surface: #173642;
-  --surface-raised: #1d424b;
-  --surface-hover: #254f56;
-  --scrim: rgb(5 20 27 / 0.65);
-  --surface-glass: rgb(23 54 66 / 0.86);
-
-  --text-strong: #f2f8f5;
-  --text: #dcebe7;
-  --text-muted: #b4cbc6;
-
-  --border: #355c63;
-  --border-strong: #6f979c;
-
-  --accent: #8ccbbb;
-  --accent-hover: #a8dfcd;
-  --accent-soft: rgb(140 203 187 / 0.12);
-  --on-accent: #0b1d28;
-  --focus: #a8dfcd;
-
-  --success: #a3dcae;
-  --success-soft: rgb(163 220 174 / 0.13);
-  --on-success: #0b1d28;
-  --warning: #eec27c;
-  --warning-soft: rgb(231 187 114 / 0.14);
-  --on-warning: #0b1d28;
-  --danger: #f5b9ab;
-  --danger-soft: rgb(239 182 168 / 0.14);
-  --on-danger: #0b1d28;
-  --info: #b0d0ef;
-  --info-soft: rgb(162 199 234 / 0.14);
-  --on-info: #0b1d28;
-
-  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.2);
-  --shadow-overlay: 0 24px 80px rgb(0 0 0 / 0.5);
-
-  --glow-accent: rgb(140 203 187 / 0.32);
-  --glow-success: rgb(163 220 174 / 0.32);
-  --glow-warning: rgb(238 194 124 / 0.32);
-  --glow-danger: rgb(245 185 171 / 0.32);
-  --glow-info: rgb(176 208 239 / 0.32);
-  --glow-grid: rgb(140 203 187 / 0.07);
-}
-
 /*
  * Tailwind colors. Clearing the default palette keeps `bg-red-500` and friends from
  * rendering at all: a ported page uses these names or it visibly has no color.
- * `primary` is the same teal as `accent`; it stays only because ported pages use it.
+ * `primary` is the same color as `accent`; it stays only because ported pages use it.
  */
 @theme inline static {
   --color-*: initial;
@@ -154,6 +152,10 @@
   --color-primary-hover: var(--accent-hover);
   --color-on-primary: var(--on-accent);
 
+  --color-signal: var(--signal);
+  --color-signal-soft: var(--signal-soft);
+  --color-on-signal: var(--on-signal);
+
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
   --color-on-success: var(--on-success);
@@ -169,6 +171,7 @@
 
   --color-glow: var(--glow-accent);
   --color-glow-accent: var(--glow-accent);
+  --color-glow-signal: var(--glow-signal);
   --color-glow-success: var(--glow-success);
   --color-glow-warning: var(--glow-warning);
   --color-glow-danger: var(--glow-danger);
@@ -234,6 +237,7 @@
   --duration-sweep: 900ms;
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
 
   --animate-halo: halo 2s ease-out infinite;
   --animate-shimmer: shimmer 1.6s linear infinite;
@@ -314,6 +318,41 @@
     from {
       opacity: 0;
       transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes toast-progress {
+    from {
+      transform: scaleX(1);
+    }
+    to {
+      transform: scaleX(0);
+    }
+  }
+  @keyframes cursor-blink {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0;
+    }
+  }
+  @keyframes scanline-scroll {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(4px);
+    }
+  }
+  @keyframes nav-open {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
     }
     to {
       opacity: 1;

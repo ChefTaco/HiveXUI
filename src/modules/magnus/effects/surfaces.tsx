@@ -6,22 +6,22 @@ import { useReducedMotion } from './motion';
 
 type FxTone = 'accent' | 'success' | 'warning' | 'danger' | 'info';
 const PANEL_TONE: Record<FxTone, string> = {
-  accent: '[--panel-corner-color:var(--accent)] [--fx-glow:var(--glow-accent)]',
-  success: '[--panel-corner-color:var(--success)] [--fx-glow:var(--glow-success)]',
-  warning: '[--panel-corner-color:var(--warning)] [--fx-glow:var(--glow-warning)]',
-  danger: '[--panel-corner-color:var(--danger)] [--fx-glow:var(--glow-danger)]',
-  info: '[--panel-corner-color:var(--info)] [--fx-glow:var(--glow-info)]',
+  accent: '[--panel-bloom:var(--glow-accent)]',
+  success: '[--panel-corner-color:var(--success)] [--panel-bloom:var(--glow-success)]',
+  warning: '[--panel-corner-color:var(--warning)] [--panel-bloom:var(--glow-warning)]',
+  danger: '[--panel-corner-color:var(--danger)] [--panel-bloom:var(--glow-danger)]',
+  info: '[--panel-corner-color:var(--info)] [--panel-bloom:var(--glow-info)]',
 };
 
 /**
  * Replaces GlowPanel: the shared Panel with corner brackets, a hover glow and, for `hero`, the grid.
  * The brackets take both of the panel's pseudo-elements, which is why the glow is a child here rather
- * than the shared glow-hover, whose ::after they would displace.
+ * than the shared glow-hover, whose ::after they would displace. Every shared Panel has the brackets too.
  */
 export function FxPanel({ fxTone = 'accent', hero = false, interactive = true, className, children, ...props }: Omit<ComponentProps<typeof Panel>, 'glow'> & { fxTone?: FxTone; hero?: boolean; interactive?: boolean }) {
   return (
     <Panel {...props} className={cn('panel-corners', PANEL_TONE[fxTone], hero && 'grid-bg', className)}>
-      {interactive ? <span className="fx-panel-glow" aria-hidden="true" /> : null}
+      {interactive ? <span className="panel-glow" aria-hidden="true" /> : null}
       {children}
     </Panel>
   );

@@ -77,6 +77,12 @@
     align-items: center;
     gap: var(--space-1);
   }
+  /* These repeat under every message, so they stay quiet until pointed at. */
+  .chat-posts footer .btn:not(:hover, :focus-visible) {
+    border-color: var(--border);
+    color: var(--text-muted);
+  }
+
   .chat-posts a {
     display: block;
     margin: var(--space-1) 0;

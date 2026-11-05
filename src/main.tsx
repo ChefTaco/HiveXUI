@@ -4,17 +4,17 @@ import '@fontsource/dm-sans/latin-600.css';
 import '@fontsource/space-grotesk/latin-500.css';
 import '@fontsource/space-grotesk/latin-600.css';
 import '@fontsource/ibm-plex-mono/latin-400.css';
+import '@fontsource/ibm-plex-mono/latin-600.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './app';
 import { IdentityPrompts } from './components/identity-prompts';
 import { ToastProvider } from './components/toast';
-import { ThemeToggle } from './components/theme-toggle';
 import { initializeRuntime } from './lib/runtime';
-import { applyTheme } from './lib/theme';
+import { applyStoredFxLevel } from './lib/motion';
 import './styles/index.css';
 
-applyTheme();
+applyStoredFxLevel();
 
 const root = document.getElementById('root');
 
@@ -33,7 +33,6 @@ try {
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <ToastProvider>
-      <ThemeToggle floating />
       <IdentityPrompts />
       <App />
     </ToastProvider>

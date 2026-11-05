@@ -40,7 +40,7 @@ describe('the effects', () => {
   it('build on the shared panel', () => {
     const html = renderToStaticMarkup(<FxPanel hero title="T">body</FxPanel>);
     expect(html).toMatch(/class="panel [^"]*panel-corners/);
-    expect(html).toContain('fx-panel-glow');
+    expect(html).toContain('panel-glow');
     // The two shared hooks both need ::after, so they must not meet on one element.
     expect(html).not.toContain('glow-hover');
     expect(html).toContain('grid-bg');
@@ -55,7 +55,8 @@ describe('page arrival', () => {
 
 describe('effects.css', () => {
   it('defines every animation it uses, and leaves motion to the global switch or the low-effects rule', () => {
-    const defined = new Set([...css.matchAll(/@keyframes\s+([\w-]+)/g)].map((match) => match[1]));
+    const shared = readFileSync(new URL('../../../styles/effects.css', import.meta.url), 'utf8');
+    const defined = new Set([...(css + shared).matchAll(/@keyframes\s+([\w-]+)/g)].map((match) => match[1]));
     for (const match of css.matchAll(/animation:\s*([\w-]+)/g)) if (match[1] !== 'none') expect(defined.has(match[1])).toBe(true);
     expect(css).toMatch(/html\[data-fx='low'\]/);
     expect(readFileSync(new URL('../../../styles/base.css', import.meta.url), 'utf8')).toMatch(/prefers-reduced-motion: reduce[\s\S]*animation: none !important/);

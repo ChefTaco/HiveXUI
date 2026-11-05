@@ -5,6 +5,7 @@
  * rely on one to carry meaning; pair it with text or a status color.
  */
 .glow-accent,
+.glow-signal,
 .glow-success,
 .glow-warning,
 .glow-danger,
@@ -14,34 +15,49 @@
 .glow-accent,
 .glow-text-accent,
 .glow-text-primary,
-.glow-hover {
+.glow-hover,
+.glow-hover--accent {
   --glow-color: var(--glow-accent);
+  --glow-tone: var(--accent);
+}
+.glow-signal,
+.glow-text-signal,
+.glow-hover--signal {
+  --glow-color: var(--glow-signal);
+  --glow-tone: var(--signal);
 }
 .glow-success,
 .glow-text-success,
 .glow-hover--success {
   --glow-color: var(--glow-success);
+  --glow-tone: var(--success);
 }
 .glow-warning,
 .glow-text-warning,
 .glow-hover--warning {
   --glow-color: var(--glow-warning);
+  --glow-tone: var(--warning);
 }
 .glow-danger,
 .glow-text-danger,
 .glow-hover--danger {
   --glow-color: var(--glow-danger);
+  --glow-tone: var(--danger);
 }
 .glow-info,
+.glow-text-info,
 .glow-hover--info {
   --glow-color: var(--glow-info);
+  --glow-tone: var(--info);
 }
 .glow-text-accent,
 .glow-text-primary,
+.glow-text-signal,
 .glow-text-success,
 .glow-text-warning,
-.glow-text-danger {
-  text-shadow: 0 0 14px var(--glow-color);
+.glow-text-danger,
+.glow-text-info {
+  text-shadow: 0 0 8px color-mix(in srgb, var(--glow-tone) var(--glow-text-strength), transparent), 0 0 20px var(--glow-color);
 }
 
 /* Fades a pre-shadowed layer, so hovering never animates box-shadow. */
@@ -52,7 +68,7 @@
   position: absolute;
   inset: -1px;
   border-radius: inherit;
-  box-shadow: 0 0 20px var(--glow-hover-color, var(--glow-color));
+  box-shadow: 0 0 20px var(--glow-hover-color, var(--glow-color)), inset 0 0 12px var(--glow-hover-color, var(--glow-color));
   content: '';
   opacity: 0;
   pointer-events: none;
@@ -63,19 +79,36 @@
   opacity: 1;
 }
 
-/* Corner brackets, top left and bottom right. */
-.panel-corners {
+/* A panel's hover glow, as a child: its brackets take both of its pseudo-elements. */
+.panel-glow {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  box-shadow: 0 0 20px var(--panel-bloom, var(--glow-color, var(--glow-accent))), inset 0 0 12px var(--panel-bloom, var(--glow-color, var(--glow-accent)));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-slow) var(--ease-out-expo);
+}
+.panel:hover > .panel-glow {
+  opacity: 1;
+}
+
+/* Corner brackets, top left and bottom right. Every panel has them. */
+:where(.panel-corners) {
   position: relative;
 }
+.panel::before,
+.panel::after,
 .panel-corners::before,
 .panel-corners::after {
   position: absolute;
   width: 0.75rem;
   height: 0.75rem;
-  border-color: var(--panel-corner-color, var(--border-strong));
+  border-color: var(--panel-corner-color, var(--corner));
   content: '';
   pointer-events: none;
 }
+.panel::before,
 .panel-corners::before {
   top: -1px;
   left: -1px;
@@ -83,6 +116,7 @@
   border-left: 1px solid;
   border-top-left-radius: var(--radius-panel);
 }
+.panel::after,
 .panel-corners::after {
   right: -1px;
   bottom: -1px;
@@ -135,14 +169,178 @@
   }
 }
 
+/* Radar: rings and blips around an animate-sweep layer. */
+.fx-radar {
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 50%;
+  background: var(--surface-sunken);
+  box-shadow: 0 0 24px var(--glow-accent), inset 0 0 24px var(--glow-accent);
+}
+.fx-radar__ring {
+  position: absolute;
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  border-radius: 50%;
+}
+.fx-radar__axis {
+  position: absolute;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.fx-radar__sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0deg, transparent 290deg, color-mix(in srgb, var(--accent) 35%, transparent) 355deg, var(--accent) 360deg);
+  opacity: 0.7;
+}
+.fx-blip {
+  position: absolute;
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor, 0 0 12px currentColor;
+  color: var(--text-muted);
+  transform: translate(-50%, -50%);
+}
+.fx-blip--success {
+  color: var(--success);
+}
+.fx-blip--warning {
+  color: var(--warning);
+}
+.fx-blip--danger {
+  color: var(--danger);
+  animation: fx-pulse 1.6s ease-in-out infinite;
+}
+.fx-blip--info {
+  color: var(--info);
+}
+
+/* A gauge's arc: it lights up and sweeps to its value. */
+.fx-gauge__value {
+  filter: drop-shadow(0 0 var(--glow-mark-radius) currentColor);
+  stroke-dasharray: var(--fx-dash);
+  transition: stroke-dasharray 1s var(--ease-out-expo);
+}
+@starting-style {
+  .fx-gauge__value {
+    stroke-dasharray: 0 1000;
+  }
+}
+
+/* Small signals. */
+@keyframes fx-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+.fx-pulse {
+  animation: fx-pulse 1.6s ease-in-out infinite;
+}
+.fx-cursor {
+  display: inline-block;
+  width: 0.375rem;
+  height: 0.875rem;
+  margin-left: 0.25rem;
+  background: var(--accent);
+  vertical-align: text-bottom;
+  animation: cursor-blink 1s step-end infinite;
+}
+
+/* A page block with nothing to show takes no gap in the stack. */
+.page-stack > div:empty {
+  display: none;
+}
+
+/* The focal band of an overview: radar, gauges and a trend, wrapping on narrower screens. */
+.hero-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+}
+.hero-trend {
+  display: grid;
+  min-width: min(100%, 18rem);
+  flex: 1;
+  gap: var(--space-3);
+  color: var(--accent);
+}
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: var(--space-3);
+}
+
+/* A product tile on an overview: a lit top edge in its status color. */
+.product-tile {
+  --tile-tone: var(--border-strong);
+  --tile-glow: transparent;
+  position: relative;
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-top: 1px solid var(--tile-tone);
+  border-radius: var(--radius-panel);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tile-tone) 9%, var(--surface-raised)), var(--surface-raised) 60%);
+  box-shadow: 0 -4px 14px -8px var(--tile-glow);
+  color: inherit;
+  text-align: left;
+}
+.product-tile--success {
+  --tile-tone: var(--success);
+  --tile-glow: var(--glow-success);
+}
+.product-tile--warning {
+  --tile-tone: var(--warning);
+  --tile-glow: var(--glow-warning);
+}
+.product-tile--danger {
+  --tile-tone: var(--danger);
+  --tile-glow: var(--glow-danger);
+}
+.product-tile__name {
+  overflow-wrap: anywhere;
+  color: var(--text-strong);
+  font-family: var(--panel-title-font);
+  font-size: var(--panel-title-size);
+  font-weight: 600;
+  letter-spacing: var(--panel-title-tracking);
+  text-transform: var(--panel-title-case);
+}
+.product-tile__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
 html[data-fx='low'] .typing-dots span,
 html[data-fx='low'] .animate-glow-pulse,
 html[data-fx='low'] .animate-flicker,
 html[data-fx='low'] .animate-sweep,
 html[data-fx='low'] .animate-ticker,
 html[data-fx='low'] .animate-halo,
-html[data-fx='low'] .status-dot--live::after {
+html[data-fx='low'] .status-dot--live::after,
+html[data-fx='low'] .fx-blip--danger,
+html[data-fx='low'] .fx-pulse,
+html[data-fx='low'] .fx-cursor,
+html[data-fx='low'] .crumbs__cursor {
   animation: none;
+}
+html[data-fx='low'] .console-scanlines {
+  display: none;
 }
 
 /* Without motion the band would sit still across the row. */

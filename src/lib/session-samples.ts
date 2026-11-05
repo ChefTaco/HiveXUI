@@ -14,8 +14,11 @@ function read(key: string): SessionSample[] {
   }
 }
 
-/** The last 40 values a page has polled, kept for this tab, for trends the API has no history for. */
-export function useSessionSamples(key: string, sample: Omit<SessionSample, 't'> | null): SessionSample[] {
+/**
+ * The last 40 values a page has polled, kept for this tab, for trends the API has no history for.
+ * Pass the response as `stamp`, so a poll that changed nothing still extends the line.
+ */
+export function useSessionSamples(key: string, sample: Omit<SessionSample, 't'> | null, stamp?: unknown): SessionSample[] {
   const [samples, setSamples] = useState<SessionSample[]>(() => read(key));
   const signature = sample ? JSON.stringify(sample) : null;
   useEffect(() => {
@@ -33,7 +36,7 @@ export function useSessionSamples(key: string, sample: Omit<SessionSample, 't'> 
       }
       return updated;
     });
-  }, [key, signature]);
+  }, [key, signature, stamp]);
   return samples;
 }
 export const series = (samples: readonly SessionSample[], metric: string): number[] =>

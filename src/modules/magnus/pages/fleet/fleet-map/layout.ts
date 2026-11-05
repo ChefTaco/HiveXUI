@@ -10,6 +10,8 @@ export interface LaidOutNode {
   phase: number;
   /** 0 is healthy, 1 is critical. */
   stress: number;
+  /** The node's name goes on this side, away from its own ring's other nodes. */
+  labelSide: 1 | -1;
 }
 export interface Cluster {
   x: number;
@@ -68,16 +70,17 @@ export function layoutNodes(topology: Pick<TopologyMap, 'nodes' | 'subnets'>, wi
   const clusters: Cluster[] = [];
   subnets.forEach((subnet, subnetIndex) => {
     const angle = (subnetIndex / subnets.length) * TAU;
-    const x = subnet.isGateway || single ? cx : cx + Math.cos(angle) * outerR;
+    // A wide map spreads its subnets sideways, so their rings of names keep clear of each other.
+    const x = subnet.isGateway || single ? cx : cx + Math.cos(angle) * Math.max(outerR, width * 0.32);
     const y = subnet.isGateway || single ? cy : cy + Math.sin(angle) * outerR;
     const members = topology.nodes.filter((node) => subnet.nodes.includes(node.id));
-    const r = members.length <= 1 ? 0 : Math.min(single ? outerR * 0.75 : 80, 24 + members.length * 8);
+    const r = members.length <= 1 ? 0 : Math.min(single ? outerR * 0.75 : 110, 24 + members.length * 9);
     clusters.push({ x, y, r: r + 18, cidr: subnet.cidr, isGateway: subnet.isGateway, size: members.length });
     members.forEach((node, index) => {
       const a = (index / members.length) * TAU;
       let hash = 0;
       for (let char = 0; char < node.id.length; char += 1) hash = (hash * 31 + node.id.charCodeAt(char)) | 0;
-      nodes.push({ node, x: x + Math.cos(a) * r, y: y + Math.sin(a) * r, phase: (Math.abs(hash % 1000) / 1000) * TAU, stress: stressFromNode(node) });
+      nodes.push({ node, x: x + Math.cos(a) * r, y: y + Math.sin(a) * r, phase: (Math.abs(hash % 1000) / 1000) * TAU, stress: stressFromNode(node), labelSide: Math.cos(a) < -0.01 ? -1 : 1 });
     });
   });
   return { nodes, clusters };

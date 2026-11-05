@@ -1,10 +1,10 @@
-// The Magnus sidebar, in one data file. It lists every page the module will have, so porting a
+// The Magnus sidebar sections, in one data file. The shell shows them as parts of one product. It lists every page the module will have, so porting a
 // page never touches it: an entry appears as soon as its path is in a routes/*.ts file. Labels
 // must be unique across the whole sidebar, because the console walkthrough names screenshots after
 // them (navigation.test.ts enforces this). Pure data and no React, because the shell imports it.
 import { hasRoute, type ConsoleRole, type MagnusCapability } from './routes';
 
-export type MagnusNavIcon = 'Activity' | 'Alert' | 'Book' | 'Gauge' | 'Hexagon' | 'Key' | 'Route' | 'Scroll' | 'Server' | 'Settings';
+export type MagnusNavIcon = 'Activity' | 'Alert' | 'Bell' | 'Book' | 'BookOpen' | 'Clock' | 'Compass' | 'Dashboard' | 'FileText' | 'Gauge' | 'HeartPulse' | 'Hexagon' | 'Key' | 'Library' | 'Map' | 'Package' | 'Puzzle' | 'Route' | 'Scroll' | 'Server' | 'Settings' | 'Shield' | 'Siren' | 'Sliders' | 'Terminal' | 'Webhook' | 'Zap';
 export interface MagnusNavItem {
   path: string;
   label: string;
@@ -24,40 +24,40 @@ export interface MagnusNavContext {
 
 export const MAGNUS_NAV: readonly MagnusNavSection[] = [
   {
-    label: 'Magnus',
+    label: 'Fleet',
     items: [
-      { path: '/mission-control', label: 'Mission Control', icon: 'Gauge' },
-      { path: '/', label: 'Fleet overview', icon: 'Hexagon' },
+      { path: '/mission-control', label: 'Mission Control', icon: 'Compass' },
+      { path: '/', label: 'Fleet overview', icon: 'Dashboard' },
       { path: '/nodes', label: 'Nodes', icon: 'Server' },
-      { path: '/application-operations', label: 'Applications', icon: 'Activity' },
+      { path: '/application-operations', label: 'Applications', icon: 'HeartPulse' },
       { path: '/fleet-readiness', label: 'Readiness', icon: 'Gauge' },
-      { path: '/fleet-map', label: 'Fleet map', icon: 'Route' },
-      { path: '/anomalies', label: 'Anomalies', icon: 'Alert' },
-      { path: '/anomalies/remediation', label: 'Remediation', icon: 'Alert' },
-      { path: '/notifications', label: 'Notifications', icon: 'Settings' },
+      { path: '/fleet-map', label: 'Fleet map', icon: 'Map' },
+      { path: '/anomalies', label: 'Anomalies', icon: 'Siren' },
+      { path: '/anomalies/remediation', label: 'Remediation', icon: 'Zap' },
+      { path: '/notifications', label: 'Notifications', icon: 'Bell' },
     ],
   },
   {
-    label: 'Magnus operations',
+    label: 'Operations',
     items: [
-      { path: '/commands', label: 'Commands', icon: 'Server', roles: ['ADMIN', 'OPERATOR'] },
-      { path: '/governor/operations', label: 'Fleet operations', icon: 'Route' },
-      { path: '/rollouts', label: 'Rollouts', icon: 'Route' },
-      { path: '/incidents', label: 'Fleet incidents', icon: 'Alert' },
-      { path: '/cron', label: 'Cron jobs', icon: 'Activity', roles: ['ADMIN', 'OPERATOR'] },
-      { path: '/files', label: 'Files', icon: 'Book', roles: ['ADMIN', 'OPERATOR'] },
+      { path: '/commands', label: 'Commands', icon: 'Terminal', roles: ['ADMIN', 'OPERATOR'] },
+      { path: '/governor/operations', label: 'Fleet operations', icon: 'Sliders' },
+      { path: '/rollouts', label: 'Rollouts', icon: 'Package' },
+      { path: '/incidents', label: 'Fleet incidents', icon: 'Activity' },
+      { path: '/cron', label: 'Cron jobs', icon: 'Clock', roles: ['ADMIN', 'OPERATOR'] },
+      { path: '/files', label: 'Files', icon: 'FileText', roles: ['ADMIN', 'OPERATOR'] },
       { path: '/logs', label: 'Logs', icon: 'Scroll' },
-      { path: '/audit', label: 'Fleet audit', icon: 'Scroll' },
-      { path: '/webhooks', label: 'Webhooks', icon: 'Route', roles: ['ADMIN'] },
-      { path: '/api-docs', label: 'Fleet API', icon: 'Book' },
+      { path: '/audit', label: 'Fleet audit', icon: 'Shield' },
+      { path: '/webhooks', label: 'Webhooks', icon: 'Webhook', roles: ['ADMIN'] },
+      { path: '/api-docs', label: 'Fleet API', icon: 'BookOpen' },
     ],
   },
   {
-    label: 'Magnus provisioning',
+    label: 'Provisioning',
     items: [
       { path: '/roles', label: 'Node roles', icon: 'Key' },
-      { path: '/library', label: 'Library', icon: 'Book' },
-      { path: '/skills', label: 'Installed skills', icon: 'Scroll' },
+      { path: '/library', label: 'Library', icon: 'Library' },
+      { path: '/skills', label: 'Installed skills', icon: 'Puzzle' },
     ],
   },
   {
@@ -71,7 +71,7 @@ export const MAGNUS_NAV: readonly MagnusNavSection[] = [
     ],
   },
   {
-    label: 'Magnus Ardent',
+    label: 'Ardent',
     items: [
       { path: '/ardent', label: 'Ardent overview', icon: 'Hexagon', roles: ['ADMIN'] },
       { path: '/ardent/installations', label: 'Ardent installations', icon: 'Server', roles: ['ADMIN'] },
@@ -79,7 +79,7 @@ export const MAGNUS_NAV: readonly MagnusNavSection[] = [
     ],
   },
   {
-    label: 'Codex Agent',
+    label: 'Codex',
     items: [
       { path: '/codex', label: 'Codex overview', icon: 'Hexagon', roles: ['ADMIN'] },
       { path: '/codex/installations', label: 'Codex installations', icon: 'Server', roles: ['ADMIN'] },

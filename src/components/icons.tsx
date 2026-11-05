@@ -1,4 +1,30 @@
 import type { SVGProps } from 'react';
+import {
+  Bell,
+  BookOpen,
+  BrainCircuit,
+  ChevronRight,
+  Clock,
+  Compass,
+  FileText,
+  HeartPulse,
+  LayoutDashboard,
+  Library,
+  Map as MapIcon,
+  MessagesSquare,
+  Package,
+  Puzzle,
+  Radar as RadarIcon,
+  ScanSearch,
+  Search,
+  ShieldCheck,
+  Siren,
+  SlidersHorizontal,
+  Terminal,
+  Webhook,
+  Workflow,
+  Zap,
+} from 'lucide-react';
 
 type IconProps = SVGProps<SVGSVGElement>;
 
@@ -17,6 +43,30 @@ function base(props: IconProps) {
 }
 
 export const Icon = {
+  Bell,
+  BookOpen,
+  Brain: BrainCircuit,
+  ChevronRight,
+  Clock,
+  Compass,
+  FileText,
+  HeartPulse,
+  Dashboard: LayoutDashboard,
+  Library,
+  Map: MapIcon,
+  Messages: MessagesSquare,
+  Package,
+  Puzzle,
+  Radar: RadarIcon,
+  ScanSearch,
+  Search,
+  Shield: ShieldCheck,
+  Siren,
+  Sliders: SlidersHorizontal,
+  Terminal,
+  Webhook,
+  Workflow,
+  Zap,
   Gauge: (p: IconProps) => (
     <svg {...base(p)}>
       <path d="M12 14l4-4" />

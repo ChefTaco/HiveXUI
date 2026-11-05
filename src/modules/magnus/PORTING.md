@@ -114,10 +114,11 @@ Say you are porting `/rollouts`, in the `operations` package.
 | `confirm()` | `ConfirmDialog` from `@ui`. |
 | `Modal` with a form | `Drawer` from `@ui`, or a page-level form. |
 | `Card`, `GlowPanel` | `FxPanel` from `effects`, which is the shared `Panel` plus the effects. |
+| `StatCard` | `StatCard` from `@ui`, with `TileTrend` from `effects` as its `footer`. |
 | `Badge variant=`, `statusVariant` | `Badge tone=`, `statusTone` from `@ui`. |
 | `StatusDot`, `Button`, `PageHeader`, `EmptyState`, `Skeleton` | From `@ui`. The props differ: `description` on `EmptyState` is `message`; `Button variant="secondary"` is the default. |
 | `MeterBar` | `FxMeter` from `effects`. |
-| `Gauge`, `Sparkline`, `AnimatedNumber`, `FleetRadar`, `LazyAreaChart`, `useSessionSamples` | The same names from `effects`. Chart tones are `accent`, `info`, `success`, `warning`, `danger`, `neutral`. `primary` becomes `accent`, and `accent` becomes `info`. |
+| `Gauge`, `Sparkline`, `AnimatedNumber`, `FleetRadar`, `LazyAreaChart`, `useSessionSamples` | The same names from `effects`. Chart tones are `accent`, `signal`, `info`, `success`, `warning`, `danger`, `neutral`. `primary` becomes `accent`, and `accent` becomes `signal`. |
 | `PageTransition` / `PageItem` | Drop `PageTransition` for `<div className="page-stack">`. `PageItem` is in `effects`. |
 | `NodeSelector` | `ui/node-selector` (single select; call it for each node if the old page was multi). |
 | `SkeletonTable`, `SkeletonText`, an inline error state | `LoadingRows` and `ResourceError` from `ui/resource-state`. |
@@ -134,7 +135,7 @@ reimplement an effect. Use what exists, driven by real data, in theme colors. Sh
 | --- | --- | --- |
 | `animate-ticker`, `HeaderTicker` | `Ticker` | A marquee of real items. Already above every page in `live/live-band`. |
 | `LiveEventList` | `live/live-list` | A panel of fleet events. |
-| `FleetRadar`, `animate-sweep` | `FleetRadar`; `fx-radar` with `animate-sweep` for your own | A rotating sweep over real blips. |
+| `FleetRadar`, `animate-sweep` | `FleetRadar`; the shared `Radar` from `components/radar` for your own | A rotating sweep over real blips. |
 | Gauge glow | `Gauge` | Hero figures. |
 | `GlowPanel` | `FxPanel`, with `hero`, `fxTone`, `interactive={false}` | Every panel. It is the shared `Panel` plus `panel-corners`, `glow-hover` and `grid-bg`. |
 | `glow-hover`, `panel-corners`, `grid-bg` | The same classes | A tile or link: see `QuickLinks` in Mission Control. |
@@ -157,9 +158,10 @@ Effects of the old console not used by a page yet, and who has them:
 | Effect | Status |
 | --- | --- |
 | Fleet map canvas | Fleet package. |
-| Sidebar hover sheen and spring indicator, breadcrumb cursor | The shell is shared. Left for the design review. |
-| Toast slide-in and progress bar | `src/components/toast` is shared. Left for the design review. |
-| Command palette | Not ported; no package owns it yet. |
+| Sidebar hover sheen and spring indicator, breadcrumb cursor | In the shell. |
+| Toast slide-in and progress bar | `src/components/toast`. |
+| Command palette | `src/components/command-palette`, for screens across every product. The old console's search of nodes, skills and installations is not ported. |
+| Notification bell | `modules/magnus/shell/notification-bell`. |
 | `text-glow`, `glow-pulse`, `scanline-scroll`, `neon-border`, `accent-glow` | Defined in the old CSS, used by nothing there. |
 
 Rules for anything you add to a page:
@@ -185,8 +187,9 @@ const stream = openStream({ path: '/logs/stream', query: { levels: 'error' }, on
 ```
 
 It reconnects with a fresh token, backs off, stops on logout and gives up on 403 and 404. Only open a stream after an
-operator's action, such as a Live button, or after `STREAM_DWELL_MS` as `live/use-live-events` does: the walkthrough
-counts an open `fetch` as pending, and the page would never settle.
+operator's action, such as a Live button, or after `STREAM_DWELL_MS` as `live/use-live-events` does, so a stream does
+not take one of the browser's connections while the first page loads. The band above every page shows the stream's
+real state: Recent while waiting, then Connecting, Live, Reconnecting or Not live.
 
 The server allows each subject 20 `/hermes/*` and 30 `/orchestra/*` requests a minute. `api/rate-gate` makes requests
 wait rather than exceed that. Poll those paths with `HERMES_POLL_MS` or slower, or pages will feel slow.

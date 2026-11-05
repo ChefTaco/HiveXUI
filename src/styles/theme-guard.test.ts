@@ -62,6 +62,13 @@ describe('stylesheets', () => {
   });
 });
 
+describe('the single theme', () => {
+  it('has no way to switch: no OS query, no theme attribute, no dark variant', () => {
+    expect(matching([...stylesheets, ...components], /prefers-color-scheme|data-theme|dataset\.theme|@custom-variant dark|hivexui-theme/g)).toEqual([]);
+    expect(matching(components, /\bdark:[a-z[-]/g)).toEqual([]);
+  });
+});
+
 describe('components', () => {
   it('use readable text: no arbitrary sizes under the 12px floor', () => {
     expect(matching(components, /\btext-\[(?:[0-9]|1[01])(?:\.\d+)?px\]/g)).toEqual([]);

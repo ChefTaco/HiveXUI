@@ -1,5 +1,24 @@
 # Changelog
 
+- Give the whole console the Magnus look, as its one theme: near-black surfaces, neon cyan and
+  magenta, saturated status colors that glow, a grid backdrop, and display headings and labels in
+  mono. The light theme, its toggle and the operating system preference are gone for now; tokens
+  stay semantic so a light theme can return without touching components.
+- Bring stat tiles back to the old console's shape with tone-colored figures and gradient or
+  trend footers, and give the Hive, Emberpath Routers and Cindertrace overviews a radar and gauges
+  from real data.
+- Group the sidebar by product, with Magnus next to Hive as one product with sections. Only the
+  current product is open until someone opens another, and the choice is remembered. Add the hover
+  sheen and the indicator that springs to the active page.
+- Replace the top bar's title stack with a terminal breadcrumb and blinking cursor, and show the
+  shell's Refresh only on pages that have none of their own.
+- Add a `Ctrl` or `Cmd` + `K` palette over every visible screen, a Magnus notification bell with an
+  unread count, and a toast slide with a progress line and a dismiss button.
+- Say what the Magnus live strip is really doing. It read Connecting until the stream opened, which
+  restarted its wait on every navigation, and also after the stream had given up, while it scrolled
+  recent activity from the API. It now reads Recent, Connecting, Live, Reconnecting or Not live, and
+  moving between pages no longer delays it.
+
 - Add the Magnus module at `/fleet`: Mission Control, overview and nodes on the shared
   theme, with sidebar navigation, deep links and browser history. One API per installation:
   the control node switcher, federation and embedded Hermes dashboard are gone, and sign-in

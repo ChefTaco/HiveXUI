@@ -713,7 +713,7 @@ export function TestingPage({
               <Panel
                 key={category.alias}
                 title={`${category.title} · ${category.alias}`}
-                eyebrow={alias?.description ?? category.rationale}
+                description={alias?.description ?? category.rationale}
                 actions={
                   <div className="inline-actions">
                     <Badge tone="accent">{category.alias}</Badge>

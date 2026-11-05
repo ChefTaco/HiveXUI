@@ -1,9 +1,10 @@
-import type { Tone } from '@ui';
+import type { Tone } from './ui';
 
 /** CSS color for SVG and chart attributes, which cannot use classes. Always a theme token. */
 export const TONE_COLOR: Record<Tone, string> = {
   neutral: 'var(--text-muted)',
   accent: 'var(--accent)',
+  signal: 'var(--signal)',
   success: 'var(--success)',
   warning: 'var(--warning)',
   danger: 'var(--danger)',
@@ -12,6 +13,7 @@ export const TONE_COLOR: Record<Tone, string> = {
 export const TONE_TEXT: Record<Tone, string> = {
   neutral: 'text-text-muted',
   accent: 'text-accent',
+  signal: 'text-signal',
   success: 'text-success',
   warning: 'text-warning',
   danger: 'text-danger',
@@ -22,10 +24,11 @@ export const TONE_TEXT: Record<Tone, string> = {
 export const GLOW_TEXT: Record<Tone, string> = {
   neutral: '',
   accent: 'glow-text-accent',
+  signal: 'glow-text-signal',
   success: 'glow-text-success',
   warning: 'glow-text-warning',
   danger: 'glow-text-danger',
-  info: 'glow-text-accent',
+  info: 'glow-text-info',
 };
 
 export interface Thresholds {

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useState, type CSSProperties, type ReactNode } from 'react';
 import { Icon } from './icons';
 
 type ToastTone = 'success' | 'error' | 'info';
@@ -26,6 +26,7 @@ export function useToast(): ToastApi {
 }
 
 let counter = 0;
+const lifetime = (tone: ToastTone): number => (tone === 'error' ? 6500 : 4000);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -38,7 +39,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (tone: ToastTone, title: string, message?: string) => {
       const id = (counter += 1);
       setToasts((current) => [...current, { id, tone, title, ...(message ? { message } : {}) }]);
-      window.setTimeout(() => remove(id), tone === 'error' ? 6500 : 4000);
+      window.setTimeout(() => remove(id), lifetime(tone));
     },
     [remove],
   );
@@ -60,10 +61,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((toast) => (
           <div key={toast.id} className={`toast toast--${toast.tone}`} onClick={() => remove(toast.id)}>
             {iconFor(toast.tone)}
-            <div>
+            <div className="toast__body">
               <strong>{toast.title}</strong>
               {toast.message ? <span>{toast.message}</span> : null}
             </div>
+            <button type="button" className="toast__close" aria-label="Dismiss notification" onClick={() => remove(toast.id)}>
+              <Icon.Close />
+            </button>
+            <span className="toast__progress" aria-hidden="true" style={{ '--toast-ms': `${lifetime(toast.tone)}ms` } as CSSProperties} />
           </div>
         ))}
       </div>

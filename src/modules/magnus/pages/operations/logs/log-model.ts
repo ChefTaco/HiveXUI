@@ -48,5 +48,6 @@ export const LEVEL_EDGE: Record<Tone, string> = {
   info: 'border-l-info',
   neutral: 'border-l-border',
   accent: 'border-l-accent',
+  signal: 'border-l-signal',
   success: 'border-l-success',
 };

@@ -17,13 +17,21 @@ const WorkspacesModule = lazy(() => import('./modules/workspaces'));
 import { MemoryAccess } from './components/memory-access';
 const AccountModule = lazy(() => import('./modules/account'));
 const SuiteOverview = lazy(() => import('./modules/suite'));
+const CommandPalette = lazy(() => import('./components/command-palette'));
+const NotificationBell = lazy(() => import('./modules/magnus/shell/notification-bell'));
 import { ProductAccess } from './components/product-access';
 import { adminApi, ApiError } from './lib/api';
 import { MfaRequired } from './lib/browser-auth';
 import { parsePortalAuthorization } from './lib/authorization-portal';
 import {
+  breadcrumbs,
+  findActiveNav,
   magnusAddress,
+  navProducts,
+  paletteScreens,
   resolveDeepLink,
+  showsShellRefresh,
+  showsShellStatus,
   viewAvailable,
   visibleNavGroups,
   type IamViewKey,
@@ -41,7 +49,8 @@ import type { AdminUser } from './lib/types';
 import { StoreProvider, useStore } from './lib/store';
 import { Icon, HiveSigil } from './components/icons';
 import { AuthLimitsStrip } from './components/auth-limits-strip';
-import { ThemeToggle } from './components/theme-toggle';
+import { Breadcrumb } from './components/breadcrumb';
+import { SidebarNav } from './components/sidebar-nav';
 import { initials, relativeTime } from './lib/format';
 import { ProvidersPage } from './pages/providers';
 import { RoutingPage } from './pages/routing';
@@ -182,7 +191,8 @@ function AuthorizationPortal() {
 function Background() {
   return (
     <>
-      <div className="honeycomb-bg" aria-hidden />
+      <div className="console-backdrop" aria-hidden />
+      <div className="console-scanlines" aria-hidden />
     </>
   );
 }
@@ -457,8 +467,11 @@ function Shell({
   const [deepLink] = useState(() => resolveDeepLink(location, productInstalled));
   const [view, setView] = useState<ViewKey>(deepLink.view);
   const [magnusNav, setMagnusNav] = useState<MagnusNavContext>({});
-  const navGroups = useMemo(() => visibleNavGroups(productInstalled, magnusNav), [magnusNav]);
+  const products = useMemo(() => navProducts(visibleNavGroups(productInstalled, magnusNav)), [magnusNav]);
+  const screens = useMemo(() => paletteScreens(products), [products]);
   const [magnusPath, setMagnusPath] = useState(() => toConsolePath(location.pathname));
+  const [pathname, setPathname] = useState(location.pathname);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   useEffect(() => {
     if (deepLink.url) history.replaceState(null, '', deepLink.url);
   }, [deepLink]);
@@ -490,6 +503,7 @@ function Shell({
   useEffect(() => {
     const sync = () => {
       const path = location.pathname;
+      setPathname(path);
       setMagnusPath(toConsolePath(path));
       if (!isFleetPath(path) && viewRef.current !== 'magnus') return;
       const next = resolveDeepLink(location, productInstalled);
@@ -498,6 +512,16 @@ function Shell({
     };
     window.addEventListener('popstate', sync);
     return () => window.removeEventListener('popstate', sync);
+  }, []);
+  useEffect(() => {
+    const open = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setPaletteOpen((value) => !value);
+      }
+    };
+    window.addEventListener('keydown', open);
+    return () => window.removeEventListener('keydown', open);
   }, []);
   const [navOpen, setNavOpen] = useState(false);
   const navigationRef = useRef<HTMLElement>(null);
@@ -545,7 +569,7 @@ function Shell({
     }
   }
 
-  function navigate(requested: string, path = '/') {
+  function navigate(requested: string, path?: string) {
     const next: ViewKey = viewAvailable(requested, productInstalled)
       ? requested
       : 'hive';
@@ -555,7 +579,12 @@ function Shell({
       document.querySelector<HTMLElement>('.topbar .title')?.focus(),
     );
     if (next === 'magnus') {
-      history.pushState(null, '', magnusAddress(path));
+      history.pushState(null, '', magnusAddress(path ?? '/'));
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      return;
+    }
+    if (next === 'security' && path) {
+      history.pushState(null, '', path);
       window.dispatchEvent(new PopStateEvent('popstate'));
       return;
     }
@@ -576,6 +605,13 @@ function Shell({
 
   const failures = data.telemetry?.totals.failures ?? 0;
   const displayName = user?.displayName ?? user?.username ?? 'Operator';
+  const activeNav = findActiveNav(products, view, view === 'magnus' ? activeMagnusNavPath(magnusPath) : null);
+  const crumbs = breadcrumbs(
+    activeNav,
+    titleFor(view),
+    view === 'magnus' ? (matchRoute(magnusPath)?.route.title ?? 'Magnus') : undefined,
+    view === 'magnus' ? magnusPath : pathname,
+  );
 
   return (
     <>
@@ -594,34 +630,7 @@ function Shell({
             </div>
           </div>
 
-          <nav className="nav">
-            {navGroups.map((group) => (
-              <div className="nav-group" key={group.label}>
-                <p className="nav-group-label">{group.label}</p>
-                {group.items.map((item) => {
-                  const ItemIcon = Icon[item.icon];
-                  const count = counts[item.key];
-                  const active = item.path === undefined
-                    ? view === item.key
-                    : view === 'magnus' && activeMagnusNavPath(magnusPath) === item.path;
-                  return (
-                    <button
-                      key={item.path ?? item.key}
-                      className={active ? 'nav-item nav-item--active' : 'nav-item'}
-                      aria-current={active ? 'page' : undefined}
-                      onClick={() => navigate(item.key, item.path)}
-                    >
-                      <ItemIcon width={18} height={18} />
-                      <span>{item.label}</span>
-                      {typeof count === 'number' && count > 0 ? (
-                        <span className="nav-count">{count}</span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-          </nav>
+          <SidebarNav products={products} active={activeNav} counts={counts} onNavigate={navigate} />
 
           <div className="sidebar-footer">
             <div className="sidebar-user">
@@ -631,9 +640,8 @@ function Shell({
                 <span>{user?.roles?.join(', ') || 'Signed in'}</span>
               </div>
             </div>
-            <button className="btn btn--ghost btn--sm" onClick={handleLogout}>
-              <Icon.Logout className="btn-ico" />
-              Sign out
+            <button type="button" className="topbar-icon" aria-label="Sign out" title="Sign out" onClick={handleLogout}>
+              <Icon.Logout aria-hidden="true" />
             </button>
           </div>
         </aside>
@@ -651,56 +659,54 @@ function Shell({
             >
               <Icon.Menu />
             </button>
-            <div className="topbar-lead">
-              <p className="eyebrow">Control Plane</p>
-              <h1 className="title" tabIndex={-1}>
-                {view === 'magnus' ? (matchRoute(magnusPath)?.route.title ?? 'Magnus') : titleFor(view)}
-              </h1>
-            </div>
+            <Breadcrumb crumbs={crumbs} onNavigate={navigate} />
             <div className="topbar-meta">
-              <span className={statusPipClass(error, failures)}>
-                <span className="pip-dot" />
-                {error
-                  ? 'Sync error'
-                  : failures > 0
-                    ? `${failures} failures`
-                    : 'Healthy'}
-              </span>
-              <span className="status-pip">
-                <span className="pip-dot" />
-                {lastSync
-                  ? `Synced ${relativeTime(lastSync.toISOString())}`
-                  : 'Syncing…'}
-                <details>
-                  <summary>Panel freshness</summary>
-                  {Object.entries(resourceFreshness).map(([key, value]) => (
-                    <p key={key}>
-                      {key}:{' '}
-                      {value?.lastSuccess
-                        ? relativeTime(value.lastSuccess)
-                        : 'Never loaded'}
-                      {value?.error ? ' · ' + value.error : ''}
-                    </p>
-                  ))}
-                </details>
-              </span>
-              <button
-                className="btn btn--ghost btn--sm"
-                onClick={() => {
-                  browserIdentity()?.retryConsent();
-                  void refresh();
-                }}
-                disabled={refreshing}
-              >
-                {refreshing ? (
-                  <span className="spinner" />
-                ) : (
-                  <Icon.Refresh className="btn-ico" />
-                )}
-                Refresh
+              {showsShellStatus(view) ? (
+                <span className={statusPipClass(error, failures)}>
+                  <span className="pip-dot" />
+                  {error ? 'Sync error' : failures > 0 ? `${failures} failures` : 'Healthy'}
+                  <span aria-hidden="true">·</span>
+                  {lastSync ? `Synced ${relativeTime(lastSync.toISOString())}` : 'Syncing…'}
+                  <details>
+                    <summary aria-label="Panel freshness">Panels</summary>
+                    <div className="status-pip__panel">
+                      {Object.entries(resourceFreshness).map(([key, value]) => (
+                        <p key={key}>
+                          {key}:{' '}
+                          {value?.lastSuccess ? relativeTime(value.lastSuccess) : 'Never loaded'}
+                          {value?.error ? ' · ' + value.error : ''}
+                        </p>
+                      ))}
+                    </div>
+                  </details>
+                </span>
+              ) : null}
+              <button type="button" className="topbar-search" onClick={() => setPaletteOpen(true)} aria-label="Search screens" aria-keyshortcuts="Control+K Meta+K" title="Search every screen">
+                <Icon.Search aria-hidden="true" />
+                <span>Search</span>
+                <kbd className="key">{/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl+K'}</kbd>
               </button>
+              {showsShellRefresh(view) ? (
+                <button
+                  type="button"
+                  className="topbar-icon"
+                  aria-label="Refresh"
+                  title="Refresh"
+                  onClick={() => {
+                    browserIdentity()?.retryConsent();
+                    void refresh();
+                  }}
+                  disabled={refreshing}
+                >
+                  {refreshing ? <span className="spinner" /> : <Icon.Refresh aria-hidden="true" />}
+                </button>
+              ) : null}
+              {magnusNav.role ? (
+                <Suspense fallback={null}>
+                  <NotificationBell onOpenInbox={() => navigate('magnus', '/notifications')} />
+                </Suspense>
+              ) : null}
             </div>
-            <ThemeToggle />
           </header>
 
           <div className="content">
@@ -750,6 +756,11 @@ function Shell({
           <div className="scrim scrim--nav" onClick={() => setNavOpen(false)} />
         ) : null}
       </div>
+      {paletteOpen ? (
+        <Suspense fallback={null}>
+          <CommandPalette screens={screens} onNavigate={navigate} onClose={() => setPaletteOpen(false)} />
+        </Suspense>
+      ) : null}
     </>
   );
 }
