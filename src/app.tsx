@@ -741,10 +741,10 @@ function Shell({
             )}
           </div>
         </main>
+        {navOpen ? (
+          <div className="scrim scrim--nav" onClick={() => setNavOpen(false)} />
+        ) : null}
       </div>
-      {navOpen ? (
-        <div className="scrim scrim--nav" onClick={() => setNavOpen(false)} />
-      ) : null}
     </>
   );
 }
