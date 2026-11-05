@@ -33,6 +33,7 @@ import {
 import type { AdminUser } from './lib/types';
 import { StoreProvider, useStore } from './lib/store';
 import { Icon, HiveSigil } from './components/icons';
+import { AuthLimitsStrip } from './components/auth-limits-strip';
 import { ThemeToggle } from './components/theme-toggle';
 import { initials, relativeTime } from './lib/format';
 import { ProvidersPage } from './pages/providers';
@@ -65,7 +66,12 @@ const IAM_VIEW_SECTIONS: Record<IamViewKey, IamSection> = {
 };
 
 export function App() {
-  return location.pathname === '/auth/authorize' ? <AuthorizationPortal /> : <ConsoleApp />;
+  return (
+    <>
+      <AuthLimitsStrip />
+      {location.pathname === '/auth/authorize' ? <AuthorizationPortal /> : <ConsoleApp />}
+    </>
+  );
 }
 
 function ConsoleApp() {

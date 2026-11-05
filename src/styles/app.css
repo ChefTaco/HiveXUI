@@ -68,9 +68,9 @@
 
 .sidebar {
   position: sticky;
-  top: 0;
+  top: var(--shell-strip-height, 0px);
   display: flex;
-  height: 100vh;
+  height: calc(100vh - var(--shell-strip-height, 0px));
   flex-direction: column;
   gap: var(--space-1);
   padding: var(--space-5) var(--space-4);
@@ -198,7 +198,7 @@
 }
 .topbar {
   position: sticky;
-  top: 0;
+  top: var(--shell-strip-height, 0px);
   z-index: 30;
   display: flex;
   align-items: center;
