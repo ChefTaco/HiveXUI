@@ -5,3 +5,4 @@
 .memory-operations .inline-actions { flex-wrap: wrap; }
 .memory-operations input, .memory-operations select { max-width: 100%; }
 .memory-operations .panel { min-width: 0; }
+.memory-operations .stack-item > button:not(.btn) { display: grid; gap: .35rem; flex: 1 1 100%; padding: .25rem 0; border: 0; background: transparent; color: inherit; font: inherit; }
