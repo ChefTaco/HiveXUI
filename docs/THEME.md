@@ -50,6 +50,7 @@ use only tokens, and limit it to layout. Unlayered CSS would beat every utility.
 | Motion | `duration-[var(--duration-base)]`, `ease-standard`, `ease-out-expo`, `animate-halo`, `animate-shimmer`, `animate-glow-pulse`, `animate-flicker`, `animate-sweep`, `animate-ticker`, `animate-toast-in`, `animate-page-in` |
 | Glow | `glow-accent`, `glow-success`, `glow-warning`, `glow-danger`, `glow-info`, `glow-text-*`, `glow-hover`, `shadow-glow-sm`, `shadow-glow-md`, `shadow-[0_0_8px_var(--color-glow-danger)]` |
 | Backdrops | `panel-corners`, `grid-bg`, `scan-sweep` |
+| Activity | `typing-dots` around three empty spans, always beside text saying what is happening |
 
 `dark:` follows the console's theme control, but tokens already change with the theme, so
 a page rarely needs it. `primary` is an alias of `accent` kept for ported pages; prefer

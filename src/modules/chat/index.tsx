@@ -1,13 +1,19 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useReducer,
   useState,
   type FormEvent,
+  type KeyboardEvent,
 } from "react";
+import { ArrowDown } from "lucide-react";
+import { Badge, Button } from "@ui";
 import type {
   MattermostChannel,
+  MattermostChannelMember,
+  MattermostCommandResponse,
   MattermostPost,
   MattermostPostList,
   MattermostTeam,
@@ -37,6 +43,37 @@ import {
   NewConversation,
   ConversationFiles,
 } from "./conversation-controls";
+import {
+  CommandPalette,
+  EmojiPicker,
+  commandOptionId,
+} from "./composer-tools";
+import {
+  commandSuggestions,
+  completeCommand,
+  enterCompletes,
+  insertAtCaret,
+} from "./composer";
+import {
+  LATEST_THRESHOLD_PX,
+  REPLY_WINDOW_MS,
+  TYPING_WINDOW_MS,
+  botName,
+  botTargets,
+  dismissOnboarding,
+  distanceFromLatest,
+  postedBy,
+  postsOldestFirst,
+  readSocketEvent,
+  respondingLabel,
+  settleIndicators,
+  showsOnboarding,
+  typingBot,
+  webhookIdentity,
+  withIndicator,
+  withoutIndicator,
+  type BotIndicator,
+} from "./conversation-state";
 import "./chat.css";
 
 const standardEmoji: Record<string, string> = {
@@ -80,8 +117,15 @@ function ConnectedChat() {
   active.current = channel + ":" + thread;
   const requests = useRef(new ChatViewRequests());
   const [more, setMore] = useState(false);
+  const postList = useRef<HTMLOListElement>(null);
+  const composerInput = useRef<HTMLTextAreaElement>(null);
+  // Stay on the newest message unless the reader has scrolled away from it.
+  const followLatest = useRef(true);
+  const beforeEarlier = useRef<{ height: number; top: number } | null>(null);
+  const [awayFromLatest, setAwayFromLatest] = useState(false);
   function navigate(nextChannel: string, nextThread = "", nextTeam = team) {
     requests.current.invalidate();
+    followLatest.current = true;
     setPosts([]);
     setResults(null);
     setChannel(nextChannel);
@@ -101,6 +145,7 @@ function ConnectedChat() {
     const restore = () => {
       const next = readChatLocation(location.search);
       requests.current.invalidate();
+      followLatest.current = true;
       setTeam(next.team);
       setChannel(next.channel);
       setThread(next.thread);
@@ -120,6 +165,12 @@ function ConnectedChat() {
   >({});
   const [emoji, setEmoji] = useState<{ name: string; emoji: string }[]>([]);
   const [commands, setCommands] = useState<MattermostCommand[]>([]);
+  const [paletteHidden, setPaletteHidden] = useState(false),
+    [paletteIndex, setPaletteIndex] = useState(0);
+  const [members, setMembers] = useState<MattermostChannelMember[]>([]),
+    [membersRevision, setMembersRevision] = useState(0);
+  const [indicators, setIndicators] = useState<BotIndicator[]>([]);
+  const [welcome, setWelcome] = useState(false);
   const refresh = useCallback(async () => {
     if (!channel) return;
     const captured = channel + ":" + thread,
@@ -131,10 +182,7 @@ function ConnectedChat() {
     );
     if (active.current !== captured || !requests.current.current(sequence))
       return;
-    const incoming = data.order
-      .map((id) => data.posts[id]!)
-      .filter(Boolean)
-      .reverse();
+    const incoming = postsOldestFirst(data);
     if (incoming.some((post) => post.channel_id !== channel))
       throw new Error("This thread belongs to another channel");
     setMore(!thread && incoming.length === 60);
@@ -165,6 +213,7 @@ function ConnectedChat() {
       .then(([user, available, people]) => {
         if (!current) return;
         setMe(user);
+        setWelcome(showsOnboarding(user, Date.now(), () => localStorage));
         setTeams(available);
         setUsers(people);
         setTeam((previous) =>
@@ -205,6 +254,42 @@ function ConnectedChat() {
       current = false;
     };
   }, []);
+  useEffect(() => {
+    setMembers([]);
+    if (!channel) return;
+    let current = true;
+    void chat<MattermostChannelMember[]>(
+      "/channels/" + safeId(channel) + "/members",
+    )
+      .then((values) => {
+        if (current) setMembers(values);
+      })
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, [channel, membersRevision]);
+  useEffect(() => {
+    setIndicators((list) => settleIndicators(list, posts, Date.now()));
+  }, [posts]);
+  useEffect(() => {
+    if (!indicators.length) return;
+    const next = Math.min(...indicators.map((item) => item.expiresAt));
+    const timer = setTimeout(
+      () => setIndicators((list) => settleIndicators(list, [], Date.now())),
+      Math.max(0, next - Date.now()) + 50,
+    );
+    return () => clearTimeout(timer);
+  }, [indicators]);
+  // Realtime events end an indicator; without a socket, poll for the reply instead.
+  const waitingHere = indicators.some((item) => item.channelId === channel);
+  useEffect(() => {
+    if (!waitingHere || online) return;
+    const timer = setInterval(() => {
+      void refreshRef.current().catch(() => undefined);
+    }, 1800);
+    return () => clearInterval(timer);
+  }, [waitingHere, online]);
   useEffect(() => {
     if (!me) return;
     let current = true;
@@ -305,10 +390,13 @@ function ConnectedChat() {
           safeId(posts[0]!.id),
       );
       if (active.current !== captured) return;
-      const older = data.order
-        .map((id) => data.posts[id]!)
-        .filter(Boolean)
-        .reverse();
+      const list = postList.current;
+      if (list)
+        beforeEarlier.current = {
+          height: list.scrollHeight,
+          top: list.scrollTop,
+        };
+      const older = postsOldestFirst(data);
       setMore(older.length === 60);
       setPosts((old) => [
         ...older.filter((post) => !old.some((value) => value.id === post.id)),
@@ -353,7 +441,8 @@ function ConnectedChat() {
       const next = new WebSocket(url);
       socket = next;
       next.onopen = () => setOnline(true);
-      next.onmessage = () => {
+      next.onmessage = (message) => {
+        if (socketEvent.current(message.data)) return;
         if (refreshTimer) clearTimeout(refreshTimer);
         refreshTimer = setTimeout(() => {
           void refreshRef
@@ -377,6 +466,44 @@ function ConnectedChat() {
       window.removeEventListener("chat-session-refreshed", connect);
     };
   }, [me]);
+  /** Returns true when the event needs no conversation refresh. */
+  const socketEvent = useRef<(raw: unknown) => boolean>(() => false);
+  socketEvent.current = (raw) => {
+    const message = readSocketEvent(raw);
+    if (!message) return false;
+    if (message.event === "typing") {
+      const typing = typingBot(message.data);
+      const known = byUser[typing.userId];
+      if (
+        typing.channelId &&
+        typing.userId &&
+        typing.userId !== me?.id &&
+        (typing.isBot || known?.is_bot)
+      ) {
+        const now = Date.now();
+        setIndicators((list) =>
+          withIndicator(list, {
+            channelId: typing.channelId,
+            userId: typing.userId,
+            name: known ? botName(known) : typing.name,
+            startedAt: now,
+            expiresAt: now + TYPING_WINDOW_MS,
+          }),
+        );
+      }
+      return true;
+    }
+    if (message.event === "posted") {
+      const author = postedBy(message.data);
+      if (author)
+        setIndicators((list) =>
+          withoutIndicator(list, author.channelId, author.userId),
+        );
+    }
+    if (message.event === "user_added" || message.event === "user_removed")
+      setMembersRevision((value) => value + 1);
+    return false;
+  };
   function appendFiles(selected: File[]) {
     updateAttachments({
       type: "append",
@@ -404,6 +531,7 @@ function ConnectedChat() {
     setBusy(true);
     setError("");
     try {
+      followLatest.current = true;
       const ids = await uploadedAttachments.current.resolve(
         key,
         pending,
@@ -428,16 +556,29 @@ function ConnectedChat() {
           return info.id;
         },
       );
-      if (message.startsWith("/"))
-        await chat(
-          "/commands/execute",
-          json({ channel_id: target, command: message }),
-        );
-      else
-        await chat(
-          "/posts",
-          json({ channel_id: target, message, root_id: root, file_ids: ids }),
-        );
+      const sent = message.startsWith("/")
+        ? await chat<MattermostCommandResponse>(
+            "/commands/execute",
+            json({ channel_id: target, command: message }),
+          )
+        : await chat<MattermostPost>(
+            "/posts",
+            json({ channel_id: target, message, root_id: root, file_ids: ids }),
+          );
+      const now = Date.now();
+      setIndicators((list) =>
+        botTargets(selected?.type ?? "", channelBots, message).reduce(
+          (all, bot) =>
+            withIndicator(all, {
+              channelId: target,
+              userId: bot.id,
+              name: botName(bot),
+              startedAt: sent.create_at,
+              expiresAt: now + REPLY_WINDOW_MS,
+            }),
+          list,
+        ),
+      );
       setDrafts((previous) => ({ ...previous, [key]: "" }));
       updateAttachments({ type: "clear", key });
       uploadedAttachments.current.clear(key);
@@ -541,6 +682,105 @@ function ConnectedChat() {
   }
   const selected = channels.find((item) => item.id === channel);
   const byUser = Object.fromEntries(users.map((user) => [user.id, user]));
+  const memberIds = new Set(members.map((member) => member.user_id));
+  const channelBots = users.filter(
+    (user) => user.is_bot && user.id !== me?.id && memberIds.has(user.id),
+  );
+  const draft = drafts[composerKey] ?? "";
+  // The server accepts slash commands only in conversations containing a bot.
+  const suggestions =
+    paletteHidden || !channelBots.length
+      ? []
+      : commandSuggestions(commands, draft);
+  const activeSuggestion = Math.min(paletteIndex, suggestions.length - 1);
+  function setDraft(text: string) {
+    setDrafts((previous) => ({ ...previous, [composerKey]: text }));
+    setPaletteHidden(false);
+    setPaletteIndex(0);
+  }
+  function placeCaret(position: number) {
+    requestAnimationFrame(() => {
+      const input = composerInput.current;
+      if (!input) return;
+      input.focus();
+      input.setSelectionRange(position, position);
+    });
+  }
+  function complete(command: MattermostCommand) {
+    if (busy || sending.current) return;
+    const text = completeCommand(command);
+    setDraft(text);
+    placeCaret(text.length);
+  }
+  function insertEmoji(symbol: string) {
+    const input = composerInput.current;
+    const next = insertAtCaret(
+      draft,
+      input?.selectionStart ?? draft.length,
+      input?.selectionEnd ?? draft.length,
+      symbol,
+    );
+    setDraft(next.draft);
+    placeCaret(next.caret);
+  }
+  function composerKeys(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.nativeEvent.isComposing) return;
+    if (suggestions.length) {
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const step = event.key === "ArrowDown" ? 1 : -1;
+        setPaletteIndex(
+          (activeSuggestion + step + suggestions.length) % suggestions.length,
+        );
+        return;
+      }
+      if (event.key === "Tab" && !event.shiftKey) {
+        event.preventDefault();
+        complete(suggestions[activeSuggestion]!);
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setPaletteHidden(true);
+        return;
+      }
+    }
+    if (event.key !== "Enter" || event.shiftKey) return;
+    event.preventDefault();
+    const choice = suggestions[activeSuggestion];
+    if (enterCompletes(draft, choice)) complete(choice!);
+    else event.currentTarget.form?.requestSubmit();
+  }
+  function revealTool(id: string) {
+    const tool = document.getElementById(id);
+    if (tool instanceof HTMLDetailsElement) tool.open = true;
+    tool?.scrollIntoView({ block: "nearest" });
+    (tool?.querySelector("summary") ?? tool)?.focus();
+  }
+  const responding = indicators.filter((item) => item.channelId === channel);
+  const respondingNames = responding.map(
+    (item) => (byUser[item.userId] && botName(byUser[item.userId]!)) || item.name,
+  );
+  function trackLatest() {
+    const list = postList.current;
+    if (!list) return;
+    const away = distanceFromLatest(list) > LATEST_THRESHOLD_PX;
+    followLatest.current = !away;
+    setAwayFromLatest(away);
+  }
+  useLayoutEffect(() => {
+    const list = postList.current;
+    if (!list) return;
+    if (results) list.scrollTop = 0;
+    else if (beforeEarlier.current) {
+      list.scrollTop =
+        list.scrollHeight -
+        beforeEarlier.current.height +
+        beforeEarlier.current.top;
+      beforeEarlier.current = null;
+    } else if (followLatest.current) list.scrollTop = list.scrollHeight;
+    trackLatest();
+  }, [posts, results, responding.length]);
   const channelLabel = (value: MattermostChannel) => {
     if (value.display_name) return value.display_name;
     if (value.type === "D" || value.type === "G")
@@ -590,6 +830,7 @@ function ConnectedChat() {
         <label className="field">
           Direct message
           <select
+            id="chat-direct-person"
             value={person}
             onChange={(event) => setPerson(event.target.value)}
           >
@@ -701,25 +942,74 @@ function ConnectedChat() {
             {error}
           </p>
         ) : null}
+        {welcome && me ? (
+          <aside className="chat-onboarding" aria-label="Getting started">
+            <div>
+              <strong>Welcome to ChatterMost</strong>
+              <p>Set up your profile, find people, or join a public channel.</p>
+            </div>
+            <div className="chat-onboarding-actions">
+              <Button size="sm" onClick={() => revealTool("chat-profile")}>
+                Profile
+              </Button>
+              <Button size="sm" onClick={() => revealTool("chat-direct-person")}>
+                Direct messages
+              </Button>
+              <Button size="sm" onClick={() => revealTool("chat-browse")}>
+                Browse channels
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  dismissOnboarding(me, () => localStorage);
+                  setWelcome(false);
+                }}
+              >
+                Dismiss
+              </Button>
+            </div>
+          </aside>
+        ) : null}
         {more && !results && !thread && (
           <button className="btn" disabled={busy} onClick={() => void earlier()}>
             Load earlier messages
           </button>
         )}
-        <ol className="chat-posts" aria-label="Messages">
-          {(results ?? posts).map((post) => (
+        <div className="chat-posts-frame">
+        <ol
+          className="chat-posts"
+          aria-label="Messages"
+          ref={postList}
+          onScroll={trackLatest}
+        >
+          {(results ?? posts).map((post) => {
+            const webhook = webhookIdentity(post, users);
+            return (
             <li key={post.id}>
               <article>
                 <header>
                   <strong>
-                    {byUser[post.user_id]?.nickname ||
+                    {webhook?.displayName ||
+                      byUser[post.user_id]?.nickname ||
                       byUser[post.user_id]?.username ||
                       "Member"}
                   </strong>
+                  {webhook ? (
+                    <Badge>Webhook</Badge>
+                  ) : null}
                   <time dateTime={new Date(post.create_at).toISOString()}>
                     {new Date(post.create_at).toLocaleString()}
                   </time>
                 </header>
+                {webhook ? (
+                  <details className="chat-post-details">
+                    <summary>Message details</summary>
+                    <p>
+                      Webhook: {webhook.label} · Owner: @{webhook.owner}
+                    </p>
+                  </details>
+                ) : null}
                 <p>{post.message}</p>
                 {post.file_ids.map((id) => (
                   <a
@@ -833,8 +1123,39 @@ function ConnectedChat() {
                 </footer>
               </article>
             </li>
-          ))}
+            );
+          })}
+          {responding.length && !results ? (
+            <li
+              className="chat-bot-responding"
+              role="status"
+              data-testid="bot-responding"
+            >
+              <span>{respondingLabel(respondingNames)}</span>
+              <span className="typing-dots" aria-hidden>
+                <span />
+                <span />
+                <span />
+              </span>
+            </li>
+          ) : null}
         </ol>
+        {awayFromLatest && !results ? (
+          <Button
+            size="sm"
+            className="chat-jump-latest"
+            icon={<ArrowDown className="btn-ico" />}
+            onClick={() => {
+              followLatest.current = true;
+              const list = postList.current;
+              if (list) list.scrollTop = list.scrollHeight;
+              trackLatest();
+            }}
+          >
+            Jump to latest
+          </Button>
+        ) : null}
+        </div>
         <form
           className="chat-composer"
           onSubmit={(event) => void send(event)}
@@ -858,50 +1179,40 @@ function ConnectedChat() {
             if (!busy && !sending.current) appendFiles(selected);
           }}
         >
-          {commands.length > 0 && (
-            <details className="chat-command-deck">
-              <summary>Slash commands</summary>
-              <ul>
-                {commands.map((command) => (
-                  <li key={command.id || command.trigger}>
-                    <button
-                      className="btn btn--sm btn--ghost"
-                      type="button"
-                      disabled={busy}
-                      onClick={() => {
-                        if (busy || sending.current) return;
-                        setDrafts((old) => ({
-                          ...old,
-                          [composerKey]: "/" + command.trigger + " ",
-                        }));
-                      }}
-                    >
-                      /{command.trigger}
-                    </button>{" "}
-                    {command.auto_complete_desc || command.description}{" "}
-                    {command.auto_complete_hint}
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
+          <div className="chat-composer-entry">
+          {suggestions.length ? (
+            <CommandPalette
+              id="chat-command-palette"
+              suggestions={suggestions}
+              index={activeSuggestion}
+              pick={complete}
+            />
+          ) : null}
           <label className="field">
             {thread ? "Reply" : "Message"}
             <textarea
+              ref={composerInput}
               disabled={busy || !channel}
               aria-describedby="chat-attachment-help"
-              value={drafts[composerKey] ?? ""}
+              aria-autocomplete="list"
+              aria-controls={suggestions.length ? "chat-command-palette" : undefined}
+              aria-activedescendant={
+                suggestions.length ? commandOptionId(activeSuggestion) : undefined
+              }
+              value={draft}
               onChange={(event) => {
                 if (busy || sending.current) return;
-                const text = event.target.value;
-                setDrafts((previous) => ({ ...previous, [composerKey]: text }));
+                setDraft(event.target.value);
               }}
+              onKeyDown={composerKeys}
               rows={3}
             />
           </label>
+          </div>
           <p id="chat-attachment-help" className="chat-attachment-help">
-            Drop files here, paste an image, or choose files. Up to 10
-            attachments.
+            Enter sends and Shift+Enter starts a new line. Type / for commands
+            in a conversation with a bot. Drop files here, paste an image, or
+            choose files, up to 10 attachments.
           </p>
           {attachments[composerKey]?.error && (
             <p role="alert" className="error-banner">
@@ -933,29 +1244,34 @@ function ConnectedChat() {
               ))}
             </ul>
           )}
-          <div>
-            <label className="field chat-attach">
-              Attach files
-              <input
-                type="file"
-                multiple
+          <div className="chat-composer-actions">
+            <div className="chat-composer-tools">
+              <EmojiPicker
+                custom={emoji}
                 disabled={busy || !channel}
-                onChange={(event) => {
-                  const selected = Array.from(event.target.files ?? []);
-                  event.target.value = "";
-                  if (!busy && !sending.current && selected.length)
-                    appendFiles(selected);
-                }}
+                insert={insertEmoji}
               />
-            </label>
-
+              <label className="field chat-attach">
+                Attach files
+                <input
+                  type="file"
+                  multiple
+                  disabled={busy || !channel}
+                  onChange={(event) => {
+                    const selected = Array.from(event.target.files ?? []);
+                    event.target.value = "";
+                    if (!busy && !sending.current && selected.length)
+                      appendFiles(selected);
+                  }}
+                />
+              </label>
+            </div>
             <button
               className="btn btn--primary"
               disabled={
                 busy ||
                 !channel ||
-                (!(drafts[composerKey] ?? "").trim() &&
-                  !attachments[composerKey]?.files.length)
+                (!draft.trim() && !attachments[composerKey]?.files.length)
               }
             >
               {busy ? "Sending…" : "Send"}

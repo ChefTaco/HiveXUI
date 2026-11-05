@@ -106,12 +106,152 @@
     min-height: 4.5rem;
     font-family: var(--font-sans);
   }
-  .chat-composer > div {
+  .chat-composer-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: end;
     justify-content: space-between;
     gap: var(--space-3);
+  }
+  .chat-composer-tools {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: var(--space-2);
+  }
+  .chat-emoji-picker {
+    position: relative;
+  }
+  .chat-emoji-popover {
+    position: absolute;
+    bottom: calc(100% + var(--space-2));
+    left: 0;
+    z-index: 10;
+    display: grid;
+    width: min(20rem, calc(100vw - 4rem));
+    max-height: 22rem;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-panel);
+    background: var(--surface-raised);
+    box-shadow: var(--shadow-overlay);
+  }
+  .chat-emoji-popover h4 {
+    margin-bottom: var(--space-1);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+  .chat-emoji-popover p {
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+  .chat-emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(2.25rem, 1fr));
+    gap: var(--space-1);
+  }
+  .chat-emoji-choice {
+    min-height: 2.25rem;
+    border-radius: var(--radius-control);
+    font-size: var(--text-lg);
+    cursor: pointer;
+  }
+  .chat-emoji-choice:hover {
+    background: var(--surface-hover);
+  }
+  .chat-composer-entry {
+    position: relative;
+  }
+  /* Overlays the conversation, so opening it never pushes the caret off screen. */
+  .chat-command-palette {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + var(--space-2));
+    left: 0;
+    z-index: 10;
+    display: grid;
+    max-height: 18rem;
+    box-shadow: var(--shadow-overlay);
+    gap: var(--space-1);
+    padding: var(--space-2);
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
+    background: var(--surface-raised);
+  }
+  .chat-command-palette p {
+    padding: 0 var(--space-2);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+  .chat-command-option {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-1) var(--space-3);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-control);
+    font-size: var(--text-sm);
+    text-align: left;
+    cursor: pointer;
+  }
+  .chat-command-option:hover,
+  .chat-command-option--active {
+    background: var(--accent-soft);
+  }
+  .chat-command-option code {
+    color: var(--text-strong);
+    font-family: var(--font-mono);
+  }
+  .chat-command-option span {
+    color: var(--text-muted);
+  }
+  .chat-onboarding {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border);
+    background: var(--accent-soft);
+    font-size: var(--text-sm);
+  }
+  .chat-onboarding-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .chat-posts-frame {
+    position: relative;
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+  }
+  .chat-jump-latest {
+    position: absolute;
+    right: var(--space-4);
+    bottom: var(--space-3);
+    box-shadow: var(--shadow-overlay);
+  }
+  .chat-post-details {
+    margin-top: var(--space-1);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+  .chat-post-details summary {
+    cursor: pointer;
+  }
+  .chat-bot-responding {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
   }
   .chat-attachment-help {
     color: var(--text-muted);
@@ -192,12 +332,6 @@
     display: block;
     color: var(--text-muted);
     font-size: var(--text-xs);
-  }
-  .chat-command-deck ul {
-    display: grid;
-    gap: var(--space-1);
-    margin-top: var(--space-2);
-    font-size: var(--text-sm);
   }
   @media (max-width: 800px) {
     .chat-module {

@@ -115,7 +115,7 @@ export function BrowseChannels({
     };
   }, [team, page]);
   return (
-    <details className="chat-tools">
+    <details className="chat-tools" id="chat-browse">
       <summary>Browse channels</summary>
       {error && <p role="alert">{error}</p>}
       <label className="field">
@@ -618,7 +618,7 @@ export function ChatProfile({
     }
   }
   return (
-    <details className="chat-tools">
+    <details className="chat-tools" id="chat-profile">
       <summary>My chat profile</summary>
       <img
         className="chat-avatar"

@@ -106,6 +106,36 @@
   animation: scan-sweep var(--duration-sweep) var(--ease-out-expo) 1 both;
 }
 
+/* Three dots that say someone is composing; always paired with text. */
+.typing-dots {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+.typing-dots span {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: typing-dot calc(var(--duration-slow) * 3) var(--ease-standard) infinite;
+}
+.typing-dots span:nth-child(2) {
+  animation-delay: 150ms;
+}
+.typing-dots span:nth-child(3) {
+  animation-delay: 300ms;
+}
+@keyframes typing-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+  }
+  30% {
+    opacity: 1;
+  }
+}
+
+html[data-fx='low'] .typing-dots span,
 html[data-fx='low'] .animate-glow-pulse,
 html[data-fx='low'] .animate-flicker,
 html[data-fx='low'] .animate-sweep,
