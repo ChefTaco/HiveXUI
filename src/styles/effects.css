@@ -144,3 +144,10 @@ html[data-fx='low'] .animate-halo,
 html[data-fx='low'] .status-dot--live::after {
   animation: none;
 }
+
+/* Without motion the band would sit still across the row. */
+@media (prefers-reduced-motion: reduce) {
+  .scan-sweep {
+    background-image: none;
+  }
+}

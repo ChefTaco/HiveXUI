@@ -27,7 +27,7 @@ describe('the route files', () => {
   it('declare each path once, without the /fleet prefix', () => {
     const paths = MAGNUS_ROUTES.map((item) => item.path);
     expect(new Set(paths).size).toBe(paths.length);
-    expect(paths.filter((path) => path.startsWith('/fleet'))).toEqual([]);
+    expect(paths.filter((path) => /^\/fleet(\/|$)/.test(path))).toEqual([]);
   });
   it('load each page from its own dynamic import', () => {
     for (const item of fleetRoutes) expect(item.load.toString()).toContain('import');

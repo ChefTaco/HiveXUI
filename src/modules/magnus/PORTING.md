@@ -10,8 +10,8 @@ Touch only your package's files. Then several agents can work at once with no co
 
 | Package | Route file | Page directories | Old paths |
 | --- | --- | --- | --- |
-| `fleet` | `routes/fleet.ts` | `pages/fleet/` | `/application-operations` `/fleet-readiness` `/fleet-timeline` `/fleet-map` `/anomalies` `/anomalies/[anomalyId]` `/anomalies/remediation` `/notifications` `/nodes/[nodeId]`, and the Upgrade Agents action on `/nodes` (`components/nodes/agent-upgrade-modal.tsx`, `?upgrade=agents`), not yet ported |
-| `operations` | `routes/operations.ts` | `pages/operations/` | `/commands` `/logs` `/audit` `/cron` `/files` `/incidents` `/rollouts` `/governor/operations` `/retention` `/webhooks` `/webhooks/new` `/webhooks/[id]` `/api-docs` |
+| `fleet` | `routes/fleet.ts` | `pages/fleet/` | `/application-operations` `/fleet-readiness` `/fleet-map` `/anomalies` `/anomalies/[anomalyId]` `/anomalies/remediation` `/notifications` `/nodes/[nodeId]`, and the Upgrade Agents action on `/nodes` (`components/nodes/agent-upgrade-modal.tsx`, `?upgrade=agents`), not yet ported |
+| `operations` | `routes/operations.ts` | `pages/operations/` | `/commands` `/logs` `/audit` `/cron` `/files` `/incidents` `/rollouts` `/governor/operations` `/webhooks` `/webhooks/new` `/webhooks/[id]` `/api-docs` |
 | `provisioning` | `routes/provisioning.ts` | `pages/provisioning/` | `/roles` `/library` `/skills` |
 | `agents` | `routes/agents.ts` | `pages/agents/` | `/orchestra` `/orchestra/installations` `/orchestra/profiles` `/hermes-drift` `/hermes-security` `/ardent` `/ardent/installations` `/ardent/profiles` `/ardent/profiles/[id]` `/codex` `/codex/installations` |
 
