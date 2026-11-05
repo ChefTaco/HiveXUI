@@ -9,6 +9,8 @@ const names = [
   'EnrollmentLifecycleRequest',
   'EnrollmentResult',
   'EnrollmentInventory',
+  'EnrollmentInstallations',
+  'LegacyEnrollmentReceipt',
   'LoginRequest',
   'MfaChallengeRequest',
   'ForgotPasswordRequest',

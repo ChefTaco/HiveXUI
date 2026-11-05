@@ -1,6 +1,6 @@
 import { apiFetch } from '../lib/transport';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Badge, Button, Drawer, EmptyState, Field, JsonBlock, Panel, StatCard, TextArea, TextInput } from '../components/ui';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Badge, Button, Drawer, EmptyState, Field, JsonBlock, Panel, Select, StatCard, TextArea, TextInput } from '../components/ui';
 import { useToast } from '../components/toast';
 import { Icon } from '../components/icons';
 import { useStore } from '../lib/store';
@@ -8,8 +8,8 @@ import { adminApi, ApiError } from '../lib/api';
 import { can } from '../lib/permissions';
 import type { AdminUser, HiveActor, HiveActorLifecycleResponse } from '../lib/types';
 import { formatTime, relativeTime } from '../lib/format';
-import { browserIdentity } from '../lib/runtime';
-type CoordinatedActor = HiveActor & { enrollmentStatus?: string; credentialExpiresAt?: string | null; latestOperation?: { id: string; action: string; status: string } | null };
+import { browserIdentity, enrollmentInstallationId, selectEnrollmentInstallation } from '../lib/runtime';
+type CoordinatedActor = HiveActor & { enrollmentStatus?: string; credentialExpiresAt?: string | null; legacyReceiptAvailable?: boolean; latestOperation?: { id: string; action: string; status: string } | null };
 
 const KIND_LABELS: Record<HiveActor['kind'], string> = {
   user: 'User',
@@ -38,18 +38,36 @@ function splitList(value: string): string[] {
 export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
   const { data: legacyData, refresh: legacyRefresh, refreshing: legacyRefreshing } = useStore();
   const suite = !!browserIdentity();
+  const [installationId, setInstallationId] = useState<string | undefined>(() => {
+    const requested = new URLSearchParams(location.search).get('installation');
+    return requested && /^[a-z0-9][a-z0-9-]{0,63}$/.test(requested) ? requested : enrollmentInstallationId();
+  });
+  const [installations, setInstallations] = useState<string[] | null>(null);
   const [enrollments, setEnrollments] = useState<CoordinatedActor[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const refreshGeneration = useRef(0);
   const canRead = can(currentUser, suite ? 'iam:sa:read' : 'hive:actors:read');
+  useEffect(() => {
+    if (!suite || !canRead) return;
+    let active = true;
+    void adminApi.hiveActorInstallations().then(result => {
+      if (!active) return;
+      setInstallations(result.installations);
+      if (!installationId && result.installations.length === 1) setInstallationId(result.installations[0]);
+    }).catch(error => { if (active) setLoadError(error instanceof Error ? error.message : 'Installation namespaces are unavailable'); });
+    return () => { active = false; };
+  }, [suite, canRead, currentUser?.id]);
+  useEffect(() => { if (installationId) selectEnrollmentInstallation(installationId); }, [installationId]);
   const refresh = useCallback(async () => {
     if (!suite) { await legacyRefresh(); return; }
-    if (!canRead) { setEnrollments([]); return; }
+    if (!canRead || !installationId) { setEnrollments([]); return; }
+    const generation = ++refreshGeneration.current;
     setLoading(true); setLoadError(null);
-    try { setEnrollments((await adminApi.hiveActors()).data); }
-    catch (error) { setLoadError(error instanceof Error ? error.message : 'Identity enrollment APIs are unavailable'); }
-    finally { setLoading(false); }
-  }, [suite, canRead, currentUser?.id, legacyRefresh]);
+    try { const result = await adminApi.hiveActors(); if (generation === refreshGeneration.current) setEnrollments(result.data); }
+    catch (error) { if (generation === refreshGeneration.current) setLoadError(error instanceof Error ? error.message : 'Identity enrollment APIs are unavailable'); }
+    finally { if (generation === refreshGeneration.current) setLoading(false); }
+  }, [suite, canRead, currentUser?.id, installationId, legacyRefresh]);
   useEffect(() => { if (suite) void refresh(); }, [suite, refresh]);
   const data = { actors: suite ? enrollments : legacyData.actors };
   const refreshing = suite ? loading : legacyRefreshing;
@@ -89,7 +107,8 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
     }, {});
   }, [data.actors]);
   const canWriteActors = can(currentUser, suite ? 'iam:sa:write' : 'hive:actors:write');
-  useEffect(() => { setActionResult(null); }, [currentUser?.id]);
+  useEffect(() => { setActionResult(null); }, [currentUser?.id, installationId]);
+  function operationStorage(actorId: string, action: string): string { return `hive.actor.operation:${suite ? installationId + ':' : ''}${actorId}:${action}`; }
   async function recoverOrResume(actor: CoordinatedActor, resume: boolean) {
     if (!actor.latestOperation) return;
     setBusy('resume-' + actor.id);
@@ -99,12 +118,18 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
     } catch (error) { toast.error(resume ? 'Resume refused' : 'Recovery refused', error instanceof Error ? error.message : 'Inspect the owning product before retrying'); }
     finally { setBusy(null); }
   }
+  async function recoverLegacy(actor: CoordinatedActor) {
+    setBusy('recover-' + actor.id);
+    try { setActionResult({ ok: true, ...await adminApi.recoverLegacyActorReceipt(actor.id), identifiers: actor.identifiers }); }
+    catch (error) { toast.error('Legacy receipt unavailable', error instanceof Error ? error.message : 'Inspect retained recovery evidence'); }
+    finally { setBusy(null); }
+  }
 
   async function runLifecycle(action: 'disable' | 'rotate', actor: HiveActor) {
     if (action === 'disable' && !window.confirm(`Disable ${actor.label} across linked Hive services?`)) return;
     setBusy(`${action}-${actor.id}`);
     try {
-      const storageKey = `hive.actor.operation:${actor.id}:${action}`;
+      const storageKey = operationStorage(actor.id, action);
       const operationId = sessionStorage.getItem(storageKey) ?? crypto.randomUUID();
       sessionStorage.setItem(storageKey, operationId);
       const body = { kind: actor.kind, label: actor.label, identifiers: actor.identifiers, operationId };
@@ -114,13 +139,13 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
       setActionResult(response);
       if (action === 'disable' && response.ok) {
         sessionStorage.removeItem(storageKey);
-        sessionStorage.removeItem(`hive.actor.operation:${actor.id}:rotate`);
+        sessionStorage.removeItem(operationStorage(actor.id, 'rotate'));
       }
       if (response.ok) toast.success(action === 'disable' ? 'Actor disabled' : 'Actor rotated', actor.label);
       else toast.error('Actor operation partially completed', typeof response.remediation === 'string' ? response.remediation : 'Inspect the step results before retrying.');
       await refresh();
     } catch (caught) {
-      if (caught instanceof ApiError && caught.status === 410) sessionStorage.removeItem(`hive.actor.operation:${actor.id}:${action}`);
+      if (caught instanceof ApiError && caught.status === 410) sessionStorage.removeItem(operationStorage(actor.id, action));
       toast.error(action === 'disable' ? 'Disable failed' : 'Rotate failed', caught instanceof Error ? caught.message : 'Actor lifecycle request failed');
     } finally {
       setBusy(null);
@@ -131,9 +156,9 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
     if (!actionResult || typeof actionResult.actorId !== 'string') return;
     const operationId = typeof actionResult.operationId === 'string' ? actionResult.operationId : null;
     const suffix = operationId ? `/operations/${encodeURIComponent(operationId)}/receipt` : '/receipt';
-    const response = await apiFetch(`${suite ? '/api/iam/enrollments' : '/api/hive/actors'}/${encodeURIComponent(actionResult.actorId)}${suffix}`, { method: 'DELETE' });
+    const response = await apiFetch(`${suite ? '/api/iam/enrollments' : '/api/hive/actors'}/${encodeURIComponent(actionResult.actorId)}${suffix}${suite && installationId ? '?installationId=' + encodeURIComponent(installationId) : ''}`, { method: 'DELETE' });
     if (!response.ok) throw new Error('Receipt acknowledgement failed');
-    if (typeof actionResult.action === 'string') sessionStorage.removeItem(`hive.actor.operation:${actionResult.actorId}:${actionResult.action}`);
+    if (typeof actionResult.action === 'string') sessionStorage.removeItem(operationStorage(actionResult.actorId, actionResult.action));
     setActionResult(null);
   }
 
@@ -141,11 +166,11 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
     if (!actionResult || typeof actionResult.actorId !== 'string') return;
     if (!window.confirm('Disable all linked resources for this partial actor? Records and content are retained.')) return;
     const operationId = actionResult.action === 'disable' && typeof actionResult.operationId === 'string' ? actionResult.operationId : crypto.randomUUID();
-    const storageKey = `hive.actor.operation:${actionResult.actorId}:disable`;
+    const storageKey = operationStorage(actionResult.actorId, 'disable');
     sessionStorage.setItem(storageKey, operationId);
     const response = await adminApi.disableHiveActor(actionResult.actorId, { identifiers: actionResult.identifiers ?? {}, operationId });
     setActionResult(response);
-    if (response.ok) { sessionStorage.removeItem(storageKey); sessionStorage.removeItem(`hive.actor.operation:${actionResult.actorId}:rotate`); toast.success('Partial actor contained'); }
+    if (response.ok) { sessionStorage.removeItem(storageKey); sessionStorage.removeItem(operationStorage(actionResult.actorId, 'rotate')); toast.success('Partial actor contained'); }
     else toast.error('Containment partially completed', 'Retry Disable to finish the remaining steps.');
     await refresh();
   }
@@ -196,6 +221,13 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
       </div>
       {suite && !canRead && <Panel title="Access unavailable"><p>Your Oathweave account needs identity inventory permission.</p></Panel>}
       {loadError && <Panel title="Identity enrollment unavailable"><p role="alert">{loadError}</p><p>Configure the owning product APIs or inspect installation health before retrying.</p></Panel>}
+      {suite && installations && installations.length > 0 && <Panel title="Installation"><Field label="Independent installation" hint="Select the exact namespace. Product accounts, operation IDs and recovery receipts stay separate."><Select disabled={!!busy} value={installationId ?? ''} options={[{ value: '', label: 'Select an installation' }, ...installations.map(id => ({ value: id, label: id }))]} onChange={value => {
+        if (!value) return;
+        refreshGeneration.current++;
+        selectEnrollmentInstallation(value); setInstallationId(value); setEnrollments([]); setSelected(null); setActionResult(null);
+        const url = new URL(location.href); url.searchParams.set('installation', value); history.replaceState(null, '', url);
+      }} /></Field></Panel>}
+      {suite && installations?.length === 0 && <Panel title="Enrollment unconfigured"><p>No product enrollment APIs are configured for your authorized installations.</p></Panel>}
 
       <div className="grid grid--4">
         <StatCard label="Actors" value={data.actors.length} sub="linked identities" accent="amber" emphasize />
@@ -219,7 +251,7 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
           <Field label="Description"><TextArea rows={3} value={createForm.description} onChange={(description) => setCreateForm((current) => ({ ...current, description }))} /></Field>
         </div>
         <div className="panel-actions">
-          <Button variant="primary" icon={<Icon.Plus className="btn-ico" />} loading={busy === 'create'} disabled={!canWriteActors || !createForm.agentId.trim() || !createForm.displayName.trim() || !createForm.iamClientId.trim()} onClick={() => void createActor()}>
+          <Button variant="primary" icon={<Icon.Plus className="btn-ico" />} loading={busy === 'create'} disabled={!canWriteActors || suite && !installationId || !createForm.agentId.trim() || !createForm.displayName.trim() || !createForm.iamClientId.trim()} onClick={() => void createActor()}>
             Create actor
           </Button>
         </div>
@@ -274,23 +306,27 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
         eyebrow={selected ? KIND_LABELS[selected.kind] : ''}
         title={selected?.label ?? ''}
         footer={selected ? (
-          <>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'flex-end' }}>
             <Button variant="ghost" onClick={() => setSelected(null)}>Close</Button>
             {suite && (selected as CoordinatedActor).latestOperation && <Button variant="ghost" disabled={!canWriteActors} onClick={() => void recoverOrResume(selected, false)}>Recover receipt</Button>}
+            {suite && (selected as CoordinatedActor).legacyReceiptAvailable && <Button variant="ghost" disabled={!canWriteActors} onClick={() => void recoverLegacy(selected)}>Legacy enrollment receipt</Button>}
             {suite && ['pending','partial'].includes((selected as CoordinatedActor).latestOperation?.status ?? '') && <Button variant="ghost" loading={busy === 'resume-' + selected.id} disabled={!canWriteActors} onClick={() => void recoverOrResume(selected, true)}>Resume operation</Button>}
             <Button variant="ghost" loading={busy === `rotate-${selected.id}`} disabled={!canWriteActors || suite && !selected.capabilities.includes('credential:rotate')} onClick={() => void runLifecycle('rotate', selected)}>Rotate</Button>
             <Button variant="danger" loading={busy === `disable-${selected.id}`} disabled={!canWriteActors || suite && !selected.capabilities.includes('credential:disable')} onClick={() => void runLifecycle('disable', selected)}>Disable</Button>
-          </>
+          </div>
         ) : <Button variant="ghost" onClick={() => setSelected(null)}>Close</Button>}
       >
         {selected ? (
           <>
             <div className="kv-list">
               <div className="kv-row"><span>Status</span><span>{selected.status}</span></div>
+              {suite && <div className="kv-row"><span>Enrollment</span><span>{(selected as CoordinatedActor).enrollmentStatus}</span></div>}
+              {suite && (selected as CoordinatedActor).credentialExpiresAt && <div className="kv-row"><span>Credential deadline</span><span>{formatTime((selected as CoordinatedActor).credentialExpiresAt!)}</span></div>}
               <div className="kv-row"><span>Sources</span><span>{selected.sources.join(', ')}</span></div>
               <div className="kv-row"><span>Links</span><span className="cell-mono">{selected.linkedResourceCount}</span></div>
               <div className="kv-row"><span>Last Activity</span><span className="cell-mono">{selected.lastActivityAt ? formatTime(selected.lastActivityAt) : 'unknown'}</span></div>
             </div>
+            {suite && ((selected as CoordinatedActor).enrollmentStatus === 'migration-review' || (selected as CoordinatedActor).latestOperation?.status === 'migration-review') && <p role="status">This legacy operation has an unknown outcome. Capture any unexpired receipt, inspect the recorded product resources, and explicitly contain incomplete enrollment before issuing new credentials.</p>}
             <p className="panel-eyebrow" style={{ marginTop: 22 }}>Identifiers</p>
             <JsonBlock value={selected.identifiers} />
             <p className="panel-eyebrow" style={{ marginTop: 22 }}>Capabilities</p>

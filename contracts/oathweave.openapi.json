@@ -385,6 +385,22 @@
         ],
         "type": "object"
       },
+      "EnrollmentInstallations": {
+        "additionalProperties": false,
+        "properties": {
+          "installations": {
+            "items": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "installations"
+        ],
+        "type": "object"
+      },
       "EnrollmentInventory": {
         "additionalProperties": false,
         "properties": {
@@ -450,6 +466,9 @@
                     "status"
                   ],
                   "type": "object"
+                },
+                "legacyReceiptAvailable": {
+                  "type": "boolean"
                 },
                 "linkedResourceCount": {
                   "type": "number"
@@ -691,6 +710,30 @@
         },
         "required": [
           "email"
+        ],
+        "type": "object"
+      },
+      "LegacyEnrollmentReceipt": {
+        "additionalProperties": false,
+        "properties": {
+          "actorId": {
+            "type": "string"
+          },
+          "receiptExpiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "secrets": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "actorId",
+          "secrets",
+          "receiptExpiresAt"
         ],
         "type": "object"
       },
@@ -3000,6 +3043,18 @@
     },
     "/api/v1/enrollments": {
       "get": {
+        "parameters": [
+          {
+            "description": "Exact installation namespace; mandatory when this authority coordinates multiple installations",
+            "in": "query",
+            "name": "installationId",
+            "required": false,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -3046,6 +3101,18 @@
         ]
       },
       "post": {
+        "parameters": [
+          {
+            "description": "Exact installation namespace; mandatory when this authority coordinates multiple installations",
+            "in": "query",
+            "name": "installationId",
+            "required": false,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -3125,6 +3192,16 @@
             "name": "actorId",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exact installation namespace; mandatory when this authority coordinates multiple installations",
+            "in": "query",
+            "name": "installationId",
+            "required": false,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
               "type": "string"
             }
           }
@@ -3219,6 +3296,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "description": "Exact installation namespace; mandatory when this authority coordinates multiple installations",
+            "in": "query",
+            "name": "installationId",
+            "required": false,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3285,6 +3372,16 @@
             "name": "operationId",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exact installation namespace; mandatory when this authority coordinates multiple installations",
+            "in": "query",
+            "name": "installationId",
+            "required": false,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
               "type": "string"
             }
           }
@@ -3360,6 +3457,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "description": "Exact installation namespace; mandatory when this authority coordinates multiple installations",
+            "in": "query",
+            "name": "installationId",
+            "required": false,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3422,6 +3529,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "description": "Exact installation namespace; mandatory when this authority coordinates multiple installations",
+            "in": "query",
+            "name": "installationId",
+            "required": false,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3479,6 +3596,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "description": "Exact installation namespace; mandatory when this authority coordinates multiple installations",
+            "in": "query",
+            "name": "installationId",
+            "required": false,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3486,7 +3613,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/LegacyEnrollmentReceipt"
                 }
               }
             },
@@ -3536,6 +3663,16 @@
             "name": "actorId",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exact installation namespace; mandatory when this authority coordinates multiple installations",
+            "in": "query",
+            "name": "installationId",
+            "required": false,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
               "type": "string"
             }
           }
@@ -3605,6 +3742,51 @@
           }
         ],
         "summary": "Durably rotate linked native identities without replacing product IDs",
+        "tags": [
+          "Service Accounts"
+        ]
+      }
+    },
+    "/api/v1/enrollments/installations": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentInstallations"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List only explicitly authorized installation namespace identifiers; no endpoint configuration is exposed",
         "tags": [
           "Service Accounts"
         ]
