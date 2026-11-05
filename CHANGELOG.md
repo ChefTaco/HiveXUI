@@ -1,5 +1,7 @@
 # Changelog
 
+- Append, drop, paste and remove pending chat files with atomic ten-file limits; protect drafts during sending and reuse each completed upload on manual retries. Keep mobile channel navigation readable.
+
 - Review and revoke explicit identity sessions instead of grouping clients by
   shared network/browser metadata. Preserve independent sign-ins behind NAT.
 

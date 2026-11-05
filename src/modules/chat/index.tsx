@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useRef,
+  useReducer,
   useState,
   type FormEvent,
 } from "react";
@@ -19,6 +20,11 @@ import { productPrefix } from "../../lib/transport";
 import { productEnabled } from "../../lib/runtime";
 import { chat, chatResource, json, safeId } from "./api";
 import ChatAdministration from "./admin";
+import {
+  attachmentDrafts,
+  clipboardAttachments,
+  ChatAttachmentUploads,
+} from "./attachments";
 import {
   ChatViewRequests,
   readChatLocation,
@@ -61,10 +67,9 @@ function ConnectedChat() {
   const [posts, setPosts] = useState<MattermostPost[]>([]);
   const [thread, setThread] = useState(initial.current.thread);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [attachments, setAttachments] = useState<Record<string, File[]>>({});
-  const uploadedAttachments = useRef(
-    new Map<string, { files: File[]; ids: string[] }>(),
-  );
+  const [attachments, updateAttachments] = useReducer(attachmentDrafts, {});
+  const uploadedAttachments = useRef(new ChatAttachmentUploads());
+  const sending = useRef(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [online, setOnline] = useState(false);
@@ -372,40 +377,57 @@ function ConnectedChat() {
       window.removeEventListener("chat-session-refreshed", connect);
     };
   }, [me]);
+  function appendFiles(selected: File[]) {
+    updateAttachments({
+      type: "append",
+      key: composerKey,
+      files: selected,
+      blocked: !channel || busy || sending.current,
+    });
+  }
   async function send(event: FormEvent) {
     event.preventDefault();
-    if (!channel || busy) return;
+    if (!channel || busy || sending.current) return;
+    const target = channel,
+      key = composerKey,
+      root = thread,
+      pending = attachments[key]?.files ?? [],
+      message = drafts[key] ?? "";
+    if (!message.trim() && !pending.length) return;
+    if (message.startsWith("/") && pending.length) {
+      setError(
+        "Slash commands cannot include attachments. Remove the files or send them with a message.",
+      );
+      return;
+    }
+    sending.current = true;
     setBusy(true);
     setError("");
-    const target = channel,
-      key = composerKey;
     try {
-      const pending = attachments[key] ?? [];
-      const cached = uploadedAttachments.current.get(key);
-      let ids: string[] =
-        cached &&
-        cached.files.length === pending.length &&
-        cached.files.every((file, index) => file === pending[index])
-          ? cached.ids
-          : [];
-      if (pending.length && !ids.length) {
-        const form = new FormData();
-        form.set("channel_id", target);
-        for (const file of pending) form.append("files", file);
-        const uploaded = await chat<{ file_infos: MattermostFileInfo[] }>(
-          "/files",
-          { method: "POST", body: form },
-        );
-        ids = uploaded.file_infos.map((file) => file.id);
-        uploadedAttachments.current.set(key, { files: pending, ids });
-        setFiles((previous) => ({
-          ...previous,
-          ...Object.fromEntries(
-            uploaded.file_infos.map((file) => [file.id, file]),
-          ),
-        }));
-      }
-      const message = drafts[key] ?? "";
+      const ids = await uploadedAttachments.current.resolve(
+        key,
+        pending,
+        async (file) => {
+          const form = new FormData();
+          form.set("channel_id", target);
+          form.append("files", file);
+          const uploaded = await chat<{ file_infos: MattermostFileInfo[] }>(
+            "/files",
+            { method: "POST", body: form },
+          );
+          if (
+            !Array.isArray(uploaded.file_infos) ||
+            uploaded.file_infos.length !== 1 ||
+            typeof uploaded.file_infos[0]?.id !== "string"
+          )
+            throw new Error(
+              "Attachment upload could not be matched to the selected file",
+            );
+          const info = uploaded.file_infos[0]!;
+          setFiles((previous) => ({ ...previous, [info.id]: info }));
+          return info.id;
+        },
+      );
       if (message.startsWith("/"))
         await chat(
           "/commands/execute",
@@ -414,17 +436,20 @@ function ConnectedChat() {
       else
         await chat(
           "/posts",
-          json({ channel_id: target, message, root_id: thread, file_ids: ids }),
+          json({ channel_id: target, message, root_id: root, file_ids: ids }),
         );
       setDrafts((previous) => ({ ...previous, [key]: "" }));
-      setAttachments((previous) => ({ ...previous, [key]: [] }));
-      uploadedAttachments.current.delete(key);
+      updateAttachments({ type: "clear", key });
+      uploadedAttachments.current.clear(key);
       await refresh();
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : "Message was not sent",
+        reason instanceof Error
+          ? reason.message
+          : "Message status could not be confirmed. Check the conversation before sending again.",
       );
     } finally {
+      sending.current = false;
       setBusy(false);
     }
   }
@@ -807,7 +832,29 @@ function ConnectedChat() {
             </li>
           ))}
         </ol>
-        <form className="chat-composer" onSubmit={(event) => void send(event)}>
+        <form
+          className="chat-composer"
+          onSubmit={(event) => void send(event)}
+          aria-busy={busy}
+          onDragOver={(event) => {
+            if (!Array.from(event.dataTransfer.types).includes("Files")) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect =
+              busy || sending.current ? "none" : "copy";
+          }}
+          onDrop={(event) => {
+            if (!Array.from(event.dataTransfer.types).includes("Files")) return;
+            event.preventDefault();
+            if (!busy && !sending.current)
+              appendFiles(Array.from(event.dataTransfer.files));
+          }}
+          onPaste={(event) => {
+            const selected = clipboardAttachments(event.clipboardData);
+            if (!selected.length) return;
+            event.preventDefault();
+            if (!busy && !sending.current) appendFiles(selected);
+          }}
+        >
           {commands.length > 0 && (
             <details className="chat-command-deck">
               <summary>Slash commands</summary>
@@ -816,12 +863,14 @@ function ConnectedChat() {
                   <li key={command.id || command.trigger}>
                     <button
                       type="button"
-                      onClick={() =>
+                      disabled={busy}
+                      onClick={() => {
+                        if (busy || sending.current) return;
                         setDrafts((old) => ({
                           ...old,
                           [composerKey]: "/" + command.trigger + " ",
-                        }))
-                      }
+                        }));
+                      }}
                     >
                       /{command.trigger}
                     </button>{" "}
@@ -835,40 +884,72 @@ function ConnectedChat() {
           <label>
             {thread ? "Reply" : "Message"}
             <textarea
+              disabled={busy || !channel}
+              aria-describedby="chat-attachment-help"
               value={drafts[composerKey] ?? ""}
               onChange={(event) => {
+                if (busy || sending.current) return;
                 const text = event.target.value;
                 setDrafts((previous) => ({ ...previous, [composerKey]: text }));
               }}
               rows={3}
             />
           </label>
+          <p id="chat-attachment-help" className="chat-attachment-help">
+            Drop files here, paste an image, or choose files. Up to 10
+            attachments.
+          </p>
+          {attachments[composerKey]?.error && (
+            <p role="alert" className="error-banner">
+              {attachments[composerKey].error}
+            </p>
+          )}
+          {!!attachments[composerKey]?.files.length && (
+            <ul className="chat-pending-files" aria-label="Pending attachments">
+              {attachments[composerKey].files.map((file, index) => (
+                <li key={index}>
+                  <span>{file.name}</span>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    aria-label={"Remove attachment " + file.name}
+                    onClick={() =>
+                      updateAttachments({
+                        type: "remove",
+                        key: composerKey,
+                        file,
+                        blocked: busy || sending.current,
+                      })
+                    }
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           <div>
             <label className="chat-attach">
               Attach files
               <input
                 type="file"
                 multiple
+                disabled={busy || !channel}
                 onChange={(event) => {
                   const selected = Array.from(event.target.files ?? []);
-                  setAttachments((previous) => ({
-                    ...previous,
-                    [composerKey]: selected,
-                  }));
+                  event.target.value = "";
+                  if (!busy && !sending.current && selected.length)
+                    appendFiles(selected);
                 }}
               />
             </label>
-            <span>
-              {(attachments[composerKey] ?? [])
-                .map((file) => file.name)
-                .join(", ")}
-            </span>
+
             <button
               disabled={
                 busy ||
                 !channel ||
                 (!(drafts[composerKey] ?? "").trim() &&
-                  !attachments[composerKey]?.length)
+                  !attachments[composerKey]?.files.length)
               }
             >
               {busy ? "Sending…" : "Send"}
