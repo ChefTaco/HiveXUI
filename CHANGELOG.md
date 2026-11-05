@@ -1,5 +1,8 @@
 # Changelog
 
+- Review and revoke explicit identity sessions instead of grouping clients by
+  shared network/browser metadata. Preserve independent sign-ins behind NAT.
+
 - Present complete health, upgrade and recovery CLI workflows for suite operators,
   including isolated rehearsal and explicit write reconciliation before restore.
 

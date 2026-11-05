@@ -521,12 +521,6 @@ export const adminApi = {
       method: 'DELETE',
     });
   },
-  deduplicateIamSessions() {
-    return request<{ success: boolean; revoked: number }>(
-      iamPath('sessions/deduplicate'),
-      { method: 'POST' },
-    );
-  },
   iamAudit() {
     return request<{
       events: IamAuditEvent[];

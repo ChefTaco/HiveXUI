@@ -1,4 +1,4 @@
-// Generated from Oathweave OpenAPI 1.2.2; SHA256 fff390ced190bfdce61e6beba9c90c77cfe6e9d0c64b700dcf0df39394b821a4.
+// Generated from Oathweave OpenAPI 1.2.2; SHA256 52a0bee5c37816403eb483e6971d271f06399c68ec8f0bba192b7c6d4ccf1200.
 // Apache-2.0. Source attribution: Oathweave, extracted from Hive.
 import {z} from 'zod';
 export const EnrollmentRequestSchema=z.object({"agentId":z.string().min(2).max(32).regex(new RegExp("^[a-z0-9_-]+$")),"allowedIps":z.array(z.string()).optional(),"description":z.string().max(512).optional(),"displayName":z.string().min(2).max(128),"expiresHours":z.number().int().min(1).max(720).optional(),"hostLabel":z.string().max(128).optional(),"iamClientId":z.string().min(1).max(200),"owningProject":z.string().max(100).optional(),"roleIds":z.array(z.string().min(1).max(200)).optional(),"scopes":z.array(z.string().regex(new RegExp("^[a-z][a-z0-9-]*(?::[a-z0-9-]+)+$"))),"workspaceId":z.string().min(1).max(100).regex(new RegExp("^[a-z0-9_-]+$")).optional()});

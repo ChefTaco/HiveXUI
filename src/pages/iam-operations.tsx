@@ -1323,26 +1323,9 @@ export function IamOperationsPage({
 
   function renderSessions() {
     return (
-      <Panel
-        title="Sessions"
-        eyebrow="Active access"
-        actions={
-          <Button
-            size="sm"
-            variant="ghost"
-            loading={busy}
-            disabled={!canRevokeSessions}
-            onClick={() =>
-              void run(
-                () => adminApi.deduplicateIamSessions(),
-                'Duplicate sessions revoked',
-              )
-            }
-          >
-            Deduplicate
-          </Button>
-        }
-      >
+      <Panel title="Sessions" eyebrow="Active access">
+        <p>Review each session before revoking it. A shared IP address or browser
+          does not mean two sessions are duplicates.</p>
         <EntityTable
           empty="No active sessions."
           headers={['User', 'IP', 'Created', 'Expires', 'Actions']}

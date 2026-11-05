@@ -33,6 +33,13 @@ import {
 } from "./conversation-controls";
 import "./chat.css";
 
+const standardEmoji: Record<string, string> = {
+  thumbsup: "👍",
+  heart: "♥",
+  tada: "🎉",
+  eyes: "👀",
+};
+
 export default function ChatModule() {
   if (!productEnabled("chattermost"))
     return (
@@ -739,10 +746,9 @@ function ConnectedChat() {
                         )}
                         onClick={() => void react(post, name)}
                       >
-                        {name === "thumbsup"
-                          ? "👍"
-                          : emoji.find((value) => value.name === name)?.emoji ||
-                            ":" + name + ":"}{" "}
+                        {standardEmoji[name] ||
+                          emoji.find((value) => value.name === name)?.emoji ||
+                          ":" + name + ":"}{" "}
                         {values.length || "React"}
                       </button>
                     );
