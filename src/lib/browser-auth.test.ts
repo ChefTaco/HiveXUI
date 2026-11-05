@@ -149,3 +149,17 @@ it('reports password expiry without requesting tokens or treating it as a sessio
   expect(request).toHaveBeenCalledTimes(1);
   expect(String(request.mock.calls[0]?.[0])).toBe('/api/identity/auth/login');
 });
+
+
+it('shares one pending step-up across concurrent readers and refuses completion after logout',async()=>{
+ let finish:((value:Response)=>void)|undefined;let prompts=0;
+ const unsubscribe=subscribeIdentityPrompts(prompt=>{if(prompt?.kind==='step-up'){prompts++;prompt.resolve({password:'obviously-fake-password'})}});
+ const send=vi.fn<typeof fetch>().mockImplementation(input=>String(input).endsWith('/browser/logout')?Promise.resolve(Response.json({ok:true})):new Promise(resolve=>{finish=resolve}));
+ const auth=createBrowserAuth({issuer:'https://identity.example.com',apiPrefix:'/api/identity',clients:{}},send);
+ try{
+  const first=auth.stepUp(),second=auth.stepUp();expect(second).toBe(first);
+  const observed=expect(first).rejects.toThrow('session ended');await Promise.resolve();expect(prompts).toBe(1);
+  await auth.logout();finish!(Response.json({success:true}));await observed;
+  expect(send.mock.calls.filter(call=>String(call[0]).endsWith('/auth/step-up'))).toHaveLength(1);
+ }finally{unsubscribe();auth.invalidate()}
+});

@@ -80,8 +80,8 @@ export function IdentityPrompts() {
           }}
         >
           <p>
-            Verify before continuing. Your original operation will need to be
-            submitted again.
+            Verify your identity to continue. Review and submit any requested
+            changes again.
           </p>
           <Field label="Current password">
             <TextInput

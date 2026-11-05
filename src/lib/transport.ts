@@ -108,7 +108,8 @@ export function productFor(path: string): Product {
 }
 
 export function createApiFetch(request: typeof fetch) {
-  return async (path: string, init: RequestInit = {}): Promise<Response> => {
+  async function send(path: string, init: RequestInit, allowStepUp: boolean): Promise<Response> {
+    init.signal?.throwIfAborted();
     if (!path.startsWith('/api/') || /[\\#\r\n]/.test(path))
       throw new Error('Invalid API path');
     for (const segment of path.split('?')[0]!.split('/')) {
@@ -158,7 +159,7 @@ export function createApiFetch(request: typeof fetch) {
         accessProvider && product !== 'chattermost' ? 'omit' : 'include',
       redirect: 'error',
     });
-    if (response.status === 403 && stepUpProvider) {
+    if (response.status === 403 && stepUpProvider && allowStepUp) {
       const body: unknown = await response
         .clone()
         .json()
@@ -170,6 +171,11 @@ export function createApiFetch(request: typeof fetch) {
         body.error === 'STEP_UP_REQUIRED'
       ) {
         await stepUpProvider();
+        // Only safe read methods may repeat, once, with newly acquired access.
+        // Rebuild the headers/session instead of forwarding the pre-verification token.
+        const method = (init.method ?? 'GET').toUpperCase();
+        if ((method === 'GET' || method === 'HEAD') && init.body == null)
+          return send(path, init, false);
         // Never replay a durable mutation or an approval automatically.
         return Response.json(
           {
@@ -182,6 +188,7 @@ export function createApiFetch(request: typeof fetch) {
       }
     }
     return response;
-  };
+  }
+  return (path: string, init: RequestInit = {}): Promise<Response> => send(path, init, true);
 }
 export const apiFetch = createApiFetch((input, init) => fetch(input, init));

@@ -11,6 +11,7 @@ import {
 afterEach(() => {
   clearAccess();
   setAccessProvider(undefined);
+  setStepUpProvider(undefined);
 });
 describe('product API transport', () => {
   it('omits identity cookies on bearer-authorized product requests', async () => {
@@ -151,4 +152,37 @@ it('step-up never replays a durable operation or consumes an approval twice', as
   } finally {
     setStepUpProvider(undefined);
   }
+});
+
+
+describe('step-up read recovery',()=>{
+ it('retries GET and HEAD once using newly authorized resource credentials',async()=>{
+  for(const method of ['GET','HEAD']){
+   clearAccess();let verified=false;
+   configureEndpoint('emberpath','/api/emberpath');
+   const access=vi.fn(async()=>{rememberAccess('emberpath',verified?'obviously-fake-new-token':'obviously-fake-old-token',Date.now()+60000)});
+   setAccessProvider(access);const verify=vi.fn(async()=>{verified=true;clearAccess();});setStepUpProvider(verify);
+   const request=vi.fn<typeof fetch>().mockImplementation(async(_url,init)=>new Headers(init?.headers).get('authorization')==='Bearer obviously-fake-new-token'?new Response(null,{status:200}):Response.json({error:'STEP_UP_REQUIRED'},{status:403}));
+   expect((await createApiFetch(request)('/api/client-keys',{method})).status).toBe(200);
+   expect(request).toHaveBeenCalledTimes(2);expect(access).toHaveBeenCalledTimes(2);expect(verify).toHaveBeenCalledOnce();
+   expect(request.mock.calls.map(call=>new Headers(call[1]?.headers).get('authorization'))).toEqual(['Bearer obviously-fake-old-token','Bearer obviously-fake-new-token']);
+  }
+ });
+ it('does not loop or prompt again when the verified read is denied',async()=>{
+  const verify=vi.fn(async()=>{});setStepUpProvider(verify);
+  const request=vi.fn<typeof fetch>().mockImplementation(async()=>Response.json({error:'STEP_UP_REQUIRED'},{status:403}));
+  const response=await createApiFetch(request)('/api/client-keys');expect(response.status).toBe(403);expect(await response.json()).toEqual({error:'STEP_UP_REQUIRED'});expect(request).toHaveBeenCalledTimes(2);expect(verify).toHaveBeenCalledOnce();
+ });
+ it('does not repeat mutations, approval calls or failed/cancelled verification',async()=>{
+  const request=vi.fn<typeof fetch>().mockImplementation(async()=>Response.json({error:'STEP_UP_REQUIRED'},{status:403}));
+  setStepUpProvider(async()=>{});
+  for(const method of ['POST','PUT','PATCH','DELETE']){request.mockClear();const response=await createApiFetch(request)('/api/skills/admin/deployments/jobs/fixture/approve',{method,body:'{}'});expect(response.status).toBe(403);expect(await response.json()).toMatchObject({error:'RETRY_AFTER_STEP_UP'});expect(request).toHaveBeenCalledOnce();}
+  setStepUpProvider(async()=>{throw new Error('Verification cancelled')});request.mockClear();await expect(createApiFetch(request)('/api/client-keys')).rejects.toThrow('cancelled');expect(request).toHaveBeenCalledOnce();
+ });
+ it('does not reacquire access or repeat a read aborted during verification',async()=>{
+  configureEndpoint('emberpath','/api/emberpath');
+  const controller=new AbortController();const access=vi.fn(async()=>{});setAccessProvider(access);setStepUpProvider(async()=>{controller.abort()});
+  const request=vi.fn<typeof fetch>().mockImplementation(async()=>Response.json({error:'STEP_UP_REQUIRED'},{status:403}));
+  await expect(createApiFetch(request)('/api/client-keys',{signal:controller.signal})).rejects.toThrow();expect(request).toHaveBeenCalledOnce();expect(access).toHaveBeenCalledOnce();
+ });
 });

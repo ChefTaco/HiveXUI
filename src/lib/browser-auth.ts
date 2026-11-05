@@ -73,6 +73,7 @@ export function createBrowserAuth(
   const expiry = new Map<Product, number>();
   const declined = new Set<Product>();
   let generation = 0;
+  let pendingStepUp: Promise<void> | undefined;
   // Retain settled results, including declines, until session invalidation. React
   // effect replay and concurrent callers must never mint a second code.
   const portalApprovals = new Map<string, Promise<{ redirect: (navigate: (url: string) => void) => void }>>();
@@ -339,26 +340,43 @@ export function createBrowserAuth(
     BrowserMessageResponseSchema.parse(await json('/auth/reset-password', { token, newPassword }));
     invalidate();
   }
-  async function stepUp(): Promise<void> {
-    const input = await requestStepUp();
-    if (!input) throw new Error('Identity verification cancelled');
-    let assertion: Record<string, unknown> | undefined;
-    if (input.passkey) {
-      const options = await json('/auth/step-up/options', {});
-      assertion = await authenticatePasskey(
-        PasskeyOptionsResponseSchema.parse(options).data,
-      );
-    }
-    IamSuccessResponseSchema.parse(await json('/auth/step-up', {
-      password: input.password,
-      ...(input.totpCode ? { totpCode: input.totpCode } : {}),
-      ...(assertion ? { assertion } : {}),
-    }));
-    invalidate(); // Replacement resource tokens carry the newly verified auth_time.
+  function stepUp(): Promise<void> {
+    if (pendingStepUp) return pendingStepUp;
+    const started = generation;
+    const current = () => {
+      if (started !== generation) throw new Error('Sign-in session ended; verify your identity again');
+    };
+    const operation = (async () => {
+      const input = await requestStepUp();
+      current();
+      if (!input) throw new Error('Identity verification cancelled');
+      let assertion: Record<string, unknown> | undefined;
+      if (input.passkey) {
+        const options = await json('/auth/step-up/options', {});
+        current();
+        assertion = await authenticatePasskey(
+          PasskeyOptionsResponseSchema.parse(options).data,
+        );
+        current();
+      }
+      IamSuccessResponseSchema.parse(await json('/auth/step-up', {
+        password: input.password,
+        ...(input.totpCode ? { totpCode: input.totpCode } : {}),
+        ...(assertion ? { assertion } : {}),
+      }));
+      current();
+      invalidate(); // Replacement resource tokens carry the newly verified auth_time.
+    })();
+    pendingStepUp = operation;
+    void operation.finally(() => {
+      if (pendingStepUp === operation) pendingStepUp = undefined;
+    }).catch(() => {});
+    return operation;
   }
   function invalidate() {
     generation++;
     portalApprovals.clear();
+    pendingStepUp = undefined;
     clearAccess();
     expiry.clear();
     pending.clear();
