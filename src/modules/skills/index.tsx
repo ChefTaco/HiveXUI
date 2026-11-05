@@ -23,6 +23,7 @@ import type {
   Audit,
   Receipt,
   DeploymentJob,
+  ManagedDeployment, DeploymentCapabilities,
 } from '../../../contracts/hiveskills.generated';
 
 export default function SkillsModule({
@@ -45,6 +46,7 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
     [audit, setAudit] = useState<Audit[]>([]),
     [receipts, setReceipts] = useState<Receipt[]>([]),
     [jobs, setJobs] = useState<DeploymentJob[]>([]);
+  const [deploymentPreview,setDeploymentPreview]=useState<ManagedDeployment|null>(null),[deploymentCapabilities,setDeploymentCapabilities]=useState<DeploymentCapabilities|null>(null);
   const [admin, setAdmin] = useState(false),
     [error, setError] = useState(''),
     [notice, setNotice] = useState(''),
@@ -80,6 +82,7 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
     admin &&
     (can(currentUser, 'hiveskills:write') ||
       can(currentUser, 'hiveskills:admin'));
+  const canDeploy=admin&&(can(currentUser,'hiveskills:deploy')||can(currentUser,'hiveskills:admin'));
   async function refresh() {
     setError('');
     const catalog = await api.catalog();
@@ -94,8 +97,10 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
         api.receipts(),
         api.deployments(),
         api.audit(),
+        api.deploymentCapabilities(),
       ]);
-      const [s, c, t, r, j, a] = result;
+      const [s, c, t, r, j, a,capabilities] = result;
+      if(capabilities?.status==='fulfilled')setDeploymentCapabilities(capabilities.value);
       if (s?.status === 'fulfilled') setSkills(s.value as Skill[]);
       if (c?.status === 'fulfilled') setChannels(c.value as Channel[]);
       if (t?.status === 'fulfilled') setTargets(t.value as Target[]);
@@ -590,9 +595,19 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
           </Panel>
           <Panel title="Deployment jobs">
             <p>
-              Host execution uses Magnus. Existing job receipts remain visible
-              while the authenticated job adapter is being completed.
+              {deploymentCapabilities?.message??'Deployment capability is being checked.'}
             </p>
+            {canDeploy&&deploymentCapabilities?.enabled&&<div className="button-row">{targets.filter(entry=>entry.enabled).map(entry=><Button key={entry.name} disabled={busy} onClick={()=>void run(async()=>{setDeploymentPreview(await api.prepareDeployment(entry.name))})}>Review deployment to {entry.name}</Button>)}</div>}
+            {deploymentPreview&&<Panel title="Review exact skill deployment">
+              <p>Target: {deploymentPreview.target}. This approval expires at {deploymentPreview.approval_expires_at} and can be used once.</p>
+              <p>Publication SHA-256: <code>{deploymentPreview.publication_sha256}</code></p>
+              <JsonBlock value={parseDetails(deploymentPreview.manifest_json)} />
+              <p>Current status: {deploymentPreview.status}. {deploymentPreview.result??''}</p>
+              {deploymentPreview.magnus_job_id&&<p>Magnus job: <code>{deploymentPreview.magnus_job_id}</code></p>}
+              {deploymentPreview.status==='awaiting_approval'&&<Button disabled={!canDeploy||busy||Date.parse(deploymentPreview.approval_expires_at)<=Date.now()} onClick={()=>void run(async()=>{setDeploymentPreview(await api.approveDeployment(deploymentPreview.id,deploymentPreview.publication_sha256));setNotice('Approved once. Magnus will execute this exact publication; refresh to inspect its signed outcome.')})}>Approve exact publication</Button>}
+              {['unknown','running'].includes(deploymentPreview.status)&&<Button disabled={!canDeploy||busy} onClick={()=>void run(async()=>{setDeploymentPreview(await api.reconcileDeployment(deploymentPreview.id))})}>Reconcile original receipt</Button>}
+              <Button onClick={()=>setDeploymentPreview(null)}>Close review</Button>
+            </Panel>}
             {jobs.length ? (
               <div
                 className="table-wrap"
@@ -613,7 +628,7 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
                   <tbody>
                     {jobs.map((job) => (
                       <tr key={job.id}>
-                        <td>{job.target}</td>
+                        <td>{job.target}{['awaiting_approval','unknown','running'].includes(job.status)&&<Button disabled={busy} onClick={()=>void run(async()=>{setDeploymentPreview(await api.deployment(job.id))},false)}>Inspect original job</Button>}</td>
                         <td>{job.status}</td>
                         <td>{job.result ?? 'Awaiting outcome'}</td>
                         <td>{job.actor}</td>

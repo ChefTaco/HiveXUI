@@ -8,6 +8,7 @@ import {
   AuditSchema,
   ReceiptSchema,
   DeploymentJobSchema,
+  ManagedDeploymentSchema, DeploymentApprovalSchema, DeploymentCapabilitiesSchema,
   CreateSkillSchema,
   UploadReleaseSchema,
   EnrollTargetSchema,
@@ -62,6 +63,11 @@ export function createSkillsApi(send: typeof apiFetch = apiFetch) {
     targets: () => request('/admin/targets', z.array(TargetSchema)),
     receipts: () =>
       request('/admin/receipts', z.array(ReceiptSchema)),
+    deploymentCapabilities: () => request('/admin/deployments/capabilities',DeploymentCapabilitiesSchema),
+    prepareDeployment: (target:string) => request('/admin/deployments/'+encodeURIComponent(target),ManagedDeploymentSchema,'POST',{}),
+    deployment: (id:string) => request('/admin/deployments/jobs/'+encodeURIComponent(id),ManagedDeploymentSchema),
+    approveDeployment: (id:string,publicationSha256:string) => request('/admin/deployments/jobs/'+encodeURIComponent(id)+'/approve',ManagedDeploymentSchema,'POST',DeploymentApprovalSchema.parse({publicationSha256})),
+    reconcileDeployment: (id:string) => request('/admin/deployments/jobs/'+encodeURIComponent(id)+'/reconcile',ManagedDeploymentSchema,'POST',{}),
     deployments: () =>
       request('/admin/deployments', z.array(DeploymentJobSchema)),
     audit: (before?: number) =>
