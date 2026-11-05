@@ -15,8 +15,8 @@ import {
   MfaStatusSchema as statusSchema,
   PasskeyCredentialSchema as credentialSchema,
   PasskeyOptionsResponseSchema,
-  RecoveryCodesSchema,
-} from '../../../contracts/oathweave.generated';
+  RecoveryCodesSchema, PasskeyCredentialsResponseSchema, PasskeyRegisterRequestSchema, MfaDisableRequestSchema, MfaVerifyRequestSchema, MfaSetupResponseSchema, IamSuccessResponseSchema, type MfaSetupResponse,
+} from '../../../contracts/oathweave-browser.generated';
 async function api(
   path: string,
   method = 'GET',
@@ -53,10 +53,7 @@ export default function AccountModule() {
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState('');
-  const [setup, setSetup] = useState<{
-      secret: string;
-      qrDataUrl: string;
-    } | null>(null),
+  const [setup, setSetup] = useState<MfaSetupResponse | null>(null),
     [codes, setCodes] = useState<string[]>([]);
   const [name, setName] = useState(''),
     [code, setCode] = useState(''),
@@ -71,7 +68,7 @@ export default function AccountModule() {
     ]);
     setStatus(statusSchema.parse(status));
     setCredentials(
-      z.object({ data: z.array(credentialSchema) }).parse(list).data,
+      PasskeyCredentialsResponseSchema.parse(list).data,
     );
   }
   useEffect(() => {
@@ -135,10 +132,10 @@ export default function AccountModule() {
                 await api('/mfa/webauthn/options'),
               );
               const response = await registerPasskey(options.data);
-              await api('/mfa/webauthn/register', 'POST', {
+              IamSuccessResponseSchema.parse(await api('/mfa/webauthn/register', 'POST', PasskeyRegisterRequestSchema.parse({
                 response,
                 friendlyName: name,
-              });
+              })));
               setName('');
               setNotice('Passkey registered.');
             })
@@ -169,7 +166,7 @@ export default function AccountModule() {
             onSubmit={(event) => {
               event.preventDefault();
               void action(async () => {
-                await api('/auth/mfa/disable', 'POST', { password, code });
+                IamSuccessResponseSchema.parse(await api('/auth/mfa/disable', 'POST', MfaDisableRequestSchema.parse({ password, code })));
                 setNotice(
                   'Authenticator app removed. Registered passkeys remain available.',
                 );
@@ -204,7 +201,7 @@ export default function AccountModule() {
               event.preventDefault();
               void action(async () => {
                 const value = RecoveryCodesSchema.parse(
-                  await api('/auth/mfa/verify', 'POST', { code }),
+                  await api('/auth/mfa/verify', 'POST', MfaVerifyRequestSchema.parse({ code })),
                 );
                 setCodes(value.backupCodes);
                 setSetup(null);
@@ -251,12 +248,7 @@ export default function AccountModule() {
             disabled={busy}
             onClick={() =>
               void action(async () => {
-                const value = z
-                  .object({
-                    secret: z.string(),
-                    qrDataUrl: z.string().startsWith('data:image/png;base64,'),
-                  })
-                  .parse(await api('/auth/mfa/setup', 'POST', {}));
+                const value = MfaSetupResponseSchema.parse(await api('/auth/mfa/setup', 'POST', {}));
                 setSetup(value);
               })
             }
@@ -317,10 +309,10 @@ export default function AccountModule() {
               );
               setCodes(value.backupCodes);
             } else if (confirm) {
-              await api(
+              IamSuccessResponseSchema.parse(await api(
                 '/mfa/webauthn/credentials/' + encodeURIComponent(confirm.id),
                 'DELETE',
-              );
+              ));
             }
             setConfirm(null);
           })

@@ -19,7 +19,8 @@ import {
   PasskeyOptionsResponseSchema,
   AuthorizeConsentRequestSchema,
   TokenExchangeRequestSchema,
-} from '../../contracts/oathweave.generated';
+  IamSuccessResponseSchema, BrowserMessageResponseSchema, BrowserOkResponseSchema, BrowserConsentDetailsSchema, BrowserAuthorizationResponseSchema, BrowserTokenResponseSchema, BrowserSessionResponseSchema, BrowserLoginResponseSchema,
+} from '../../contracts/oathweave-browser.generated';
 
 class IdentityApiError extends Error {
   constructor(
@@ -31,13 +32,7 @@ class IdentityApiError extends Error {
     );
   }
 }
-const consentDetails = z.object({
-  clientName: z.string().max(200),
-  clientDescription: z.string().max(2000).nullable(),
-  audience: z.string().max(200),
-  scope: z.string().max(1000),
-  permissions: z.array(z.string().max(200)).max(100),
-});
+const consentDetails = BrowserConsentDetailsSchema;
 
 export interface BrowserIdentityConfig {
   issuer: string;
@@ -159,7 +154,7 @@ export function createBrowserAuth(
     };
     let authorization: Record<string, unknown>;
     try {
-      authorization = await json('/oauth/authorize', parameters);
+      authorization = BrowserAuthorizationResponseSchema.parse(await json('/oauth/authorize', parameters));
     } catch (error) {
       if (
         !(error instanceof IdentityApiError) ||
@@ -170,10 +165,10 @@ export function createBrowserAuth(
       if (!approved) declined.add(product);
       if (started !== generation || !approved)
         throw new Error('Access was not approved');
-      authorization = await json('/oauth/authorize', {
+      authorization = BrowserAuthorizationResponseSchema.parse(await json('/oauth/authorize', {
         ...parameters,
         consent: 'approve',
-      });
+      }));
     }
     if (
       authorization.state !== state ||
@@ -181,13 +176,13 @@ export function createBrowserAuth(
       typeof authorization.code !== 'string'
     )
       throw new Error('Invalid authorization response');
-    const token = await json('/oauth/token', {
+    const token = BrowserTokenResponseSchema.parse(await json('/oauth/token', {
       grant_type: 'authorization_code',
       client_id: client,
       code: authorization.code,
       code_verifier: verifier,
       redirect_uri: redirectUri,
-    });
+    }));
     if (
       typeof token.id_token !== 'string' ||
       typeof token.access_token !== 'string' ||
@@ -239,7 +234,7 @@ export function createBrowserAuth(
     await operation;
   }
   async function me(): Promise<{ user: AdminUser }> {
-    const result = await json('/browser/session');
+    const result = BrowserSessionResponseSchema.parse(await json('/browser/session'));
     const principal = result.principal;
     if (
       !principal ||
@@ -267,7 +262,7 @@ export function createBrowserAuth(
     return { user: { id: principal.sub, username, permissions, roles } };
   }
   async function login(username: string, password: string) {
-    const result = await json('/auth/login', { username, password });
+    const result = BrowserLoginResponseSchema.parse(await json('/auth/login', { username, password }));
     if (result.requiresMfa === true && typeof result.mfaToken === 'string')
       throw new MfaRequired(
         result.mfaToken,
@@ -280,7 +275,7 @@ export function createBrowserAuth(
     return { ...(await me()), ok: true };
   }
   async function completeMfa(token: string, code: string) {
-    await json('/auth/mfa/challenge', { mfaToken: token, code });
+    BrowserLoginResponseSchema.parse(await json('/auth/mfa/challenge', { mfaToken: token, code }));
     return { ...(await me()), ok: true };
   }
   async function completePasskey(token: string) {
@@ -290,11 +285,11 @@ export function createBrowserAuth(
     const response = await authenticatePasskey(
       PasskeyOptionsResponseSchema.parse(options).data,
     );
-    await json('/mfa/webauthn/authenticate', { mfaToken: token, response });
+    BrowserLoginResponseSchema.parse(await json('/mfa/webauthn/authenticate', { mfaToken: token, response }));
     return { ...(await me()), ok: true };
   }
   async function recover(email: string): Promise<string> {
-    const response = await json('/auth/forgot-password', { email });
+    const response = BrowserMessageResponseSchema.parse(await json('/auth/forgot-password', { email }));
     return typeof response.message === 'string'
       ? response.message
       : 'Check your recovery channel for instructions';
@@ -303,7 +298,7 @@ export function createBrowserAuth(
     token: string,
     newPassword: string,
   ): Promise<void> {
-    await json('/auth/reset-password', { token, newPassword });
+    BrowserMessageResponseSchema.parse(await json('/auth/reset-password', { token, newPassword }));
     invalidate();
   }
   async function stepUp(): Promise<void> {
@@ -316,11 +311,11 @@ export function createBrowserAuth(
         PasskeyOptionsResponseSchema.parse(options).data,
       );
     }
-    await json('/auth/step-up', {
+    IamSuccessResponseSchema.parse(await json('/auth/step-up', {
       password: input.password,
       ...(input.totpCode ? { totpCode: input.totpCode } : {}),
       ...(assertion ? { assertion } : {}),
-    });
+    }));
     invalidate(); // Replacement resource tokens carry the newly verified auth_time.
   }
   function invalidate() {
@@ -334,7 +329,7 @@ export function createBrowserAuth(
   async function logout() {
     invalidate();
     try {
-      await json('/browser/logout', {});
+      BrowserOkResponseSchema.parse(await json('/browser/logout', {}));
     } finally {
       invalidate();
     }

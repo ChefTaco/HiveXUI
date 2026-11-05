@@ -1,10 +1,5 @@
-export interface ConsentDetails {
-  clientName: string;
-  clientDescription: string | null;
-  audience: string;
-  scope: string;
-  permissions: string[];
-}
+import type {BrowserConsentDetails as ConsentDetails} from '../../contracts/oathweave-browser.generated';
+export type {BrowserConsentDetails as ConsentDetails} from '../../contracts/oathweave-browser.generated';
 export type IdentityPrompt =
   | {
       kind: 'consent';

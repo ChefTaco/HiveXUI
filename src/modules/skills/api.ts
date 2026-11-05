@@ -12,6 +12,9 @@ import {
   CreateSkillSchema,
   UploadReleaseSchema,
   EnrollTargetSchema,
+  AuthMeSchema, EmptyResponseSchema, OkSchema, EnrollmentResponseSchema, UpdateSkillSchema, UpdateTargetSchema, PromoteReleaseSchema,
+  SkillListSchema, ReleaseListSchema, ChannelListSchema, TargetListSchema, ReceiptListSchema, DeploymentJobListSchema, AuditListSchema,
+  type UpdateSkill, type UpdateTarget,
   type CreateSkill,
   type UploadRelease,
   type EnrollTarget,
@@ -47,33 +50,33 @@ export function createSkillsApi(send: typeof apiFetch = apiFetch) {
     return schema.parse(response.status === 204 ? null : await response.json());
   }
   return {
-    catalog: () => request('/v1/skills', z.array(SkillSchema)),
+    catalog: () => request('/v1/skills', SkillListSchema),
     me: () =>
       request(
         '/auth/me',
-        z.object({ username: z.string(), isAdmin: z.boolean() }),
+        AuthMeSchema,
       ),
-    skills: () => request('/admin/skills', z.array(SkillSchema)),
+    skills: () => request('/admin/skills', SkillListSchema),
     releases: (slug: string) =>
       request(
         '/admin/skills/' + encodeURIComponent(slug) + '/releases',
-        z.array(ReleaseSchema),
+        ReleaseListSchema,
       ),
-    channels: () => request('/admin/channels', z.array(ChannelSchema)),
-    targets: () => request('/admin/targets', z.array(TargetSchema)),
+    channels: () => request('/admin/channels', ChannelListSchema),
+    targets: () => request('/admin/targets', TargetListSchema),
     receipts: () =>
-      request('/admin/receipts', z.array(ReceiptSchema)),
+      request('/admin/receipts', ReceiptListSchema),
     deploymentCapabilities: () => request('/admin/deployments/capabilities',DeploymentCapabilitiesSchema),
     prepareDeployment: (target:string) => request('/admin/deployments/'+encodeURIComponent(target),ManagedDeploymentSchema,'POST',{}),
     deployment: (id:string) => request('/admin/deployments/jobs/'+encodeURIComponent(id),ManagedDeploymentSchema),
     approveDeployment: (id:string,publicationSha256:string) => request('/admin/deployments/jobs/'+encodeURIComponent(id)+'/approve',ManagedDeploymentSchema,'POST',DeploymentApprovalSchema.parse({publicationSha256})),
     reconcileDeployment: (id:string) => request('/admin/deployments/jobs/'+encodeURIComponent(id)+'/reconcile',ManagedDeploymentSchema,'POST',{}),
     deployments: () =>
-      request('/admin/deployments', z.array(DeploymentJobSchema)),
+      request('/admin/deployments', DeploymentJobListSchema),
     audit: (before?: number) =>
       request(
         '/admin/audit?limit=50' + (before ? '&before=' + before : ''),
-        z.array(AuditSchema),
+        AuditListSchema,
       ),
     create: (body: CreateSkill) =>
       request(
@@ -84,21 +87,16 @@ export function createSkillsApi(send: typeof apiFetch = apiFetch) {
       ),
     update: (
       slug: string,
-      body: {
-        name: string;
-        description: string;
-        enabled: boolean;
-        homepage: string | null;
-      },
+      body: UpdateSkill,
     ) =>
       request(
         '/admin/skills/' + encodeURIComponent(slug),
         SkillSchema,
         'PATCH',
-        body,
+        UpdateSkillSchema.parse(body),
       ),
     remove: (slug: string) =>
-      request('/admin/skills/' + encodeURIComponent(slug), z.null(), 'DELETE'),
+      request('/admin/skills/' + encodeURIComponent(slug), EmptyResponseSchema, 'DELETE'),
     upload: (slug: string, body: UploadRelease) =>
       request(
         '/admin/skills/' + encodeURIComponent(slug) + '/releases',
@@ -109,34 +107,30 @@ export function createSkillsApi(send: typeof apiFetch = apiFetch) {
     promote: (slug: string, channel: 'stable' | 'canary', version: string) =>
       request(
         '/admin/channels/' + channel + '/' + encodeURIComponent(slug),
-        z.object({ ok: z.literal(true) }),
+        OkSchema,
         'PUT',
-        { version },
+        PromoteReleaseSchema.parse({ version }),
       ),
     withdraw: (slug: string, channel: 'stable' | 'canary') =>
       request(
         '/admin/channels/' + channel + '/' + encodeURIComponent(slug),
-        z.null(),
+        EmptyResponseSchema,
         'DELETE',
       ),
     target: (
       name: string,
-      body: { host: string; username: string; enabled: boolean },
+      body: UpdateTarget,
     ) =>
       request(
         '/admin/targets/' + encodeURIComponent(name),
-        z.object({ ok: z.literal(true) }),
+        OkSchema,
         'PUT',
-        body,
+        UpdateTargetSchema.parse(body),
       ),
     enroll: (name: string, body: EnrollTarget) =>
       request(
         '/admin/targets/' + encodeURIComponent(name) + '/enroll',
-        z.object({
-          target: z.string(),
-          token: z.string(),
-          oneTime: z.literal(true),
-        }),
+        EnrollmentResponseSchema,
         'POST',
         EnrollTargetSchema.parse(body),
       ),
