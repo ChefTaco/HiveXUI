@@ -25,7 +25,11 @@ describe('public console runtime configuration', () => {
         }).success,
       ).toBe(false);
   });
-  it('accepts a separate Magnus console link without URL credentials or token parameters', () => {
+  it('no longer exposes a Magnus console link, whatever runtime.json holds', async () => {
+    const runtime = await import('./runtime');
+    expect('magnusConsoleUrl' in runtime).toBe(false);
+  });
+  it('still accepts links.magnus for one release, because the schema is strict', () => {
     expect(
       runtimeSchema.safeParse({
         ...config,

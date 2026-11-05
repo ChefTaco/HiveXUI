@@ -43,11 +43,18 @@ export function rememberAccess(
     throw new Error('Access token is expired');
   tokens.set(product, { value, expiresAt });
 }
+const accessClearedListeners = new Set<() => void>();
+/** Long-lived readers (event streams) stop here: logout and session expiry both clear access. */
+export function onAccessCleared(listener: () => void): () => void {
+  accessClearedListeners.add(listener);
+  return () => accessClearedListeners.delete(listener);
+}
 export function clearAccess(): void {
   generation++;
   tokens.clear();
   chatExpiresAt = 0;
   chatPending = undefined;
+  for (const listener of [...accessClearedListeners]) listener();
 }
 /** Same-session verification refreshes bearer claims without cancelling product sessions. */
 export function refreshResourceAccess(): void {

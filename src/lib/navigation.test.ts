@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  magnusAddress,
   NAV_GROUPS,
   resolveDeepLink,
   viewAvailable,
   visibleNavGroups,
   type ProductCheck,
 } from './navigation';
+import { Icon } from '../components/icons';
 import type { Product } from './transport';
 
 const only =
@@ -85,9 +87,24 @@ describe('navigation model', () => {
     expect(viewAvailable('incidents', only('chattermost'))).toBe(false);
   });
 
-  it('gives magnus no navigation entry yet', () => {
-    expect(layout(only('magnus'))).toEqual({ Hive: ['hive'], System: ['docs', 'settings'] });
-    expect(NAV_GROUPS.some((group) => /magnus/i.test(group.label))).toBe(false);
+  it('shows the Magnus section only with Magnus installed', () => {
+    expect(layout(only('magnus'))).toEqual({ Hive: ['hive'], Magnus: ['magnus', 'magnus', 'magnus'], System: ['docs', 'settings'] });
+    const magnus = visibleNavGroups(only('magnus')).find((group) => group.label === 'Magnus')!;
+    expect(magnus.items.map((item) => item.path)).toEqual(['/mission-control', '/', '/nodes']);
+    expect(visibleNavGroups(ALL).some((group) => /magnus/i.test(group.label))).toBe(false);
+  });
+
+  it('keeps System last, whatever is installed', () => {
+    expect(visibleNavGroups(only('magnus', 'oathweave')).at(-1)!.label).toBe('System');
+  });
+
+  it('labels every entry uniquely, because the console walkthrough names screenshots after them', () => {
+    const labels = NAV_GROUPS.flatMap((group) => group.items.map((item) => item.label));
+    expect(labels.filter((label, index) => labels.indexOf(label) !== index)).toEqual([]);
+  });
+
+  it('uses only icons the console has', () => {
+    for (const item of NAV_GROUPS.flatMap((group) => group.items)) expect(Icon[item.icon], item.label).toBeTruthy();
   });
 
   it('rejects unknown views', () => {
@@ -132,6 +149,30 @@ describe('deep links', () => {
   it('keeps pagination on security paths, which shares the page parameter', () => {
     expect(link('/security-fusion/events?page=2', ALL)).toEqual({ view: 'security', url: null });
     expect(link('/security-fusion/events?page=2', CORE)).toEqual({ view: 'hive', url: '/' });
+  });
+
+  it('serves /fleet deep links only when Magnus is installed', () => {
+    const MAGNUS = only('magnus');
+    expect(link('/fleet', MAGNUS)).toEqual({ view: 'magnus', url: null });
+    expect(link('/fleet/nodes/abc', MAGNUS)).toEqual({ view: 'magnus', url: null });
+    expect(link('/fleet/nodes', ALL)).toEqual({ view: 'hive', url: '/' });
+    expect(link('/fleetwood', MAGNUS)).toEqual({ view: 'hive', url: null });
+  });
+
+  it('leaves the query under /fleet to the module, including its own ?page=', () => {
+    const BOTH = only('magnus', 'oathweave');
+    expect(link('/fleet/audit?page=2', BOTH)).toEqual({ view: 'magnus', url: null });
+    expect(link('/fleet/audit?page=iam-users', BOTH)).toEqual({ view: 'magnus', url: null });
+  });
+
+  it('sends the old ?page=magnus form to /fleet', () => {
+    expect(link('/?page=magnus', only('magnus'))).toEqual({ view: 'magnus', url: '/fleet' });
+    expect(link('/?page=magnus', ALL)).toEqual({ view: 'hive', url: '/' });
+  });
+
+  it('builds the address for a Magnus page', () => {
+    expect(magnusAddress('/')).toBe('/fleet');
+    expect(magnusAddress('/nodes')).toBe('/fleet/nodes');
   });
 
   it('lets an available page win over the security path', () => {

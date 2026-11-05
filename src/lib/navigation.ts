@@ -1,3 +1,5 @@
+import { MAGNUS_NAV, visibleMagnusNav, type MagnusNavContext } from '../modules/magnus/nav';
+import { FLEET_PREFIX, isFleetPath } from '../modules/magnus/paths';
 import type { Product } from './transport';
 
 export type IamViewKey =
@@ -15,6 +17,7 @@ export type ViewKey =
   | 'skills'
   | 'chat'
   | 'security'
+  | 'magnus'
   | 'hive'
   | IamViewKey
   | 'workspaces'
@@ -55,6 +58,8 @@ export interface NavItem {
   label: string;
   icon: NavIcon;
   gate?: ProductGate;
+  /** A module page, for views that hold many of them. Magnus paths are console-relative. */
+  path?: string;
 }
 export interface NavGroup {
   label: string;
@@ -65,8 +70,16 @@ export type ProductCheck = (product: Product) => boolean;
 const OATHWEAVE: ProductGate = { all: ['oathweave'] };
 const EMBERPATH: ProductGate = { all: ['emberpath'] };
 const HIVEMEM: ProductGate = { all: ['hivemem'] };
+const MAGNUS: ProductGate = { all: ['magnus'] };
 
-export const NAV_GROUPS: readonly NavGroup[] = [
+function magnusGroups(context?: MagnusNavContext): NavGroup[] {
+  return (context ? visibleMagnusNav(context) : MAGNUS_NAV).map((section) => ({
+    label: section.label,
+    items: section.items.map((item): NavItem => ({ key: 'magnus', label: item.label, icon: item.icon, gate: MAGNUS, path: item.path })),
+  }));
+}
+
+const PRODUCT_GROUPS: readonly NavGroup[] = [
   {
     label: 'Hive',
     items: [
@@ -124,15 +137,17 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     label: 'ChatterMost',
     items: [{ key: 'chat', label: 'ChatterMost', icon: 'Activity', gate: { all: ['chattermost'] } }],
   },
-  {
-    label: 'System',
-    items: [
-      // Both show installation-level content; their Emberpath panels appear only with Emberpath.
-      { key: 'docs', label: 'API Docs', icon: 'Book' },
-      { key: 'settings', label: 'Settings', icon: 'Settings' },
-    ],
-  },
 ];
+const SYSTEM_GROUP: NavGroup = {
+  label: 'System',
+  items: [
+    // Both show installation-level content; their Emberpath panels appear only with Emberpath.
+    { key: 'docs', label: 'API Docs', icon: 'Book' },
+    { key: 'settings', label: 'Settings', icon: 'Settings' },
+  ],
+};
+/** Every group and entry, whatever is installed or ported. */
+export const NAV_GROUPS: readonly NavGroup[] = [...PRODUCT_GROUPS, ...magnusGroups(), SYSTEM_GROUP];
 
 const ITEMS = new Map<string, NavItem>(
   NAV_GROUPS.flatMap((group) => group.items).map((item) => [item.key, item]),
@@ -145,9 +160,12 @@ function gateOpen(gate: ProductGate | undefined, installed: ProductCheck): boole
   );
 }
 
-/** Sections an operator sees: only installed products' pages, and no empty sections. */
-export function visibleNavGroups(installed: ProductCheck): NavGroup[] {
-  return NAV_GROUPS.map((group) => ({
+/**
+ * Sections an operator sees: only installed products' pages, and no empty sections. Magnus entries
+ * also depend on what has been ported and on what this session's role and capabilities allow.
+ */
+export function visibleNavGroups(installed: ProductCheck, magnus: MagnusNavContext = {}): NavGroup[] {
+  return [...PRODUCT_GROUPS, ...magnusGroups(magnus), SYSTEM_GROUP].map((group) => ({
     label: group.label,
     items: group.items.filter((item) => gateOpen(item.gate, installed)),
   })).filter((group) => group.items.length > 0);
@@ -160,6 +178,9 @@ export function viewAvailable(view: string, installed: ProductCheck): view is Vi
 
 const SECURITY_PATH = /^\/security-fusion(?:\/|$)/;
 
+/** The browser address for a Magnus page. */
+export const magnusAddress = (path: string): string => (path === '/' ? FLEET_PREFIX : FLEET_PREFIX + path);
+
 /**
  * Chooses the opening view for a bookmark. A link to a product that is not installed
  * lands on the overview, and `url` then drops the dead address from the location bar.
@@ -168,10 +189,14 @@ export function resolveDeepLink(
   location: { pathname: string; search: string },
   installed: ProductCheck,
 ): { view: ViewKey; url: string | null } {
+  // Magnus owns everything under /fleet, query included, so its pages may paginate with ?page=.
+  const fleetPath = isFleetPath(location.pathname);
+  if (fleetPath && viewAvailable('magnus', installed)) return { view: 'magnus', url: null };
   const page = new URLSearchParams(location.search).get('page');
+  if (page === 'magnus' && viewAvailable('magnus', installed)) return { view: 'magnus', url: FLEET_PREFIX };
   if (page !== null && viewAvailable(page, installed)) return { view: page, url: null };
   const securityPath = SECURITY_PATH.test(location.pathname);
   // Cindertrace also uses ?page= for its own pagination, so its paths are honoured here.
   if (securityPath && viewAvailable('security', installed)) return { view: 'security', url: null };
-  return { view: 'hive', url: page !== null || securityPath ? '/' : null };
+  return { view: 'hive', url: page !== null || securityPath || fleetPath ? '/' : null };
 }

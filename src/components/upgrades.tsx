@@ -1,4 +1,4 @@
-import { browserIdentity, magnusConsoleUrl } from "../lib/runtime";
+import { browserIdentity, productEnabled } from "../lib/runtime";
 import { apiFetch } from "../lib/transport";
 import { useEffect, useState } from "react";
 import { Button, Panel } from "./ui";
@@ -158,11 +158,9 @@ function SuiteLifecyclePanel() {
           procedure and keep one active writer.
         </p>
       )}
-      {magnusConsoleUrl() && (
+      {productEnabled("magnus") && (
         <p>
-          <a href={magnusConsoleUrl()} target="_blank" rel="noreferrer">
-            Open Magnus
-          </a>{" "}
+          <a href="/fleet">Open Magnus</a>{" "}
           for approved fleet jobs. A suite lifecycle job adapter is not
           configured; these commands remain the available workflow.
         </p>

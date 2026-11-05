@@ -9,6 +9,10 @@ https://github.com/ChefTaco/cindertrace
 Cindertrace, Copyright contributors.
 Includes Security Fusion code derived from Magnus, Copyright Magnus contributors.
 
+Magnus console pages and browser contracts are derived from Magnus:
+https://github.com/ChefTaco/magnus
+Original Apache-2.0 license is retained in notices/.
+
 Browser-safe chat contract declarations are derived from ChatterMost:
 https://github.com/ChefTaco/ChatterMost
 ChatterMost, Copyright ChatterMost contributors.

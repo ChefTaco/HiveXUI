@@ -29,7 +29,15 @@ for (let index = 0; index < queue.length; index++) {
   if (seen.has(item.name)) continue;
   seen.add(item.name);
   const require = createRequire(join(item.from, 'package.json'));
-  let folder = dirname(require.resolve(item.name));
+  let folder;
+  try {
+    folder = dirname(require.resolve(item.name));
+  } catch (error) {
+    if (error.code !== 'ERR_PACKAGE_PATH_NOT_EXPORTED' && error.code !== 'MODULE_NOT_FOUND') throw error;
+    // A package of subpath exports or types only, such as victory-vendor, has no main entry to resolve.
+    folder = require.resolve.paths(item.name).map((base) => join(base, item.name)).find((candidate) => existsSync(join(candidate, 'package.json')));
+    if (!folder) throw error;
+  }
   let pkg;
   while (true) {
     const file = join(folder, 'package.json');
@@ -50,6 +58,8 @@ for (let index = 0; index < queue.length; index++) {
     'LICENSE.md',
     'LICENSE.txt',
     'license',
+    // decimal.js-light, through recharts, spells it this way.
+    'LICENCE.md',
     'OFL.txt',
     'OFL',
   ].find((name) => existsSync(join(folder, name)));

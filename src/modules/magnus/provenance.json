@@ -1,0 +1,5 @@
+{
+  "repository": "https://github.com/ChefTaco/magnus",
+  "revision": "859458867bb8be3ff308789172ec9a6b8a624c21",
+  "note": "Pages and components ported from apps/dashboard. Each work package lists its source files in routes/<package>.provenance.json."
+}

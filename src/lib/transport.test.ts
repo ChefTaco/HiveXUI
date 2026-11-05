@@ -5,6 +5,9 @@ import {
   setAccessProvider,
   configureEndpoint,
   createApiFetch,
+  onAccessCleared,
+  productFor,
+  refreshResourceAccess,
   rememberAccess,
 } from './transport';
 
@@ -185,4 +188,37 @@ describe('step-up read recovery',()=>{
   const request=vi.fn<typeof fetch>().mockImplementation(async()=>Response.json({error:'STEP_UP_REQUIRED'},{status:403}));
   await expect(createApiFetch(request)('/api/client-keys',{signal:controller.signal})).rejects.toThrow();expect(request).toHaveBeenCalledOnce();expect(access).toHaveBeenCalledOnce();
  });
+});
+
+describe('Magnus requests', () => {
+  it('are their own product, so they never carry the Emberpath default', () => {
+    expect(productFor('/api/magnus/console/session')).toBe('magnus');
+    expect(productFor('/api/magnus/health/ready')).toBe('magnus');
+    expect(productFor('/api/providers')).toBe('emberpath');
+  });
+  it('use the Magnus prefix and token', async () => {
+    configureEndpoint('magnus', '/api/magnus');
+    setAccessProvider(async () => {});
+    rememberAccess('magnus', 'obviously-fake-magnus', Date.now() + 60000);
+    rememberAccess('emberpath', 'obviously-fake-emberpath', Date.now() + 60000);
+    const request = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ ok: true }));
+    await createApiFetch(request)('/api/magnus/nodes?page=2');
+    expect(request.mock.calls[0]![0]).toBe('/api/magnus/nodes?page=2');
+    expect(new Headers(request.mock.calls[0]![1]!.headers).get('authorization')).toBe('Bearer obviously-fake-magnus');
+    expect(request.mock.calls[0]![1]!.credentials).toBe('omit');
+  });
+});
+
+describe('the end of a session', () => {
+  it('tells long-lived readers on logout, but not on a same-session token refresh', () => {
+    const listener = vi.fn();
+    const stop = onAccessCleared(listener);
+    refreshResourceAccess();
+    expect(listener).not.toHaveBeenCalled();
+    clearAccess();
+    expect(listener).toHaveBeenCalledTimes(1);
+    stop();
+    clearAccess();
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
 });

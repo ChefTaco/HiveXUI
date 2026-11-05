@@ -1,0 +1,117 @@
+{
+  "workPackage": "fleet",
+  "files": [
+    {
+      "source": "apps/dashboard/src/app/dashboard-client.tsx",
+      "sha256": "ef712c3f0c3d4d7055bf2a4ee7447a4d4ff4fd64cb20d7274f1865ca2286c000"
+    },
+    {
+      "source": "apps/dashboard/src/app/globals.css",
+      "sha256": "3089843c839723aec8b140c0330f55a5f01beca8ccc37faa2228c7eb0c5d0fa8"
+    },
+    {
+      "source": "apps/dashboard/src/app/mission-control/page.tsx",
+      "sha256": "f0bac74c3bc34890ca78071a9e7f4df228891717ff0ba6be3953d906596f94d4"
+    },
+    {
+      "source": "apps/dashboard/src/app/nodes/nodes-client.tsx",
+      "sha256": "a1b42c52797a7b46de109c5dcc00bc3b6e482686db9a16a0ca4a0a281227d5a5"
+    },
+    {
+      "source": "apps/dashboard/src/app/nodes/page.tsx",
+      "sha256": "138b5da5af34d7c1dd54e3371e5e7628944d403a0b11efcd6e6e5c6f4b2f0f92"
+    },
+    {
+      "source": "apps/dashboard/src/app/page.tsx",
+      "sha256": "baa0c0c36a64148db1ee9ffd993a5582f7506051beddeeabe7911ccaa603a81a"
+    },
+    {
+      "source": "apps/dashboard/src/components/live-ticker.tsx",
+      "sha256": "3ed93c05191bd72b125f011c7a02fb4ac3fe65ccaeccc747611cf6958ebe6e4f"
+    },
+    {
+      "source": "apps/dashboard/src/components/nodes/node-modals.tsx",
+      "sha256": "3262031bd092ee581f039480e462e639fc26bdaaf065bf3a3c9a529d77bed826"
+    },
+    {
+      "source": "apps/dashboard/src/components/nodes/tailscale-expiry-alert.tsx",
+      "sha256": "b701f0120ef820aab2aa7e2ff6412aac5434404b4e781ce4c5d39e3561e4fd39"
+    },
+    {
+      "source": "apps/dashboard/src/components/nodes/upgrade-readiness-badge.tsx",
+      "sha256": "009cecccdf11a9be2aba6094b70b4f200dec590d56cc643c32849dc7a2f4d5ba"
+    },
+    {
+      "source": "apps/dashboard/src/components/overview/fleet-radar.tsx",
+      "sha256": "00bb650b3a20b2e3caf89be2bb8a3eae847342075af4a800cd40760ad994c4d8"
+    },
+    {
+      "source": "apps/dashboard/src/components/ui/animated-number.tsx",
+      "sha256": "e1fb3f912e97a20c9bd3b6272bc3e8d998dd59972aa3bb9b64768c9e59725eb8"
+    },
+    {
+      "source": "apps/dashboard/src/components/ui/charts/area-chart.tsx",
+      "sha256": "bda9a0affadf6f262c3f61ae259b49c284672dfeecada01f0e4912425db15733"
+    },
+    {
+      "source": "apps/dashboard/src/components/ui/charts/lazy-area-chart.tsx",
+      "sha256": "d605d44ea0347aa425c47932459ed97d2943a15ada6d7a934dce6b5442d44092"
+    },
+    {
+      "source": "apps/dashboard/src/components/ui/gauge.tsx",
+      "sha256": "624248b3344ffc9e40efb67fabf12b60e438c1aa5fd38a13e661076928fb0239"
+    },
+    {
+      "source": "apps/dashboard/src/components/ui/glow-panel.tsx",
+      "sha256": "52c88016132421285d7499e15024a1dfa5b6a8bf463bcd1ccb6dd71f6e2293cd"
+    },
+    {
+      "source": "apps/dashboard/src/components/ui/meter-bar.tsx",
+      "sha256": "da07465d8a6238101f8ee2a15761c47733c6289c150e4370c6edec4b2f88e9f4"
+    },
+    {
+      "source": "apps/dashboard/src/components/ui/node-selector.tsx",
+      "sha256": "8f75da9ef6e91a85eede6fee0812d8a7d04855e720839f304b02ec49c6052113"
+    },
+    {
+      "source": "apps/dashboard/src/components/ui/scan-animation.tsx",
+      "sha256": "8dbd3826d94949287fe827ebdca9ce2bb58da0f4774d760ffd1b4e35525e7d70"
+    },
+    {
+      "source": "apps/dashboard/src/components/ui/sparkline.tsx",
+      "sha256": "c851eb8596d5249371116d2b31429abc86ddc6ea07f0b0411895117e8a91d30a"
+    },
+    {
+      "source": "apps/dashboard/src/hooks/use-event-stream.ts",
+      "sha256": "95bae01b4497594a378d525ffeeb4767bd79062f67d8ea57d7cb1491e945b02f"
+    },
+    {
+      "source": "apps/dashboard/src/hooks/use-reduced-motion.ts",
+      "sha256": "32714be519a685ed1514586f5a04400bdedfdf4b4c1312ff51da3a80d077df12"
+    },
+    {
+      "source": "apps/dashboard/src/hooks/use-session-samples.ts",
+      "sha256": "90091991e534f8f09c1ccf9108235ecd9d786796bd9898f415f99ec021da7499"
+    },
+    {
+      "source": "apps/dashboard/src/lib/agent-privilege.ts",
+      "sha256": "50acf010b0f913efbc776efb3c1e341a7d1228cea0658bd6b09a1b8c9e5cd9fc"
+    },
+    {
+      "source": "apps/dashboard/src/lib/event-feed.ts",
+      "sha256": "146246e1d8550169d518ebfc09ff03ea66c81cdc4d0125a2deb15437c9393ee7"
+    },
+    {
+      "source": "apps/dashboard/src/lib/hermes-inventory.ts",
+      "sha256": "5d13bc6730c2931f60f6ed484f166447facbc506b4f83f99588f55b014fbeed8"
+    },
+    {
+      "source": "apps/dashboard/src/lib/routes.ts",
+      "sha256": "6d8e543c2aee1cacf93b7ee2227bc475bda9696761abf528242c087cf18e60a5"
+    },
+    {
+      "source": "apps/dashboard/src/lib/user-disk.ts",
+      "sha256": "edf507778165e050066b0c3a195f9b8d2fb53571ffbaa49faf3ca5b9b3c313ac"
+    }
+  ]
+}

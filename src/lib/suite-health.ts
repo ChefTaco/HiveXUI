@@ -19,6 +19,7 @@ export const readiness: ReadonlyArray<{
     name: 'ChatterMost',
     path: '/api/chat/api/v4/system/ping',
   },
+  { product: 'magnus', name: 'Magnus', path: '/api/magnus/health/ready' },
 ];
 export interface ServiceReadiness {
   product: Product;

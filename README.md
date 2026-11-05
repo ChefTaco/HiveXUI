@@ -64,17 +64,15 @@ are still required. Keep existing native frontends and clients available.
 Synthetic browser renders do not establish backend authorization or workflow parity.
 
 
-Set optional public runtime `links.magnus` to the existing Magnus HTTPS console
-origin to expose its separate fleet navigation link. Credentials, query parameters
-and fragments are rejected. Magnus keeps its own authentication and UI until its
-later integration; no infrastructure credential is shared through navigation.
-
 Runtime `products` decide what the console shows. Navigation has one section per
 installed product plus Hive and System, and the Hive overview, Incidents, API Docs and
 Settings cover and call only installed products. A bookmark to an absent product opens
 the overview. Actors needs Oathweave, Emberpath and HiveMem because each enrollment
-links all three. `magnus` is accepted as a product for a later module and has no
-navigation yet.
+links all three.
+
+With `magnus` in `products`, the fleet console is the module at `/fleet`, signed in through
+Oathweave like every other product. See `src/modules/magnus/PORTING.md`. The legacy
+`links.magnus` runtime key is accepted and ignored for one release.
 
 Suite runtime requires an Oathweave identity configuration and a public client for
 each configured product. A missing runtime file or missing identity fails before

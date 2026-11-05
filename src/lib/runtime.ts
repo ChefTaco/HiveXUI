@@ -23,6 +23,8 @@ export const runtimeSchema = z
     mode: z.enum(['suite', 'legacy']).default('suite'),
     products: z.partialRecord(product, prefix),
     enrollmentInstallationId: z.string().regex(/^[a-z0-9][a-z0-9-]{0,63}$/).optional(),
+    // Accepted and ignored for one release: Magnus now lives at /fleet, and older controllers
+    // still write this key into a strict schema. Remove with the next runtime schema.
     links: z
       .object({
         magnus: z
@@ -84,14 +86,12 @@ export const runtimeSchema = z
   });
 let identity: ReturnType<typeof createBrowserAuth> | undefined;
 const enabled = new Set<Product>();
-let magnusLink: string | undefined;
 let enrollmentInstallation: string | undefined;
 export const enrollmentInstallationId = () => enrollmentInstallation;
 export function selectEnrollmentInstallation(value: string): void {
   if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(value)) throw new Error('Select an explicit installation identifier');
   enrollmentInstallation = value;
 }
-export const magnusConsoleUrl = () => magnusLink;
 export const productEnabled = (product: Product) => enabled.has(product);
 export const browserIdentity = () => identity;
 /**
@@ -112,7 +112,6 @@ export async function initializeRuntime(): Promise<void> {
     throw new Error('Console configuration could not be loaded');
   const config = runtimeSchema.parse(await response.json());
   enrollmentInstallation = config.enrollmentInstallationId;
-  magnusLink = config.links?.magnus;
   for (const [name, path] of Object.entries(config.products))
     if (path) {
       configureEndpoint(name as Product, path);

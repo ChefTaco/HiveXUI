@@ -4,10 +4,12 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
 const SecurityModule = lazy(() => import('./modules/security'));
+const MagnusModule = lazy(() => import('./modules/magnus'));
 const ChatModule = lazy(() => import('./modules/chat'));
 const SkillsModule = lazy(() => import('./modules/skills'));
 const WorkspacesModule = lazy(() => import('./modules/workspaces'));
@@ -19,15 +21,19 @@ import { adminApi, ApiError } from './lib/api';
 import { MfaRequired } from './lib/browser-auth';
 import { parsePortalAuthorization } from './lib/authorization-portal';
 import {
+  magnusAddress,
   resolveDeepLink,
   viewAvailable,
   visibleNavGroups,
   type IamViewKey,
   type ViewKey,
 } from './lib/navigation';
+import { activeMagnusNavPath, type MagnusNavContext } from './modules/magnus/nav';
+import { isFleetPath, toConsolePath } from './modules/magnus/paths';
+import { matchRoute } from './modules/magnus/routes';
 import {
   browserIdentity,
-  magnusConsoleUrl,
+  productEnabled,
   productInstalled,
 } from './lib/runtime';
 import type { AdminUser } from './lib/types';
@@ -445,10 +451,49 @@ function Shell({
 }) {
   const [deepLink] = useState(() => resolveDeepLink(location, productInstalled));
   const [view, setView] = useState<ViewKey>(deepLink.view);
-  const [navGroups] = useState(() => visibleNavGroups(productInstalled));
+  const [magnusNav, setMagnusNav] = useState<MagnusNavContext>({});
+  const navGroups = useMemo(() => visibleNavGroups(productInstalled, magnusNav), [magnusNav]);
+  const [magnusPath, setMagnusPath] = useState(() => toConsolePath(location.pathname));
   useEffect(() => {
     if (deepLink.url) history.replaceState(null, '', deepLink.url);
   }, [deepLink]);
+  // Role and capabilities decide which Magnus entries show. The session and its contract stay in
+  // the module's chunks, so this adds one dynamic import to the main chunk.
+  useEffect(() => {
+    if (!browserIdentity() || !productEnabled('magnus')) return;
+    let active = true;
+    let unsubscribe: (() => void) | undefined;
+    void import('./modules/magnus/session-store').then(({ sessionStore }) => {
+      if (!active) return;
+      const update = () => {
+        const state = sessionStore.get();
+        setMagnusNav(state.status === 'ready' ? { role: state.session.role, hermes: state.session.capabilities.hermes } : {});
+      };
+      unsubscribe = sessionStore.subscribe(update);
+      update();
+      void sessionStore.load();
+    });
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
+  }, []);
+  // The module's links and browser history both end here. Only movement into or out of /fleet
+  // changes the view: other modules keep their own history handling, as they always have.
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  useEffect(() => {
+    const sync = () => {
+      const path = location.pathname;
+      setMagnusPath(toConsolePath(path));
+      if (!isFleetPath(path) && viewRef.current !== 'magnus') return;
+      const next = resolveDeepLink(location, productInstalled);
+      if (next.url) history.replaceState(null, '', next.url);
+      setView(next.view);
+    };
+    window.addEventListener('popstate', sync);
+    return () => window.removeEventListener('popstate', sync);
+  }, []);
   const [navOpen, setNavOpen] = useState(false);
   const navigationRef = useRef<HTMLElement>(null);
   const navigationToggleRef = useRef<HTMLButtonElement>(null);
@@ -495,7 +540,7 @@ function Shell({
     }
   }
 
-  function navigate(requested: string) {
+  function navigate(requested: string, path = '/') {
     const next: ViewKey = viewAvailable(requested, productInstalled)
       ? requested
       : 'hive';
@@ -504,10 +549,24 @@ function Shell({
     requestAnimationFrame(() =>
       document.querySelector<HTMLElement>('.topbar .title')?.focus(),
     );
+    if (next === 'magnus') {
+      history.pushState(null, '', magnusAddress(path));
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      return;
+    }
     const url = new URL(location.href);
+    // Leaving /fleet is a real move in history: Back returns to the Magnus page.
+    const leavingFleet = isFleetPath(url.pathname);
+    if (leavingFleet) {
+      url.pathname = '/';
+      url.search = '';
+      url.hash = '';
+    }
     url.searchParams.set('page', next);
-    history.replaceState(null, '', url);
-    setNavOpen(false);
+    if (leavingFleet) {
+      history.pushState(null, '', url);
+      setMagnusPath('/');
+    } else history.replaceState(null, '', url);
   }
 
   const failures = data.telemetry?.totals.failures ?? 0;
@@ -537,15 +596,15 @@ function Shell({
                 {group.items.map((item) => {
                   const ItemIcon = Icon[item.icon];
                   const count = counts[item.key];
+                  const active = item.path === undefined
+                    ? view === item.key
+                    : view === 'magnus' && activeMagnusNavPath(magnusPath) === item.path;
                   return (
                     <button
-                      key={item.key}
-                      className={
-                        view === item.key
-                          ? 'nav-item nav-item--active'
-                          : 'nav-item'
-                      }
-                      onClick={() => navigate(item.key)}
+                      key={item.path ?? item.key}
+                      className={active ? 'nav-item nav-item--active' : 'nav-item'}
+                      aria-current={active ? 'page' : undefined}
+                      onClick={() => navigate(item.key, item.path)}
                     >
                       <ItemIcon width={18} height={18} />
                       <span>{item.label}</span>
@@ -557,20 +616,6 @@ function Shell({
                 })}
               </div>
             ))}
-            {magnusConsoleUrl() && (
-              <div className="nav-group">
-                <p className="nav-group-label">Fleet</p>
-                <a
-                  className="nav-item"
-                  href={magnusConsoleUrl()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Icon.Server width={18} height={18} />
-                  <span>Magnus console ↗</span>
-                </a>
-              </div>
-            )}
           </nav>
 
           <div className="sidebar-footer">
@@ -603,7 +648,7 @@ function Shell({
             <div className="topbar-lead">
               <p className="eyebrow">Control Plane</p>
               <h1 className="title" tabIndex={-1}>
-                {titleFor(view)}
+                {view === 'magnus' ? (matchRoute(magnusPath)?.route.title ?? 'Magnus') : titleFor(view)}
               </h1>
             </div>
             <div className="topbar-meta">
@@ -689,6 +734,7 @@ function Shell({
                   view={view}
                   onNavigate={navigate}
                   user={user}
+                  onAuthExpired={onLogout}
                 />
               </>
             )}
@@ -704,6 +750,7 @@ function Shell({
 
 function titleFor(view: ViewKey): string {
   const map: Record<ViewKey, string> = {
+    magnus: 'Magnus',
     account: 'Account security',
     security: 'Cindertrace',
     chat: 'ChatterMost',
@@ -745,11 +792,19 @@ function ViewContent({
   view,
   onNavigate,
   user,
+  onAuthExpired,
 }: {
   view: ViewKey;
   onNavigate: (next: string) => void;
   user: AdminUser | null;
+  onAuthExpired: () => void;
 }) {
+  if (view === 'magnus')
+    return (
+      <Suspense fallback={<p role="status">Loading Magnus…</p>}>
+        <MagnusModule onAuthExpired={onAuthExpired} />
+      </Suspense>
+    );
   const models: Partial<Record<ViewKey, string>> = {
     routers: 'router:routing:read',
     providers: 'router:providers:read',

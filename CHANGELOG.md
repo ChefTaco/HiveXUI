@@ -1,5 +1,14 @@
 # Changelog
 
+- Add the Magnus module at `/fleet`: Mission Control, overview and nodes on the shared
+  theme, with sidebar navigation, deep links and browser history. One API per installation:
+  the control node switcher, federation and embedded Hermes dashboard are gone, and sign-in
+  is Oathweave. Pin the Magnus browser contract under `contracts/magnus`, read event
+  streams with `fetch` so they carry a fresh token and stop on logout, and hide actions the
+  session role cannot use. `links.magnus` is accepted and ignored for one release, and the
+  external Magnus link is removed.
+
+- Show a permanent warning strip while Oathweave reports relaxed sign-in limits.
 - Give the console one visual theme. A single token file defines color, type, radii and
   spacing for light and dark, Tailwind maps onto it, and security, chat and all other pages
   share one set of buttons, badges, panels, empty states, tables, fields and page headers.
