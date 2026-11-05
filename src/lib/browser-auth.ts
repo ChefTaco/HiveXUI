@@ -1,5 +1,5 @@
 import { createRemoteJWKSet, customFetch, jwtVerify } from 'jose';
-import { clearAccess, rememberAccess, type Product } from './transport';
+import { clearAccess, refreshResourceAccess, rememberAccess, type Product } from './transport';
 import type { AdminUser } from './types';
 import { z } from 'zod';
 import { authorizationRedirect, validatePortalAuthorization, type PortalAuthorizationRequest } from './authorization-portal';
@@ -73,6 +73,7 @@ export function createBrowserAuth(
   const expiry = new Map<Product, number>();
   const declined = new Set<Product>();
   let generation = 0;
+  let credentialEpoch = 0;
   let pendingStepUp: Promise<void> | undefined;
   // Retain settled results, including declines, until session invalidation. React
   // effect replay and concurrent callers must never mint a second code.
@@ -131,6 +132,13 @@ export function createBrowserAuth(
       );
     return result as Record<string, unknown>;
   }
+  async function waitForVerification(started: number): Promise<void> {
+    // Verification upgrades this session; it must not cancel unrelated consent.
+    // A failed verification leaves ordinary product authorization unchanged.
+    const verification = pendingStepUp;
+    if (verification) await verification.catch(() => {});
+    if (started !== generation) throw new Error('Sign-in session ended');
+  }
   async function authorize(product: Product) {
     const started = generation;
     const client = config.clients[product];
@@ -167,9 +175,11 @@ export function createBrowserAuth(
       )
         throw error;
       const approved = await requestConsent(consentDetails.parse(error.data));
-      if (!approved) declined.add(product);
-      if (started !== generation || !approved)
+      if (started !== generation) throw new Error('Sign-in session ended');
+      if (!approved) {
+        declined.add(product);
         throw new Error('Access was not approved');
+      }
       authorization = BrowserAuthorizationResponseSchema.parse(await json('/oauth/authorize', {
         ...parameters,
         consent: 'approve',
@@ -181,6 +191,8 @@ export function createBrowserAuth(
       typeof authorization.code !== 'string'
     )
       throw new Error('Invalid authorization response');
+    await waitForVerification(started);
+    const exchangedAt = credentialEpoch;
     const token = BrowserTokenResponseSchema.parse(await json('/oauth/token', {
       grant_type: 'authorization_code',
       client_id: client,
@@ -215,9 +227,13 @@ export function createBrowserAuth(
     if (identity.payload.at_hash !== encode(hash.slice(0, hash.length / 2)))
       throw new Error('Identity token does not bind this access token');
     if (started !== generation) throw new Error('Sign-in session ended');
+    // An exchange that crossed verification may carry the previous auth_time.
+    // Discard it rather than overwriting a newly refreshed resource credential.
+    if (exchangedAt !== credentialEpoch) return false;
     const expiresAt = Date.now() + token.expires_in * 1000;
     rememberAccess(product, token.access_token, expiresAt);
     expiry.set(product, expiresAt);
+    return true;
   }
   function approveAuthorization(input: PortalAuthorizationRequest) {
     const parameters = validatePortalAuthorization(input);
@@ -261,7 +277,14 @@ export function createBrowserAuth(
     if ((expiry.get(product) ?? 0) > Date.now() + 30000) return;
     let operation = pending.get(product);
     if (!operation) {
-      const created = authorize(product);
+      const started = generation;
+      const created = (async () => {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          await waitForVerification(started);
+          if (await authorize(product)) return;
+        }
+        throw new Error('Identity verification changed again; retry this read');
+      })();
       operation = created;
       pending.set(product, created);
       void created
@@ -365,7 +388,11 @@ export function createBrowserAuth(
         ...(assertion ? { assertion } : {}),
       }));
       current();
-      invalidate(); // Replacement resource tokens carry the newly verified auth_time.
+      // This is still the same user/session. Preserve in-flight authorizations,
+      // consent decisions and portal continuations; expire only resource claims.
+      credentialEpoch++;
+      refreshResourceAccess();
+      expiry.clear();
     })();
     pendingStepUp = operation;
     void operation.finally(() => {

@@ -48,6 +48,10 @@ export function clearAccess(): void {
   chatExpiresAt = 0;
   chatPending = undefined;
 }
+/** Same-session verification refreshes bearer claims without cancelling product sessions. */
+export function refreshResourceAccess(): void {
+  tokens.clear();
+}
 export const hasChatSession = () => chatExpiresAt > Date.now();
 export function productPrefix(product: Product): string | undefined {
   return prefixes.get(product);
