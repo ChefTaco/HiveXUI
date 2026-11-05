@@ -1,4 +1,109 @@
 {
   "workPackage": "agents",
-  "files": []
+  "files": [
+    {
+      "source": "apps/dashboard/src/app/ardent/installations/package-controls.tsx",
+      "sha256": "ff03219a3a56ca782c0afc5bb73b40685ffdb4d6f3229cf18f457a747174ac29"
+    },
+    {
+      "source": "apps/dashboard/src/app/ardent/installations/page.tsx",
+      "sha256": "d41612349ce66186c4952d031a18e197467577b84b2784e4647cbc6b1e5041fa"
+    },
+    {
+      "source": "apps/dashboard/src/app/ardent/installations/service-controls.tsx",
+      "sha256": "ff1b6e82e3e4bd3cf0ed6d7f24e6334e1a69f6b96236a85191ba325b7ccdc4ab"
+    },
+    {
+      "source": "apps/dashboard/src/app/ardent/page.tsx",
+      "sha256": "447397a757770c0796ced2db39fdd0cfd50a039b603da7c69ce06f3bbd260eca"
+    },
+    {
+      "source": "apps/dashboard/src/app/ardent/profiles/[id]/action-button.tsx",
+      "sha256": "1e12fc2e456dac39cbf4b52889e053eb2b92bef2ef1255f3de71a71336d16802"
+    },
+    {
+      "source": "apps/dashboard/src/app/ardent/profiles/[id]/codex-node-panel.tsx",
+      "sha256": "e8189574e2bae00c760e2b17f5cc18f6dd3eca2ed6b605d28f3a4a64db109a7f"
+    },
+    {
+      "source": "apps/dashboard/src/app/ardent/profiles/[id]/config-editor.tsx",
+      "sha256": "4891ea5539f228e98150e5c9087f4519e77053994cc0028aa030175c99bb96e7"
+    },
+    {
+      "source": "apps/dashboard/src/app/ardent/profiles/[id]/identity-editor.tsx",
+      "sha256": "84e6173d9182531bafc52d60078536f609e36abb94f4188ba8a230da46d54b24"
+    },
+    {
+      "source": "apps/dashboard/src/app/ardent/profiles/[id]/memory-panel.tsx",
+      "sha256": "b173e68e42a2e9326e2ae1200fbd5d30e3a1dd03e0ba1c0fc860258b4b15a808"
+    },
+    {
+      "source": "apps/dashboard/src/app/ardent/profiles/[id]/page.tsx",
+      "sha256": "70524ad936836a5137f1b7469de5ad22519068ca2039d40dee036837643ef7e0"
+    },
+    {
+      "source": "apps/dashboard/src/app/ardent/profiles/[id]/peer-editor.tsx",
+      "sha256": "38c8d236b33d326b2c90783081449021bf33710f0bacf2106544c990f4dfb07b"
+    },
+    {
+      "source": "apps/dashboard/src/app/ardent/profiles/[id]/settings-form.tsx",
+      "sha256": "585057aea40f89d2ed0953a026e31ee77d08e12045ab331857f5aa5b0f5d9533"
+    },
+    {
+      "source": "apps/dashboard/src/app/ardent/profiles/[id]/skill-list.tsx",
+      "sha256": "bce5b8fb03d20f6c1adbabcdf0af705b94304864e7651fef88b69344b04e3bd4"
+    },
+    {
+      "source": "apps/dashboard/src/app/ardent/profiles/[id]/task-test.tsx",
+      "sha256": "25e908d5b461e946fdf7f99c6e177849ebbcfef6cc84204bd3d2bb5ff5663c91"
+    },
+    {
+      "source": "apps/dashboard/src/app/ardent/profiles/page.tsx",
+      "sha256": "bfe6d8a8b50832b5447cbd46f6498de2dcca83ca4cd5c4c0224a9bd70180a6ea"
+    },
+    {
+      "source": "apps/dashboard/src/app/codex/installations/page.tsx",
+      "sha256": "1cc09dbd08dc2b451384c59aa111d05e0eb62f61abc54a1164e40fe129cdd62b"
+    },
+    {
+      "source": "apps/dashboard/src/app/codex/page.tsx",
+      "sha256": "aa818cff4ef40fd981dce25a90baac7bc09401e286819aac4432ea3acb2d4d29"
+    },
+    {
+      "source": "apps/dashboard/src/app/hermes-drift/page.tsx",
+      "sha256": "182aef3ce62494b0ad1068dd99fd804446d2d54c538e7fce73161b4a32b14614"
+    },
+    {
+      "source": "apps/dashboard/src/app/orchestra/installations/page.tsx",
+      "sha256": "8fe7f8246a041750fdda518889f17688b1f65065c8966ce25a784c841b5039e9"
+    },
+    {
+      "source": "apps/dashboard/src/app/orchestra/page.tsx",
+      "sha256": "c46854f078e195c6d653f7e55a98d49efad7806894f70577c9fb415488d4967a"
+    },
+    {
+      "source": "apps/dashboard/src/app/orchestra/profiles/page.tsx",
+      "sha256": "ee83fa4e94b4ab2905d4ec706b5921f949ca665e06b2be3dce747b56b05a156d"
+    },
+    {
+      "source": "apps/dashboard/src/components/codex/codex-installation-card.tsx",
+      "sha256": "e789e09f0a95961a02ded765a3c41790c9c66db27937207b7f72b7aa06da39fc"
+    },
+    {
+      "source": "apps/dashboard/src/components/orchestra/hivemem-token-status.tsx",
+      "sha256": "958583fe4453a77028dbaf5caca90507d6735172848709febb76bd9f1366644c"
+    },
+    {
+      "source": "apps/dashboard/src/components/orchestra/installation-actions.tsx",
+      "sha256": "020bc98c2a09720e05da23d58dd920acbe95e1580b4030e51ac1db43ee08e200"
+    },
+    {
+      "source": "apps/dashboard/src/lib/codex-update.ts",
+      "sha256": "2053502d2584856846cbd62b7021780228a5c6a1a31d811b73a7e646d0d15da7"
+    },
+    {
+      "source": "apps/dashboard/src/types/codex.ts",
+      "sha256": "50b17998e58a8afc2fe2e7a43642460cfe8a5309889f979ecaf060303697d5ce"
+    }
+  ]
 }
