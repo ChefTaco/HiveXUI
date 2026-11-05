@@ -273,36 +273,10 @@ export interface ProviderModel {
   displayName?: string | null;
   enabled?: boolean;
   maxContextWindow?: number | null;
-  capabilityJson?: string;
+  capabilityJson?: string | null;
 }
 
-export interface ProviderModelWriteRequest {
-  model: string;
-  displayName?: string;
-  enabled?: boolean;
-  maxContextWindow?: number;
-  capabilityJson?: Record<string, unknown>;
-}
-
-export interface ProviderWriteRequest {
-  slug: string;
-  name: string;
-  kind: string;
-  baseUrl: string;
-  authMode: string;
-  authHeaderName: string;
-  authSecret?: string;
-  defaultHeaders: Record<string, string>;
-  capabilities: Record<string, unknown>;
-  models: ProviderModelWriteRequest[];
-  timeoutMs: number;
-  maxRetries: number;
-  concurrency: number;
-  priority: number;
-  weight: number;
-  failoverGroup?: string;
-  enabled: boolean;
-}
+export type {ProviderWriteRequest, ProviderModelWriteRequest, ModelAliasWriteRequest} from '@contracts/emberpath-model-admin.generated';
 
 export interface Provider {
   id: string;
@@ -383,14 +357,6 @@ export interface HeuristicRule {
   score: number;
   enabled: boolean;
   actionJson: string;
-}
-
-export interface ModelAliasWriteRequest {
-  alias: string;
-  providerId?: string;
-  upstreamModel: string;
-  enabled: boolean;
-  description?: string;
 }
 
 export interface RouteRuleWriteRequest {

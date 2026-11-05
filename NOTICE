@@ -18,3 +18,7 @@ Original source-project notices are retained in notices/. References there to
 source-project fonts and container inventories describe their original distributions.
 HiveXUI's own browser dependency licenses and version inventory are collected during
 its build and included under /licenses in the static distribution.
+
+Browser-safe model administration contracts are derived from Emberpath:
+https://github.com/ChefTaco/Emberpath
+Original Apache-2.0 license and source notice are retained in notices/.

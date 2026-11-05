@@ -1,5 +1,10 @@
 # Changelog
 
+- Validate provider and alias writes with Emberpath's checksum-pinned, versioned
+  browser contract and derive request types from its schemas. Retain source
+  attribution, handle legacy null capabilities, and name configuration exports
+  for Emberpath.
+
 - Convert provider model read records into validated edit requests, preserving
   capabilities and model settings while excluding persistence metadata and native
   nulls. Report invalid capability JSON before editing and retain saved credentials.

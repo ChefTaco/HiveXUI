@@ -1,6 +1,7 @@
 import { z } from 'zod';
-import type { Provider, ProviderModel, ProviderModelWriteRequest, ProviderWriteRequest } from '../lib/types';
+import type { Provider, ProviderModel, ProviderModelWriteRequest } from '../lib/types';
 import { formatJson, parseJsonObject } from '../lib/format';
+import {providerSchema, providerModelSchema} from '@contracts/emberpath-model-admin.generated';
 
 function parseStringRecord(value: string): Record<string, string> {
   const parsed = parseJsonObject(value);
@@ -12,36 +13,18 @@ function parseStringRecord(value: string): Record<string, string> {
   return parsed as Record<string, string>;
 }
 
-const modelWriteSchema = z.object({
-  model: z.string().min(1),
-  displayName: z.string().optional(),
-  enabled: z.boolean().optional(),
-  maxContextWindow: z.number().int().positive().optional(),
-  capabilityJson: z.record(z.string(), z.unknown()).optional(),
-}).strict();
-
 export function parseProviderModels(value: string): ProviderModelWriteRequest[] {
-  return z.array(z.unknown()).parse(JSON.parse(value) as unknown).map(validateModelWrite);
-}
-
-function validateModelWrite(value: unknown): ProviderModelWriteRequest {
-  const parsed = modelWriteSchema.parse(value);
-  return {model: parsed.model,
-    ...(parsed.displayName !== undefined ? {displayName: parsed.displayName} : {}),
-    ...(parsed.enabled !== undefined ? {enabled: parsed.enabled} : {}),
-    ...(parsed.maxContextWindow !== undefined ? {maxContextWindow: parsed.maxContextWindow} : {}),
-    ...(parsed.capabilityJson !== undefined ? {capabilityJson: parsed.capabilityJson} : {}),
-  };
+  return z.array(providerModelSchema).parse(JSON.parse(value) as unknown);
 }
 
 /** Read DTO rows contain persistence metadata and JSON text; writes do not. */
 export function providerModelForWrite(model: ProviderModel): ProviderModelWriteRequest {
   let capabilities: Record<string, unknown> | undefined;
-  if (model.capabilityJson !== undefined) {
+  if (model.capabilityJson !== undefined && model.capabilityJson !== null) {
     try { capabilities = parseJsonObject(model.capabilityJson); }
     catch { throw new Error('Model "' + model.model + '" has invalid capability JSON; repair it before editing this provider.'); }
   }
-  return validateModelWrite({
+  return providerModelSchema.parse({
     model: model.model,
     ...(model.displayName !== null && model.displayName !== undefined ? {displayName: model.displayName} : {}),
     ...(model.enabled !== undefined ? {enabled: model.enabled} : {}),
@@ -114,8 +97,8 @@ export function formFromProvider(provider: Provider): ProviderForm {
   };
 }
 
-export function providerFormForWrite(form: ProviderForm): ProviderWriteRequest {
-  return {
+export function providerFormForWrite(form: ProviderForm): z.output<typeof providerSchema> {
+  return providerSchema.parse({
     slug: form.slug.trim(),
     name: form.name.trim(),
     kind: form.kind,
@@ -133,5 +116,5 @@ export function providerFormForWrite(form: ProviderForm): ProviderWriteRequest {
     weight: Number(form.weight),
     ...(form.failoverGroup.trim() ? { failoverGroup: form.failoverGroup.trim() } : {}),
     enabled: form.enabled,
-  };
+  });
 }

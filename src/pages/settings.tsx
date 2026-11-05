@@ -47,7 +47,7 @@ export function SettingsPage({ currentUser }: { currentUser: AdminUser | null })
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `hive-router-config-${new Date().toISOString().slice(0, 10)}.json`;
+      anchor.download = `emberpath-config-${new Date().toISOString().slice(0, 10)}.json`;
       anchor.click();
       URL.revokeObjectURL(url);
       toast.success('Config exported');

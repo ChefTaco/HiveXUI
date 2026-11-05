@@ -130,3 +130,10 @@ changes for review. Revealed bot tokens and invitation codes stay in memory and
 clear on section changes, page hiding, timeout or explicit clearing. If a token
 response is lost, acknowledge the committed receipt before explicitly rotating a
 replacement and updating the owning agent's protected configuration.
+
+Provider and model-alias writes use Emberpath's reviewed browser-safe contract
+export. `check:contracts` verifies its exact source checksum, public provenance,
+product version and immutable source revision. Request types and runtime
+validation come from that vendored artifact, including the distinct model
+read-to-write conversion. The original Apache license and notice are retained in
+`notices/`; frontend code never imports a sibling backend implementation.

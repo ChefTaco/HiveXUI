@@ -3,6 +3,7 @@ import {
   type MemoryWrite,
 } from '@contracts/memory-operations.js';
 import { apiFetch, clearAccess } from './transport';
+import {providerSchema, modelAliasSchema} from '@contracts/emberpath-model-admin.generated';
 import { browserIdentity, enrollmentInstallationId } from './runtime';
 import { readConsoleHealth } from './suite-health';
 import { EnrollmentInventorySchema, EnrollmentResultSchema, EnrollmentRequestSchema, LegacyEnrollmentReceiptSchema, EnrollmentInstallationsSchema } from '@contracts/oathweave.generated.js';
@@ -549,13 +550,13 @@ export const adminApi = {
   createProvider(body: ProviderWriteRequest) {
     return request<{ data: Provider }>('/api/providers', {
       method: 'POST',
-      body,
+      body: providerSchema.parse(body),
     });
   },
   updateProvider(id: string, body: ProviderWriteRequest) {
     return request<{ data: Provider }>(`/api/providers/${id}`, {
       method: 'PUT',
-      body,
+      body: providerSchema.parse(body),
     });
   },
   deleteProvider(id: string) {
@@ -588,13 +589,13 @@ export const adminApi = {
   createAlias(body: ModelAliasWriteRequest) {
     return request<{ data: ModelAlias }>('/api/model-aliases', {
       method: 'POST',
-      body,
+      body: modelAliasSchema.parse(body),
     });
   },
   updateAlias(id: string, body: ModelAliasWriteRequest) {
     return request<{ data: ModelAlias }>(`/api/model-aliases/${id}`, {
       method: 'PUT',
-      body,
+      body: modelAliasSchema.parse(body),
     });
   },
   deleteAlias(id: string) {

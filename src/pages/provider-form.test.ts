@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import type {Provider} from '../lib/types';
+import {providerSchema, providerReadSchema} from '@contracts/emberpath-model-admin.generated';
 import {formFromProvider, parseProviderModels, providerFormForWrite, providerModelForWrite} from './provider-form';
 
 const capabilities = {streaming: true, tools: false, supportedRoutes: ['v1.responses'], tags: ['synthetic'],
@@ -20,6 +21,7 @@ describe('provider read DTO to edit request', () => {
     const provider = readProvider(), before = structuredClone(provider);
     const form = formFromProvider(provider); form.name = 'Renamed provider';
     const write = providerFormForWrite(form);
+    expect(providerSchema.parse(write)).toEqual(write);
     expect(write).not.toHaveProperty('authSecret');
     expect(write).not.toHaveProperty('authSecretMasked');
     expect(write.models).toEqual([
@@ -33,11 +35,24 @@ describe('provider read DTO to edit request', () => {
     }
   });
 
+  it('round-trips the complete native read DTO through the owned write validator', () => {
+    const fixture = readProvider();
+    const read = providerReadSchema.parse({...fixture, lastHealthStatus: null, lastHealthError: null, lastHealthAt: null,
+      models: fixture.models.map((model, index) => ({...model, id: 'row-' + index, providerId: fixture.id,
+        createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z'}))});
+    const form = formFromProvider(read); form.name = 'Changed name';
+    const written = providerSchema.parse(providerFormForWrite(form));
+    expect(written.name).toBe('Changed name');
+    expect(written.models[0]).toMatchObject({model: 'synthetic-model', enabled: false, capabilityJson: capabilities});
+    expect(written).not.toHaveProperty('authSecret');
+  });
+
   it('refuses malformed and non-object stored capability JSON with an actionable error instead of silently discarding it', () => {
     for (const capabilityJson of ['{', 'null', '[]', '"invalid"', 'false']) {
       expect(() => providerModelForWrite({model: 'synthetic-model', capabilityJson})).toThrow(/synthetic-model.*invalid capability JSON.*repair/);
     }
-    expect(providerModelForWrite({model: 'no-overrides'})).toEqual({model: 'no-overrides'});
+    expect(providerModelForWrite({model: 'no-overrides'})).toEqual({model: 'no-overrides', enabled: true, capabilityJson: {}});
+    expect(providerModelForWrite({model: 'native-null', capabilityJson: null})).toEqual({model: 'native-null', enabled: true, capabilityJson: {}});
   });
 
   it('rejects read-only fields, nulls and invalid native model writes before submitting an edited JSON array', () => {
