@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.0 - 2026-11-05
+
+First release of the HiveXUI console image.
+
 - Use the Hive Registry as the source of what is installed: a section shows only for a product that
   `runtime.json` configures and the Registry lists. An unreachable, malformed or empty Registry falls
   back to `runtime.json` with a warning on the overview, and the portal and sign-in never wait on it.
