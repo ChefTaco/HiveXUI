@@ -47,7 +47,7 @@ export function Sparkline({ values, tone = 'accent', width = 160, height = 32, a
       <polyline fill="none" stroke={color} strokeWidth={1.5} vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" points={line} />
       {live && !stretch && (
         <>
-          <circle cx={last[0]} cy={last[1]} r={2.5} fill={color} className="fx-halo-svg" />
+          <circle cx={last[0]} cy={last[1]} r={2.5} fill={color} className="origin-center animate-halo [transform-box:fill-box]" />
           <circle cx={last[0]} cy={last[1]} r={2} fill={color} />
         </>
       )}

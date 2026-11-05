@@ -60,8 +60,8 @@ describe('watching the mode', () => {
 describe('the warning strip', () => {
   const html = renderToStaticMarkup(<AuthLimitsNotice />);
   it('says what is going on, in plain words', () => {
-    expect(html).toContain('sign-in limits are relaxed');
-    expect(AUTH_LIMITS_MESSAGE).toMatch(/testing/i);
+    expect(html).toContain('Sign-in limits are relaxed for testing');
+    expect(html).toContain(AUTH_LIMITS_MESSAGE);
   });
   it('cannot be dismissed: it holds no control at all', () => {
     expect(html).not.toMatch(/<button|<a |<input|onclick|close|dismiss/i);

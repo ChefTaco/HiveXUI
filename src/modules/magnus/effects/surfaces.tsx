@@ -5,20 +5,33 @@ import { DEFAULT_THRESHOLDS, thresholdTone, type Thresholds } from './tones';
 import { useReducedMotion } from './motion';
 
 type FxTone = 'accent' | 'success' | 'warning' | 'danger' | 'info';
-const toneClass = (tone: FxTone | undefined) => (tone && tone !== 'accent' ? `fx-tone-${tone}` : undefined);
+const PANEL_TONE: Record<FxTone, string> = {
+  accent: '[--panel-corner-color:var(--accent)] [--fx-glow:var(--glow-accent)]',
+  success: '[--panel-corner-color:var(--success)] [--fx-glow:var(--glow-success)]',
+  warning: '[--panel-corner-color:var(--warning)] [--fx-glow:var(--glow-warning)]',
+  danger: '[--panel-corner-color:var(--danger)] [--fx-glow:var(--glow-danger)]',
+  info: '[--panel-corner-color:var(--info)] [--fx-glow:var(--glow-info)]',
+};
 
-/** Replaces GlowPanel: the shared Panel with corner brackets, a hover glow and, for `hero`, the grid. */
-export function FxPanel({ fxTone, hero = false, interactive = true, className, children, ...props }: ComponentProps<typeof Panel> & { fxTone?: FxTone; hero?: boolean; interactive?: boolean }) {
+/**
+ * Replaces GlowPanel: the shared Panel with corner brackets, a hover glow and, for `hero`, the grid.
+ * The brackets take both of the panel's pseudo-elements, which is why the glow is a child here rather
+ * than the shared glow-hover, whose ::after they would displace.
+ */
+export function FxPanel({ fxTone = 'accent', hero = false, interactive = true, className, children, ...props }: Omit<ComponentProps<typeof Panel>, 'glow'> & { fxTone?: FxTone; hero?: boolean; interactive?: boolean }) {
   return (
-    <Panel {...props} className={cn('fx-panel', toneClass(fxTone), interactive && 'fx-hover', hero && 'fx-hero', className)}>
-      {interactive ? <span className="fx-hover__glow" aria-hidden="true" /> : null}
+    <Panel {...props} className={cn('panel-corners', PANEL_TONE[fxTone], hero && 'grid-bg', className)}>
+      {interactive ? <span className="fx-panel-glow" aria-hidden="true" /> : null}
       {children}
     </Panel>
   );
 }
 
-/** The arrival of page content: fade and lift. Wrap each block of a page, as PageItem did. */
-export const PageItem = ({ children, className }: { children: ReactNode; className?: string }) => <div className={cn('fx-page-in min-w-0', className)}>{children}</div>;
+/**
+ * The arrival of page content: fade and lift. Wrap each block of a page, as PageItem did. The fill stops
+ * at the end, because a transform left in place would trap any Drawer or dialog inside this box.
+ */
+export const PageItem = ({ children, className }: { children: ReactNode; className?: string }) => <div className={cn('animate-page-in min-w-0 [animation-fill-mode:backwards]', className)}>{children}</div>;
 
 /** Replaces MeterBar: follows thresholds unless given a tone, and lights up past the warning level. */
 export function FxMeter({ value, max = 100, tone, thresholds = DEFAULT_THRESHOLDS, label, valueLabel, glow, className }: {
@@ -42,7 +55,7 @@ export function HaloDot({ tone, active = true, className }: { tone: 'success' | 
   const color = { success: 'text-success', warning: 'text-warning', danger: 'text-danger', info: 'text-info', accent: 'text-accent' }[tone];
   return (
     <span aria-hidden="true" className={cn('relative inline-flex size-2 shrink-0 rounded-full', color, className)}>
-      {active ? <span className="fx-halo" /> : null}
+      {active ? <span className="absolute inset-0 animate-halo rounded-full bg-current" /> : null}
       <span className="relative inline-flex size-2 rounded-full bg-current" />
     </span>
   );
@@ -62,7 +75,7 @@ export function ScanPanel({ title, description, scanning, nodes }: {
       <ul className="m-0 grid list-none gap-2 p-0" role="status">
         {nodes.length === 0 && scanning ? <li className="text-sm text-text-muted">Looking for nodes…</li> : null}
         {nodes.map((node) => (
-          <li key={node.nodeId} className="fx-page-in flex items-center gap-3 text-sm">
+          <li key={node.nodeId} className="animate-page-in flex items-center gap-3 text-sm">
             <HaloDot tone={node.status === 'error' ? 'danger' : node.status === 'done' ? 'success' : 'accent'} active={node.status === 'scanning'} />
             <span>{node.nodeName}</span>
             {node.status === 'error' && node.error ? <span className="truncate text-xs text-danger">{node.error}</span> : null}
@@ -76,7 +89,7 @@ export function ScanPanel({ title, description, scanning, nodes }: {
 /** The Magnus mark. It draws itself on arrival and flickers now and then. */
 export function MagnusMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 32 32" aria-hidden="true" className={cn('fx-flicker size-6 shrink-0 overflow-visible', className)}>
+    <svg viewBox="0 0 32 32" aria-hidden="true" className={cn('animate-flicker size-6 shrink-0 overflow-visible', className)}>
       <rect x="1" y="1" width="30" height="30" rx="4" fill="none" stroke="var(--accent)" strokeOpacity="0.35" />
       <path d="M8 23 V9 L16 18 L24 9 V23" fill="none" stroke="var(--accent)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" pathLength={100} className="fx-draw" />
     </svg>

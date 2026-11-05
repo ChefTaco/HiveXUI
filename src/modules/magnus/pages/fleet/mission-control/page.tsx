@@ -6,7 +6,7 @@ import { cn } from '@lib/cn';
 import { magnus } from '../../../api/client';
 import { HERMES_POLL_MS } from '../../../api/rate-gate';
 import { useMagnusResource } from '../../../api/use-resource';
-import { FxMeter, FxPanel, Gauge, latencyTone, PageItem, TONE_TEXT, type Thresholds } from '../../../effects';
+import { FxMeter, FxPanel, Gauge, GLOW_TEXT, latencyTone, PageItem, TONE_TEXT, type Thresholds } from '../../../effects';
 import Link from '../../../navigation';
 import { hasRoute } from '../../../routes';
 import { useMagnusSession } from '../../../session';
@@ -48,12 +48,12 @@ export default function MissionControlPage() {
         <FxPanel hero interactive={false} {...(posture === 'amber' ? { fxTone: 'warning' as const } : posture === 'green' ? { fxTone: 'success' as const } : {})} padding="sm" aria-label="Fleet posture">
           <div className="flex flex-wrap items-center gap-4 px-2 py-1">
             <span className={cn('relative flex size-11 items-center justify-center rounded-full border border-current bg-surface', TONE_TEXT[postureTone])}>
-              {posture === 'amber' ? <span className="fx-halo opacity-30" aria-hidden="true" /> : null}
+              {posture === 'amber' ? <span className="absolute inset-0 opacity-30" aria-hidden="true"><span className="absolute inset-0 animate-halo rounded-full bg-current" /></span> : null}
               <PostureIcon className="relative size-5" />
             </span>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-48 flex-1">
               <div className="text-xs text-text-muted">Fleet posture</div>
-              <div className={cn('fx-text-glow text-lg font-bold', TONE_TEXT[postureTone])}>{stats.loading && !fleet ? 'Checking fleet posture' : postureLabel}</div>
+              <div className={cn('text-lg font-bold', TONE_TEXT[postureTone], GLOW_TEXT[postureTone])}>{stats.loading && !fleet ? 'Checking fleet posture' : postureLabel}</div>
             </div>
             {fleet ? (
               <div className="flex flex-wrap gap-4 text-xs text-text-muted">
@@ -118,9 +118,8 @@ function Tier({ title, description, icon: Icon, children }: { title: string; des
 
 function Stat({ label, value, sublabel, tone = 'accent', meter, gauge }: { label: string; value: string | number; sublabel?: string; tone?: Tone; meter?: { value: number | null; max?: number; thresholds?: Thresholds; tone?: Tone }; gauge?: { value: number; max: number; higherIsBetter: boolean } }) {
   return (
-    <div className="fx-hover relative rounded-panel border border-border bg-surface-raised p-3 hover:border-accent">
-      <span className="fx-hover__glow" aria-hidden="true" />
-      <div className="flex items-start justify-between gap-2">
+    <div className="glow-hover relative rounded-panel border border-border bg-surface-raised p-3 hover:border-accent">
+            <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="text-xs font-medium text-text-muted">{label}</div>
           <div className={cn('num mt-1 truncate text-xl font-bold', TONE_TEXT[tone])}>{value}</div>
@@ -148,7 +147,7 @@ function SystemBus({ checks }: { checks: ReadonlyArray<{ name: string; status: k
         {checks.slice(0, 7).map((check) => (
           <li key={check.name} className="flex min-w-0 flex-col items-start gap-2 lg:items-center" title={check.message}>
             <span className={cn('relative inline-flex size-3.5 items-center justify-center rounded-full border border-border bg-surface', CHECK_TEXT[check.status])}>
-              {check.status === 'fail' ? <span className="fx-halo" /> : null}
+              {check.status === 'fail' ? <span className="absolute inset-0 animate-halo rounded-full bg-current" /> : null}
               <span className="relative size-2 rounded-full bg-current" />
             </span>
             <div className="w-full rounded-chip border border-border bg-surface-raised p-2 lg:text-center">
@@ -181,9 +180,8 @@ function QuickLinks({ hermes }: { hermes: boolean }) {
       <FxPanel title={<span className="flex items-center gap-2"><Activity className="size-4 text-accent" />Quick actions</span>} interactive={false}>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {shown.map(({ href, label, icon: Icon }) => (
-            <Link key={href} href={href} className="fx-hover group flex flex-col items-center gap-2 rounded-panel border border-border bg-surface-raised px-3 py-4 text-center no-underline hover:border-accent">
-              <span className="fx-hover__glow" aria-hidden="true" />
-              <span className="flex size-9 items-center justify-center rounded-full border border-accent bg-surface"><Icon className="size-4 text-accent" /></span>
+            <Link key={href} href={href} className="glow-hover group flex flex-col items-center gap-2 rounded-panel border border-border bg-surface-raised px-3 py-4 text-center no-underline hover:border-accent">
+                            <span className="flex size-9 items-center justify-center rounded-full border border-accent bg-surface"><Icon className="size-4 text-accent" /></span>
               <span className="text-sm text-text-muted group-hover:text-text">{label}</span>
             </Link>
           ))}

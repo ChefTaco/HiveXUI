@@ -10,7 +10,7 @@ Touch only your package's files. Then several agents can work at once with no co
 
 | Package | Route file | Page directories | Old paths |
 | --- | --- | --- | --- |
-| `fleet` | `routes/fleet.ts` | `pages/fleet/` | `/application-operations` `/fleet-readiness` `/fleet-timeline` `/fleet-map` `/anomalies` `/anomalies/[anomalyId]` `/anomalies/remediation` `/notifications` `/nodes/[nodeId]` |
+| `fleet` | `routes/fleet.ts` | `pages/fleet/` | `/application-operations` `/fleet-readiness` `/fleet-timeline` `/fleet-map` `/anomalies` `/anomalies/[anomalyId]` `/anomalies/remediation` `/notifications` `/nodes/[nodeId]`, and the Upgrade Agents action on `/nodes` (`components/nodes/agent-upgrade-modal.tsx`, `?upgrade=agents`), not yet ported |
 | `operations` | `routes/operations.ts` | `pages/operations/` | `/commands` `/logs` `/audit` `/cron` `/files` `/incidents` `/rollouts` `/governor/operations` `/retention` `/webhooks` `/webhooks/new` `/webhooks/[id]` `/api-docs` |
 | `provisioning` | `routes/provisioning.ts` | `pages/provisioning/` | `/roles` `/library` `/skills` |
 | `agents` | `routes/agents.ts` | `pages/agents/` | `/orchestra` `/orchestra/installations` `/orchestra/profiles` `/hermes-drift` `/hermes-security` `/ardent` `/ardent/installations` `/ardent/profiles` `/ardent/profiles/[id]` `/codex` `/codex/installations` |
@@ -47,9 +47,10 @@ Say you are porting `/rollouts`, in the `operations` package.
    { path: '/rollouts', title: 'Guided Rollouts', load: () => import('../pages/operations/rollouts/page') },
    ```
 
-   Use `:name` for a parameter: `/webhooks/:id`. Add `roles: ADMIN-only roles` or `capability: 'hermes'` if the
-   whole page is limited. Everything under `/orchestra`, `/hermes-drift` and `/hermes-security` takes
-   `capability: 'hermes'`.
+   Use `:name` for a parameter: `/webhooks/:id`. Add `roles: ['ADMIN']` or `capability: 'hermes'` if the whole page
+   is limited. Write roles out as literals here, because route files load with the main chunk and must import
+   nothing from `session` or the contract. Everything under `/orchestra`, `/hermes-drift` and `/hermes-security`
+   takes `capability: 'hermes'`.
 4. Replace the imports, using the table below.
 5. Replace the data calls. `fleetFetch` and server components become `useMagnusResource`. Every call names its
    schema, so the response is checked and its unknown keys are stripped:
@@ -126,36 +127,52 @@ Say you are porting `/rollouts`, in the `operations` package.
 ## Effects
 
 The owner asked to keep the visually impressive parts of the old console. Do not flatten a page, and do not
-reimplement an effect: use `effects/`, driven by real data, in theme colors. `docs/THEME.md` says to remove
-`glow-*`, `panel-corners`, `grid-bg` and `animate-page-in`. In this module, that means replace them with these:
+reimplement an effect. Use what exists, driven by real data, in theme colors. Shared hooks are in
+`src/styles/effects.css` and `tokens.css`, the module's own in `effects/`:
 
 | Old | Here | Use for |
 | --- | --- | --- |
 | `animate-ticker`, `HeaderTicker` | `Ticker` | A marquee of real items. Already above every page in `live/live-band`. |
 | `LiveEventList` | `live/live-list` | A panel of fleet events. |
-| `FleetRadar`, `animate-sweep` | `FleetRadar`, or the classes `fx-radar` and `fx-radar__sweep` | A rotating sweep over real blips. |
+| `FleetRadar`, `animate-sweep` | `FleetRadar`; `fx-radar` with `animate-sweep` for your own | A rotating sweep over real blips. |
 | Gauge glow | `Gauge` | Hero figures. |
-| `GlowPanel`, `panel-corners`, `glow-hover`, `grid-bg` | `FxPanel`, with `hero`, `fxTone`, `interactive={false}` | Every panel. |
-| `glow-hover` on a tile or link | `className="fx-hover"` with a child `<span className="fx-hover__glow" aria-hidden="true" />` | See `QuickLinks` in Mission Control. |
-| `glow-text-*`, `neon-text` | `fx-text-glow` beside a status or accent text color | A figure that matters. |
+| `GlowPanel` | `FxPanel`, with `hero`, `fxTone`, `interactive={false}` | Every panel. It is the shared `Panel` plus `panel-corners`, `glow-hover` and `grid-bg`. |
+| `glow-hover`, `panel-corners`, `grid-bg` | The same classes | A tile or link: see `QuickLinks` in Mission Control. |
+| `glow-text-*` | The same classes, or `GLOW_TEXT[tone]` | A figure that matters, beside a status or accent text color. |
+| `neon-text`, `neon-border`, `accent-glow` | `glow-text-primary`, `glow-accent` | |
 | `MeterBar` glow | `FxMeter` | Lights by itself past the warning threshold. |
 | `animate-page-in` | `PageItem` | Each block of a page. |
-| `scan-sweep` | `fx-scan` | A row as it arrives. Keying a row on its status makes it sweep again when the status changes. |
-| `animate-halo`, `animate-pulse` on a dot | `HaloDot`, `fx-halo`, `fx-pulse`, `Badge dot` with `fx-badge-pulse` | A live or failing state. The shared `StatusDot` already pulses for live states. |
-| Hover rail on a table row | `fx-rail` | Table rows. |
+| `scan-sweep` | The same class | A row as it arrives. Keying a row on its status makes it sweep again when the status changes. |
+| `animate-halo`, `animate-pulse` on a dot | `HaloDot`, `animate-halo`, `fx-pulse`, `Badge dot` with `fx-badge-pulse` | A live or failing state. The shared `StatusDot` already pulses for live states. |
+| Hover rail on a table row | `fx-rail` on the `<tr>` | Table rows. |
 | Bus line between stations | `fx-bus` | See `SystemBus` in Mission Control. |
-| `ScanAnimation` | `ScanPanel` | Fleet scans. `/cron` and `/skills` use it. |
-| `cursor-blink`, `animate-flicker`, `draw-stroke`, `glitch` | `fx-cursor`, `fx-flicker`, `fx-draw`, `fx-glitch` | Small signals. The module's not-found state already uses `fx-glitch`. |
+| `ScanAnimation` and its scan line | `ScanPanel`, `fx-scanline` | Fleet scans. `/cron` and `/skills` use it. |
+| `glitch` | `fx-glitch` | Error and not-found states. The module's own already use it. |
+| `cursor-blink`, `animate-flicker`, `draw-stroke` | `fx-cursor`, `animate-flicker`, `fx-draw` | Small signals. |
 | `motion/react` | CSS. Do not add `motion`. | |
 | Fleet map's canvas | Port it to `pages/fleet/fleet-map/`. Read colors with `readThemeColors` from `@lib/theme-colors` and stop its frame loop when `useReducedMotion()` is true. | Fleet package. |
 
+Effects of the old console not used by a page yet, and who has them:
+
+| Effect | Status |
+| --- | --- |
+| Fleet map canvas | Fleet package. |
+| Sidebar hover sheen and spring indicator, breadcrumb cursor | The shell is shared. Left for the design review. |
+| Toast slide-in and progress bar | `src/components/toast` is shared. Left for the design review. |
+| Command palette | Not ported; no package owns it yet. |
+| `text-glow`, `glow-pulse`, `scanline-scroll`, `neon-border`, `accent-glow` | Defined in the old CSS, used by nothing there. |
+
 Rules for anything you add to a page:
 
+- Render a `Drawer` or `ConfirmDialog` outside any element with a transform, filter or running animation, or it
+  will be positioned inside that element. `PageItem` is safe once its arrival has finished; `nodes/page.tsx` shows
+  the usual shape, with them last in the page.
 - CSS animation is fine and costs nothing. A timer or a request exists only to refresh real data, never for a
   visual. `useMagnusResource` with `pollMs` is the way to poll. The walkthrough waits for the network to be quiet, so
   a request made for looks would hang it.
 - Anything driven by script checks `useReducedMotion()`. CSS is switched off for you by `styles/base.css`.
 - Use theme tokens only. For SVG attributes, use `TONE_COLOR` from `effects`.
+- Use theme tokens for glows and durations: `--glow-accent`, `--duration-slow` and so on.
 - An effect that two pages need belongs in `effects/`. Ask in your report rather than editing it.
 
 ## Streams and rate limits

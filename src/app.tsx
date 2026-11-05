@@ -72,12 +72,7 @@ const IAM_VIEW_SECTIONS: Record<IamViewKey, IamSection> = {
 };
 
 export function App() {
-  return (
-    <>
-      <AuthLimitsStrip />
-      {location.pathname === '/auth/authorize' ? <AuthorizationPortal /> : <ConsoleApp />}
-    </>
-  );
+  return location.pathname === '/auth/authorize' ? <AuthorizationPortal /> : <ConsoleApp />;
 }
 
 function ConsoleApp() {
@@ -122,12 +117,15 @@ function ConsoleApp() {
 
   if (auth === 'unauthed') {
     return (
-      <LoginScreen
-        onSuccess={(loggedIn) => {
-          setUser(loggedIn);
-          setAuth('authed');
-        }}
-      />
+      <>
+        <AuthLimitsStrip />
+        <LoginScreen
+          onSuccess={(loggedIn) => {
+            setUser(loggedIn);
+            setAuth('authed');
+          }}
+        />
+      </>
     );
   }
 
@@ -164,7 +162,7 @@ function AuthorizationPortal() {
     return () => { active = false; };
   }, [phase, selection, identity, error]);
   if (!error && identity && selection.request && phase === 'unauthed')
-    return <LoginScreen authorization onSuccess={() => setPhase('authed')} />;
+    return <><AuthLimitsStrip /><LoginScreen authorization onSuccess={() => setPhase('authed')} /></>;
   const message = error || (!identity ? 'Oathweave sign-in is not configured for this console.' : 'Checking your sign-in and application access…');
   return <><Background /><main className="login-shell"><section className="login-card" aria-labelledby="authorization-title">
     <HiveSigil className="login-sigil" />
@@ -634,6 +632,7 @@ function Shell({
         </aside>
 
         <main className="main">
+          <AuthLimitsStrip />
           <header className="topbar">
             <button
               ref={navigationToggleRef}

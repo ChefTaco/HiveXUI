@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { AnimatedNumber, FleetRadar, FxMeter, FxPanel, Gauge, Sparkline, Ticker } from './index';
+import { AnimatedNumber, FleetRadar, FxMeter, FxPanel, Gauge, PageItem, Sparkline, Ticker } from './index';
 
 const css = readFileSync(new URL('./effects.css', import.meta.url), 'utf8');
 
@@ -9,12 +9,12 @@ describe('the marquee', () => {
   it('renders real items twice for a seamless loop, hiding the copy from assistive technology', () => {
     const html = renderToStaticMarkup(<Ticker label="Events" items={[{ key: 1, content: 'first' }, { key: 2, content: 'second' }]} />);
     expect(html.match(/first/g)).toHaveLength(2);
-    expect(html).toContain('fx-ticker__track');
+    expect(html).toContain('animate-ticker');
     expect(html).toContain('aria-hidden="true"');
-    expect(html).toContain('--fx-ticker-duration');
+    expect(html).toContain('animation-duration');
   });
   it('shows one item without moving, and nothing when empty', () => {
-    expect(renderToStaticMarkup(<Ticker label="Events" items={[{ key: 1, content: 'only' }]} />)).not.toContain('fx-ticker__track');
+    expect(renderToStaticMarkup(<Ticker label="Events" items={[{ key: 1, content: 'only' }]} />)).not.toContain('animate-ticker');
     expect(renderToStaticMarkup(<Ticker label="Events" items={[]} />)).toBe('');
   });
   it('is CSS only: no timers, so it cannot keep the page busy', () => {
@@ -39,7 +39,17 @@ describe('the effects', () => {
   });
   it('build on the shared panel', () => {
     const html = renderToStaticMarkup(<FxPanel hero title="T">body</FxPanel>);
-    expect(html).toMatch(/class="[^"]*panel[^"]*fx-panel[^"]*fx-hero/);
+    expect(html).toMatch(/class="panel [^"]*panel-corners/);
+    expect(html).toContain('fx-panel-glow');
+    // The two shared hooks both need ::after, so they must not meet on one element.
+    expect(html).not.toContain('glow-hover');
+    expect(html).toContain('grid-bg');
+  });
+});
+
+describe('page arrival', () => {
+  it('leaves no transform behind, which would trap a Drawer or dialog inside the block', () => {
+    expect(renderToStaticMarkup(<PageItem>x</PageItem>)).toContain('[animation-fill-mode:backwards]');
   });
 });
 
@@ -47,7 +57,7 @@ describe('effects.css', () => {
   it('defines every animation it uses, and leaves motion to the global switch or the low-effects rule', () => {
     const defined = new Set([...css.matchAll(/@keyframes\s+([\w-]+)/g)].map((match) => match[1]));
     for (const match of css.matchAll(/animation:\s*([\w-]+)/g)) if (match[1] !== 'none') expect(defined.has(match[1])).toBe(true);
-    expect(css).toMatch(/:root\[data-fx='low'\]/);
+    expect(css).toMatch(/html\[data-fx='low'\]/);
     expect(readFileSync(new URL('../../../styles/base.css', import.meta.url), 'utf8')).toMatch(/prefers-reduced-motion: reduce[\s\S]*animation: none !important/);
   });
 });

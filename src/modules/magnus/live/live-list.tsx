@@ -14,9 +14,9 @@ export function LiveEventList({ limit = 8, className }: { limit?: number; classN
   const { entries, connected } = useEventFeed();
   if (entries.length === 0) return <EmptyState compact icon={<Radio className="size-4" />} title={connected ? 'Listening for fleet events' : 'Event stream connecting'} message="Deploys, upgrades, command results and alerts appear here as they happen." {...(className ? { className } : {})} />;
   return (
-    <ul className={cn('m-0 grid list-none gap-1.5 p-0', className)} aria-live="off">
+    <ul className={cn('m-0 grid list-none grid-cols-1 gap-1.5 p-0', className)} aria-live="off">
       {entries.slice(0, limit).map((entry) => (
-        <li key={entry.id} className="fx-scan flex items-center gap-2.5 rounded-chip border border-border bg-surface-raised px-3 py-2 text-sm">
+        <li key={entry.id} className="scan-sweep flex items-center gap-2.5 rounded-chip border border-border bg-surface-raised px-3 py-2 text-sm">
           <HaloDot tone={SEVERITY_TONE[entry.severity]} active={false} />
           <span className={cn('min-w-0 flex-1 truncate', SEVERITY_TEXT[entry.severity])}>
             {entry.title}

@@ -68,9 +68,9 @@
 
 .sidebar {
   position: sticky;
-  top: var(--shell-strip-height, 0px);
+  top: 0;
   display: flex;
-  height: calc(100vh - var(--shell-strip-height, 0px));
+  height: 100vh;
   flex-direction: column;
   gap: var(--space-1);
   padding: var(--space-5) var(--space-4);
@@ -320,7 +320,7 @@
 }
 .theme-toggle--floating {
   position: fixed;
-  top: var(--space-3);
+  top: calc(var(--shell-strip-height, 0px) + var(--space-3));
   right: var(--space-4);
   z-index: 1000;
 }

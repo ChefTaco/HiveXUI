@@ -18,6 +18,16 @@ export const TONE_TEXT: Record<Tone, string> = {
   info: 'text-info',
 };
 
+/** A glowing figure. Glow is decoration: the number and its color still carry the meaning. */
+export const GLOW_TEXT: Record<Tone, string> = {
+  neutral: '',
+  accent: 'glow-text-accent',
+  success: 'glow-text-success',
+  warning: 'glow-text-warning',
+  danger: 'glow-text-danger',
+  info: 'glow-text-accent',
+};
+
 export interface Thresholds {
   warn: number;
   crit: number;

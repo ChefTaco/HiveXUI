@@ -33,6 +33,46 @@ describe('the Magnus session', () => {
     await sessionStore.load(true);
     expect(sessionStore.get().status).toBe('ready');
   });
+  describe('when the API is briefly away', () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+    it('recovers by itself, keeping the error on screen until it can, and stops once answered', async () => {
+      request.mockResolvedValueOnce(new Response('', { status: 503 })).mockResolvedValueOnce(new Response('', { status: 503 })).mockImplementation(async () => Response.json(body()));
+      await sessionStore.load();
+      expect(sessionStore.get().status).toBe('error');
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(request).toHaveBeenCalledTimes(2);
+      expect(sessionStore.get().status).toBe('error');
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(request).toHaveBeenCalledTimes(3);
+      expect(sessionStore.get().status).toBe('ready');
+      await vi.advanceTimersByTimeAsync(600_000);
+      expect(request).toHaveBeenCalledTimes(3);
+    });
+    it('backs off, and never polls faster than once a minute', async () => {
+      request.mockImplementation(async () => new Response('', { status: 503 }));
+      await sessionStore.load();
+      await vi.advanceTimersByTimeAsync(600_000);
+      // 5, 10, 20, 40, then every 60 seconds.
+      expect(request.mock.calls.length).toBeLessThanOrEqual(15);
+      sessionStore.reset();
+    });
+    it('does not retry a denial, which is an answer', async () => {
+      request.mockResolvedValue(Response.json({ error: { message: 'No link' } }, { status: 403 }));
+      await sessionStore.load();
+      await vi.advanceTimersByTimeAsync(600_000);
+      expect(request).toHaveBeenCalledTimes(1);
+      expect(sessionStore.get().status).toBe('denied');
+    });
+    it('stops retrying on logout', async () => {
+      request.mockImplementation(async () => new Response('', { status: 503 }));
+      await sessionStore.load();
+      clearAccess();
+      await vi.advanceTimersByTimeAsync(600_000);
+      expect(request).toHaveBeenCalledTimes(1);
+      expect(sessionStore.get().status).toBe('loading');
+    });
+  });
   it('forgets the session on logout, and a late answer cannot bring it back', async () => {
     request.mockImplementation(async () => Response.json(body()));
     await sessionStore.load();

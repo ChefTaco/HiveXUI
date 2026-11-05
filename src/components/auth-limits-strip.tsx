@@ -3,7 +3,7 @@ import { watchAuthLimits } from '../lib/auth-limits';
 import { productPrefix } from '../lib/transport';
 import { Icon } from './icons';
 
-export const AUTH_LIMITS_MESSAGE = 'Testing mode: sign-in limits are relaxed. Failed passwords and MFA codes do not lock accounts here. Do not use this installation for real accounts.';
+export const AUTH_LIMITS_MESSAGE = 'Sign-in limits are relaxed for testing. Do not use this installation for real accounts.';
 
 /** The permanent notice. It has no close control on purpose: this mode must never be silently on. */
 export function AuthLimitsNotice() {
@@ -11,7 +11,7 @@ export function AuthLimitsNotice() {
   useEffect(() => {
     const element = ref.current;
     if (!element || typeof ResizeObserver === 'undefined') return;
-    // The sticky shell sits below the strip, however many lines it wraps to.
+    // The sticky top bar sits below the strip, however many lines it wraps to.
     const root = document.documentElement;
     const observer = new ResizeObserver(() => root.style.setProperty('--shell-strip-height', `${element.offsetHeight}px`));
     observer.observe(element);

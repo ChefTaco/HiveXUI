@@ -6,6 +6,10 @@
       "sha256": "ef712c3f0c3d4d7055bf2a4ee7447a4d4ff4fd64cb20d7274f1865ca2286c000"
     },
     {
+      "source": "apps/dashboard/src/app/error.tsx",
+      "sha256": "59d5656dc84a734a3a4f510db485de56814022508ba06608e98be225835bc27b"
+    },
+    {
       "source": "apps/dashboard/src/app/globals.css",
       "sha256": "3089843c839723aec8b140c0330f55a5f01beca8ccc37faa2228c7eb0c5d0fa8"
     },
@@ -22,8 +26,20 @@
       "sha256": "138b5da5af34d7c1dd54e3371e5e7628944d403a0b11efcd6e6e5c6f4b2f0f92"
     },
     {
+      "source": "apps/dashboard/src/app/not-found.tsx",
+      "sha256": "ef722b228b9e01bfc565125bf1fd38d027d116439a39cc79f01782a590268dee"
+    },
+    {
       "source": "apps/dashboard/src/app/page.tsx",
       "sha256": "baa0c0c36a64148db1ee9ffd993a5582f7506051beddeeabe7911ccaa603a81a"
+    },
+    {
+      "source": "apps/dashboard/src/components/layout/header.tsx",
+      "sha256": "d05e3d4fb101b3d6c71f055ff30fe03498c7aa5986166e77e80f8fa1ea80678e"
+    },
+    {
+      "source": "apps/dashboard/src/components/layout/sidebar.tsx",
+      "sha256": "6f0600747ba842245bac84efcc3553f30220e7ef944f8dbaac4513daf5e09935"
     },
     {
       "source": "apps/dashboard/src/components/live-ticker.tsx",
@@ -72,6 +88,10 @@
     {
       "source": "apps/dashboard/src/components/ui/node-selector.tsx",
       "sha256": "8f75da9ef6e91a85eede6fee0812d8a7d04855e720839f304b02ec49c6052113"
+    },
+    {
+      "source": "apps/dashboard/src/components/ui/page-transition.tsx",
+      "sha256": "e5622b2c952bc7c63bbe19e92d33f9533f2348758d8f249ca71ce0f1cf3e3ca0"
     },
     {
       "source": "apps/dashboard/src/components/ui/scan-animation.tsx",

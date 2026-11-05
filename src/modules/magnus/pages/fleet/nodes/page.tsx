@@ -175,7 +175,7 @@ export default function NodesPage() {
 }
 
 function Figure({ label, value, tone, icon }: { label: string; value: number | string; tone?: 'success' | 'warning' | 'danger'; icon?: React.ReactNode }) {
-  const color = tone === 'danger' ? 'fx-text-glow text-danger' : tone === 'warning' ? 'fx-text-glow text-warning' : tone === 'success' ? 'text-success' : '';
+  const color = tone === 'danger' ? 'glow-text-danger text-danger' : tone === 'warning' ? 'glow-text-warning text-warning' : tone === 'success' ? 'text-success' : '';
   return (
     <div>
       <p className="m-0 text-xs font-medium text-text-muted">{label}</p>
@@ -226,8 +226,8 @@ function NodeTableRow({ node, health, updates, tailscale, canWrite, canDelete, o
           {hasRoute(`/nodes/${node.id}`) ? <Link href={`/nodes/${segment(node.id)}`} className="font-medium">{node.name}</Link> : <span className="font-medium">{node.name}</span>}
         </div>
       </td>
-      <td className="text-text-muted">{node.hostname}</td>
-      <td className="num text-text-muted">{node.ipAddress}:{node.port}</td>
+      <td className="whitespace-nowrap text-text-muted">{node.hostname}</td>
+      <td className="num whitespace-nowrap text-text-muted">{node.ipAddress}:{node.port}</td>
       <td>
         <div className="flex items-center gap-1.5">
           <Badge tone={statusTone(node.status)}>{node.status}</Badge>
@@ -242,10 +242,10 @@ function NodeTableRow({ node, health, updates, tailscale, canWrite, canDelete, o
       </td>
       <td>
         {canWrite ? (
-          <button type="button" className="role-chip role-chip--button" title={node.role ? 'Change role' : 'Assign a role'} onClick={() => onAssign(node)}>
+          <button type="button" className="role-chip role-chip--button whitespace-nowrap" title={node.role ? 'Change role' : 'Assign a role'} onClick={() => onAssign(node)}>
             {node.role ? <><ShieldCheck aria-hidden="true" className="mr-1 inline size-3" />{node.role.name}</> : 'Assign'}
           </button>
-        ) : node.role ? <span className="role-chip">{node.role.name}</span> : <span className="text-text-muted">—</span>}
+        ) : node.role ? <span className="role-chip whitespace-nowrap">{node.role.name}</span> : <span className="text-text-muted">—</span>}
       </td>
       <td className="text-text-muted">{health ? <FxMeter value={health.cpuUsagePercent} label={`${node.name} CPU`} valueLabel={`${health.cpuUsagePercent.toFixed(1)}%`} className="w-28" /> : '—'}</td>
       <td className="text-text-muted">

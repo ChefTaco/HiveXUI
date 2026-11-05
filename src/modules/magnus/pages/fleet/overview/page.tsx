@@ -10,7 +10,7 @@ import {
   unpinInsightResponseSchema,
 } from '@contracts/magnus/browser';
 import { Badge, Button, EmptyState, IconButton, PageHeader, StatusDot, statusTone, type Tone } from '@ui';
-import { formatTime } from '@lib/format';
+import { formatTime, relativeTime } from '@lib/format';
 import { cn } from '@lib/cn';
 import { useToast } from '../../../../../components/toast';
 import { magnus, segment } from '../../../api/client';
@@ -117,17 +117,17 @@ export default function FleetOverviewPage() {
             ) : data.recentCommands.length === 0 ? (
               <EmptyState compact icon={<Terminal className="size-4" />} title="No commands dispatched yet" action={hasRoute('/commands') ? <Link href="/commands">Run a command</Link> : undefined} />
             ) : (
-              <ul className="m-0 grid list-none gap-1.5 p-0">
+              <ul className="m-0 grid list-none grid-cols-1 gap-1.5 p-0">
                 {data.recentCommands.map((command) => (
-                  <li key={`${command.id}-${command.status}`} className="fx-scan flex items-center justify-between gap-2 rounded-chip border border-border bg-surface-raised px-3 py-2 text-sm">
+                  <li key={`${command.id}-${command.status}`} className="scan-sweep flex items-center justify-between gap-2 rounded-chip border border-border bg-surface-raised px-3 py-2 text-sm">
                     <div className="flex min-w-0 items-center gap-2">
                       <StatusDot status={command.status} />
-                      <code className="truncate text-accent">{command.command}</code>
+                      <code className="min-w-0 truncate text-accent">{command.command}</code>
                       <span className="shrink-0 text-text-muted">on {command.node.name}</span>
                     </div>
                     <div className="ml-2 flex shrink-0 items-center gap-2">
                       <Badge tone={statusTone(command.status)}>{command.status}</Badge>
-                      <span className="num hidden text-xs text-text-muted sm:inline">{formatTime(command.createdAt)}</span>
+                      <span className="num hidden text-xs text-text-muted sm:inline" title={formatTime(command.createdAt)}>{relativeTime(command.createdAt)}</span>
                     </div>
                   </li>
                 ))}
@@ -140,14 +140,14 @@ export default function FleetOverviewPage() {
             ) : data.recentAudit.length === 0 ? (
               <EmptyState compact icon={<Shield className="size-4" />} title="No audit events yet" />
             ) : (
-              <ol className="relative m-0 grid list-none gap-1.5 border-l border-border-strong p-0 pl-3">
+              <ol className="relative m-0 grid list-none grid-cols-1 gap-1.5 border-l border-border-strong p-0 pl-3">
                 {data.recentAudit.map((event) => (
                   <li key={event.id} className="relative flex items-center justify-between gap-2 rounded-chip px-2 py-1.5 text-sm hover:bg-surface-hover">
                     <div className="flex min-w-0 items-center gap-2">
                       <span className="truncate font-medium">{event.action}</span>
                       {event.targetType ? <span className="truncate text-text-muted">{event.targetType}{event.targetId ? ` ${event.targetId.slice(0, 8)}…` : ''}</span> : null}
                     </div>
-                    <span className="num shrink-0 text-xs text-text-muted">{formatTime(event.timestamp)}</span>
+                    <span className="num shrink-0 text-xs text-text-muted" title={formatTime(event.timestamp)}>{relativeTime(event.timestamp)}</span>
                   </li>
                 ))}
               </ol>
@@ -200,9 +200,8 @@ function QuickActions() {
       <FxPanel title="Quick actions" interactive={false}>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {actions.map((action) => (
-            <Link key={action.href} href={action.href} className="fx-hover group flex flex-col items-center gap-2 rounded-panel border border-border bg-surface-raised p-4 text-center no-underline hover:border-accent">
-              <span className="fx-hover__glow" aria-hidden="true" />
-              <span className="text-accent">{action.icon}</span>
+            <Link key={action.href} href={action.href} className="glow-hover group flex flex-col items-center gap-2 rounded-panel border border-border bg-surface-raised p-4 text-center no-underline hover:border-accent">
+                            <span className="text-accent">{action.icon}</span>
               <span className="text-sm text-text-muted group-hover:text-accent">{action.label}</span>
             </Link>
           ))}

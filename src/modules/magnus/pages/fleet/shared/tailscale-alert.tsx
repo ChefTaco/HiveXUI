@@ -21,7 +21,8 @@ export function TailscaleExpiryAlert({ summary, showAction = true }: { summary: 
     <div role="alert" id="tailscale-renewal">
       <Panel
         tone={expired ? 'danger' : 'warning'}
-        className={expired ? 'fx-panel fx-tone-danger' : 'fx-panel fx-tone-warning'}
+        glow={expired ? 'danger' : 'warning'}
+        className={expired ? 'panel-corners [--panel-corner-color:var(--danger)]' : 'panel-corners [--panel-corner-color:var(--warning)]'}
         title={<span className="flex items-center gap-2"><Icon className={expired ? 'fx-pulse size-4 text-danger' : 'size-4 text-warning'} />{expired ? 'Tailscale access expired' : 'Tailscale renewal due'}</span>}
         description={`${nodes.length} node ${nodes.length === 1 ? 'key needs' : 'keys need'} renewal within ${summary.warningDays} days. Renew before tailnet access is interrupted.`}
         actions={showAction ? <Link href="/nodes#tailscale-renewal" className="btn btn--sm">Review nodes</Link> : undefined}

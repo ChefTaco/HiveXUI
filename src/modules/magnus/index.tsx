@@ -5,7 +5,7 @@ import './effects/effects.css';
 import { browserIdentity, productEnabled } from '../../lib/runtime';
 import { setAuthExpiredHandler } from './api/client';
 import { errorMessage, MagnusApiError } from './api/errors';
-import { applyStoredFxLevel, PageItem } from './effects';
+import { applyStoredFxLevel } from './effects';
 import { LiveBand } from './live/live-band';
 import { useLiveEvents } from './live/use-live-events';
 import Link, { MagnusNotFound, RouteParams, usePathname } from './navigation';
@@ -24,8 +24,8 @@ function Missing({ title, message, glitch = false }: { title: string; message: s
   return (
     <EmptyState
       framed
-      icon={<Compass className={glitch ? 'fx-glitch size-6' : 'size-6'} />}
-      title={title}
+      icon={<Compass className="size-6" />}
+      title={glitch ? <span className="fx-glitch inline-block">{title}</span> : title}
       message={message}
       action={<Link href="/" className="btn">Fleet overview</Link>}
     />
@@ -110,9 +110,7 @@ function Ready({ path }: { path: string }) {
   return (
     <section className="grid min-w-0 gap-4">
       <LiveBand />
-      <PageItem key={path}>
-        <Page />
-      </PageItem>
+      <Page key={path} />
     </section>
   );
 }

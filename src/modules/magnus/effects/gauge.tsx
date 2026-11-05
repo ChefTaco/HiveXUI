@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import type { Tone } from '@ui';
 import { cn } from '@lib/cn';
-import { DEFAULT_THRESHOLDS, thresholdTone, TONE_COLOR, TONE_TEXT, type Thresholds } from './tones';
+import { DEFAULT_THRESHOLDS, GLOW_TEXT, thresholdTone, TONE_COLOR, TONE_TEXT, type Thresholds } from './tones';
 
 const SWEEP = 0.75;
 
@@ -45,7 +45,7 @@ export function Gauge({ value, max = 100, label, sublabel, tone, thresholds = DE
         <circle cx={50} cy={50} r={radius} fill="none" stroke={TONE_COLOR[resolved]} strokeWidth={stroke} strokeLinecap="round" transform="rotate(135 50 50)" className={cn('fx-gauge__value', TONE_TEXT[resolved])} style={{ '--fx-dash': `${fill} ${circumference}` } as CSSProperties} />
       </svg>
       <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center justify-center" style={{ height: size }}>
-        <span className={cn('num font-bold leading-none', hero ? 'text-3xl fx-text-glow' : 'text-sm', TONE_TEXT[resolved])}>{text}</span>
+        <span className={cn('num font-bold leading-none', hero ? 'text-3xl' : 'text-sm', TONE_TEXT[resolved], hero && GLOW_TEXT[resolved])}>{text}</span>
         {sublabel ? <span className="num mt-1 text-xs text-text-muted">{sublabel}</span> : null}
       </div>
       {!hideLabel && <span className="-mt-[10%] text-center text-xs font-medium text-text-muted">{label}</span>}

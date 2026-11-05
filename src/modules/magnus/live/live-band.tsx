@@ -29,8 +29,8 @@ export function LiveBand() {
     <div className="flex min-w-0 items-center gap-3 rounded-panel border border-border bg-surface px-3 py-1.5 text-xs">
       <MagnusMark />
       <span className="flex shrink-0 items-center gap-1.5" title={connected ? 'Live event stream connected' : 'Live event stream connecting'}>
-        <HaloDot tone={connected ? 'success' : 'warning'} active={connected} />
-        <span className={connected ? 'text-success' : 'text-warning'}>{connected ? 'Live' : 'Connecting'}</span>
+        <HaloDot tone={connected ? 'success' : 'info'} active={connected} />
+        <span className={connected ? 'text-success' : 'text-text-muted'}>{connected ? 'Live' : 'Connecting'}</span>
       </span>
       {items.length ? (
         <Ticker items={items} label="Recent fleet events" className="flex-1" />

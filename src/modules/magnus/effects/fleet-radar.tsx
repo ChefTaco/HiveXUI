@@ -43,10 +43,10 @@ export function FleetRadar({ counts, size = 176, className }: { counts: FleetRad
       <div className="fx-radar__ring inset-[33%]" />
       <div className="fx-radar__axis inset-y-0 left-1/2 w-px" />
       <div className="fx-radar__axis inset-x-0 top-1/2 h-px" />
-      <div aria-hidden="true" className="fx-radar__sweep" />
+      <div aria-hidden="true" className="fx-radar__sweep animate-sweep" />
       {blips.map((blip) => <span key={blip.key} aria-hidden="true" className={cn('fx-blip', BLIP[blip.status])} style={{ left: `${blip.x}%`, top: `${blip.y}%` }} />)}
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="num fx-text-glow text-2xl font-bold text-accent">{total}</span>
+        <span className="num glow-text-accent text-2xl font-bold text-accent">{total}</span>
         <span className="text-xs text-text-muted">nodes</span>
       </div>
     </div>
