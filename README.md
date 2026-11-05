@@ -106,7 +106,7 @@ HTTPS outcomes visible in history. Consolidation uses an explicit durable operat
 ID and retains that ID for retry after a failed response. Check the original queue
 record before creating replacement work after a browser reload.
 
-Deep links use `?view=memories&memoryTab=sessions&workspace=default` (also `webhooks`,
+Deep links use `?page=memories&memoryTab=sessions&workspace=default` (also `webhooks`,
 `graph`, `conflicts`, `consolidation`, `queue`); optional `session` and `webhook` IDs
 reopen permitted records. Disabled operations explain the missing product permission.
 Legacy frontends remain available until restored-data and authenticated browser parity
@@ -121,7 +121,7 @@ The policy simulator displays the product's preview; it does not certify an agen
 actual authority. Existing native Chat clients and the recovery web console remain.
 
 Deep links add `chatAdmin=users`, `system`, `supervision`, `agents` or `hermes` to
-`?view=chat`. Bot credential changes require the released caller-bound receipt
+`?page=chat`. Bot credential changes require the released caller-bound receipt
 capability. Create only refuses existing usernames; identity edits preserve tokens.
 A non-secret, administrator-bound operation ID is saved in session storage before
 a mutation. Interrupted requests are reconciled through a read-only receipt and
