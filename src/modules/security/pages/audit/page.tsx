@@ -30,7 +30,7 @@ export default async function AuditPage({
       };
     }>(`security-fusion/audit?date=${date}&page=${page}`);
     return (
-      <main className="min-w-0 space-y-5 p-5 lg:p-7">
+      <div className="min-w-0 space-y-5 p-5 lg:p-7">
         <FusionHeader
           eyebrow="Decision and integrity trail"
           title="Audit"
@@ -103,11 +103,11 @@ export default async function AuditPage({
         {page * 100 < data.total && page < 100 && (
           <a href={`?date=${date}&page=${page + 1}`}>Older records</a>
         )}
-      </main>
+      </div>
     );
   } catch {
     return (
-      <main className="p-5 lg:p-7">
+      <div className="p-5 lg:p-7">
         <FusionHeader
           eyebrow="Decision and integrity trail"
           title="Audit"
@@ -117,7 +117,7 @@ export default async function AuditPage({
           Audit history is unavailable or access is denied. Integrity is
           unverified.
         </p>
-      </main>
+      </div>
     );
   }
 }

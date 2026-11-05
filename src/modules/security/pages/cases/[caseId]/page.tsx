@@ -58,7 +58,7 @@ export default async function CasePage({
   const lab = detail.labRunId ? await fusionFetch<LabRun>(`lab/runs/${encodeURIComponent(detail.labRunId)}`) : null;
   const comparison = lab?.status === "completed" ? await fusionFetch<LabComparison>(`lab/runs/${encodeURIComponent(lab.id)}/comparison`) : null;
   return (
-    <main className="p-5 lg:p-7">
+    <div className="p-5 lg:p-7">
       <FusionHeader
         eyebrow={`${detail.case.severity} · ${Math.round(detail.case.confidence * 100)}% ${lab ? "correlation confidence" : "confidence"}`}
         title={detail.case.title}
@@ -113,6 +113,6 @@ export default async function CasePage({
           {!lab && <ContainmentPanel available={detail.responseAvailable} canApprove={detail.canApprove} approvalMode={detail.approvalMode} caseId={detail.case.id} actions={detail.actions} />}
         </aside>
       </div>
-    </main>
+    </div>
   );
 }

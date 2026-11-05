@@ -16,7 +16,7 @@ interface Evidence {
 export default async function EvidencePage(): Promise<React.ReactElement> {
   const evidence = await fusionFetch<Evidence[]>("evidence");
   return (
-    <main className="p-5 lg:p-7">
+    <div className="p-5 lg:p-7">
       <FusionHeader
         eyebrow="Chain of custody"
         title="Evidence"
@@ -42,6 +42,6 @@ export default async function EvidencePage(): Promise<React.ReactElement> {
           ))}
         </div>
       )}
-    </main>
+    </div>
   );
 }

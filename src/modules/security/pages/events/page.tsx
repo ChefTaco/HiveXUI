@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function EventsPage(): Promise<React.ReactElement> {
   const events = await fusionFetch<FusionEvent[]>("events?limit=100");
   return (
-    <main className="p-5 lg:p-7">
+    <div className="p-5 lg:p-7">
       <FusionHeader
         eyebrow="Normalized observations"
         title="Events"
@@ -53,6 +53,6 @@ export default async function EventsPage(): Promise<React.ReactElement> {
           </table>
         </div>
       )}
-    </main>
+    </div>
   );
 }

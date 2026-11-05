@@ -31,7 +31,7 @@ export default async function PoliciesPage(): Promise<React.ReactElement> {
     (policy?.perCaseCeilings.preservedEvidenceBytes ?? 8388608) / 1048576,
   );
   return (
-    <main className="p-5 lg:p-7">
+    <div className="p-5 lg:p-7">
       <FusionHeader
         eyebrow="Hard safety boundaries"
         title="Policies"
@@ -95,6 +95,6 @@ export default async function PoliciesPage(): Promise<React.ReactElement> {
           </p>
         </section>
       </div>
-    </main>
+    </div>
   );
 }

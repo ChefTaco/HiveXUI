@@ -25,7 +25,7 @@ export default async function SecurityFusionOverview(): Promise<React.ReactEleme
     (data?.bySeverity ?? []).map((row) => [row.severity, row._count.id]),
   );
   return (
-    <main className="p-5 lg:p-7">
+    <div className="p-5 lg:p-7">
       <FusionHeader
         eyebrow="Security operations"
         title="Cindertrace"
@@ -56,6 +56,6 @@ export default async function SecurityFusionOverview(): Promise<React.ReactEleme
         Active cases
       </h2>
       <CaseTable cases={data?.openCases ?? []} />
-    </main>
+    </div>
   );
 }

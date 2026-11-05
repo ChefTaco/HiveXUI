@@ -17,7 +17,7 @@ export default async function SourcesPage(): Promise<React.ReactElement> {
     fusionFetch<FusionCollector[]>("source-registry"),
   ]);
   return (
-    <main className="p-5 lg:p-7">
+    <div className="p-5 lg:p-7">
       <FusionHeader
         eyebrow="Eight required feeds"
         title="Sources"
@@ -30,6 +30,6 @@ export default async function SourcesPage(): Promise<React.ReactElement> {
         </h2>
         <CollectorRegistry collectors={collectors ?? []} />
       </section>
-    </main>
+    </div>
   );
 }

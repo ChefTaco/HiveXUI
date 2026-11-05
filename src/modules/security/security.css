@@ -8,4 +8,4 @@
   --color-accent:var(--violet);--color-success:var(--teal);--color-warning:#966022;--color-danger:var(--coral);--color-info:var(--sky);
   --radius-panel:6px;--radius-chip:3px;
 }
-.security-module {min-width:0;}
+.security-module {min-width:0;overflow-wrap:anywhere;}

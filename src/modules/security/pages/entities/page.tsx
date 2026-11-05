@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function EntitiesPage(): Promise<React.ReactElement> {
   const entities = await fusionFetch<FusionEntity[]>("entities");
   return (
-    <main className="p-5 lg:p-7">
+    <div className="p-5 lg:p-7">
       <FusionHeader
         eyebrow="Identity graph"
         title="Entities"
@@ -32,6 +32,6 @@ export default async function EntitiesPage(): Promise<React.ReactElement> {
           ))}
         </div>
       )}
-    </main>
+    </div>
   );
 }
