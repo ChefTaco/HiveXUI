@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { eventToEntry, recentActivityEntries } from './event-entry';
 import { eventFeed } from './feed';
+import { liveStatus } from './use-live-events';
 
 beforeEach(() => eventFeed.reset());
 
@@ -45,5 +46,24 @@ describe('the feed', () => {
     expect(eventFeed.get().entries.map((entry) => entry.title)).toEqual(['live', 'new', 'old']);
     eventFeed.seed([{ id: 'c', at: 3, channel: 'c', title: 'newest', severity: 'info' }]);
     expect(eventFeed.get().entries.map((entry) => entry.title)).toEqual(['live', 'newest']);
+  });
+});
+
+describe('the live status', () => {
+  it('says what the stream is doing, and never claims to be connecting once it has given up', () => {
+    expect(eventFeed.get().status).toBe('waiting');
+    eventFeed.setStatus(liveStatus('connecting'));
+    expect(eventFeed.get()).toMatchObject({ status: 'connecting', connected: false });
+    eventFeed.setStatus(liveStatus('open'));
+    expect(eventFeed.get()).toMatchObject({ status: 'live', connected: true });
+    eventFeed.setStatus(liveStatus('retrying'));
+    expect(eventFeed.get()).toMatchObject({ status: 'retrying', connected: false });
+    eventFeed.setStatus(liveStatus('stopped'), 'Your Magnus role does not allow this stream');
+    expect(eventFeed.get()).toMatchObject({ status: 'stopped', connected: false, detail: 'Your Magnus role does not allow this stream' });
+  });
+  it('shows activity from the API as recent, not live, before the stream opens', () => {
+    eventFeed.seed([{ id: 'a', at: 1, channel: 'audit', title: 'node.register', severity: 'info' }]);
+    expect(eventFeed.get()).toMatchObject({ status: 'waiting', connected: false });
+    expect(eventFeed.get().entries).toHaveLength(1);
   });
 });

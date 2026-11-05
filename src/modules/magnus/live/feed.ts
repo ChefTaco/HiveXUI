@@ -9,12 +9,20 @@ export interface FeedEntry {
   message?: string;
   severity: FeedSeverity;
 }
+/**
+ * What the marquee can honestly say about itself. `waiting` is the short dwell before the stream
+ * is opened: entries shown then are recent activity from the API, not live events.
+ */
+export type LiveStatus = 'waiting' | 'connecting' | 'live' | 'retrying' | 'stopped';
 export interface FeedSnapshot {
   connected: boolean;
+  status: LiveStatus;
+  /** Why the stream is not live, when it has stopped for good. */
+  detail?: string;
   entries: readonly FeedEntry[];
 }
 const LIMIT = 50;
-let snapshot: FeedSnapshot = { connected: false, entries: [] };
+let snapshot: FeedSnapshot = { connected: false, status: 'waiting', entries: [] };
 let nextId = 1;
 const listeners = new Set<() => void>();
 function emit(next: FeedSnapshot): void {
@@ -35,10 +43,12 @@ export const eventFeed = {
     const live = snapshot.entries.filter((entry) => entry.id.startsWith('live-'));
     emit({ ...snapshot, entries: [...live, ...[...entries].sort((a, b) => b.at - a.at)].slice(0, LIMIT) });
   },
-  setConnected(connected: boolean): void {
-    if (snapshot.connected !== connected) emit({ ...snapshot, connected });
+  setStatus(status: LiveStatus, detail?: string): void {
+    if (snapshot.status === status && snapshot.detail === detail) return;
+    const { detail: _previous, ...rest } = snapshot;
+    emit({ ...rest, status, connected: status === 'live', ...(detail ? { detail } : {}) });
   },
   reset(): void {
-    emit({ connected: false, entries: [] });
+    emit({ connected: false, status: 'waiting', entries: [] });
   },
 };
