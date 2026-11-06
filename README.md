@@ -24,10 +24,16 @@ The sidebar has one section per installed product, plus Hive and System.
 | Emberpath | `emberpath` | Routers, providers, routing, testing, traces, API keys and audit log |
 | HiveMem | `hivemem` | Memories, memory operations and workspaces |
 | HiveSkills | `hiveskills` | Skills catalogue, immutable releases, assignments, agent targets, distribution receipts, deployment jobs and registry audit |
-| Cindertrace | `cindertrace` | Security cases, entities, events, evidence, sources, policies, audit, the investigation lab and approval controls |
+| Cindertrace | `cindertrace` | Security cases, entities, events, evidence, sources, policies, audit and approval controls. Not the investigation lab, which keeps its own console |
 | ChatterMost | `chattermost` | Channels, DMs, threads, files, search, message editing, reactions, realtime refresh and administration. Invite redemption is at `/signup` |
 | Magnus | `magnus` | Fleet, operations, provisioning, Hermes Agent, Ardent and Codex pages at `/fleet`, and a web terminal on node detail where a fleet gateway is deployed |
 | System | | API docs and settings |
+
+Cindertrace's [investigation lab](https://github.com/ChefTaco/cindertrace/blob/main/docs/INVESTIGATION-LAB.md)
+is a separate disposable installation with its own console and local sign-in. Lab startup rejects
+Oathweave settings, and HiveXUI reaches Cindertrace with Oathweave sign-in, so a suite console
+never shows a lab. The section adds a Lab tab only when the connected Cindertrace reports its lab
+enabled, which an Oathweave-connected Cindertrace does not.
 
 `src/modules/magnus/PORTING.md` lists what the Magnus module leaves out on purpose, such as its own
 sign-in, federation across control nodes and the embedded Hermes dashboard. The old Magnus pages
