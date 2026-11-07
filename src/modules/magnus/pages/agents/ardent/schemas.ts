@@ -1,5 +1,6 @@
 // The Ardent routes have no released browser contract yet, so their shapes live here. Each one names
-// its source in the Magnus repository. A node's Ardent reports these, so they are read leniently.
+// its source in the Magnus repository, or in the Ardent repository (ChefTaco/Ardent) for the runtime's
+// own API. A node's Ardent reports these, so they are read leniently.
 import { z } from 'zod';
 
 const ok = <T extends z.ZodType>(data: T) => z.object({ success: z.literal(true), data });
@@ -45,7 +46,7 @@ export const ardentProfilesResponseSchema = ok(z.array(ardentProfileSummarySchem
   reachable: z.boolean(),
 })));
 
-// packages/ardent/src/api.ts: every resource and action answers inside { success, data }.
+// ChefTaco/Ardent src/api.ts: every resource and action answers inside { success, data }.
 export const revisionedTextSchema = z.object({ text: z.string(), revision: z.string() });
 export type RevisionedText = z.output<typeof revisionedTextSchema>;
 export const revisionSchema = z.object({ revision: z.string() });

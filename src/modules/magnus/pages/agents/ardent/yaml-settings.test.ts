@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readYamlValue, setYamlValue, YamlSettingsError } from './yaml-settings';
 
-// The shape of packages/ardent/profiles/assistant/config.yaml, comments included.
+// The shape of profiles/assistant/config.yaml in ChefTaco/Ardent, comments included.
 const CONFIG = `# Ardent profile, schema 1.
 schema_version: 1
 profile: assistant
