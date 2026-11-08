@@ -224,10 +224,16 @@ area's workflows, the room's agent states, the keyboard map, accessibility and k
 #### End-to-end tests
 
 `npm run e2e` runs the Studio acceptance scenarios (`e2e/studio/*.spec.ts`: an adventure and a
-research project, through the Studio API and in the browser) against a real stack built from the
-product checkouts next to this one: Oathweave, HiveMem, Magnus (server, PostgreSQL, Redis and one
-node agent in a systemd container that manages Ardent gateways), ArdentStudio and this console
-behind Hive's ingress configuration (`../Hive/deployment/Caddyfile`). The only fixture is the model:
+research project, through the Studio API and in the browser, and an agent's fleet lifecycle) against
+a real stack built from the product checkouts next to this one: Oathweave, HiveMem, HiveSkills,
+Magnus (server, PostgreSQL, Redis and one node agent in a systemd container that manages Ardent
+gateways), ArdentStudio and this console behind Hive's ingress configuration
+(`../Hive/deployment/Caddyfile`). The lifecycle spec deploys an agent with New Agent in the Magnus
+console, which Magnus enrolls in HiveMem as its own Oathweave service identity (the stack gives Magnus
+no HiveMem token), installs the synthetic HiveSkills skill the bootstrap publishes from Agent Studio,
+applies a model change from Agent Studio's draft, and watches Magnus renew the agent's HiveMem
+credential: the stack issues one-hour credentials (`STUDIO_E2E_HIVEMEM_HOURS`), and the spec makes
+one due and restarts Magnus, whose renewal job runs at start. The only fixture is the model:
 `e2e/stack/model/server.mjs`, a deterministic OpenAI-compatible streaming server with scripted
 replies and mission tool calls. Every secret and certificate is generated per run.
 

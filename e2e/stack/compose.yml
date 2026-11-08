@@ -45,8 +45,20 @@ services:
     volumes:
       - "${STUDIO_E2E_RUN}/certs/hivemem.crt:/config/tls.crt:ro"
       - "${STUDIO_E2E_RUN}/certs/hivemem.key:/config/tls.key:ro"
+      - "${STUDIO_E2E_RUN}/config/hivemem-initial-account.json:/config/initial-account.json:ro"
       - "${STUDIO_E2E_RUN}/certs/ca.pem:/config/authority.pem:ro"
       - hivemem-data:/data
+
+  hiveskills:
+    <<: *service
+    image: studio-e2e-hiveskills:${STUDIO_E2E_TAG:-local}
+    depends_on: [oathweave]
+    env_file: ["${STUDIO_E2E_RUN}/config/hiveskills.env"]
+    volumes:
+      - "${STUDIO_E2E_RUN}/certs/hiveskills.crt:/config/tls.crt:ro"
+      - "${STUDIO_E2E_RUN}/certs/hiveskills.key:/config/tls.key:ro"
+      - "${STUDIO_E2E_RUN}/certs/ca.pem:/config/authority.pem:ro"
+      - hiveskills-data:/data
 
   magnus-postgres:
     <<: *service
@@ -71,6 +83,7 @@ services:
       magnus-postgres: { condition: service_healthy }
       magnus-redis: { condition: service_started }
       oathweave: { condition: service_started }
+      hiveskills: { condition: service_started }
     env_file: ["${STUDIO_E2E_RUN}/config/magnus.env"]
     volumes:
       - "${STUDIO_E2E_RUN}/certs/magnus.crt:/config/tls.crt:ro"
@@ -117,7 +130,7 @@ services:
     <<: *service
     image: ${STUDIO_E2E_CADDY_IMAGE:-caddy:2.11.7-alpine}
     command: ["caddy", "run", "--config", "/config/Caddyfile", "--adapter", "caddyfile"]
-    depends_on: [hivexui, oathweave, magnus, hivemem, ardentstudio]
+    depends_on: [hivexui, oathweave, magnus, hivemem, hiveskills, ardentstudio]
     env_file: ["${STUDIO_E2E_RUN}/config/ingress.env"]
     ports: ["127.0.0.1:${STUDIO_E2E_PORT}:8443"]
     volumes:
@@ -141,6 +154,7 @@ services:
 volumes:
   oathweave-data:
   hivemem-data:
+  hiveskills-data:
   magnus-postgres-data:
   magnus-data:
   ardentstudio-data:

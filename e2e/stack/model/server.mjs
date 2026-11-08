@@ -7,6 +7,8 @@ import { createServer } from 'node:http';
 import { deflateSync } from 'node:zlib';
 
 const MODEL = process.env.MODEL_ID || 'studio-fixture';
+// A second model name the same server answers to, for the specs that change an agent's model.
+const MODELS = [MODEL, process.env.MODEL_ALTERNATE_ID || 'studio-fixture-large'];
 const PORT = Number(process.env.PORT || 8080);
 const CHUNK_DELAY_MS = Number(process.env.CHUNK_DELAY_MS || 35);
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -144,7 +146,8 @@ function plan(body) {
   // A tool the agent is not given is a step the model would not take.
   const steps = (rule?.steps ?? [text(role ? `Noted. (${role})` : 'Noted.')]).filter(item => !item.tool || offered.has(item.tool));
   const next = steps[step] ?? text('Done.');
-  log.push({ at: new Date().toISOString(), role, step, rule: rule ? rules.indexOf(rule) : null, request: request.slice(0, 200), reply: next.tool ?? 'text', tools: [...offered] });
+  log.push({ at: new Date().toISOString(), model: typeof body.model === 'string' ? body.model : null, role, step, rule: rule ? rules.indexOf(rule) : null,
+    request: request.slice(0, 200), reply: next.tool ?? 'text', tools: [...offered] });
   if (log.length > 500) log.shift();
   if (next.tool === 'artifact_write' && next.args.base64 === '@large-png') return tool('artifact_write', { ...next.args, base64: largePngBase64() });
   return next;
@@ -197,7 +200,7 @@ const server = createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/health') return void res.end('ok');
     if (req.method === 'GET' && url.pathname === '/v1/models') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      return void res.end(JSON.stringify({ object: 'list', data: [{ id: MODEL, object: 'model', owned_by: 'fixture', meta: { n_ctx: 65536 } }] }));
+      return void res.end(JSON.stringify({ object: 'list', data: MODELS.map(id => ({ id, object: 'model', owned_by: 'fixture', meta: { n_ctx: 65536 } })) }));
     }
     if (req.method === 'GET' && url.pathname === '/props') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
