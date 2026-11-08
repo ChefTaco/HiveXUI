@@ -11,6 +11,7 @@ import { createConversation, createDecision, createTask, requestFollowUp, type C
 import type { ProjectStore } from '../state/project-store';
 import type { Role } from './addressing';
 import { quote } from './transcript';
+import { MessageBody } from './message-body';
 
 /** Submit state shared by the forms: busy, the error, and a key kept until the request succeeds. */
 function useSubmit<T>(run: (key: string) => Promise<T>, onDone: (value: T) => void, fallback: string) {
@@ -333,7 +334,7 @@ export function DecisionList({ decisions, onOpenSource, action }: { decisions: r
     return (
       <li key={decision.id} className="room-decision rounded-control border border-border bg-surface-raised">
         <p className="m-0 text-sm text-text-strong">{decision.title}</p>
-        <p className="room-msg__text m-0 text-sm text-text">{decision.statement_md}</p>
+        <MessageBody text={decision.statement_md} />
         {decision.rationale_md ? <p className="m-0 text-xs text-text-muted">{`Why: ${decision.rationale_md}`}</p> : null}
         <p className="m-0 text-xs text-text-muted">
           {`Pinned by ${decision.decided_by}`}

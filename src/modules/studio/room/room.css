@@ -208,6 +208,19 @@
     overflow-wrap: anywhere;
     white-space: pre-wrap;
   }
+  /* Rendered Markdown keeps its own line breaks; its blocks sit close together. */
+  .room-msg__md {
+    white-space: normal;
+  }
+  .room-msg__md > * + * {
+    margin-top: var(--space-2);
+  }
+  .room-msg__md :where(p, ul, ol, pre, blockquote, h1, h2, h3, h4) {
+    margin-block: 0;
+  }
+  .room-msg__md :where(ul, ol) {
+    padding-left: var(--space-5);
+  }
   .room-msg__text--live::after {
     display: inline-block;
     width: 0.5em;
