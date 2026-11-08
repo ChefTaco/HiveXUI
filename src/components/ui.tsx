@@ -480,6 +480,7 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
   loading,
+  tone = 'danger',
 }: {
   open: boolean;
   title: string;
@@ -488,6 +489,8 @@ export function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
   loading?: boolean;
+  /** `primary` for a confirmation that destroys nothing, such as reopening. */
+  tone?: 'danger' | 'warning' | 'primary';
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef(onCancel);
@@ -520,7 +523,7 @@ export function ConfirmDialog({
           <Button variant="ghost" onClick={onCancel}>
             Cancel
           </Button>
-          <Button variant="danger" onClick={onConfirm} loading={loading} icon={<Icon.Trash className="btn-ico" />}>
+          <Button variant={tone} onClick={onConfirm} loading={loading} icon={tone === 'danger' ? <Icon.Trash className="btn-ico" /> : undefined}>
             {confirmLabel}
           </Button>
         </div>

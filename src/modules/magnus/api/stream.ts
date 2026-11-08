@@ -10,6 +10,13 @@ export interface StreamOptions {
   /** Relative to /api/v1: '/events/stream'. */
   path: string;
   query?: Query;
+  /**
+   * The full API path, read again for every connection, for a stream outside Magnus or one that
+   * resumes from a cursor. When set, path and query are not used.
+   */
+  url?: () => string;
+  /** Shown when the stream answers 403. */
+  deniedMessage?: string;
   onEvent: (event: SseEvent) => void;
   onState?: (state: StreamState, detail?: string) => void;
   /** Backoff between attempts, jittered. Defaults: 1s doubling to 60s. */
@@ -33,7 +40,7 @@ export function backoffDelay(attempt: number, minMs: number, maxMs: number, rand
 }
 
 export function openStream(options: StreamOptions): StreamHandle {
-  const { path, query, onEvent, onState, minDelayMs = 1000, maxDelayMs = 60_000, idleTimeoutMs = 75_000, request = apiFetch, random } = options;
+  const { path, query, url, deniedMessage = 'Your Magnus role does not allow this stream', onEvent, onState, minDelayMs = 1000, maxDelayMs = 60_000, idleTimeoutMs = 75_000, request = apiFetch, random } = options;
   const lifetime = new AbortController();
   const stop = (detail?: string) => {
     if (lifetime.signal.aborted) return;
@@ -65,13 +72,13 @@ export function openStream(options: StreamOptions): StreamHandle {
     try {
       onState?.('connecting');
       watch();
-      const response = await request(apiPath(path, query), {
+      const response = await request(url ? url() : apiPath(path, query), {
         headers: { Accept: 'text/event-stream', 'Cache-Control': 'no-cache', 'x-trace-id': randomId() },
         signal: connection.signal,
       });
       if (response.status === 401) return { healthy: false, unauthorized: true };
       if (response.status === 403 || response.status === 404) {
-        stop(response.status === 403 ? 'Your Magnus role does not allow this stream' : 'This stream is not available');
+        stop(response.status === 403 ? deniedMessage : 'This stream is not available');
         return { healthy: false };
       }
       if (response.status === 429) {

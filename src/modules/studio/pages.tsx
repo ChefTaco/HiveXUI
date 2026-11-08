@@ -4,7 +4,11 @@ import { Button, EmptyState, PageHeader, Panel } from '@ui';
 import { parseProfileRef, profileHref } from '../magnus/pages/agents/ardent/logic';
 import { LoadingRows } from '../magnus/ui/resource-state';
 import type { StudioConnection } from './api/client';
+import './projects/projects.css';
 import { StudioLink } from './link';
+import { CreateProject } from './projects/create';
+import { ProjectsHome } from './projects/home';
+import { ArchivedNotice, ProjectLanding } from './projects/project-page';
 import { STUDIO_PREFIX } from './paths';
 import type { StudioMatch } from './routes';
 
@@ -104,12 +108,39 @@ function header(match: StudioMatch): { description: string; actions?: ReactNode 
   }
 }
 
+/** The pages this release of HiveXUI implements, once the service answers. */
+function implemented(match: StudioMatch): ReactNode {
+  switch (match.route.id) {
+    case 'home':
+      return <ProjectsHome />;
+    case 'new':
+      return <CreateProject />;
+    case 'project':
+      return <ProjectLanding projectId={match.projectId!} />;
+    default:
+      return null;
+  }
+}
+
 export function StudioPage({ match, connection, onRetry }: { match: StudioMatch; connection: StudioConnection; onRetry: () => void }) {
   const { description, actions } = header(match);
+  const page = connection.state === 'ready' ? implemented(match) : null;
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="Ardent Project Studio" title={match.route.title} description={description} actions={actions} />
-      <ServiceBody match={match} connection={connection} onRetry={onRetry} />
+      {connection.state === 'ready' && connection.degraded.length ? (
+        <div className="warning-banner text-sm" role="status">
+          {connection.degraded.map((line) => (
+            <p key={line} className="m-0">{line}</p>
+          ))}
+        </div>
+      ) : null}
+      {match.projectId && connection.state === 'ready' ? <ArchivedNotice projectId={match.projectId} /> : null}
+      {page ?? (
+        <>
+          <PageHeader eyebrow="Ardent Project Studio" title={match.route.title} description={description} actions={actions} />
+          <ServiceBody match={match} connection={connection} onRetry={onRetry} />
+        </>
+      )}
     </div>
   );
 }

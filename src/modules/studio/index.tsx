@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { ChevronsUpDown, Workflow, X } from 'lucide-react';
+import { Workflow, X } from 'lucide-react';
 import { StatusDot } from '@ui';
 import { cn } from '@lib/cn';
 import './studio.css';
@@ -9,6 +9,7 @@ import { AgentGate, useArdentAgents } from './gate';
 import { StudioLink, useStudioPathname } from './link';
 import { StudioNotFound, StudioPage } from './pages';
 import { leaveStudio, STUDIO_PREFIX } from './paths';
+import { ProjectSwitcher, ProjectTools } from './projects/header';
 import { areaHref, matchStudioRoute, type StudioArea, type StudioMatch } from './routes';
 
 const AREAS: ReadonlyArray<{ area: StudioArea; label: string }> = [
@@ -33,17 +34,6 @@ function ConnectionState({ connection }: { connection: StudioConnection }) {
       <StatusDot status={status} pulse={connection.state === 'checking'} />
       <span>{label}</span>
     </span>
-  );
-}
-
-/** Project switching arrives with the Studio service's client; this slot holds its place and links home. */
-function ProjectSwitcher({ projectId }: { projectId: string }) {
-  return (
-    <StudioLink href={STUDIO_PREFIX} className="studio-switcher rounded-control border border-border bg-surface px-2 py-1 text-sm text-text no-underline hover:border-accent" aria-label={`Project ${projectId}. All projects`}>
-      <span className="studio-switcher__label stat-label">Project</span>
-      <span className="studio-switcher__name font-mono">{projectId}</span>
-      <ChevronsUpDown className="size-4 text-text-muted" aria-hidden="true" />
-    </StudioLink>
   );
 }
 
@@ -76,6 +66,7 @@ function StudioBar({ match, connection }: { match: StudioMatch | null; connectio
               );
             })}
           </nav>
+          <ProjectTools projectId={projectId} />
         </div>
       ) : null}
       <div className="studio-bar__end">

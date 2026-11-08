@@ -1,0 +1,321 @@
+@layer components {
+  /* Projects home, create flow, references and the project header. Layout only; colors and type
+     come from utilities and the shared classes. */
+  .studio-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+  }
+  .studio-search {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    flex: 1 1 16rem;
+    max-width: 28rem;
+    align-items: center;
+  }
+  .studio-search input {
+    width: 100%;
+    padding-left: var(--space-8);
+  }
+  .studio-search__icon {
+    position: absolute;
+    left: var(--space-3);
+    pointer-events: none;
+  }
+  .studio-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+    gap: var(--space-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .studio-card {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .studio-card__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  .studio-card__title {
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  /* The whole card is the link's hit area. */
+  .studio-card__link::after {
+    position: absolute;
+    inset: 0;
+    content: '';
+  }
+  .studio-card__brief {
+    display: -webkit-box;
+    margin: 0;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+  .studio-card__facts {
+    display: grid;
+    gap: var(--space-1);
+    margin: 0;
+  }
+  .studio-card__facts dd {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+  }
+  .studio-card__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: auto;
+  }
+  .studio-card__foot .badge,
+  .studio-card__tags {
+    position: relative;
+    z-index: 1;
+  }
+  .studio-card__tags {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+
+  /* Create flow */
+  .studio-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-6);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .studio-step__button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+  }
+  button.studio-step__button {
+    cursor: pointer;
+  }
+  .studio-step__number {
+    display: inline-grid;
+    width: 1.75rem;
+    height: 1.75rem;
+    place-items: center;
+  }
+  .studio-form {
+    display: grid;
+    gap: var(--space-4);
+  }
+  .studio-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-3);
+  }
+  .studio-form-actions > :first-child {
+    margin-right: auto;
+  }
+  .studio-deliverables {
+    display: grid;
+    gap: var(--space-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .studio-deliverable {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-3);
+    padding: var(--space-4);
+  }
+  .studio-deliverable > .form-grid,
+  .studio-formats {
+    grid-column: 1;
+  }
+  .studio-deliverable__remove {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .studio-formats {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .studio-start-options,
+  .studio-choices {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+    gap: var(--space-3);
+  }
+  .studio-choice {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-4);
+    cursor: pointer;
+  }
+  .studio-choice:has(:focus-visible) {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+  .studio-choice__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  .studio-choice__head > :first-child:not(.cell-strong) {
+    flex: none;
+  }
+  .studio-choice__head > .cell-strong {
+    flex: 1;
+  }
+
+  /* References */
+  .studio-references {
+    display: grid;
+    gap: var(--space-4);
+  }
+  .studio-dropzone {
+    display: grid;
+    justify-items: center;
+    gap: var(--space-2);
+    padding: var(--space-6) var(--space-4);
+    text-align: center;
+  }
+  .studio-dropzone p {
+    margin: 0;
+  }
+  .studio-file-list {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .studio-file {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-4);
+    padding: var(--space-3) 0;
+  }
+  .studio-file:last-child {
+    border-bottom: 0;
+  }
+  .studio-file__main {
+    display: grid;
+    min-width: 0;
+    flex: 1 1 14rem;
+    gap: var(--space-1);
+  }
+  .studio-file__name {
+    overflow-wrap: anywhere;
+  }
+  .studio-file__state {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  /* Project header */
+  .studio-switcher-wrap {
+    position: relative;
+    min-width: 0;
+  }
+  .studio-popover {
+    position: absolute;
+    top: calc(100% + var(--space-2));
+    left: 0;
+    z-index: 60;
+    display: grid;
+    width: min(22rem, calc(100vw - 2 * var(--space-4)));
+    gap: var(--space-3);
+  }
+  .studio-popover .studio-search {
+    max-width: none;
+  }
+  .studio-menu {
+    display: grid;
+    max-height: 18rem;
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+  }
+  .studio-menu__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+  }
+  .studio-menu__name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .studio-menu__foot {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  .studio-project__tools {
+    position: relative;
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .studio-tool-error {
+    position: absolute;
+    top: calc(100% + var(--space-2));
+    right: 0;
+    z-index: 60;
+    display: grid;
+    width: min(24rem, calc(100vw - 2 * var(--space-4)));
+    gap: var(--space-2);
+  }
+  @media (max-width: 639.98px) {
+    .studio-tool-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    .studio-deliverable {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .studio-deliverable__remove {
+      grid-column: 1;
+      grid-row: auto;
+      justify-self: end;
+    }
+  }
+}

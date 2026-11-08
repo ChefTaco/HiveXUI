@@ -1,4 +1,4 @@
-import { useSyncExternalStore, type AnchorHTMLAttributes, type ReactNode } from 'react';
+import { useMemo, useSyncExternalStore, type AnchorHTMLAttributes, type ReactNode } from 'react';
 import { goStudio, isStudioPath, leaveStudio, safeOrigin } from './paths';
 
 const subscribe = (listener: () => void) => {
@@ -7,6 +7,22 @@ const subscribe = (listener: () => void) => {
 };
 /** The browser path, kept current through Studio's own moves and Back and Forward. */
 export const useStudioPathname = (): string => useSyncExternalStore(subscribe, () => location.pathname);
+/** The query string, for a page's own state such as a view, a filter or a step. */
+export const useStudioSearch = (): URLSearchParams => {
+  const search = useSyncExternalStore(subscribe, () => location.search);
+  return useMemo(() => new URLSearchParams(search), [search]);
+};
+
+/** Rewrites some query values in place. An empty value removes it, so defaults stay out of the address. */
+export function setStudioQuery(values: Record<string, string | null | undefined>, mode: 'push' | 'replace' = 'replace'): void {
+  const search = new URLSearchParams(location.search);
+  for (const [key, value] of Object.entries(values)) {
+    if (value) search.set(key, value);
+    else search.delete(key);
+  }
+  const text = search.toString();
+  goStudio(location.pathname + (text ? '?' + text : ''), mode);
+}
 
 type LinkProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & { href: string; children?: ReactNode };
 
