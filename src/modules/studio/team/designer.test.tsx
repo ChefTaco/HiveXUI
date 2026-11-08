@@ -5,7 +5,8 @@ import { button, click, mount, settle, stubBrowser, type, type Mounted } from '.
 import StudioModule from '../index';
 import { resetProjectStores } from '../state/project-store';
 import { agent, PROJECT_ID, project, revision, serveStudio, snapshot, task, team, type StudioRequest } from '../test-fixtures';
-import type { TeamState } from '../api/endpoints';
+import type { Deliverable, TeamState } from '../api/endpoints';
+import { deliverable } from '../review/fixtures';
 
 vi.mock('../../../lib/runtime', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../lib/runtime')>()),
@@ -14,6 +15,7 @@ vi.mock('../../../lib/runtime', async (importOriginal) => ({
 
 let server: ReturnType<typeof serveStudio>;
 let state: TeamState;
+let produced: Deliverable[];
 let view: Mounted | undefined;
 const AGENTS = { agents: [agent(), agent({ agent_ref: 'node-1~world', profile: 'world', display_name: 'Worldsmith' }), agent({ agent_ref: 'node-2~editor', node_id: 'node-2', profile: 'editor', display_name: 'Editor' })], available_count: 3, magnus: { state: 'ok', error: null } };
 
@@ -21,6 +23,7 @@ function route(request: StudioRequest): unknown {
   const base = `/projects/${PROJECT_ID}`;
   if (request.path === `${base}/snapshot`) return snapshot({ team: state });
   if (request.path === '/agents') return AGENTS;
+  if (request.path === `${base}/deliverables`) return { deliverables: produced, imports: [] };
   if (request.path === `${base}/team/validate`) return { issues: [], can_publish: true, can_start_room: true, agent_facts: 'complete' };
   if (request.path === `${base}/team/draft`) {
     const body = (request.body as { body: TeamState['current'] extends infer R ? R extends { body: infer B } ? B : never : never }).body;
@@ -37,6 +40,7 @@ function route(request: StudioRequest): unknown {
 beforeEach(() => {
   stubBrowser();
   state = team();
+  produced = [];
   server = serveStudio(route);
   vi.stubGlobal('fetch', server.fetch);
   localStorage.clear();
@@ -137,15 +141,37 @@ describe('Team Assignment', () => {
     expect(text(root)).toContain('Start in Room: Bind an agent to Story Lead, then publish.');
   });
 
-  it('deletes a role only after confirmation, with its relationships', async () => {
+  it('deletes a role without work at once, with its relationships, and Undo puts it back', async () => {
     const root = await open();
     await click(button('Delete Continuity Editor', root));
-    expect(document.querySelector('[role="alertdialog"]')?.textContent).toContain('Delete Continuity Editor?');
-    await click(button('Delete role', document.querySelector('[role="alertdialog"]')!));
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
     await saveSoon();
     const body = drafts().at(-1)!.body as { body: { roles: Array<{ key: string }>; relationships: Array<{ from: string; to: string }> } };
     expect(body.body.roles.map((role) => role.key)).toEqual(['lead', 'world']);
     expect(body.body.relationships.every((edge) => edge.from !== 'editor' && edge.to !== 'editor')).toBe(true);
+    const toast = document.querySelector('.toast')!;
+    expect(toast.textContent).toContain('Deleted Continuity Editor');
+    await click(button('Undo', toast as HTMLElement));
+    await saveSoon();
+    const restored = drafts().at(-1)!.body as { body: { roles: Array<{ key: string }>; relationships: Array<{ from: string; to: string }> } };
+    expect(restored.body.roles.map((role) => role.key)).toEqual(['lead', 'world', 'editor']);
+    expect(restored.body.relationships.some((edge) => edge.from === 'editor' || edge.to === 'editor')).toBe(true);
+    expect(document.querySelector('.toast')).toBeNull();
+  });
+
+  it('asks first when the role has active tasks or delivered files', async () => {
+    produced = [deliverable({ producer_role: 'editor' })];
+    const root = await open();
+    await click(button('Delete Continuity Editor', root));
+    const dialog = document.querySelector('[role="alertdialog"]')!;
+    expect(dialog.textContent).toContain('Delete Continuity Editor?');
+    expect(dialog.textContent).toContain('Continuity Editor has 1 deliverable.');
+    expect(dialog.textContent).toContain('Delivered files stay in Review.');
+    await click(button('Delete role', dialog as HTMLElement));
+    await saveSoon();
+    const body = drafts().at(-1)!.body as { body: { roles: Array<{ key: string }> } };
+    expect(body.body.roles.map((role) => role.key)).toEqual(['lead', 'world']);
+    expect(document.querySelector('.toast')).toBeNull();
   });
 
   it('opens the inspector from the table, with the same fields the canvas edits', async () => {
@@ -205,7 +231,7 @@ describe('the team canvas', () => {
     expect(root.querySelector('aside[aria-label="Role Continuity Editor"]')).not.toBeNull();
   });
 
-  it('duplicates with Ctrl+D and deletes with Delete after confirmation, the same edits as the table', async () => {
+  it('duplicates with Ctrl+D and deletes with Delete, the same edits as the table', async () => {
     const root = await open('?view=team');
     await settle(100);
     const world = root.querySelector<HTMLElement>('[data-role-key="world"]')!;
@@ -219,7 +245,6 @@ describe('the team canvas', () => {
     await act(async () => {
       editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
     });
-    await click(button('Delete role', document.querySelector('[role="alertdialog"]')!));
     await saveSoon();
     const canvasBody = (drafts().at(-1)!.body as { body: { roles: Array<{ key: string; agent_ref: string | null }> } }).body;
     expect(canvasBody.roles.map((role) => role.key)).toEqual(['lead', 'world', 'worldbuilder_copy']);
@@ -234,7 +259,6 @@ describe('the team canvas', () => {
     const table = await open();
     await click(button('Duplicate Worldbuilder', table));
     await click(button('Delete Continuity Editor', table));
-    await click(button('Delete role', document.querySelector('[role="alertdialog"]')!));
     await saveSoon();
     expect((drafts().at(-1)!.body as { body: unknown }).body).toEqual(canvasBody);
   });

@@ -15,7 +15,7 @@ is in `src/modules/studio/help/guides.ts`.
 | Needs | Why | Without it |
 | --- | --- | --- |
 | The ArdentStudio service, at `/api/ardentstudio` | Projects, teams, conversations, tasks, files and reviews are its records | The Studio entries are not in the sidebar. If it is configured but does not answer, the top bar says **Offline** and each page says what it would show, with **Retry** |
-| Magnus, with at least one reachable Ardent agent | Every role is bound to a Magnus-managed Ardent profile | Every page shows **"Ardent Project Studio needs at least one Ardent agent."** with **Refresh** and a link to **Ardent profiles** in Fleet |
+| Magnus, with at least one reachable Ardent agent | Every role is bound to a Magnus-managed Ardent profile | Every page shows **"Ardent Project Studio needs at least one Ardent agent."** with **Refresh**, and **New Agent** (Magnus's New Agent wizard in a drawer; the panel checks again when it finishes) for a Magnus ADMIN or a link to **Ardent profiles** in Fleet for anyone else |
 | HiveMem | Each project has a HiveMem workspace that its references are indexed into, and each agent keeps private memory | Pages work, with a banner: references are stored but agents cannot search them |
 | Oathweave | Sign-in, and the identity the service checks on every request | An identity the service refuses sees **No access** in the top bar |
 
@@ -110,6 +110,9 @@ whose coordinator is bound to an available agent; until then the button says why
   contributions, deliverables, skills, knowledge and relationships. **Bind existing** picks a
   Magnus-managed Ardent profile; **New agent** opens Magnus's New Agent wizard in a drawer; then
   **Unbind**, **Duplicate** (without the binding), **Save as agent template** and **Delete role**.
+  A role with work (active tasks, or deliverables it produced) asks first and says what it has; a
+  role without work is deleted at once, with **Undo** on the notice to put it back with its
+  relationships.
 - **Validation.** Errors block Publish: not exactly one coordinator, a reporting cycle, a hand-off
   cycle that is not a revise loop, a deliverable no role produces, and malformed roles or
   relationships (a repeated key, a relationship to an unknown role or to itself, a coordinator that
@@ -176,34 +179,35 @@ Recent outcomes. Each opens the **Tasks** drawer at that group.
 
 Each agent shows one state, with its words beside it, in the scene, the roster and the agent card.
 States come only from real records, never guesses: the room shows no idle wandering, fake typing,
-reasoning or tool contents. The room's presence reducer (`room/room-presence.ts`) works in this
-order:
+reasoning or tool contents.
 
-1. **A live reply wins.** From the first live text of a reply the agent is writing until its stored
-   message completes, the agent is Speaking, "Replying…". For 4 seconds after that it stays
-   Speaking, "Replied".
-2. **Otherwise the stored activity.** The ArdentStudio service keeps one activity per agent in the
-   project (state, words and since when), derived from its task records, the Ardent journal and a
-   profile probe every 30 seconds, and sends each change on the project stream. The room shows that
-   state and those words as they are.
-3. **Otherwise** the agent is Unknown, "Status not checked yet".
+The ArdentStudio service is the single source of an agent's activity. It derives one state and its
+words per agent in the project from its task records, the Ardent journal, verified deliverable
+revisions and a profile probe every 30 seconds, and sends each change on the project stream (see
+ArdentStudio's `docs/CONDUCTOR.md`, Activity). The room (`room/room-presence.ts`) shows that state
+and those words as they are. The browser adds one thing on top: **a live reply wins**. From the
+first live text of a reply until its stored message completes the agent is Speaking,
+"Replying…", and for 4 seconds after that, "Replied". Before the service has sent anything the agent
+is Unknown, "Status not checked yet".
 
 | State | Set by | Visual | Text, as the service writes it |
 | --- | --- | --- | --- |
-| Speaking | A reply streaming, and 4 s after it completes | Pulsing speech bubble; the transcript bubble fills in | "Replying…", then "Replied" |
+| Speaking | The browser: a reply streaming, and 4 s after it completes | Pulsing speech bubble; the transcript bubble fills in | "Replying…", then "Replied" |
 | Offline | The profile probe failed | Desaturated portrait | "Offline", or "Offline: Magnus is unreachable" |
-| Available | The probe answered and the agent has no open task | No mark | "Available" |
-| Queued | A queued task Ardent accepted | Clock mark | "Queued: \<task\>" |
-| Waiting | A queued task held until an earlier task in its group finishes | Hourglass mark | "Waiting for \<role\>" |
-| Working | A running task | Lit desk screen; typing dots beside the words | "Working: \<task\>", with " · \<tool\>" while the journal shows a tool step |
+| Available | The probe answered and nothing below applies | No mark | "Available" |
+| Queued | A task waiting to start, or accepted before the model has started | Clock mark | "Queued: \<task\>", or "Starting: \<task\>" |
+| Waiting | A task held until an earlier turn in its group finishes, or a role the agent handed work to that has not finished | Hourglass mark | "Waiting for \<role\>" |
+| Working | A running task once the journal shows the model started or a tool step | Lit desk screen; typing dots beside the words | "Working: \<task\>", with " · \<tool\>" for a tool step |
 | Reviewing | A running review task | Magnifier mark; stands at the review station | "Reviewing: \<task\>" |
-| Asking | A task waiting for input, or a question the agent asked | "?" mark | "Asking: \<question, up to 60 characters\>" |
+| Asking | A question the agent asked that nobody has answered, or a task waiting for input | "?" mark | "Asking: \<question\>" |
 | Paused | A pause requested, then taken at a step boundary | Pause mark | "Pause requested: \<task\>", then "Paused: \<task\>" |
-| Delivering | A deliverable revision received from the agent | Package mark; an arc to the delivery shelf | "Delivered \<name\> r\<n\>" |
-| Unknown | No activity yet, or a state this console does not know | Dashed-circle mark | "Status not checked yet", or the service's words |
+| Blocked | The agent's newest task failed, ended in an unknown Ardent state or reported itself blocked; new work clears it | "No entry" mark in the danger color | "Blocked: \<reason\>" |
+| Delivering | A deliverable revision received from the agent, for 20 seconds | Package mark; an arc to the delivery shelf | "Delivered \<name\> r\<n\>" |
+| Unknown | Not probed yet | Dashed-circle mark | "Status not checked yet" |
 
-Blocked and failed work is not an activity: it shows in the Tasks drawer's **Blockers** group and
-on the activity strip. (The scene has a Blocked mark, which the current service never sends.)
+When several apply to one agent (several tasks at once), the service shows the first in this order:
+Offline, Paused, Blocked, Asking, Reviewing, Working, Queued, Waiting, Delivering, Available,
+Unknown. Failed tasks also show in the Tasks drawer's **Blockers** group and on the activity strip.
 
 Arcs are drawn for 8 seconds: a labelled hand-off arc between two agents when the transcript
 shows an allowed hand-off, and a delivery arc to the shelf for each revision that arrives while the
@@ -226,7 +230,8 @@ shows **Live**, **Connecting**, **Reconnecting** or **Offline**.
 
 The header shows the agent's name and portrait, its profile and node, the Ardent version and
 backend, runtime status, HiveMem status, the projects using it, and **Fleet details**. Opened from
-the room, it also has **Back to the room**.
+the room, it also has **Back to the room**. The other way, each Ardent profile page in Fleet has
+**Open in Studio** when this console has Ardent Project Studio; Studio's ✕ returns to that page.
 
 1. **Identity.** Name and portrait (**Global**), the **Project role** (**This project only**), and
    `SOUL.md` and `IDENTITY.md` with history and restore.
@@ -294,7 +299,7 @@ or card and returns focus to what opened it. Escape never closes Studio.
 | ↑ | The role's manager |
 | ↓ | The role's first report |
 | ← / → | Previous or next sibling |
-| Delete or Backspace | Delete the role (asks first) |
+| Delete or Backspace | Delete the role (asks first when it has work; otherwise Undo) |
 | Shift + arrow | Nudge the card |
 | A | Auto-layout |
 | Ctrl/Cmd + D | Duplicate the role |
@@ -364,5 +369,3 @@ drops it.
   Magnus's reason (for example "Only a Magnus administrator can change an agent").
 - **PDF quote highlight.** A comment on selected PDF text opens its page, but the quoted text is
   not highlighted on the page. Region comments on PDFs and images are drawn.
-- **Gate actions.** The "needs at least one Ardent agent" panel links to Fleet's Ardent profiles to
-  create one; it does not open New Agent itself.

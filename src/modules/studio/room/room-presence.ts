@@ -1,10 +1,12 @@
-// What each agent in the room shows, from the Studio service's records only: the activity it stores
-// (probe, task and journal states with their labels), the live reply stream for "Replying…" and
-// "Replied", and hand-off and delivery arcs from the messages and revisions it records. Pure, so the
-// room page folds the snapshot and the stream through it and tests walk it without a clock.
+// What each agent in the room shows. The Studio service is the single source of an agent's activity:
+// it derives one state and label per agent from real records (ArdentStudio docs/CONDUCTOR.md#activity),
+// and the room shows it as sent. The browser overlays only "speaking" from the live reply stream
+// ("Replying…", then "Replied" for a moment), plus hand-off and delivery arcs from the messages and
+// revisions the service records. Pure, so the room page folds the snapshot and the stream through
+// it and tests walk it without a clock.
 import type { Activity, Message } from '../api/endpoints';
+import type { SceneArc } from './scene/model';
 import { ARC_HOLD_MS, SPEAKING_HOLD_MS, excerpt, type Presence } from './scene/presence';
-import type { AgentState, SceneArc } from './scene/model';
 
 const AUTHOR_MEMORY = 200;
 
@@ -42,9 +44,9 @@ export type RoomPresenceEvent =
 
 export const emptyRoomPresence = (): RoomPresenceState => ({ activity: {}, replies: {}, authors: {}, arcs: [] });
 
-const ACTIVITY_STATES: ReadonlySet<string> = new Set(['offline', 'available', 'queued', 'working', 'reviewing', 'asking', 'waiting', 'paused', 'delivering', 'unknown']);
+/** The service's state as sent. The scene has a look for every state the contract names, or this stops compiling. */
 const toPresence = (activity: Activity): Presence => ({
-  state: (ACTIVITY_STATES.has(activity.state) ? activity.state : 'unknown') as AgentState,
+  state: activity.state,
   label: activity.label || 'Unknown',
   since: Date.parse(activity.since) || 0,
 });

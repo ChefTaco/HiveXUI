@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { activityStateSchema } from '@contracts/ardentstudio.generated';
 import { activity, BINDING, message, messageId } from '../test-fixtures';
 import { emptyRoomPresence, nextRoomChange, reduceRoomPresence, roomArcs, roomPresenceOf, type RoomPresenceEvent } from './room-presence';
+import { AGENT_STATES } from './scene/model';
 import { ARC_HOLD_MS, SPEAKING_HOLD_MS } from './scene/presence';
 
 const LEAD = 'node-1~lead';
@@ -13,6 +15,19 @@ describe('room presence', () => {
     const state = fold([{ type: 'activity', items: [activity({ state: 'working', label: 'Working: plan' })] }]);
     expect(roomPresenceOf(state, LEAD, 0)).toMatchObject({ state: 'working', label: 'Working: plan' });
     expect(roomPresenceOf(state, WORLD, 0)).toMatchObject({ state: 'unknown', label: 'Status not checked yet' });
+  });
+
+  it('shows every state the service sends as sent, with its label, including Blocked', () => {
+    for (const state of activityStateSchema.options) {
+      expect(AGENT_STATES).toContain(state);
+      const folded = fold([{ type: 'presence', activity: activity({ state, label: `Label for ${state}` }) }]);
+      expect(roomPresenceOf(folded, LEAD, 0)).toMatchObject({ state, label: `Label for ${state}` });
+    }
+    const blocked = fold([{ type: 'activity', items: [activity({ state: 'blocked', label: 'Blocked: The model provider refused the request' })] }]);
+    expect(roomPresenceOf(blocked, LEAD, 0)).toMatchObject({ state: 'blocked', label: 'Blocked: The model provider refused the request' });
+    // Only the live reply stream is laid over it.
+    const speaking = reduceRoomPresence(blocked, { type: 'message', message: agentReply('streaming'), agent: LEAD, at: 5 });
+    expect(roomPresenceOf(speaking, LEAD, 6)).toMatchObject({ state: 'speaking', label: 'Replying…' });
   });
 
   it('speaks while a reply streams and holds "Replied" for a moment after its final message', () => {

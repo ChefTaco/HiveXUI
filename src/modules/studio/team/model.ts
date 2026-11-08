@@ -118,6 +118,37 @@ export function removeRole(draft: TeamDraft, key: string): TeamDraft {
   return { ...draft, roles: draft.roles.filter((role) => role.key !== key), relationships: draft.relationships.filter((edge) => edge.from !== key && edge.to !== key) };
 }
 
+/** What deleting a role took out of the draft, so Undo can put it back. */
+export interface RemovedRole {
+  role: Role;
+  index: number;
+  relationships: Relationship[];
+}
+
+export function removedRole(draft: TeamDraft, key: string): RemovedRole | null {
+  const index = draft.roles.findIndex((role) => role.key === key);
+  if (index < 0) return null;
+  return { role: draft.roles[index]!, index, relationships: draft.relationships.filter((edge) => edge.from === key || edge.to === key) };
+}
+
+/**
+ * Puts a deleted role back where it was, with the relationships whose other end is still there.
+ * Edits made since stay. It stays the coordinator only while no other role has taken that place.
+ */
+export function restoreRole(draft: TeamDraft, removed: RemovedRole): TeamDraft {
+  if (findRole(draft, removed.role.key)) return draft;
+  const coordinator = removed.role.coordinator && !draft.roles.some((role) => role.coordinator);
+  const roles = [...draft.roles];
+  roles.splice(Math.min(removed.index, roles.length), 0, { ...removed.role, coordinator });
+  const present = new Set(roles.map((role) => role.key));
+  const same = (a: Relationship, b: Relationship) => a.from === b.from && a.to === b.to && a.type === b.type;
+  const relationships = [
+    ...draft.relationships,
+    ...removed.relationships.filter((edge) => present.has(edge.from) && present.has(edge.to) && !draft.relationships.some((item) => same(item, edge))),
+  ];
+  return { ...draft, roles, relationships };
+}
+
 export function updateRole(draft: TeamDraft, key: string, patch: Partial<Omit<Role, 'key' | 'coordinator'>>): TeamDraft {
   return { ...draft, roles: draft.roles.map((role) => (role.key === key ? { ...role, ...patch } : role)) };
 }

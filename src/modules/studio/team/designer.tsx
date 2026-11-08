@@ -9,6 +9,7 @@ import { getTemplate, listAgents, type Agent } from '../api/endpoints';
 import { BindPicker } from '../agents/bind-picker';
 import { NewAgentDrawer } from '../agents/new-agent-drawer';
 import { galleryHref } from '../gallery/links';
+import { useDeliverables } from '../room/use-room';
 import { setStudioQuery, StudioLink, useStudioSearch } from '../link';
 import { ProjectFrame } from '../projects/project-page';
 import { projectHref } from '../routes';
@@ -17,7 +18,7 @@ import { useProject } from '../state/project-store';
 import type { Positions } from './canvas/layout';
 import { RoleInspector, useNarrow } from './inspector';
 import { EdgeLegend } from './legend';
-import { addRelationship, addRole, bindRole, draftFromRevision, duplicateRole, findRole, RELATIONSHIP_LABEL, removeRole, treeOrder, type KeyCommand, type RelationshipType, type Role } from './model';
+import { addRelationship, addRole, bindRole, draftFromRevision, duplicateRole, findRole, RELATIONSHIP_LABEL, removedRole, removeRole, restoreRole, treeOrder, type KeyCommand, type RelationshipType, type Role } from './model';
 import { ActiveWork, SaveRoleTemplate, SaveTeamTemplate, TemplateUpdate, ValidationPanel } from './panels';
 import { basisWarning, composeAccepted, diffTeam, draftFromProposal, ghostView } from './proposal';
 import { ProposalProgress, ProposalReview, ProposalTable, ProposeDrawer, useTeamProposals } from './proposal-ui';
@@ -106,6 +107,7 @@ function Designer({ state, store }: { state: NonNullable<ProjectState['snapshot'
   const [connectType, setConnectType] = useState<RelationshipType>('reports_to');
   const [welcome, setWelcome] = useState(search.get('start') === '1');
   const toast = useToast();
+  const produced = useDeliverables(store);
 
   // A coordinator-proposed team: progress, then a ghost diff over the team until it is accepted or discarded.
   const proposals = useTeamProposals(store);
@@ -186,7 +188,7 @@ function Designer({ state, store }: { state: NonNullable<ProjectState['snapshot'
   };
   const command = (key: string, next: KeyCommand) => {
     if (next.kind === 'focus') focusRole(next.key);
-    else if (next.kind === 'delete') setDeleting(key);
+    else if (next.kind === 'delete') requestDelete(key);
     else if (next.kind === 'duplicate') duplicate(key);
     else if (next.kind === 'layout') setLayoutTick((tick) => tick + 1);
     else if (next.kind === 'nudge') {
@@ -208,6 +210,45 @@ function Designer({ state, store }: { state: NonNullable<ProjectState['snapshot'
   const saveText = { saved: 'Saved', pending: 'Unsaved changes', saving: 'Saving…', failed: 'Not saved', conflict: 'Conflict' }[designer.save.state];
   const role = selected ? findRole(draft, selected) : undefined;
   const activeFor = (key: string | null) => (key ? state.tasks.filter((task) => task.role_key === key).length : 0);
+  // Work a role has: active tasks, and deliverables it produced. Unknown until the deliverables are read.
+  const deliveredBy = (key: string | null) => (key && produced ? produced.filter((item) => item.producer_role === key).length : 0);
+  const hasWork = (key: string) => activeFor(key) > 0 || produced === null || deliveredBy(key) > 0;
+  const deleteRole = (key: string) => {
+    const removed = removedRole(draft, key);
+    if (!removed) return;
+    const order = treeOrder(draft);
+    const next = order[order.indexOf(key) - 1] ?? order[order.indexOf(key) + 1] ?? null;
+    edit((current) => removeRole(current, key));
+    if (next && next !== key) setTimeout(() => focusRole(next), 0);
+    else select(null);
+    return removed;
+  };
+  // A role with work asks first; one without is deleted at once, with Undo.
+  const requestDelete = (key: string) => {
+    if (readOnly) return;
+    if (hasWork(key)) {
+      setDeleting(key);
+      return;
+    }
+    const removed = deleteRole(key);
+    if (!removed) return;
+    toast.info(`Deleted ${removed.role.name}`, 'The role and its relationships left the draft.', {
+      label: 'Undo',
+      onAction: () => {
+        edit((current) => restoreRole(current, removed));
+        setTimeout(() => focusRole(removed.role.key), 0);
+      },
+    });
+  };
+  const deletingWork = (() => {
+    const tasks = activeFor(deleting);
+    const delivered = deliveredBy(deleting);
+    const parts = [
+      tasks ? `${tasks} active ${tasks === 1 ? 'task' : 'tasks'}` : '',
+      delivered ? `${delivered} ${delivered === 1 ? 'deliverable' : 'deliverables'}` : '',
+    ].filter(Boolean);
+    return parts.length ? `${(deleting && findRole(draft, deleting)?.name) ?? 'This role'} has ${parts.join(' and ')}. ` : '';
+  })();
   const viewProps = { draft, agents, creating, issues, selected, readOnly };
 
   return (
@@ -407,7 +448,7 @@ function Designer({ state, store }: { state: NonNullable<ProjectState['snapshot'
           ) : view === 'workflow' ? (
             <WorkflowView {...viewProps} edit={edit} onSelect={select} onInspect={inspect} />
           ) : (
-            <TableView {...viewProps} edit={edit} onSelect={select} onInspect={inspect} onBind={setBinding} onDuplicate={duplicate} onDelete={setDeleting} />
+            <TableView {...viewProps} edit={edit} onSelect={select} onInspect={inspect} onBind={setBinding} onDuplicate={duplicate} onDelete={requestDelete} />
           )}
         </div>
         {role && inspecting && !reviewing ? (
@@ -426,7 +467,7 @@ function Designer({ state, store }: { state: NonNullable<ProjectState['snapshot'
             onBind={setBinding}
             onNewAgent={setNewAgentFor}
             onDuplicate={duplicate}
-            onDelete={setDeleting}
+            onDelete={requestDelete}
             onSaveAsTemplate={setRoleTemplate}
           />
         ) : null}
@@ -483,17 +524,12 @@ function Designer({ state, store }: { state: NonNullable<ProjectState['snapshot'
       <ConfirmDialog
         open={deleting !== null}
         title={`Delete ${(deleting && findRole(draft, deleting)?.name) ?? 'role'}?`}
-        message={`The role and its relationships leave the draft. The published team keeps it until you publish.${activeFor(deleting) ? ` Its ${activeFor(deleting)} active ${activeFor(deleting) === 1 ? 'task keeps' : 'tasks keep'} running under the revision it started with; reassign or cancel from Active work.` : ''}`}
+        message={`${deletingWork}The role and its relationships leave the draft. The published team keeps it until you publish.${activeFor(deleting) ? ` ${activeFor(deleting) === 1 ? 'Its task keeps' : 'Its tasks keep'} running under the revision it started with; reassign or cancel from Active work.` : ''}${deliveredBy(deleting) ? ' Delivered files stay in Review.' : ''}`}
         confirmLabel="Delete role"
         onCancel={() => setDeleting(null)}
         onConfirm={() => {
-          const key = deleting!;
-          const order = treeOrder(draft);
-          const next = order[order.indexOf(key) - 1] ?? order[order.indexOf(key) + 1] ?? null;
-          edit((current) => removeRole(current, key));
+          deleteRole(deleting!);
           setDeleting(null);
-          if (next && next !== key) setTimeout(() => focusRole(next), 0);
-          else select(null);
         }}
       />
       <ProposeDrawer
