@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { sessionStore } from '../magnus/session-store';
 import { button, click, mount, settle, stubBrowser, type Mounted } from '../magnus/test-dom';
 import StudioModule from './index';
 
@@ -8,6 +9,15 @@ const runtime = vi.hoisted(() => ({ magnus: true }));
 vi.mock('../../lib/runtime', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/runtime')>()),
   productInstalled: (product: string) => (product === 'magnus' ? runtime.magnus : true),
+}));
+
+// The wizard has its own tests; here it only needs to finish.
+vi.mock('../magnus/pages/agents/ardent/profiles/new-agent', () => ({
+  NewAgentWizard: ({ onDone, doneLabel }: { onDone: (ref: string) => void; doneLabel?: string }) => (
+    <button type="button" onClick={() => onDone('node-1~writer')}>
+      {doneLabel}
+    </button>
+  ),
 }));
 
 const PROFILE = { id: 'writer', name: 'Writer', backend: 'llamacpp', apiPort: 9910, running: true, a2aEnabled: false, channels: {}, error: null, nodeId: 'node-1', nodeName: 'node one', hostname: 'node-1.example.com', installationVersion: '2.1.2', reachable: true };
@@ -18,6 +28,7 @@ const READY = { status: 'ready', checks: { database: check, magnus: check, hivem
 interface Answers {
   profiles: () => Response;
   health: () => Response;
+  role: string | null;
 }
 let answers: Answers;
 let requests: string[];
@@ -30,12 +41,15 @@ beforeEach(() => {
   answers = {
     profiles: () => Response.json({ success: true, data: [PROFILE] }),
     health: () => new Response('Not found', { status: 404 }),
+    role: null,
   };
   vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
     const path = new URL(String(input), 'https://console.example.com').pathname;
     requests.push(path);
     if (path === '/api/magnus/ardent/profiles') return answers.profiles();
     if (path === '/api/ardentstudio/v1/health/ready') return answers.health();
+    if (path === '/api/magnus/console/session' && answers.role)
+      return Response.json({ success: true, data: { userId: 'alice', role: answers.role, capabilities: { hermes: false, terminal: false, agentVersion: '1.2.0', magnusVersion: '1.2.0', securityConsoleUrl: null } } });
     return new Response('Not found', { status: 404 });
   }));
 });
@@ -43,6 +57,7 @@ afterEach(async () => {
   await view?.unmount();
   view = undefined;
   vi.unstubAllGlobals();
+  sessionStore.reset();
   history.replaceState(null, '', '/');
 });
 
@@ -189,6 +204,33 @@ describe('the Ardent agent requirement', () => {
     await settle();
     expect(requests.filter((path) => path === '/api/magnus/ardent/profiles')).toHaveLength(2);
     expect(text(root)).not.toContain('needs at least one Ardent agent');
+  });
+
+  it('opens New Agent in a drawer for a Magnus ADMIN, then checks again', async () => {
+    answers.role = 'ADMIN';
+    answers.profiles = () => Response.json({ success: true, data: [] });
+    const root = await open('/studio');
+    await settle();
+    expect(root.querySelector('a[href="/fleet/ardent/profiles"]')).toBeNull();
+    await click(button('New Agent', root));
+    const drawer = document.querySelector('[role="dialog"]')!;
+    expect(drawer.textContent).toContain('New Ardent agent');
+
+    answers.profiles = () => Response.json({ success: true, data: [PROFILE] });
+    await click(button('Done', drawer));
+    await settle();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(requests.filter((path) => path === '/api/magnus/ardent/profiles')).toHaveLength(2);
+    expect(text(root)).not.toContain('needs at least one Ardent agent');
+  });
+
+  it('keeps the link to the Ardent profiles for other Magnus roles', async () => {
+    answers.role = 'OPERATOR';
+    answers.profiles = () => Response.json({ success: true, data: [] });
+    const root = await open('/studio');
+    await settle();
+    expect(button('New Agent', root)).toBeUndefined();
+    expect(root.querySelector('a[href="/fleet/ardent/profiles"]')?.textContent).toBe('Ardent profiles');
   });
 
   it('counts only agents on nodes Magnus can reach', async () => {

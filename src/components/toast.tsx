@@ -3,18 +3,25 @@ import { Icon } from './icons';
 
 type ToastTone = 'success' | 'error' | 'info';
 
+/** One button on the toast, such as Undo. Choosing it also dismisses the toast. */
+export interface ToastAction {
+  label: string;
+  onAction: () => void;
+}
+
 interface Toast {
   id: number;
   tone: ToastTone;
   title: string;
   message?: string;
+  action?: ToastAction;
 }
 
 interface ToastApi {
-  push: (tone: ToastTone, title: string, message?: string) => void;
-  success: (title: string, message?: string) => void;
+  push: (tone: ToastTone, title: string, message?: string, action?: ToastAction) => void;
+  success: (title: string, message?: string, action?: ToastAction) => void;
   error: (title: string, message?: string) => void;
-  info: (title: string, message?: string) => void;
+  info: (title: string, message?: string, action?: ToastAction) => void;
 }
 
 const ToastContext = createContext<ToastApi | null>(null);
@@ -26,7 +33,8 @@ export function useToast(): ToastApi {
 }
 
 let counter = 0;
-const lifetime = (tone: ToastTone): number => (tone === 'error' ? 6500 : 4000);
+/** Errors and toasts with an action stay longer, so there is time to read or act. */
+const lifetime = (tone: ToastTone, action?: ToastAction): number => (tone === 'error' || action ? 6500 : 4000);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -36,19 +44,19 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const push = useCallback(
-    (tone: ToastTone, title: string, message?: string) => {
+    (tone: ToastTone, title: string, message?: string, action?: ToastAction) => {
       const id = (counter += 1);
-      setToasts((current) => [...current, { id, tone, title, ...(message ? { message } : {}) }]);
-      window.setTimeout(() => remove(id), lifetime(tone));
+      setToasts((current) => [...current, { id, tone, title, ...(message ? { message } : {}), ...(action ? { action } : {}) }]);
+      window.setTimeout(() => remove(id), lifetime(tone, action));
     },
     [remove],
   );
 
   const api: ToastApi = {
     push,
-    success: (title, message) => push('success', title, message),
+    success: (title, message, action) => push('success', title, message, action),
     error: (title, message) => push('error', title, message),
-    info: (title, message) => push('info', title, message),
+    info: (title, message, action) => push('info', title, message, action),
   };
 
   const iconFor = (tone: ToastTone) =>
@@ -65,10 +73,23 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <strong>{toast.title}</strong>
               {toast.message ? <span>{toast.message}</span> : null}
             </div>
+            {toast.action ? (
+              <button
+                type="button"
+                className="toast__action"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  remove(toast.id);
+                  toast.action!.onAction();
+                }}
+              >
+                {toast.action.label}
+              </button>
+            ) : null}
             <button type="button" className="toast__close" aria-label="Dismiss notification" onClick={() => remove(toast.id)}>
               <Icon.Close />
             </button>
-            <span className="toast__progress" aria-hidden="true" style={{ '--toast-ms': `${lifetime(toast.tone)}ms` } as CSSProperties} />
+            <span className="toast__progress" aria-hidden="true" style={{ '--toast-ms': `${lifetime(toast.tone, toast.action)}ms` } as CSSProperties} />
           </div>
         ))}
       </div>

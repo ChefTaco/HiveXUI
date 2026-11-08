@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { teamBody } from '../test-fixtures';
-import { addRelationship, addRole, draftFromRevision, duplicateRole, emptyDraft, keyCommand, managerOf, neighbour, removeRole, roleKey, setCoordinator, setManager, treeOrder } from './model';
+import { addRelationship, addRole, draftFromRevision, duplicateRole, emptyDraft, keyCommand, managerOf, neighbour, removedRole, removeRole, restoreRole, roleKey, setCoordinator, setManager, treeOrder, updateRole } from './model';
 
 const team = () => draftFromRevision(teamBody());
 const key = (name: string, extra: Partial<{ shiftKey: boolean; ctrlKey: boolean; metaKey: boolean; altKey: boolean }> = {}) => ({ key: name, shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, ...extra });
@@ -39,6 +39,25 @@ describe('team edits', () => {
     const draft = removeRole(team(), 'world');
     expect(draft.roles.map((role) => role.key)).toEqual(['lead', 'editor']);
     expect(draft.relationships).toEqual([{ from: 'editor', to: 'lead', type: 'reports_to' }]);
+  });
+
+  it('puts a deleted role back with its relationships, keeping edits made since', () => {
+    const removed = removedRole(team(), 'world')!;
+    expect(removed.index).toBe(1);
+    const sorted = (draft: ReturnType<typeof team>) => ({ ...draft, relationships: [...draft.relationships].sort((a, b) => `${a.from}${a.to}${a.type}`.localeCompare(`${b.from}${b.to}${b.type}`)) });
+    expect(sorted(restoreRole(removeRole(team(), 'world'), removed))).toEqual(sorted(team()));
+    // An edit after the delete stays, and a relationship to a role deleted meanwhile does not come back.
+    let draft = updateRole(removeRole(team(), 'world'), 'editor', { name: 'Proofreader' });
+    draft = restoreRole(removeRole(draft, 'lead'), removed);
+    expect(draft.roles.map((role) => role.key)).toEqual(['editor', 'world']);
+    expect(draft.roles.find((role) => role.key === 'editor')!.name).toBe('Proofreader');
+    expect(draft.relationships.every((edge) => edge.from !== 'lead' && edge.to !== 'lead')).toBe(true);
+    expect(removedRole(team(), 'nobody')).toBeNull();
+    expect(restoreRole(team(), removed)).toEqual(team());
+    // A deleted coordinator comes back as the coordinator only if nobody took that place.
+    const lead = removedRole(team(), 'lead')!;
+    expect(restoreRole(setCoordinator(removeRole(team(), 'lead'), 'world'), lead).roles.filter((role) => role.coordinator).map((role) => role.key)).toEqual(['world']);
+    expect(restoreRole(removeRole(team(), 'lead'), lead).roles.find((role) => role.key === 'lead')!.coordinator).toBe(true);
   });
 
   it('gives a role one manager: a new reporting line replaces the old one', () => {

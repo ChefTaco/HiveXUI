@@ -2427,6 +2427,22 @@ td .badge {
 .toast__close:hover {
   color: var(--text-strong);
 }
+.toast__action {
+  flex: none;
+  align-self: center;
+  padding: 2px 8px;
+  border: 1px solid var(--toast-tone);
+  border-radius: var(--radius-chip);
+  color: var(--toast-tone);
+  font-family: var(--label-font);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.toast__action:hover,
+.toast__action:focus-visible {
+  background: var(--surface);
+  color: var(--text-strong);
+}
 .toast__close svg {
   width: 0.875rem;
   height: 0.875rem;

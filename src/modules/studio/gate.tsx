@@ -1,11 +1,14 @@
-import type { ReactNode } from 'react';
-import { Bot, RefreshCw } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Bot, Plus, RefreshCw } from 'lucide-react';
 import { Button, EmptyState, Panel } from '@ui';
 import { productInstalled } from '../../lib/runtime';
 import { useMagnusResource, type Resource } from '../magnus/api/use-resource';
 import { listProfiles } from '../magnus/pages/agents/ardent/api';
 import type { ArdentProfileSummary } from '../magnus/pages/agents/ardent/schemas';
+import { ADMIN_ONLY, useMagnusSession } from '../magnus/session';
+import { sessionStore } from '../magnus/session-store';
 import { LoadingRows, ResourceError } from '../magnus/ui/resource-state';
+import { NewAgentDrawer } from './agents/new-agent-drawer';
 import { StudioLink } from './link';
 
 export type ArdentProfile = ArdentProfileSummary & { nodeId: string; nodeName: string; reachable: boolean };
@@ -15,6 +18,10 @@ export const ARDENT_PROFILES_HREF = '/fleet/ardent/profiles';
 export function useArdentAgents(): Resource<readonly ArdentProfile[]> & { magnus: boolean } {
   const magnus = productInstalled('magnus');
   const resource = useMagnusResource<readonly ArdentProfile[]>((signal) => listProfiles(signal), [], { enabled: magnus });
+  // Studio renders outside the console shell, so it loads the Magnus session (the role) itself.
+  useEffect(() => {
+    if (magnus) void sessionStore.load();
+  }, [magnus]);
   return { ...resource, magnus };
 }
 
@@ -22,6 +29,8 @@ const NEEDS_AGENT = 'Ardent Project Studio needs at least one Ardent agent.';
 
 /** Every Studio page waits behind this. Without an agent there is nothing Studio can do. */
 export function AgentGate({ agents, children }: { agents: ReturnType<typeof useArdentAgents>; children: ReactNode }) {
+  const admin = useMagnusSession().can(ADMIN_ONLY);
+  const [creating, setCreating] = useState(false);
   if (!agents.magnus)
     return (
       <EmptyState
@@ -49,25 +58,43 @@ export function AgentGate({ agents, children }: { agents: ReturnType<typeof useA
   if (reachable.length > 0) return <>{children}</>;
   const offline = agents.data.length;
   return (
-    <EmptyState
-      framed
-      icon={<Bot className="size-6" />}
-      title={NEEDS_AGENT}
-      message={
-        offline > 0
-          ? `Magnus reports ${offline} Ardent ${offline === 1 ? 'profile' : 'profiles'}, but on nodes it cannot reach right now. Reconnect the node or create a profile on another one, then refresh.`
-          : 'Studio works with the Ardent agents that Magnus manages. Create a profile on a managed node, then refresh.'
-      }
-      action={
-        <div className="flex flex-wrap justify-center gap-2">
-          <Button icon={<RefreshCw className="size-4" />} loading={agents.refreshing} onClick={() => void agents.refresh()}>
-            Refresh
-          </Button>
-          <StudioLink href={ARDENT_PROFILES_HREF} className="btn btn--primary no-underline">
-            Ardent profiles
-          </StudioLink>
-        </div>
-      }
-    />
+    <>
+      <EmptyState
+        framed
+        icon={<Bot className="size-6" />}
+        title={NEEDS_AGENT}
+        message={
+          offline > 0
+            ? `Magnus reports ${offline} Ardent ${offline === 1 ? 'profile' : 'profiles'}, but on nodes it cannot reach right now. Reconnect the node or create a profile on another one, then refresh.`
+            : 'Studio works with the Ardent agents that Magnus manages. Create a profile on a managed node, then refresh.'
+        }
+        action={
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button icon={<RefreshCw className="size-4" />} loading={agents.refreshing} onClick={() => void agents.refresh()}>
+              Refresh
+            </Button>
+            {admin ? (
+              <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setCreating(true)}>
+                New Agent
+              </Button>
+            ) : (
+              <StudioLink href={ARDENT_PROFILES_HREF} className="btn btn--primary no-underline">
+                Ardent profiles
+              </StudioLink>
+            )}
+          </div>
+        }
+      />
+      {admin ? (
+        <NewAgentDrawer
+          open={creating}
+          onCreated={() => {
+            setCreating(false);
+            void agents.refresh();
+          }}
+          onClose={() => setCreating(false)}
+        />
+      ) : null}
+    </>
   );
 }

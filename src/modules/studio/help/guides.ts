@@ -59,7 +59,7 @@ export const STUDIO_GUIDES: Readonly<Record<GuideArea, StudioGuide>> = {
         points: [
           'The top bar has the project switcher, the Team, Room and Agents tabs, Files for references and links, and Archive or Reopen.',
           'Archive makes the project read-only. Running tasks must be cancelled first.',
-          'Studio needs at least one reachable Ardent agent in Magnus. Without one, every page says so, with Refresh.',
+          'Studio needs at least one reachable Ardent agent in Magnus. Without one, every page says so, with Refresh, and New Agent for a Magnus ADMIN.',
         ],
       },
       CLOSE,
@@ -102,7 +102,7 @@ export const STUDIO_GUIDES: Readonly<Record<GuideArea, StudioGuide>> = {
           { keys: '↑', action: 'The role’s manager' },
           { keys: '↓', action: 'The role’s first report' },
           { keys: '← / →', action: 'Previous or next sibling' },
-          { keys: 'Delete or Backspace', action: 'Delete the role (asks first)' },
+          { keys: 'Delete or Backspace', action: 'Delete the role (asks first when it has work; otherwise Undo)' },
           { keys: 'Shift + arrow', action: 'Nudge the card' },
           { keys: 'A', action: 'Auto-layout' },
           { keys: 'Ctrl/Cmd + D', action: 'Duplicate the role' },
@@ -127,7 +127,7 @@ export const STUDIO_GUIDES: Readonly<Record<GuideArea, StudioGuide>> = {
       {
         heading: 'Agents and tasks',
         points: [
-          'Every agent shows its state in words: Replying…, Working, Queued, Waiting, Asking, Reviewing, Paused, Delivered, Available, Offline or Unknown.',
+          'Every agent shows its state in words: Replying…, Working, Queued, Waiting, Asking, Reviewing, Paused, Blocked, Delivered, Available, Offline or Unknown.',
           'Select an agent for its card: current task, last message, Open in Agent Studio, Message directly and Invite to discussion.',
           'Tasks groups work into Assignments, Blockers, Questions, Review requests and Recent outcomes, with Pause, Resume, Cancel and Reassign.',
           'Show roster lists the same agents and states as text. Edit layout moves agents between seats; Save layout stores it.',
