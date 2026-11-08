@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { adjacentSeat, defaultRoomLayout, homeSeats, isoProjection, MAX_DESKS, moveAgent, roomSeats, seatNear, stagePositions } from './geometry';
 import { AnnouncementThrottle, ANNOUNCE_INTERVAL_MS } from './live';
 import { defaultPortrait, PORTRAIT_ACCENTS, PORTRAIT_EMBLEMS, PORTRAIT_PRESETS } from './model';
-import { PLATE_H, placePlates, plateBox } from './plates';
+import { labelBox, PLATE_H, placePlates, plateBox } from './plates';
 
 const refs = (count: number) => Array.from({ length: count }, (_, index) => `node-1~agent-${index + 1}`);
 
@@ -85,6 +85,28 @@ describe('name plates', () => {
     });
     for (const [index, a] of rects.entries())
       for (const b of rects.slice(index + 1)) expect(a.left >= b.right || b.left >= a.right || a.top >= b.bottom || b.top >= a.bottom).toBe(true);
+  });
+
+  it('keeps clear of a fixed label, such as the discussion table name', () => {
+    const label = labelBox(400, 340, 'Discussion table');
+    const placement = placePlates([{ ref: 'a', x: 400, y: 300, prefer: 'below' }], 148, 1, { width: 800, height: 600 }, [label]).get('a')!;
+    const box = plateBox(placement.side, 148, 1);
+    const plate = { left: 400 + box.x, top: 300 + box.y + placement.shift, right: 400 + box.x + 148, bottom: 300 + box.y + placement.shift + PLATE_H };
+    expect(plate.right <= label.left || plate.left >= label.right || plate.bottom <= label.top || plate.top >= label.bottom).toBe(true);
+  });
+
+  it('does not sit on a neighbouring figure when another side is free', () => {
+    // b stands just right of and below a: a's preferred right-hand plate would cover b's state mark and face.
+    const placements = placePlates(
+      [
+        { ref: 'a', x: 300, y: 300, prefer: 'right' },
+        { ref: 'b', x: 380, y: 350, prefer: 'below' },
+      ],
+      148,
+      1,
+      { width: 800, height: 600 },
+    );
+    expect(placements.get('a')!.side).not.toBe('right');
   });
 
   it('keeps the preferred side when it is free', () => {

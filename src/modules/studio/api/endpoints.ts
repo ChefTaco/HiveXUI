@@ -1,18 +1,36 @@
 // One function per Studio service route this console uses, typed by the vendored contract.
 import type { z } from 'zod';
 import {
+  activitySchema,
+  conversationResponseSchema,
+  decisionResponseSchema,
+  layoutResponseSchema,
+  listConversationsResponseSchema,
+  listDecisionsResponseSchema,
+  listDeliverablesResponseSchema,
+  listMessagesResponseSchema,
+  listTasksResponseSchema,
+  messageSchema,
+  postMessageResponseSchema,
+  taskResponseSchema,
   fileResponseSchema,
   listAgentsResponseSchema,
   listFilesResponseSchema,
   listProjectsResponseSchema,
   listTemplatesResponseSchema,
-  taskResponseSchema,
   projectResponseSchema,
   snapshotResponseSchema,
   teamStateSchema,
   templateDetailSchema,
   templateVersionSchema,
   validationResultSchema,
+  type answerRequestSchema,
+  type createConversationRequestSchema,
+  type createDecisionRequestSchema,
+  type createTaskRequestSchema,
+  type postMessageRequestSchema,
+  type putLayoutRequestSchema,
+  type recipientSchema,
   type createProjectRequestSchema,
   type createTemplateRequestSchema,
   type createTemplateVersionRequestSchema,
@@ -35,6 +53,19 @@ export type TemplateSummary = z.infer<typeof listTemplatesResponseSchema>['templ
 export type TemplateDetail = z.infer<typeof templateDetailSchema>;
 export type TemplateVersion = z.infer<typeof templateVersionSchema>;
 export type Task = z.infer<typeof taskResponseSchema>;
+export type Conversation = z.infer<typeof conversationResponseSchema>;
+export type Message = z.infer<typeof messageSchema>;
+export type Decision = z.infer<typeof decisionResponseSchema>;
+export type Activity = z.infer<typeof activitySchema>;
+export type RoomLayoutRecord = NonNullable<z.infer<typeof layoutResponseSchema>['layout']>;
+export type Deliverable = z.infer<typeof listDeliverablesResponseSchema>['deliverables'][number];
+export type Recipient = z.input<typeof recipientSchema>;
+export type PostMessage = z.input<typeof postMessageRequestSchema>;
+export type CreateConversation = z.input<typeof createConversationRequestSchema>;
+export type CreateDecision = z.input<typeof createDecisionRequestSchema>;
+export type CreateTask = z.input<typeof createTaskRequestSchema>;
+export type PutLayout = z.input<typeof putLayoutRequestSchema>;
+export type Answer = z.input<typeof answerRequestSchema>;
 export type Agent = z.infer<typeof listAgentsResponseSchema>['agents'][number];
 export type AgentList = z.infer<typeof listAgentsResponseSchema>;
 export type CreateProject = z.input<typeof createProjectRequestSchema>;
@@ -61,8 +92,8 @@ export const getSnapshot = (id: string, signal?: Signal) => studio.get(project(i
 
 // Files
 export const listFiles = (id: string, signal?: Signal) => studio.get(project(id, '/files'), listFilesResponseSchema, { signal }).then((result) => result.files);
-export const uploadFile = (id: string, file: Blob, name: string, mime: string, idempotencyKey?: Key) =>
-  studio.upload(project(id, '/files'), fileResponseSchema, file, mime, { query: { name, purpose: 'reference' }, idempotencyKey });
+export const uploadFile = (id: string, file: Blob, name: string, mime: string, idempotencyKey?: Key, purpose: 'reference' | 'attachment' = 'reference') =>
+  studio.upload(project(id, '/files'), fileResponseSchema, file, mime, { query: { name, purpose }, idempotencyKey });
 export const reindexFile = (fileId: string, idempotencyKey?: Key) => studio.post(`/files/${segment(fileId)}/reindex`, fileResponseSchema, { idempotencyKey });
 
 // Templates
@@ -89,10 +120,36 @@ export const applyTemplate = (id: string, templateId: string, version: number, r
 export const saveTeamAsTemplate = (id: string, body: SaveAsTemplate, idempotencyKey?: Key) =>
   studio.post(project(id, '/team/save-as-template'), templateDetailSchema, { body, idempotencyKey });
 
+// Room
+export const getLayout = (id: string, signal?: Signal) => studio.get(project(id, '/layout'), layoutResponseSchema, { signal }).then((result) => result.layout);
+export const putLayout = (id: string, body: PutLayout, idempotencyKey?: Key) => studio.put(project(id, '/layout'), layoutResponseSchema, { body, idempotencyKey }).then((result) => result.layout);
+export const listConversations = (id: string, signal?: Signal) => studio.get(project(id, '/conversations'), listConversationsResponseSchema, { signal }).then((result) => result.conversations);
+export const createConversation = (id: string, body: CreateConversation, idempotencyKey?: Key) => studio.post(project(id, '/conversations'), conversationResponseSchema, { body, idempotencyKey });
+export const stopConversation = (conversationId: string, idempotencyKey?: Key) => studio.post(`/conversations/${segment(conversationId)}/stop`, conversationResponseSchema, { idempotencyKey });
+export const listMessages = (conversationId: string, after: number, signal?: Signal) =>
+  studio.get(`/conversations/${segment(conversationId)}/messages`, listMessagesResponseSchema, { query: { after, limit: 200 }, signal });
+export const postMessage = (conversationId: string, body: PostMessage, idempotencyKey?: Key) =>
+  studio.post(`/conversations/${segment(conversationId)}/messages`, postMessageResponseSchema, { body, idempotencyKey });
+export const answerClarification = (messageId: string, body: Answer, idempotencyKey?: Key) => studio.post(`/messages/${segment(messageId)}/answer`, postMessageResponseSchema, { body, idempotencyKey });
+export const requestFollowUp = (messageId: string, note: string, idempotencyKey?: Key) =>
+  studio.post(`/messages/${segment(messageId)}/follow-up`, postMessageResponseSchema, { body: { body_md: note }, idempotencyKey });
+
+// Decisions
+export const listDecisions = (id: string, signal?: Signal) => studio.get(project(id, '/decisions'), listDecisionsResponseSchema, { signal }).then((result) => result.decisions);
+export const createDecision = (id: string, body: CreateDecision, idempotencyKey?: Key) => studio.post(project(id, '/decisions'), decisionResponseSchema, { body, idempotencyKey });
+
 // Tasks
+export const listTasks = (id: string, query: { state?: 'active' | 'finished' | 'all'; conversation_id?: string }, signal?: Signal) =>
+  studio.get(project(id, '/tasks'), listTasksResponseSchema, { query, signal }).then((result) => result.tasks);
+export const createTask = (id: string, body: CreateTask, idempotencyKey?: Key) => studio.post(project(id, '/tasks'), taskResponseSchema, { body, idempotencyKey });
+export type TaskControl = 'pause' | 'resume' | 'cancel';
+export const controlTask = (taskId: string, control: TaskControl, idempotencyKey?: Key) => studio.post(`/tasks/${segment(taskId)}/${control}`, taskResponseSchema, { idempotencyKey });
 /** Cancels the task if it is still active and creates the same work under the current team revision. */
 export const reassignTask = (taskId: string, roleKey: string, idempotencyKey?: Key) =>
   studio.post(`/tasks/${segment(taskId)}/reassign`, taskResponseSchema, { body: { role_key: roleKey }, idempotencyKey });
+
+// Deliverables
+export const listDeliverables = (id: string, signal?: Signal) => studio.get(project(id, '/deliverables'), listDeliverablesResponseSchema, { signal });
 
 // Agents
 export const listAgents = (signal?: Signal) => studio.get('/agents', listAgentsResponseSchema, { signal });

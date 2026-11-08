@@ -36,6 +36,12 @@ export interface Rect {
   right: number;
   bottom: number;
 }
+
+/** The box of a one-line xs label drawn with text-anchor middle at a baseline, for plates to keep clear of. */
+export function labelBox(x: number, baseline: number, text: string): Rect {
+  const half = (text.length * 7 + 8) / 2;
+  return { left: x - half, top: baseline - 14, right: x + half, bottom: baseline + 5 };
+}
 const MARGIN = 3;
 const overlaps = (a: Rect, b: Rect) => a.left < b.right + MARGIN && b.left < a.right + MARGIN && a.top < b.bottom + MARGIN && b.top < a.bottom + MARGIN;
 const overlapArea = (a: Rect, b: Rect) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
@@ -43,12 +49,33 @@ const overlapArea = (a: Rect, b: Rect) => Math.max(0, Math.min(a.right, b.right)
 /** What a side costs over the preferred one, and each pixel of shift away from the figure. */
 const SIDE_COST = 120;
 const SHIFT_COST = 6;
+/** What a leader line costs for each label or plate it runs through. */
+const CROSS_COST = 1200;
+const HEAD_WEIGHT = 8;
+const BODY_WEIGHT = 3;
 const SHIFTS = [0, 1, -1, 2, -2, 3, -3, 4, -4, 6, -6, 8, -8].map((step) => step * (PLATE_H / 2));
+
+/** Where a moved plate's leader line meets it, as AgentPlate draws it. */
+function leaderEnd(from: PlateRequest, side: PlateSide, plate: Rect): { x: number; y: number } {
+  if (side === 'below') return { x: from.x, y: plate.top };
+  return { x: side === 'left' ? plate.right : plate.left, y: (plate.top + plate.bottom) / 2 };
+}
+
+/** Whether the straight line from a figure's feet to a point passes through a box. */
+function crosses(from: { x: number; y: number }, to: { x: number; y: number }, box: Rect): boolean {
+  for (let step = 1; step < 16; step += 1) {
+    const x = from.x + ((to.x - from.x) * step) / 16;
+    const y = from.y + ((to.y - from.y) * step) / 16;
+    if (x > box.left && x < box.right && y > box.top && y < box.bottom) return true;
+  }
+  return false;
+}
 
 /**
  * Sides for every plate, back-most figures first: the front of the room has more free floor. A plate
  * never covers another plate or a fixed label; among the places that are left it takes the one that
- * hides the least of other faces, staying on its preferred side and close to its figure when it can.
+ * hides the least of other figures, faces most of all, staying on its preferred side and close to its
+ * figure when it can.
  */
 export function placePlates(requests: readonly PlateRequest[], width: number, size: number, bounds: { width: number; height: number }, obstacles: readonly Rect[] = []): Map<string, PlatePlacement> {
   const placed: Rect[] = [...obstacles];
@@ -59,7 +86,12 @@ export function placePlates(requests: readonly PlateRequest[], width: number, si
     const top = request.y + box.y + shift;
     return { left, top, right: left + width, bottom: top + PLATE_H };
   };
-  const heads = requests.map((request) => ({ ref: request.ref, rect: { left: request.x - 13 * size, top: request.y - 62 * size, right: request.x + 13 * size, bottom: request.y - 26 * size } }));
+  // Figures: a plate over a face or its state mark costs most, over a body less, and both far more
+  // than taking another side or moving a little.
+  const figures = requests.flatMap((request) => [
+    { ref: request.ref, weight: HEAD_WEIGHT, rect: { left: request.x - 14 * size, top: request.y - 80 * size, right: request.x + 14 * size, bottom: request.y - 26 * size } },
+    { ref: request.ref, weight: BODY_WEIGHT, rect: { left: request.x - 18 * size, top: request.y - 26 * size, right: request.x + 18 * size, bottom: request.y + 6 } },
+  ]);
   const inside = (r: Rect) => r.left >= 0 && r.right <= bounds.width && r.top >= 0 && r.bottom <= bounds.height;
   for (const request of [...requests].sort((a, b) => a.y - b.y || a.x - b.x)) {
     const sides: PlateSide[] = [request.prefer, ...(['below', 'right', 'left'] as const).filter((side) => side !== request.prefer)];
@@ -68,8 +100,10 @@ export function placePlates(requests: readonly PlateRequest[], width: number, si
       for (const side of sides) {
         const r = rect(request, side, shift);
         if (!inside(r) || placed.some((other) => overlaps(r, other))) continue;
-        const hidden = heads.reduce((sum, head) => (head.ref === request.ref ? sum : sum + overlapArea(r, head.rect)), 0);
-        const cost = hidden + (side === request.prefer ? 0 : SIDE_COST) + Math.abs(shift) * SHIFT_COST;
+        // Its own figure counts too: a plate moved up must not cover the agent it names.
+        const hidden = figures.reduce((sum, figure) => sum + figure.weight * overlapArea(r, figure.rect), 0);
+        const crossed = shift === 0 ? 0 : placed.filter((other) => crosses(request, leaderEnd(request, side, r), other)).length;
+        const cost = hidden + (side === request.prefer ? 0 : SIDE_COST) + Math.abs(shift) * SHIFT_COST + crossed * CROSS_COST;
         if (!best || cost < best.cost) best = { side, shift, rect: r, cost };
       }
     }

@@ -1,0 +1,529 @@
+@layer components {
+  /* The Conversation Room page. Layout only: colors and type come from utilities in the markup. */
+  .room-page {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+  .room-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+  .room-head__switch {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 18rem;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .room-head__switch .room-select {
+    min-width: 0;
+    flex: 1 1 auto;
+    max-width: 28rem;
+  }
+  .room-head__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .room-head__error {
+    flex-basis: 100%;
+  }
+  .room-live {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    white-space: nowrap;
+  }
+  .room-notice {
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* Desktop: the room and the transcript side by side, split at one of the splitter's stops. */
+  .room-split {
+    display: grid;
+    height: calc(100dvh - 15rem);
+    min-height: 34rem;
+    grid-template-columns: minmax(0, 60fr) auto minmax(0, 40fr);
+    gap: var(--space-2);
+  }
+  .room-split--40 { grid-template-columns: minmax(0, 40fr) auto minmax(0, 60fr); }
+  .room-split--45 { grid-template-columns: minmax(0, 45fr) auto minmax(0, 55fr); }
+  .room-split--50 { grid-template-columns: minmax(0, 50fr) auto minmax(0, 50fr); }
+  .room-split--55 { grid-template-columns: minmax(0, 55fr) auto minmax(0, 45fr); }
+  .room-split--65 { grid-template-columns: minmax(0, 65fr) auto minmax(0, 35fr); }
+  .room-split--70 { grid-template-columns: minmax(0, 70fr) auto minmax(0, 30fr); }
+  .room-split--75 { grid-template-columns: minmax(0, 75fr) auto minmax(0, 25fr); }
+  .room-splitter {
+    position: relative;
+    width: 0.75rem;
+    cursor: col-resize;
+    touch-action: none;
+  }
+  .room-splitter::before {
+    position: absolute;
+    top: var(--space-4);
+    bottom: var(--space-4);
+    left: 50%;
+    width: 1px;
+    background: var(--border);
+    content: '';
+  }
+  .room-splitter:hover::before,
+  .room-splitter:focus-visible::before {
+    width: 3px;
+    margin-left: -1px;
+    background: var(--accent);
+  }
+  .room-splitter:focus-visible {
+    outline: none;
+  }
+
+  .room-pane {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .room-pane:focus {
+    outline: none;
+  }
+  .room-pane--scene {
+    overflow-y: auto;
+  }
+  .room-pane--transcript {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-panel);
+    background: var(--surface);
+  }
+  .room-tabs {
+    flex-wrap: nowrap;
+  }
+  .room-tabpanel {
+    display: grid;
+    min-width: 0;
+    gap: var(--space-3);
+  }
+  .room-page--tabs .room-pane--transcript {
+    height: calc(100dvh - 16rem);
+    min-height: 28rem;
+  }
+
+  /* Phones: the ring, the strip and the transcript in one column, the composer fixed at the bottom. */
+  .room-compact {
+    display: grid;
+    gap: var(--space-3);
+  }
+  .room-page--compact {
+    padding-bottom: 11rem;
+  }
+  .room-page--compact .room-pane--transcript {
+    overflow: visible;
+  }
+  .room-page--compact .room-transcript__scroll {
+    overflow: visible;
+  }
+  .room-page--compact .room-composer {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    max-height: 60dvh;
+    overflow-y: auto;
+    border-top: 1px solid var(--border-strong);
+    background: var(--surface);
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* The transcript. */
+  .room-transcript__scroll {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .room-transcript__loading {
+    display: grid;
+    gap: var(--space-3);
+  }
+  .room-transcript__refresh {
+    align-self: center;
+  }
+  .room-messages,
+  .room-thread {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    gap: var(--space-2);
+    list-style: none;
+  }
+  .room-messages:focus {
+    outline: none;
+  }
+  .room-thread-wrap {
+    padding-left: var(--space-5);
+    border-left: 2px solid var(--border);
+    margin-left: var(--space-3);
+  }
+  .room-msg {
+    position: relative;
+    display: grid;
+    min-width: 0;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+  }
+  .room-msg--own {
+    margin-left: var(--space-6);
+  }
+  .room-msg--highlight {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+  .room-msg:focus {
+    outline: none;
+  }
+  .room-msg__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-1) var(--space-2);
+  }
+  .room-msg__time {
+    margin-left: auto;
+  }
+  .room-msg__text {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+  .room-msg__text--live::after {
+    display: inline-block;
+    width: 0.5em;
+    height: 1em;
+    margin-left: 1px;
+    background: var(--accent);
+    content: '';
+    vertical-align: text-bottom;
+    animation: var(--animate-flicker);
+  }
+  html[data-fx='low'] .room-msg__text--live::after {
+    animation: none;
+  }
+  .room-msg__links,
+  .room-card__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+  }
+  /* Actions float over the message's top corner on hover or focus; on touch screens they sit under it. */
+  .room-msg__actions {
+    position: absolute;
+    top: calc(var(--space-1) * -1);
+    right: var(--space-2);
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-control);
+    background: var(--surface-raised);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--duration-fast);
+  }
+  .room-msg:hover > .room-msg__actions,
+  .room-msg:focus-within > .room-msg__actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  @media (hover: none) {
+    .room-msg__actions {
+      position: static;
+      justify-self: start;
+      border: 0;
+      background: none;
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+  .room-action {
+    display: inline-grid;
+    min-width: 1.75rem;
+    min-height: 1.75rem;
+    place-items: center;
+    border-radius: var(--radius-control);
+  }
+  .room-action:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 1px;
+  }
+  .room-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .room-quote {
+    display: inline-flex;
+    max-width: 100%;
+    align-items: center;
+    gap: var(--space-1);
+    overflow-wrap: anywhere;
+  }
+  .room-note {
+    display: grid;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+    margin-inline: var(--space-4);
+  }
+  .room-note:focus {
+    outline: none;
+  }
+  .room-card__form,
+  .room-card__body {
+    display: grid;
+    gap: var(--space-2);
+    padding-top: var(--space-2);
+    border-top: 1px dashed var(--border);
+  }
+  .room-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .room-option {
+    padding: var(--space-1) var(--space-3);
+  }
+  .room-attachments {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 0;
+    gap: var(--space-1);
+    list-style: none;
+  }
+  .room-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 0 var(--space-1) 0 var(--space-2);
+  }
+  .room-blockquote {
+    padding-left: var(--space-3);
+  }
+
+  /* The composer. */
+  .room-composer {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border-top: 1px solid var(--border);
+  }
+  .room-composer--closed {
+    padding: var(--space-3);
+  }
+  .room-composer__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+  }
+  .room-composer__to {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .room-select {
+    padding: var(--space-1) var(--space-2);
+  }
+  .room-composer__reply {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+  }
+  .room-composer__field {
+    position: relative;
+  }
+  .room-composer__input {
+    width: 100%;
+    min-height: 3.5rem;
+    max-height: 12rem;
+    resize: vertical;
+  }
+  .room-mentions {
+    position: absolute;
+    bottom: calc(100% + var(--space-1));
+    left: 0;
+    z-index: 20;
+    display: grid;
+    width: min(20rem, 100%);
+    margin: 0;
+    padding: var(--space-1);
+    gap: 2px;
+    list-style: none;
+    box-shadow: var(--shadow-lg);
+  }
+  .room-mentions__item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    cursor: pointer;
+  }
+  .room-picker {
+    display: grid;
+    max-height: 12rem;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+    overflow-y: auto;
+  }
+  .room-composer__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .room-composer__count {
+    margin-left: auto;
+  }
+
+  /* The agent card, docked at the bottom of the room pane. */
+  .room-popover {
+    position: absolute;
+    right: var(--space-3);
+    bottom: var(--space-3);
+    z-index: 25;
+    display: grid;
+    width: min(24rem, calc(100% - var(--space-6)));
+    max-height: calc(100% - var(--space-6));
+    gap: var(--space-3);
+    overflow-y: auto;
+    box-shadow: var(--shadow-overlay);
+  }
+  .room-popover:focus {
+    outline: none;
+  }
+  .room-popover__head {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+  .room-popover__who {
+    display: grid;
+    min-width: 0;
+    flex: 1 1 auto;
+    gap: 2px;
+  }
+  .room-popover__body {
+    display: grid;
+    gap: var(--space-3);
+  }
+  .room-popover__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .room-page--compact .room-popover {
+    position: fixed;
+    right: var(--space-2);
+    bottom: var(--space-2);
+    left: var(--space-2);
+    z-index: 60;
+    width: auto;
+    max-height: 70dvh;
+  }
+
+  .room-zones {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-2) var(--space-3) var(--space-3);
+  }
+
+  /* The activity strip and the task lists. */
+  .room-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-4);
+    padding: var(--space-2) var(--space-3);
+  }
+  .room-strip__item {
+    display: inline-flex;
+    min-height: 2rem;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .room-strip__item:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+  .room-task-groups,
+  .room-task-group,
+  .room-form,
+  .room-fieldset {
+    display: grid;
+    min-width: 0;
+    gap: var(--space-3);
+  }
+  .room-fieldset {
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .room-task-group__title {
+    display: flex;
+    align-items: baseline;
+    margin: 0;
+  }
+  .room-task-list {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    gap: var(--space-2);
+    list-style: none;
+  }
+  .room-task,
+  .room-decision {
+    display: grid;
+    min-width: 0;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+  }
+  .room-task:focus {
+    outline: none;
+  }
+  .room-task__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  .room-task__title {
+    overflow-wrap: anywhere;
+  }
+  .room-task__controls,
+  .room-task__reassign {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-2);
+  }
+}

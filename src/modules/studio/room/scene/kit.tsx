@@ -35,8 +35,7 @@ export function RoomShell({ iso, zoneLabels }: { iso: Iso; zoneLabels: Record<st
   const corner = iso.at(0, 0, WALL_H);
   const right = iso.at(ROOM_W, 0, WALL_H);
   const left = iso.at(0, ROOM_D, WALL_H);
-  const east = iso.at(10.2, 0, WALL_H - 18);
-  const west = iso.at(0, 10.2, WALL_H - 18);
+  const { 'desks-east': east, 'desks-west': west } = zoneLabelPoints(iso);
   return (
     <g aria-hidden="true">
       <polygon className="fill-surface-sunken stroke-border" strokeWidth={1} points={iso.poly([[0, 0], [ROOM_W, 0], [ROOM_W, ROOM_D], [0, ROOM_D]])} />
@@ -78,6 +77,19 @@ export function Desk({ iso, seat, lit }: { iso: Iso; seat: Seat; lit: boolean })
   );
 }
 
+/** Where the table, review station and shelf names sit: their baselines, shared with plate placement. */
+export function zoneLabelPoints(iso: Iso): Record<'table' | 'review' | 'shelf' | 'desks-east' | 'desks-west', { x: number; y: number }> {
+  const ry = Math.abs(iso.at(TABLE_RADIUS, TABLE_RADIUS).y - iso.at(0, 0).y);
+  const top = iso.at(TABLE_CENTER.x, TABLE_CENTER.y, 24);
+  return {
+    table: { x: top.x, y: top.y - ry * 0.35 },
+    review: iso.at(REVIEW_STATION.x + 1.1, REVIEW_STATION.y + 1.3),
+    shelf: iso.at(DELIVERY_SHELF.x + 1.4, DELIVERY_SHELF.y + 1.6),
+    'desks-east': iso.at(10.2, 0, WALL_H - 18),
+    'desks-west': iso.at(0, 10.2, WALL_H - 18),
+  };
+}
+
 /** The round discussion table. Its name sits on the tabletop. */
 export function DiscussionTable({ iso, label }: { iso: Iso; label?: string | undefined }) {
   // A circle on the floor: its width and depth on screen come from the projection.
@@ -95,7 +107,7 @@ export function DiscussionTable({ iso, label }: { iso: Iso; label?: string | und
       <ellipse className="fill-surface-hover stroke-accent/50" strokeWidth={1.2} cx={top.x} cy={top.y} rx={rx} ry={ry} />
       <ellipse className="stroke-accent/20" fill="none" strokeWidth={1} cx={top.x} cy={top.y} rx={rx * 0.7} ry={ry * 0.7} />
       {label && (
-        <text className="fill-text-muted text-xs" x={top.x} y={top.y - ry * 0.35} textAnchor="middle">
+        <text className="fill-text-muted text-xs" x={top.x} y={zoneLabelPoints(iso).table.y} textAnchor="middle">
           {label}
         </text>
       )}
@@ -106,7 +118,7 @@ export function DiscussionTable({ iso, label }: { iso: Iso; label?: string | und
 /** The review station: a lectern with a lens, where reviewers stand. */
 export function ReviewStation({ iso, label, active }: { iso: Iso; label?: string | undefined; active: boolean }) {
   const lens = iso.at(REVIEW_STATION.x + 0.1, REVIEW_STATION.y + 0.1, 48);
-  const name = iso.at(REVIEW_STATION.x + 1.1, REVIEW_STATION.y + 1.3);
+  const name = zoneLabelPoints(iso).review;
   return (
     <g className="room-review" aria-hidden="true">
       <IsoBox iso={iso} x={REVIEW_STATION.x - 0.5} y={REVIEW_STATION.y - 0.7} w={1} d={1.4} h={34} top={active ? 'fill-info/30' : undefined} />
@@ -126,7 +138,7 @@ const SHELF_H = 64;
 export function DeliveryShelf({ iso, label, items }: { iso: Iso; label?: string | undefined; items: readonly ShelfItem[] }) {
   const { x, y } = DELIVERY_SHELF;
   const boards = [0, 22, 44].map((z) => iso.poly([[x - 1.3, y + 0.4, z + 2], [x + 1.3, y + 0.4, z + 2]]));
-  const name = iso.at(x + 1.4, y + 1.6);
+  const name = zoneLabelPoints(iso).shelf;
   const shown = items.slice(0, 6);
   return (
     <g className="room-shelf" aria-hidden="true">

@@ -1,5 +1,5 @@
 // Fake Studio service records for tests. Tests only; nothing in the console imports it.
-import type { Agent, Project, Task, ProjectSummary, Snapshot, StudioFile, TeamRevision, TeamState, TemplateDetail, TemplateSummary } from './api/endpoints';
+import type { Activity, Agent, Conversation, Decision, Message, Project, Task, ProjectSummary, Snapshot, StudioFile, TeamRevision, TeamState, TemplateDetail, TemplateSummary } from './api/endpoints';
 
 const id = (prefix: string, n: number) => `${prefix}_01HZX3K6Q1V8R2M4N6P8T0W${String(n).padStart(3, '0')}`;
 export const PROJECT_ID = id('prj', 1);
@@ -178,6 +178,79 @@ export const task = (overrides: Partial<Task> = {}): Task => ({
   updated_at: AT,
   finished_at: null,
   ...overrides,
+});
+
+export const TEAM_CONVERSATION_ID = id('cnv', 1);
+export const conversation = (overrides: Partial<Conversation> = {}): Conversation => ({
+  id: TEAM_CONVERSATION_ID,
+  project_id: PROJECT_ID,
+  kind: 'team',
+  parent_id: null,
+  title: 'Team room',
+  role_key: null,
+  discussion: null,
+  last_message_seq: 0,
+  created_by: 'operator',
+  created_at: AT,
+  updated_at: AT,
+  stopped_at: null,
+  ...overrides,
+});
+
+export const messageId = (n: number) => id('msg', n);
+export const BINDING = { lead: id('bnd', 1), world: id('bnd', 2) } as const;
+export const message = (overrides: Partial<Message> = {}): Message => ({
+  id: messageId(1),
+  project_id: PROJECT_ID,
+  conversation_id: TEAM_CONVERSATION_ID,
+  seq: 6,
+  author: { kind: 'user', user_id: 'operator' },
+  addressees: [],
+  reply_to: null,
+  thread_root: null,
+  kind: 'message',
+  body_md: 'Where does the adventure start?',
+  attachments: [],
+  links: {},
+  ardent: null,
+  state: 'complete',
+  created_at: AT,
+  updated_at: AT,
+  ...overrides,
+});
+
+export const decision = (overrides: Partial<Decision> = {}): Decision => ({
+  id: id('dec', 1),
+  project_id: PROJECT_ID,
+  title: 'Tone',
+  statement_md: 'Keep the tone eerie but hopeful.',
+  rationale_md: '',
+  sources: [],
+  decided_by: 'operator',
+  superseded_by: null,
+  created_at: AT,
+  ...overrides,
+});
+
+export const activity = (overrides: Partial<Activity> = {}): Activity => ({
+  binding_id: BINDING.lead,
+  agent_ref: 'node-1~lead',
+  state: 'available',
+  label: 'Available',
+  source: { kind: 'presence' },
+  since: AT,
+  ...overrides,
+});
+
+/** One persisted stream frame, as the service sends it. */
+export const frame = (seq: number, type: string, payload: Record<string, unknown>) => ({
+  event: type,
+  id: String(seq),
+  data: JSON.stringify({ seq, project_id: PROJECT_ID, type, at: AT, payload }),
+});
+export const deltaFrame = (messageId: string, text: string, mode: 'append' | 'replace' = 'append', step = 0) => ({
+  event: 'message.delta',
+  data: JSON.stringify({ message_id: messageId, text, mode, step }),
 });
 
 export const agent = (overrides: Partial<Agent> = {}): Agent => ({
