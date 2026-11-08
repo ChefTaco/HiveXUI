@@ -243,9 +243,13 @@ console on a free loopback port and keeps its state in `output/studio-e2e/`; scr
 `output/studio-e2e-shots/` (or `STUDIO_E2E_SHOTS`). `STUDIO_E2E_PRODUCTS_ROOT` points at another
 directory of checkouts, `STUDIO_E2E_MAGNUS_DIR` at another Magnus checkout,
 `STUDIO_E2E_ARDENT_TGZ` at an Ardent package to stage on the node instead of one packed from
-`../Ardent`, and `STUDIO_E2E_REBUILD=1` rebuilds the images. `STUDIO_E2E_KEEP=1` keeps a stack the
-specs started. The node container runs systemd and needs `CAP_SYS_ADMIN` in a private cgroup
-namespace; it never touches the host's cgroups.
+`../Ardent`, `STUDIO_E2E_REBUILD=1` rebuilds the images and `STUDIO_E2E_TAG` names their tag (default
+`local`), so stacks built from different checkouts keep their own images. `STUDIO_E2E_KEEP=1` keeps a
+stack the specs started. The bootstrap activates the node's Ardent-only scope over the evidence Magnus's
+ADMIN API reports (`GET /resource-leases/enrollment/:nodeId/ardent-scope/evidence`), and the stack sets
+`COMMAND_RECONCILIATION_SECRET` on Magnus and the node agent, so an Ardent action whose outcome is
+unknown can be reconciled from the Ardent installations page. The node container runs systemd and
+needs `CAP_SYS_ADMIN` in a private cgroup namespace; it never touches the host's cgroups.
 
 ### Sign-in portal
 

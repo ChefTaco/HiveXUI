@@ -1,8 +1,9 @@
 // Runs inside the stack network (compose `tools` service). Phase "enroll" waits for the stack,
 // prepares HiveMem and starts the Magnus resource enrollment of the fleet node; phase "agents"
-// activates the reviewed Ardent-only scope (with receipt digests the host read from the
-// database), installs the staged Ardent package and deploys the first agents through Magnus's
-// New Agent operation, signed in as the seeded operator through the console ingress.
+// activates the reviewed Ardent-only scope (over the evidence Magnus's ADMIN API reports: the drain
+// receipt digests and scheduler snapshot), installs the staged Ardent package and deploys the first
+// agents through Magnus's New Agent operation, signed in as the seeded operator through the console
+// ingress.
 import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { lookup as dnsLookup } from 'node:dns';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -122,17 +123,23 @@ async function enroll() {
   say('node drain receipts verified');
 }
 
+/** Activate the reviewed Ardent-only scope over the evidence Magnus reports for it, read just before signing. */
+async function activateArdentScope(id, hostname) {
+  const evidence = await magnus(`/resource-leases/enrollment/${id}/ardent-scope/evidence`);
+  if (evidence.scope === 'active') return;
+  if (!evidence.ready) throw new Error(`Ardent-only scope cannot be activated: ${evidence.blockers.join('; ')}`);
+  if (evidence.epoch !== state.enrollment.epoch || evidence.barrierId !== state.enrollment.barrierId) throw new Error('The node drain changed since enrollment');
+  const assertion = { version: 1, scope: 'managed-ardent-actions-only', excludedParticipant: 'scheduler', nodeId: id, nodeFqdn: hostname,
+    epoch: evidence.epoch, barrierId: evidence.barrierId, decisionId: randomUUID(), approvalRef: 'studio-e2e:operator',
+    reviewSha256: sha256('studio-e2e:review'), schedulerSnapshotSha256: evidence.schedulerSnapshotSha256,
+    receiptSha256: evidence.receiptSha256, expiresAt: Date.now() + 120_000 };
+  const signature = createHmac('sha256', state.secrets.magnusReconcile).update('magnus.ardent-scope-activation.v1\n' + canonical(assertion)).digest('hex');
+  await magnus(`/resource-leases/enrollment/${id}/ardent-scope/activate`, { method: 'POST', body: { ...assertion, signature } });
+}
+
 async function agents() {
   const { id, hostname } = state.node;
-  const scope = await magnus(`/resource-leases/enrollment/${id}/ardent-scope`);
-  const assertion = { version: 1, scope: 'managed-ardent-actions-only', excludedParticipant: 'scheduler', nodeId: id, nodeFqdn: hostname,
-    epoch: state.enrollment.epoch, barrierId: state.enrollment.barrierId, decisionId: randomUUID(), approvalRef: 'studio-e2e:operator',
-    reviewSha256: sha256('studio-e2e:review'), schedulerSnapshotSha256: scope.schedulerSnapshotSha256,
-    receiptSha256: state.enrollment.receiptSha256, expiresAt: Date.now() + 120_000 };
-  if (scope.scope.state !== 'active') {
-    const signature = createHmac('sha256', state.secrets.magnusReconcile).update('magnus.ardent-scope-activation.v1\n' + canonical(assertion)).digest('hex');
-    await magnus(`/resource-leases/enrollment/${id}/ardent-scope/activate`, { method: 'POST', body: { ...assertion, signature } });
-  }
+  await activateArdentScope(id, hostname);
   say('Ardent-only scope is active');
   const install = await magnus(`/ardent/installations/${id}/profiles/install/action`, { method: 'POST', body: { action: 'package-install' } });
   say(`Ardent package installed: ${JSON.stringify(install).slice(0, 200)}`);
