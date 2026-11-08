@@ -3,7 +3,7 @@ import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { button, click, mount, settle, stubBrowser, type, type Mounted } from '../../magnus/test-dom';
 import StudioModule from '../index';
-import { resetProjectStores } from '../state/project-store';
+import { acquireProjectStore, resetProjectStores } from '../state/project-store';
 import { file, OTHER_PROJECT_ID, PROJECT_ID, project, serveStudio, snapshot, summary, team, templateSummary, type StudioRequest } from '../test-fixtures';
 
 vi.mock('../../../lib/runtime', async (importOriginal) => ({
@@ -93,6 +93,7 @@ describe('the projects home', () => {
 describe('creating a project', () => {
   it('creates the project on the brief, so a refresh resumes at references, then applies a template', async () => {
     let files = [file()];
+    const applied = team({ current: null });
     route = (request) => {
       if (request.method === 'POST' && request.path === '/projects') return Response.json(project({ name: 'Sunken Archive' }), { status: 201 });
       if (request.path === `/projects/${PROJECT_ID}`) return project();
@@ -103,7 +104,7 @@ describe('creating a project', () => {
         return Response.json(created, { status: 201 });
       }
       if (request.path === '/templates?kind=team') return { templates: [templateSummary()] };
-      if (request.path === `/projects/${PROJECT_ID}/team/apply-template`) return team({ current: null });
+      if (request.path === `/projects/${PROJECT_ID}/team/apply-template`) return applied;
       return undefined;
     };
     const root = await open('/studio/new');
@@ -155,6 +156,10 @@ describe('creating a project', () => {
     await settle();
     expect(server.mutations().at(-1)).toMatchObject({ path: `/projects/${PROJECT_ID}/team/apply-template`, body: { template_id: templateSummary().id, version: 1, replace_draft: false } });
     expect(location.pathname + location.search).toBe(`/studio/p/${PROJECT_ID}/team?start=1`);
+    // The designer starts from the applied team, not the snapshot from before it (still empty here).
+    const { store, release } = acquireProjectStore(PROJECT_ID);
+    expect(store.getState().snapshot?.team).toEqual(applied);
+    release();
   });
 
   it('retries indexing for a reference that failed', async () => {
