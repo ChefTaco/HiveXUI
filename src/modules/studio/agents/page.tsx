@@ -3,9 +3,10 @@ import { ArrowLeft, ArrowUpRight, Bot } from 'lucide-react';
 import { Badge, EmptyState, StatusDot } from '@ui';
 import { cn } from '@lib/cn';
 import { useMagnusResource, type Resource } from '../../magnus/api/use-resource';
-import { readResource } from '../../magnus/pages/agents/ardent/api';
+import { readInstallation, readResource } from '../../magnus/pages/agents/ardent/api';
+import { hiveMemCredentialView } from '../../magnus/pages/agents/ardent/hivemem-credential';
 import { parseProfileRef, profileHref } from '../../magnus/pages/agents/ardent/logic';
-import { memoryStatusSchema, type MemoryStatus } from '../../magnus/pages/agents/ardent/schemas';
+import { memoryStatusSchema, type ArdentHiveMemCredentialField, type MemoryStatus } from '../../magnus/pages/agents/ardent/schemas';
 import type { ProfileRef } from '../../magnus/pages/agents/ardent/profile/editors';
 import { listAgents, type Agent, type Snapshot } from '../api/endpoints';
 import { setStudioQuery, StudioLink, useStudioSearch } from '../link';
@@ -44,6 +45,9 @@ function AgentStudioBody({ agentRef, projectId, snapshot }: { agentRef: string; 
   const tab = agentTab(search.get('tab'));
   const agents = useMagnusResource((signal) => listAgents(signal), []);
   const memory = useMagnusResource((signal) => readResource(ref.nodeId, ref.profileId, 'memory/status', memoryStatusSchema, signal), [agentRef]);
+  // The HiveMem credential Magnus renews. Only a Magnus with credential renewal reports it.
+  const installation = useMagnusResource((signal) => readInstallation(ref.nodeId, signal), [ref.nodeId]);
+  const credential = installation.data?.profiles.find((item) => item.id === ref.profileId)?.hivemem;
   const agent = agents.data?.agents.find((item) => item.agent_ref === agentRef);
   const context: AgentContext = { ...ref, agentRef, agent, snapshot, projectId, memory, refreshAgent: () => void agents.refresh() };
   const tabsId = useId();
@@ -51,7 +55,7 @@ function AgentStudioBody({ agentRef, projectId, snapshot }: { agentRef: string; 
 
   return (
     <div className="agent-studio page-stack">
-      <AgentHeader context={context} loading={agents.loading} magnusDown={agents.data?.magnus.state === 'unavailable' ? agents.data.magnus.error ?? 'Magnus is unavailable.' : null} />
+      <AgentHeader context={context} credential={credential} loading={agents.loading} magnusDown={agents.data?.magnus.state === 'unavailable' ? agents.data.magnus.error ?? 'Magnus is unavailable.' : null} />
       {missing ? (
         <EmptyState
           framed
@@ -111,7 +115,18 @@ function MemoryBadge({ memory }: { memory: Resource<MemoryStatus> }) {
   );
 }
 
-function AgentHeader({ context, loading, magnusDown }: { context: AgentContext; loading: boolean; magnusDown: string | null }) {
+/** Nothing unless Magnus reports a credential for the profile. */
+function CredentialBadge({ credential }: { credential: ArdentHiveMemCredentialField }) {
+  const view = hiveMemCredentialView(credential);
+  if (!view || view.kind === 'unmanaged') return null;
+  return (
+    <Badge tone={view.tone} dot>
+      <span title={view.expires ? `${view.headline} · ${view.kind === 'expired' ? 'expired' : 'expires'} ${view.expires.absolute}` : view.headline}>HiveMem credential: {view.short}</span>
+    </Badge>
+  );
+}
+
+function AgentHeader({ context, credential, loading, magnusDown }: { context: AgentContext; credential: ArdentHiveMemCredentialField; loading: boolean; magnusDown: string | null }) {
   const { agent, agentRef, nodeId, profileId, projectId, memory } = context;
   const search = useStudioSearch();
   const runtime = runtimeStatus(agent);
@@ -149,6 +164,7 @@ function AgentHeader({ context, loading, magnusDown }: { context: AgentContext; 
               {loading && !agent ? 'Checking runtime' : runtime.label}
             </Badge>
             <MemoryBadge memory={memory} />
+            <CredentialBadge credential={credential} />
           </div>
           {agent?.error ? <p className="m-0 text-sm text-warning">{agent.error}</p> : null}
           {magnusDown ? <p className="m-0 text-sm text-warning" role="status">{magnusDown}</p> : null}

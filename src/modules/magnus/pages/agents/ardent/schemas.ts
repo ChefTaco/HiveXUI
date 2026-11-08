@@ -5,6 +5,32 @@ import { z } from 'zod';
 
 const ok = <T extends z.ZodType>(data: T) => z.object({ success: z.literal(true), data });
 
+// packages/contracts/src/ardent.ts: the profile's HiveMem agent credential, which Magnus renews on a schedule.
+const ardentHiveMemCredentialObjectSchema = z.object({
+  agentId: z.string(),
+  workspaceId: z.string(),
+  expiresAt: z.string().nullable(),
+  lastRenewedAt: z.string().nullable(),
+  lastAttemptAt: z.string().nullable(),
+  nextRenewalAt: z.string().nullable(),
+  /** Consecutive failed renewals. */
+  failures: z.number().int().min(0),
+  lastError: z.string().nullable(),
+  /** ok, renewal-failing or expired. Any other state reads as unknown. */
+  state: z.string(),
+});
+export type ArdentHiveMemCredential = z.output<typeof ardentHiveMemCredentialObjectSchema>;
+/**
+ * null: Magnus manages no HiveMem credential for the profile. A shape this console cannot read is
+ * `unreadable` rather than an error, so a newer Magnus never breaks the page.
+ */
+export const ardentHiveMemCredentialSchema = z.unknown().transform((value): ArdentHiveMemCredential | null | 'unreadable' => {
+  if (value === null) return null;
+  const parsed = ardentHiveMemCredentialObjectSchema.safeParse(value);
+  return parsed.success ? parsed.data : 'unreadable';
+});
+export type ArdentHiveMemCredentialField = z.output<typeof ardentHiveMemCredentialSchema> | undefined;
+
 // packages/contracts/src/ardent.ts
 export const ardentProfileSummarySchema = z.object({
   id: z.string(),
@@ -15,6 +41,8 @@ export const ardentProfileSummarySchema = z.object({
   a2aEnabled: z.boolean(),
   channels: z.record(z.string(), z.boolean()),
   error: z.string().nullable(),
+  /** Absent from a Magnus without credential renewal, which shows nothing about it. */
+  hivemem: ardentHiveMemCredentialSchema.optional(),
 });
 export type ArdentProfileSummary = z.output<typeof ardentProfileSummarySchema>;
 

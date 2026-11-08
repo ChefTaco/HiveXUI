@@ -24,6 +24,13 @@ let studioRoute: (request: StudioRequest) => unknown;
 let magnusRoute: (request: MagnusRequest) => unknown;
 let server: ReturnType<typeof serveStudio>;
 let magnusRequests: MagnusRequest[];
+/** The agent's profile as Magnus's node inventory reports it. Without hivemem: a Magnus without credential renewal. */
+let inventoryProfile: Record<string, unknown>;
+const PROFILE = { id: 'lead', name: 'lead', backend: 'llamacpp', apiPort: 9910, running: true, a2aEnabled: false, channels: {}, error: null };
+const installation = () => ({
+  nodeId: 'node-1', nodeName: 'node one', hostname: 'node-1.example.com', reachable: true, error: null, installed: true, version: '2.2.0', owner: 'operator',
+  checkedAt: AT, profiles: [inventoryProfile],
+});
 let view: Mounted | undefined;
 
 /** The agent's node, as Magnus relays it. */
@@ -56,9 +63,11 @@ beforeEach(() => {
   studioRoute = baseStudio;
   magnusRoute = (request) => (request.method === 'GET' ? node[request.path.slice(NODE.length + 1)] : undefined);
   magnusRequests = [];
+  inventoryProfile = PROFILE;
   server = serveStudio((request) => studioRoute(request));
   vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'https://console.example.com');
+    if (url.pathname === '/api/magnus/ardent/installations/node-1') return Response.json({ success: true, data: installation() });
     if (url.pathname.startsWith('/api/magnus' + NODE)) {
       const request = { method: (init?.method ?? 'GET').toUpperCase(), path: url.pathname.slice('/api/magnus'.length), body: typeof init?.body === 'string' ? (JSON.parse(init.body) as Record<string, unknown>) : null };
       magnusRequests.push(request);
@@ -95,9 +104,46 @@ describe('the Agent Studio header', () => {
     expect(head.querySelector('h2')?.textContent).toBe('Story Lead');
     expect(text(head)).toContain('Running');
     expect(text(head)).toContain('HiveMem ready');
+    // A Magnus without credential renewal reports no credential, so the header shows none.
+    expect(text(head)).not.toContain('HiveMem credential');
     expect(text(head)).toContain('Sunken Archive · Story Lead');
     expect(head.querySelector('a[href^="/fleet/"]')?.getAttribute('href')).toBe(`/fleet/ardent/profiles/${REF}`);
     expect([...head.querySelectorAll('a')].find((link) => link.textContent?.includes('Back to the room'))?.getAttribute('href')).toBe(`/studio/p/${PROJECT_ID}/room?c=cnv_1&m=msg_2`);
+  });
+
+  it('shows the HiveMem credential Magnus renews, in words', async () => {
+    const DAY = 86_400_000;
+    const expiresAt = new Date(Date.now() + 12 * DAY + 3_600_000).toISOString();
+    const credential = { agentId: 'lead', workspaceId: 'ws-1', expiresAt, lastRenewedAt: AT, lastAttemptAt: AT, nextRenewalAt: null, failures: 0, lastError: null, state: 'ok' };
+    const badge = (root: ParentNode) => [...root.querySelectorAll('.agent-head .badge')].find((item) => item.textContent?.startsWith('HiveMem credential'));
+    inventoryProfile = { ...PROFILE, hivemem: credential };
+    let root = await open(`/studio/agents/${REF}`);
+    expect(badge(root)?.textContent).toBe('HiveMem credential: 12 days');
+    expect(badge(root)?.querySelector('[title]')?.getAttribute('title')).toBe(`Credential expires in 12 days · expires ${new Date(expiresAt).toLocaleString()}`);
+    expect(badge(root)?.className).toContain('badge--success');
+    await view?.unmount();
+
+    inventoryProfile = { ...PROFILE, hivemem: { ...credential, state: 'renewal-failing', failures: 2, lastError: 'HiveMem answered 503' } };
+    root = await open(`/studio/agents/${REF}`);
+    expect(badge(root)?.textContent).toBe('HiveMem credential: renewal failing');
+    expect(badge(root)?.className).toContain('badge--warning');
+    await view?.unmount();
+
+    inventoryProfile = { ...PROFILE, hivemem: { ...credential, state: 'expired', expiresAt: AT } };
+    root = await open(`/studio/agents/${REF}`);
+    expect(badge(root)?.textContent).toBe('HiveMem credential: expired');
+    expect(badge(root)?.className).toContain('badge--danger');
+    await view?.unmount();
+
+    inventoryProfile = { ...PROFILE, hivemem: { state: 'ok' } };
+    root = await open(`/studio/agents/${REF}`);
+    expect(badge(root)?.textContent).toBe('HiveMem credential: unknown');
+    await view?.unmount();
+
+    inventoryProfile = { ...PROFILE, hivemem: null };
+    root = await open(`/studio/agents/${REF}`);
+    expect(badge(root)).toBeUndefined();
+    expect(text(root.querySelector('.agent-head')!)).toContain('HiveMem ready');
   });
 
   it('opens on Identity with the project role marked as this project only', async () => {
