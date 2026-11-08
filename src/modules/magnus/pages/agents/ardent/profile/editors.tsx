@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
+import { cn } from '@lib/cn';
 import { Badge, Button, Field, Select, TextArea, TextInput, Toggle, statusTone } from '@ui';
 import { randomId } from '../../../../api/client';
 import { errorMessage } from '../../../../api/errors';
 import { FxPanel } from '../../../../effects';
 import { ActionConfirm } from '../../../../ui/action-confirm';
-import { ardentAction, readResource } from '../api';
+import { magnusProfileClient, type ArdentProfileClient } from '../api';
 import { parseIdList } from '../logic';
 import {
   anyActionSchema,
@@ -25,6 +26,17 @@ export interface ProfileRef {
   nodeId: string;
   profileId: string;
 }
+/**
+ * What every editor takes. They are shared by the fleet profile page and Agent Studio, so none of
+ * them knows its page: actions go through `client` (Magnus, by default), the host spaces them with
+ * `className`, and the host hears about saves through callbacks.
+ */
+export interface EditorProps extends ProfileRef {
+  /** Where actions and reads go. Defaults to the node, through Magnus. */
+  client?: ArdentProfileClient | undefined;
+  className?: string | undefined;
+}
+const useClient = ({ nodeId, profileId, client }: EditorProps): ArdentProfileClient => useMemo(() => client ?? magnusProfileClient(nodeId, profileId), [client, nodeId, profileId]);
 
 export function Outcome({ feedback, error }: { feedback?: string | undefined; error?: string | undefined }) {
   return (
@@ -38,7 +50,8 @@ export function Outcome({ feedback, error }: { feedback?: string | undefined; er
 const Revision = ({ value, label = 'Revision' }: { value: string; label?: string }) => <span className="font-mono text-xs text-text-muted">{label} {value.slice(0, 12)}</span>;
 
 /** Runs one action on the node and reports its result beneath itself. */
-export function ActionButton({ nodeId, profileId, action, target, body, label, disabled, confirm, onSuccess }: ProfileRef & { action: string; target?: string; body?: unknown; label: string; disabled?: boolean; confirm?: { title: string; message: string; label: string }; onSuccess?: () => void }) {
+export function ActionButton({ action, target, body, label, disabled, confirm, onSuccess, ...editor }: EditorProps & { action: string; target?: string; body?: unknown; label: string; disabled?: boolean; confirm?: { title: string; message: string; label: string }; onSuccess?: () => void }) {
+  const client = useClient(editor);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [error, setError] = useState('');
@@ -49,7 +62,7 @@ export function ActionButton({ nodeId, profileId, action, target, body, label, d
     setFeedback('');
     setError('');
     try {
-      const data = await ardentAction(nodeId, profileId, action, anyActionSchema, { body, target });
+      const data = await client.action(action, anyActionSchema, { body, target });
       onSuccess?.();
       const detail = data && typeof data === 'object' ? (data as Record<string, unknown>) : {};
       setFeedback(action === 'provider-test' ? `Probe completed: ${String(detail.auth_mode ?? detail.backend ?? 'ready')}` : 'Operation completed.');
@@ -60,7 +73,7 @@ export function ActionButton({ nodeId, profileId, action, target, body, label, d
     }
   }
   return (
-    <div className="mt-3">
+    <div className={cn('mt-3', editor.className)}>
       <Button size="sm" loading={busy} disabled={disabled} onClick={() => (confirm ? setConfirming(true) : void run())}>{busy ? 'Checking…' : label}</Button>
       <Outcome feedback={feedback} error={error} />
       {confirm ? <ActionConfirm open={confirming} title={confirm.title} message={confirm.message} confirmLabel={confirm.label} onConfirm={() => void run()} onCancel={() => setConfirming(false)} /> : null}
@@ -68,7 +81,8 @@ export function ActionButton({ nodeId, profileId, action, target, body, label, d
   );
 }
 
-export function ConfigEditor({ nodeId, profileId, entry }: ProfileRef & { entry: RevisionedText }) {
+export function ConfigEditor({ entry, onSaved, ...editor }: EditorProps & { entry: RevisionedText; onSaved?: (entry: RevisionedText) => void }) {
+  const client = useClient(editor);
   const [draft, setDraft] = useState(entry.text);
   const [saved, setSaved] = useState(entry);
   const [busy, setBusy] = useState(false);
@@ -80,12 +94,14 @@ export function ConfigEditor({ nodeId, profileId, entry }: ProfileRef & { entry:
     setError('');
     try {
       if (action === 'config-validate') {
-        const result = await ardentAction(nodeId, profileId, action, configValidationSchema, { body: { text: draft } });
+        const result = await client.action(action, configValidationSchema, { body: { text: draft } });
         const problems = result.runtime_problems ?? [];
         setFeedback(problems.length ? `YAML valid. Runtime needs: ${problems.join('; ')}` : 'YAML valid. No runtime prerequisites reported.');
       } else {
-        const result = await ardentAction(nodeId, profileId, action, revisionSchema, { body: { text: draft, revision: saved.revision } });
-        setSaved({ text: draft, revision: result.revision });
+        const result = await client.action(action, revisionSchema, { body: { text: draft, revision: saved.revision } });
+        const next = { text: draft, revision: result.revision };
+        setSaved(next);
+        onSaved?.(next);
         setFeedback('Saved on the node. Restart this profile to activate the new configuration.');
       }
     } catch (caught) {
@@ -95,7 +111,7 @@ export function ConfigEditor({ nodeId, profileId, entry }: ProfileRef & { entry:
     }
   }
   return (
-    <FxPanel title="Profile YAML" description="Edit references and settings. The runtime validates the complete versioned document." actions={<Revision value={saved.revision} />} interactive={false}>
+    <FxPanel title="Profile YAML" description="Edit references and settings. The runtime validates the complete versioned document." actions={<Revision value={saved.revision} />} interactive={false} className={editor.className}>
       <TextArea aria-label="Profile YAML" spellCheck={false} value={draft} onChange={setDraft} className="h-[56vh] min-h-80 w-full resize-y font-mono text-xs" />
       <div className="mt-3 flex flex-wrap gap-2">
         <Button size="sm" disabled={busy} onClick={() => void act('config-validate')}>Validate</Button>
@@ -107,8 +123,18 @@ export function ConfigEditor({ nodeId, profileId, entry }: ProfileRef & { entry:
   );
 }
 
-function IdentityFile({ nodeId, profileId, kind, entry }: ProfileRef & { kind: 'soul' | 'identity'; entry: RevisionedText }) {
-  const label = kind === 'soul' ? 'SOUL.md' : 'IDENTITY.md';
+export const identityFileName = (kind: 'soul' | 'identity'): string => (kind === 'soul' ? 'SOUL.md' : 'IDENTITY.md');
+
+/** One identity file with its revision, save, history and restore. */
+export function IdentityFile({ kind, entry, onSaved, savedMessage = 'Saved. The new persona applies to subsequent turns.', ...editor }: EditorProps & {
+  kind: 'soul' | 'identity';
+  entry: RevisionedText;
+  /** After a save or a restore, with the file as the node now has it. */
+  onSaved?: (entry: RevisionedText) => void;
+  savedMessage?: string;
+}) {
+  const client = useClient(editor);
+  const label = identityFileName(kind);
   const [draft, setDraft] = useState(entry.text);
   const [saved, setSaved] = useState(entry);
   const [history, setHistory] = useState<ReadonlyArray<{ name: string; revision: string }>>([]);
@@ -127,8 +153,10 @@ function IdentityFile({ nodeId, profileId, kind, entry }: ProfileRef & { kind: '
     setError('');
     setFeedback('');
     try {
-      setSaved(await ardentAction(nodeId, profileId, 'identity-save', revisionedTextSchema, { body: { text: draft, revision: saved.revision }, target: kind }));
-      setFeedback('Saved. The new persona applies to subsequent turns.');
+      const next = await client.action('identity-save', revisionedTextSchema, { body: { text: draft, revision: saved.revision }, target: kind });
+      setSaved(next);
+      onSaved?.(next);
+      setFeedback(savedMessage);
     } catch (caught) {
       setError(errorMessage(caught, 'The identity could not be saved'));
     } finally {
@@ -138,7 +166,7 @@ function IdentityFile({ nodeId, profileId, kind, entry }: ProfileRef & { kind: '
   async function loadHistory() {
     setError('');
     try {
-      setHistory((await readResource(nodeId, profileId, `identity/${kind}/history`, identityHistorySchema)).history);
+      setHistory((await client.read(`identity/${kind}/history`, identityHistorySchema)).history);
     } catch (caught) {
       setError(errorMessage(caught, 'Identity history is unavailable'));
     }
@@ -149,9 +177,10 @@ function IdentityFile({ nodeId, profileId, kind, entry }: ProfileRef & { kind: '
     setError('');
     setFeedback('');
     try {
-      const restored = await ardentAction(nodeId, profileId, 'identity-restore', revisionedTextSchema, { body: { history_name: name, revision: saved.revision }, target: kind });
+      const restored = await client.action('identity-restore', revisionedTextSchema, { body: { history_name: name, revision: saved.revision }, target: kind });
       setSaved(restored);
       setDraft(restored.text);
+      onSaved?.(restored);
       setFeedback('Previous version restored.');
     } catch (caught) {
       setError(errorMessage(caught, 'The version could not be restored'));
@@ -160,7 +189,7 @@ function IdentityFile({ nodeId, profileId, kind, entry }: ProfileRef & { kind: '
     }
   }
   return (
-    <FxPanel title={label} actions={<Revision value={saved.revision} />} interactive={false} className="min-w-0">
+    <FxPanel title={label} actions={<Revision value={saved.revision} />} interactive={false} className={cn('min-w-0', editor.className)}>
       <TextArea aria-label={label} value={draft} onChange={setDraft} className="h-[45vh] min-h-64 w-full resize-y font-mono text-xs" />
       <div className="mt-3 flex flex-wrap gap-2">
         <Button size="sm" variant="primary" loading={busy} disabled={draft === saved.text} onClick={() => void save()}>Save</Button>
@@ -181,11 +210,11 @@ function IdentityFile({ nodeId, profileId, kind, entry }: ProfileRef & { kind: '
     </FxPanel>
   );
 }
-export function IdentityEditor({ nodeId, profileId, soul, identity }: ProfileRef & { soul: RevisionedText; identity: RevisionedText }) {
+export function IdentityEditor({ soul, identity, className, ...editor }: EditorProps & { soul: RevisionedText; identity: RevisionedText }) {
   return (
-    <div className="grid gap-3 xl:grid-cols-2">
-      <IdentityFile nodeId={nodeId} profileId={profileId} kind="soul" entry={soul} />
-      <IdentityFile nodeId={nodeId} profileId={profileId} kind="identity" entry={identity} />
+    <div className={cn('grid gap-3 xl:grid-cols-2', className)}>
+      <IdentityFile {...editor} kind="soul" entry={soul} />
+      <IdentityFile {...editor} kind="identity" entry={identity} />
     </div>
   );
 }
@@ -193,8 +222,19 @@ export function IdentityEditor({ nodeId, profileId, soul, identity }: ProfileRef
 const asText = (value: unknown) => (typeof value === 'string' ? value : '');
 const asList = (value: unknown) => (Array.isArray(value) ? value.join(', ') : '');
 
+export interface SettingsFormProps extends EditorProps {
+  entry: RevisionedText;
+  section: 'providers' | 'channels';
+  running: boolean;
+  /** Where the raw configuration is edited, for what the form leaves out. */
+  rawEditorHint?: string;
+  /** After a save, with the configuration as the node now has it. */
+  onSaved?: (entry: RevisionedText) => void;
+}
+
 /** The node's YAML through a form. A document the form cannot edit sends the operator to the raw editor. */
-export function SettingsForm({ nodeId, profileId, entry, section, running }: ProfileRef & { entry: RevisionedText; section: 'providers' | 'channels'; running: boolean }) {
+export function SettingsForm({ rawEditorHint = 'on the Configuration tab', ...props }: SettingsFormProps) {
+  const { entry, section } = props;
   const initial = useMemo(() => {
     try {
       const get = (...path: string[]) => readYamlValue(entry.text, path);
@@ -214,15 +254,16 @@ export function SettingsForm({ nodeId, profileId, entry, section, running }: Pro
   }, [entry.text]);
   if (initial instanceof YamlSettingsError) {
     return (
-      <FxPanel tone="warning" fxTone="warning" title={section === 'providers' ? 'Provider settings' : 'Channel settings'} className="mt-3">
-        <p className="m-0 text-sm text-warning">{initial.message} Edit it on the Configuration tab.</p>
+      <FxPanel tone="warning" fxTone="warning" title={section === 'providers' ? 'Provider settings' : 'Channel settings'} className={props.className}>
+        <p className="m-0 text-sm text-warning">{initial.message} Edit it {rawEditorHint}.</p>
       </FxPanel>
     );
   }
-  return <SettingsFields nodeId={nodeId} profileId={profileId} entry={entry} section={section} running={running} initial={initial} />;
+  return <SettingsFields {...props} rawEditorHint={rawEditorHint} initial={initial} />;
 }
 
-function SettingsFields({ nodeId, profileId, entry, section, running, initial }: ProfileRef & { entry: RevisionedText; section: 'providers' | 'channels'; running: boolean; initial: { backend: string; llamaUrl: string; llamaModel: string; codexModel: string; telegramEnabled: boolean; telegramTokenEnv: string; telegramUsers: string; telegramChats: string } }) {
+function SettingsFields({ entry, section, running, initial, rawEditorHint, onSaved, ...editor }: SettingsFormProps & { rawEditorHint: string; initial: { backend: string; llamaUrl: string; llamaModel: string; codexModel: string; telegramEnabled: boolean; telegramTokenEnv: string; telegramUsers: string; telegramChats: string } }) {
+  const client = useClient(editor);
   const [saved, setSaved] = useState(entry);
   const [backend, setBackend] = useState(initial.backend);
   const [llamaUrl, setLlamaUrl] = useState(initial.llamaUrl);
@@ -255,10 +296,12 @@ function SettingsFields({ nodeId, profileId, entry, section, running, initial }:
         set(['channels', 'telegram', 'allowed_user_ids'], parseIdList(telegramUsers));
         set(['channels', 'telegram', 'allowed_chat_ids'], parseIdList(telegramChats, true));
       }
-      const validation = await ardentAction(nodeId, profileId, 'config-validate', configValidationSchema, { body: { text: next } });
+      const validation = await client.action('config-validate', configValidationSchema, { body: { text: next } });
       if (!validation.valid) throw new Error('The node rejected the configuration');
-      const result = await ardentAction(nodeId, profileId, 'config-save', revisionSchema, { body: { text: next, revision: saved.revision } });
-      setSaved({ text: next, revision: result.revision });
+      const result = await client.action('config-save', revisionSchema, { body: { text: next, revision: saved.revision } });
+      const savedEntry = { text: next, revision: result.revision };
+      setSaved(savedEntry);
+      onSaved?.(savedEntry);
       setFeedback(running ? 'Saved. Restart this profile to activate the new settings.' : 'Saved. Settings activate when this profile starts.');
     } catch (caught) {
       setError(errorMessage(caught, 'The settings could not be saved'));
@@ -267,7 +310,7 @@ function SettingsFields({ nodeId, profileId, entry, section, running, initial }:
     }
   }
   return (
-    <FxPanel title={section === 'providers' ? 'Provider settings' : 'Channel settings'} className="mt-3" interactive={false}>
+    <FxPanel title={section === 'providers' ? 'Provider settings' : 'Channel settings'} className={editor.className} interactive={false}>
       {section === 'providers' ? (
         <div className="field-grid">
           <Field label="Selected backend"><Select value={backend} onChange={setBackend} options={[{ value: 'llamacpp', label: 'llama.cpp' }, { value: 'codex', label: 'Codex App Server' }]} /></Field>
@@ -283,7 +326,7 @@ function SettingsFields({ nodeId, profileId, entry, section, running, initial }:
             <Field label="Allowed Telegram user IDs" hint="Comma-separated numeric IDs."><TextInput value={telegramUsers} onChange={setTelegramUsers} autoComplete="off" /></Field>
             <Field label="Allowed chat IDs" hint="Comma-separated signed numeric IDs."><TextInput value={telegramChats} onChange={setTelegramChats} autoComplete="off" /></Field>
           </div>
-          <p className="m-0 text-sm text-text-muted">Other channel adapters are configured on the Configuration tab.</p>
+          <p className="m-0 text-sm text-text-muted">Other channel adapters are configured {rawEditorHint}.</p>
         </div>
       )}
       <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -295,7 +338,8 @@ function SettingsFields({ nodeId, profileId, entry, section, running, initial }:
   );
 }
 
-export function PeerEditor({ nodeId, profileId, entry, running }: ProfileRef & { entry: RevisionedText; running: boolean }) {
+export function PeerEditor({ entry, running, ...editor }: EditorProps & { entry: RevisionedText; running: boolean }) {
+  const client = useClient(editor);
   const [text, setText] = useState(entry.text);
   const [savedText, setSavedText] = useState(entry.text);
   const [revision, setRevision] = useState(entry.revision);
@@ -307,9 +351,9 @@ export function PeerEditor({ nodeId, profileId, entry, running }: ProfileRef & {
     setError('');
     setFeedback('');
     try {
-      const validation = await ardentAction(nodeId, profileId, 'peer-validate', peerValidationSchema, { body: { text } });
+      const validation = await client.action('peer-validate', peerValidationSchema, { body: { text } });
       if (!validation.valid) throw new Error('The peer configuration failed validation');
-      const result = await ardentAction(nodeId, profileId, 'peer-save', revisionSchema, { body: { text, revision } });
+      const result = await client.action('peer-save', revisionSchema, { body: { text, revision } });
       setRevision(result.revision);
       setSavedText(text);
       setFeedback(`${validation.peers} peer routes saved. ${running ? 'Restart this profile to activate them.' : 'They activate when this profile starts.'}`);
@@ -320,7 +364,7 @@ export function PeerEditor({ nodeId, profileId, entry, running }: ProfileRef & {
     }
   }
   return (
-    <FxPanel title="Authorized peer configuration" description="Peer URLs and token environment variable names are explicit. Discovery does not authorize an unlisted peer." actions={<Revision value={revision} />} className="mt-3" interactive={false}>
+    <FxPanel title="Authorized peer configuration" description="Peer URLs and token environment variable names are explicit. Discovery does not authorize an unlisted peer." actions={<Revision value={revision} />} className={editor.className} interactive={false}>
       <TextArea aria-label="Peer YAML" spellCheck={false} value={text} onChange={setText} className="min-h-56 w-full resize-y font-mono text-xs" />
       <div className="mt-3"><Button size="sm" variant="primary" loading={busy} disabled={text === savedText} onClick={() => void save()}>{busy ? 'Saving…' : 'Validate and save'}</Button></div>
       <Outcome feedback={feedback} error={error} />
@@ -328,7 +372,15 @@ export function PeerEditor({ nodeId, profileId, entry, running }: ProfileRef & {
   );
 }
 
-export function SkillList({ nodeId, profileId, initial, initialRevision }: ProfileRef & { initial: readonly ArdentSkill[]; initialRevision: string }) {
+/** The profile's local skills, each with an enable switch. */
+export function SkillList({ initial, initialRevision, onChange, description = 'Working methods available to this profile', ...editor }: EditorProps & {
+  initial: readonly ArdentSkill[];
+  initialRevision: string;
+  /** After a switch, with the skills and the configuration revision as the node now has them. */
+  onChange?: (skills: readonly ArdentSkill[], revision: string) => void;
+  description?: string;
+}) {
+  const client = useClient(editor);
   const [skills, setSkills] = useState(initial);
   const [revision, setRevision] = useState(initialRevision);
   const [busy, setBusy] = useState('');
@@ -339,9 +391,11 @@ export function SkillList({ nodeId, profileId, initial, initialRevision }: Profi
     setError('');
     setFeedback('');
     try {
-      const result = await ardentAction(nodeId, profileId, 'skill-set', revisionSchema, { body: { enabled: !skill.enabled, revision }, target: skill.name });
+      const result = await client.action('skill-set', revisionSchema, { body: { enabled: !skill.enabled, revision }, target: skill.name });
+      const next = skills.map((item) => (item.name === skill.name ? { ...item, enabled: !skill.enabled } : item));
       setRevision(result.revision);
-      setSkills((previous) => previous.map((item) => (item.name === skill.name ? { ...item, enabled: !skill.enabled } : item)));
+      setSkills(next);
+      onChange?.(next, result.revision);
       setFeedback(`${skill.name} ${skill.enabled ? 'disabled' : 'enabled'}. Restart the profile to activate.`);
     } catch (caught) {
       setError(errorMessage(caught, 'The skill could not be changed'));
@@ -350,9 +404,9 @@ export function SkillList({ nodeId, profileId, initial, initialRevision }: Profi
     }
   }
   return (
-    <div className="grid gap-3">
+    <div className={cn('grid gap-3', editor.className)}>
       <div className="flex flex-wrap justify-between gap-2 text-xs text-text-muted">
-        <span>Working methods available to this profile</span>
+        <span>{description}</span>
         <Revision value={revision} label="Configuration revision" />
       </div>
       {skills.length === 0 ? <FxPanel padding="sm"><p className="m-0 text-sm text-text-muted">No skills were reported.</p></FxPanel> : (
@@ -375,7 +429,9 @@ export function SkillList({ nodeId, profileId, initial, initialRevision }: Profi
   );
 }
 
-export function MemoryPanel({ nodeId, profileId, status }: ProfileRef & { status: MemoryStatus }) {
+/** The profile's HiveMem status and a search of its private memory. */
+export function MemoryPanel({ status, title = 'HiveMem', placeholder = "Search this profile's private memory", ...editor }: EditorProps & { status: MemoryStatus; title?: string; placeholder?: string }) {
+  const client = useClient(editor);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ReadonlyArray<{ id: string; content: string; created_at?: string | undefined }>>([]);
   const [searched, setSearched] = useState(false);
@@ -390,7 +446,7 @@ export function MemoryPanel({ nodeId, profileId, status }: ProfileRef & { status
     setError('');
     setSearched(false);
     try {
-      setResults((await ardentAction(nodeId, profileId, 'memory-search', memoryResultsSchema, { body: { query: query.trim() } })).results);
+      setResults((await client.action('memory-search', memoryResultsSchema, { body: { query: query.trim() } })).results);
       setSearched(true);
     } catch (caught) {
       setError(errorMessage(caught, 'HiveMem did not return a search result'));
@@ -399,11 +455,11 @@ export function MemoryPanel({ nodeId, profileId, status }: ProfileRef & { status
     }
   }
   return (
-    <FxPanel title="HiveMem" actions={<Badge tone={status.status === 'ready' ? 'success' : statusTone(status.status)} dot>{status.status}</Badge>} className="mt-3" interactive={false}>
+    <FxPanel title={title} actions={<Badge tone={status.status === 'ready' ? 'success' : statusTone(status.status)} dot>{status.status}</Badge>} className={editor.className} interactive={false}>
       <p className="m-0 text-sm text-text-muted">Agent {status.agent_id || '—'} · workspace {status.workspace_id || '—'}</p>
       {status.status === 'ready' ? <p className="m-0 mt-1 text-xs text-text-muted">Retrieval {status.retrieval ?? 'unknown'} · storage {status.storage ?? 'unknown'}</p> : <p role="alert" className="m-0 mt-2 text-sm text-warning">{status.reason ?? 'HiveMem unavailable'}</p>}
       <div className="mt-4 flex flex-wrap gap-2">
-        <TextInput aria-label="Search private memory" value={query} maxLength={1000} onChange={setQuery} onKeyDown={(event) => { if (event.key === 'Enter') void search(); }} className="min-w-48 flex-1" placeholder="Search this profile's private memory" />
+        <TextInput aria-label="Search private memory" value={query} maxLength={1000} onChange={setQuery} onKeyDown={(event) => { if (event.key === 'Enter') void search(); }} className="min-w-48 flex-1" placeholder={placeholder} />
         <Button size="sm" loading={busy} disabled={status.status !== 'ready'} onClick={() => void search()}>{busy ? 'Searching…' : 'Search memory'}</Button>
       </div>
       <Outcome error={error} />
@@ -421,7 +477,8 @@ export function MemoryPanel({ nodeId, profileId, status }: ProfileRef & { status
   );
 }
 
-export function TaskTest({ nodeId, profileId, onSubmitted }: ProfileRef & { onSubmitted?: () => void }) {
+export function TaskTest({ onSubmitted, ...editor }: EditorProps & { onSubmitted?: () => void }) {
+  const client = useClient(editor);
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
   const [accepted, setAccepted] = useState('');
@@ -431,7 +488,7 @@ export function TaskTest({ nodeId, profileId, onSubmitted }: ProfileRef & { onSu
     setError('');
     setAccepted('');
     try {
-      const result = await ardentAction(nodeId, profileId, 'task-submit', taskAcceptedSchema, { body: { prompt: prompt.trim(), idempotency_key: randomId() } });
+      const result = await client.action('task-submit', taskAcceptedSchema, { body: { prompt: prompt.trim(), idempotency_key: randomId() } });
       setAccepted(`Task ${result.task_id.slice(0, 8)} accepted. Refresh the profile to inspect its result.`);
       setPrompt('');
       onSubmitted?.();
@@ -442,7 +499,7 @@ export function TaskTest({ nodeId, profileId, onSubmitted }: ProfileRef & { onSu
     }
   }
   return (
-    <div className="mb-4 border-b border-border pb-4">
+    <div className={cn('mb-4 border-b border-border pb-4', editor.className)}>
       <p className="m-0 text-sm font-semibold">Test research request</p>
       <p className="m-0 mt-1 text-xs text-text-muted">Submit a bounded diagnostic task. The result appears in this profile&apos;s task journal.</p>
       <TextArea aria-label="Test research prompt" maxLength={4000} value={prompt} onChange={setPrompt} className="mt-3 h-24 w-full resize-y" />

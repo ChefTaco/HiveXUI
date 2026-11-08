@@ -9,7 +9,7 @@ import {
   searchEmoji,
   writeRecentEmoji,
   type CustomEmoji,
-} from "./composer";
+} from "@lib/chat-compose";
 
 const storage = () => localStorage;
 

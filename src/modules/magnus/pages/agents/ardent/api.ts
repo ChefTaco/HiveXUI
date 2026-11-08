@@ -23,6 +23,20 @@ export const ardentAction = <S extends z.ZodType>(nodeId: string, profileId: str
     .post(`${base(nodeId, profileId)}/action`, ok(schema), { body: { action, ...(options.target ? { target: options.target } : {}), body: options.body ?? {} }, timeoutMs: actionTimeout(action) })
     .then((response) => (response as { data: z.output<S> }).data);
 
+/**
+ * One profile's actions and resource reads. The profile editors take one, so a surface other than the
+ * fleet profile page (Agent Studio) can route the same edits through its own service.
+ */
+export interface ArdentProfileClient {
+  action<S extends z.ZodType>(action: string, schema: S, options?: { body?: unknown; target?: string | undefined }): Promise<z.output<S>>;
+  read<S extends z.ZodType>(resource: string, schema: S, signal?: AbortSignal): Promise<z.output<S>>;
+}
+/** The default: straight to the node through Magnus. */
+export const magnusProfileClient = (nodeId: string, profileId: string): ArdentProfileClient => ({
+  action: (action, schema, options) => ardentAction(nodeId, profileId, action, schema, options),
+  read: (resource, schema, signal) => readResource(nodeId, profileId, resource, schema, signal),
+});
+
 export function saveBlob(blob: Blob, name: string): void {
   const href = URL.createObjectURL(blob);
   const link = document.createElement('a');

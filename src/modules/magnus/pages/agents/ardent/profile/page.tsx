@@ -104,7 +104,7 @@ function ProvidersTab({ nodeId, profileId, running }: ProfileRef & { running: bo
             </FxPanel>
           ))}
         </div>
-        <SettingsForm key={config.revision} nodeId={nodeId} profileId={profileId} entry={config} section="providers" running={running} />
+        <SettingsForm key={config.revision} nodeId={nodeId} profileId={profileId} entry={config} section="providers" running={running} className="mt-3" />
         {status.selected === 'codex' ? <CodexNodePanel nodeId={nodeId} /> : null}
       </>
     )} />
@@ -127,7 +127,7 @@ function ChannelsTab({ nodeId, profileId, running }: ProfileRef & { running: boo
             </FxPanel>
           ))}
         </div>
-        <SettingsForm key={config.revision} nodeId={nodeId} profileId={profileId} entry={config} section="channels" running={running} />
+        <SettingsForm key={config.revision} nodeId={nodeId} profileId={profileId} entry={config} section="channels" running={running} className="mt-3" />
       </>
     )} />
   );
@@ -150,7 +150,7 @@ function PeersTab({ nodeId, profileId, running }: ProfileRef & { running: boolea
             </FxPanel>
           )) : <FxPanel padding="sm"><p className="m-0 text-sm text-text-muted">No authorized peers are configured for this profile.</p></FxPanel>}
         </div>
-        <PeerEditor nodeId={nodeId} profileId={profileId} entry={config} running={running} />
+        <PeerEditor nodeId={nodeId} profileId={profileId} entry={config} running={running} className="mt-3" />
       </>
     )} />
   );
@@ -169,7 +169,7 @@ function SkillsTab({ nodeId, profileId }: ProfileRef) {
     <TabBody tab={tab} name="The skills" render={({ skills, revision, memory }) => (
       <>
         <SkillList nodeId={nodeId} profileId={profileId} initial={skills} initialRevision={revision} />
-        <MemoryPanel nodeId={nodeId} profileId={profileId} status={memory} />
+        <MemoryPanel nodeId={nodeId} profileId={profileId} status={memory} className="mt-3" />
       </>
     )} />
   );
