@@ -67,7 +67,9 @@ export function SaveTeamTemplate({ open, projectId, hasDraft, source, onClose }:
   const origin = useMagnusResource((signal) => getTemplate(source!.template_id, signal), [source?.template_id], { enabled: open && Boolean(source) });
   const versionable = origin.data && origin.data.source === 'user' && !origin.data.archived ? origin.data : null;
   const [mode, setMode] = useState<'new' | 'version'>('new');
-  const [from, setFrom] = useState<'draft' | 'current'>(hasDraft ? 'draft' : 'current');
+  const [chosen, setFrom] = useState<'draft' | 'current'>(hasDraft ? 'draft' : 'current');
+  // The drawer stays mounted: once the draft is published there is only the published revision.
+  const from = hasDraft ? chosen : 'current';
   const [name, setName] = useState('');
   const [category, setCategory] = useState('custom');
   const [purpose, setPurpose] = useState('');

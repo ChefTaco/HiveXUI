@@ -117,6 +117,20 @@ describe('Team Assignment', () => {
     expect(text(root)).not.toContain('Draft r');
   });
 
+  it('saves the published team as a template right after publishing the draft', async () => {
+    // The page opens on a draft, so the save drawer first offers to save the draft.
+    state = { ...team(), draft: revision({ revision: 2, status: 'draft' }) };
+    const root = await open();
+    await click(button('Publish', root));
+    await settle(50);
+    await click(button('Save as template', root));
+    const drawer = document.querySelector('[role="dialog"][aria-label="Save team as template"]')!;
+    await type(drawer.querySelector<HTMLInputElement>('input')!, 'Short team');
+    await click(button(/Save template/, drawer));
+    await settle(50);
+    expect(server.requests.find((request) => request.path.endsWith('/team/save-as-template'))?.body).toMatchObject({ from: 'current', name: 'Short team' });
+  });
+
   it('binds an existing agent from the picker', async () => {
     const root = await open();
     await click(button('Choose the agent for Continuity Editor', root));
