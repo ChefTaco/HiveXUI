@@ -135,7 +135,8 @@ export interface DraftFields {
 export interface AgentNow {
   soul: { text: string; revision: string };
   identity: { text: string; revision: string };
-  skills: ReadonlyArray<{ name: string; enabled: boolean }>;
+  /** enabled: the saved configuration; running: what the running profile loaded (they differ until a restart). */
+  skills: ReadonlyArray<{ name: string; enabled: boolean; running?: boolean }>;
   configRevision: string;
 }
 export const enabledSkills = (now: AgentNow): string[] => now.skills.filter((skill) => skill.enabled).map((skill) => skill.name);

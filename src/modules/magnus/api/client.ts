@@ -1,11 +1,12 @@
 // The module's API client, over the console's apiFetch. It replaces the old console's ky client and
 // lib/api-client.ts. apiFetch attaches the Oathweave token and handles step-up: a safe read repeats
-// once after verification, a mutation never does. This file adds no retry of its own.
+// once after verification, a mutation never does. The only retry here is a read under /ardent/ refused
+// with 429: it waits out Retry-After once (see readCooldown).
 import { z } from 'zod';
 import { apiFetch } from '../../../lib/transport';
 import { browserIdentity } from '../../../lib/runtime';
 import { agentDisabledMessage, MagnusApiError, MagnusContractError } from './errors';
-import { rateGate } from './rate-gate';
+import { rateGate, READ_RETRY_MAX_MS, readCooldown, retryAfterMs } from './rate-gate';
 
 export const MAGNUS_API = '/api/magnus';
 const READ_TIMEOUT_MS = 30_000;
@@ -66,24 +67,46 @@ async function failure(response: Response): Promise<MagnusApiError> {
   const inner = typeof parsed.error === 'object' ? parsed.error : undefined;
   const code = inner?.code ?? (typeof parsed.error === 'string' ? parsed.error : undefined);
   const text = inner?.message ?? parsed.message ?? (typeof parsed.error === 'string' && !/^[A-Z_]+$/.test(parsed.error) ? parsed.error : undefined);
-  const fallback = response.status === 401 ? 'Sign in again to continue' : response.status === 403 ? 'Your Magnus role does not allow this' : response.status === 429 ? 'Too many requests. Wait a moment and try again.' : response.status >= 500 ? 'The Magnus API could not complete this request' : 'The request was rejected';
+  if (response.status === 429) {
+    const wait = retryAfterMs(response.headers.get('retry-after'));
+    return new MagnusApiError(429, `Too many requests. Try again in ${Math.ceil(wait / 1000)} seconds.`, code, wait);
+  }
+  const fallback = response.status === 401 ? 'Sign in again to continue' : response.status === 403 ? 'Your Magnus role does not allow this' : response.status >= 500 ? 'The Magnus API could not complete this request' : 'The request was rejected';
   return new MagnusApiError(response.status, text ?? fallback, code);
 }
 
-async function call<S extends z.ZodType>(method: string, path: string, schema: S, options: WriteOptions = {}): Promise<z.output<S>> {
+async function send(method: string, path: string, options: WriteOptions): Promise<Response> {
   const mutation = method !== 'GET';
-  await rateGate(path, options.signal);
   const headers = new Headers({ Accept: 'application/json' });
   headers.set('x-trace-id', randomId());
   if (options.idempotencyKey) headers.set('x-idempotency-key', options.idempotencyKey);
   if (options.body !== undefined) headers.set('Content-Type', 'application/json');
   const timeout = AbortSignal.timeout(options.timeoutMs ?? (mutation ? WRITE_TIMEOUT_MS : READ_TIMEOUT_MS));
-  const response = await apiFetch(apiPath(path, options.query), {
+  return apiFetch(apiPath(path, options.query), {
     method,
     headers,
     signal: options.signal ? AbortSignal.any([options.signal, timeout]) : timeout,
     ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
   });
+}
+
+async function call<S extends z.ZodType>(method: string, path: string, schema: S, options: WriteOptions = {}): Promise<z.output<S>> {
+  const mutation = method !== 'GET';
+  await rateGate(path, options.signal);
+  // A limited read waits out Retry-After, with the other reads it shares a budget with, and asks once
+  // more. A mutation is never repeated.
+  const politeRead = !mutation && readCooldown.applies(path);
+  if (politeRead) await readCooldown.wait(path, options.signal);
+  let response = await send(method, path, options);
+  if (politeRead && response.status === 429) {
+    const wait = retryAfterMs(response.headers.get('retry-after'));
+    readCooldown.hold(path, wait);
+    if (wait <= READ_RETRY_MAX_MS) {
+      await readCooldown.wait(path, options.signal);
+      response = await send(method, path, options);
+      if (response.status === 429) readCooldown.hold(path, retryAfterMs(response.headers.get('retry-after')));
+    }
+  }
   if (!response.ok) throw await failure(response);
   const body: unknown = await response.json().catch(() => undefined);
   const parsed = schema.safeParse(body);

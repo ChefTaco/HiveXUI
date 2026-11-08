@@ -4,6 +4,8 @@ export class MagnusApiError extends Error {
     readonly status: number,
     message: string,
     readonly code?: string,
+    /** From a 429's Retry-After: how long to wait before asking again. */
+    readonly retryAfterMs?: number,
   ) {
     super(message);
     this.name = 'MagnusApiError';

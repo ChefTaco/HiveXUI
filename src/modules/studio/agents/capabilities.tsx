@@ -9,7 +9,7 @@ import { readInstallation, readResource } from '../../magnus/pages/agents/ardent
 import { channelLabel, displayValue, profileHref, taskIsFinal } from '../../magnus/pages/agents/ardent/logic';
 import { SettingsForm, SkillList } from '../../magnus/pages/agents/ardent/profile/editors';
 import { SkillCatalog } from '../../magnus/pages/agents/ardent/profile/skill-catalog';
-import { skillListKey } from '../../magnus/pages/agents/ardent/profile/skill-catalog-logic';
+import { skillListKey, skillStates } from '../../magnus/pages/agents/ardent/profile/skill-catalog-logic';
 import { channelsSchema, peersSchema, revisionedTextSchema, skillsSchema, taskListSchema } from '../../magnus/pages/agents/ardent/schemas';
 import { StudioLink } from '../link';
 import { projectHref } from '../routes';
@@ -24,7 +24,8 @@ function SkillsPanel({ context }: { context: AgentContext }) {
   const { nodeId, profileId, agentRef } = context;
   const skills = useMagnusResource(async (signal) => {
     const [list, config] = await Promise.all([readResource(nodeId, profileId, 'skills', skillsSchema, signal), readResource(nodeId, profileId, 'config', revisionedTextSchema, signal)]);
-    return { skills: list.skills, revision: config.revision };
+    // The list is the running profile; the switches and the catalog follow the saved configuration.
+    return { skills: skillStates(list.skills, config.text), revision: config.revision };
   }, [agentRef]);
   const installation = useMagnusResource((signal) => readInstallation(nodeId, signal), [nodeId]);
   // The newest configuration revision a skill switch answered, the base for enabling an installed skill.

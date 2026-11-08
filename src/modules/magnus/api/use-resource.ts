@@ -31,6 +31,8 @@ export function useMagnusResource<T>(load: (signal: AbortSignal) => Promise<T>, 
   latest.current = load;
   const controller = useRef<AbortController | null>(null);
   const limited = useRef(1);
+  // From the latest 429's Retry-After: no poll is sent before this time.
+  const notBefore = useRef(0);
 
   const refresh = useCallback(async () => {
     controller.current?.abort();
@@ -41,11 +43,15 @@ export function useMagnusResource<T>(load: (signal: AbortSignal) => Promise<T>, 
       const value = await latest.current(current.signal);
       if (current.signal.aborted) return;
       limited.current = 1;
+      notBefore.current = 0;
       setData(value);
       setError(undefined);
     } catch (caught) {
       if (current.signal.aborted) return;
-      if (caught instanceof MagnusApiError && caught.status === 429) limited.current = Math.min(limited.current * 2, 8);
+      if (caught instanceof MagnusApiError && caught.status === 429) {
+        limited.current = Math.min(limited.current * 2, 8);
+        notBefore.current = Date.now() + (caught.retryAfterMs ?? 0);
+      }
       setError(caught);
     } finally {
       if (!current.signal.aborted) {
@@ -77,9 +83,9 @@ export function useMagnusResource<T>(load: (signal: AbortSignal) => Promise<T>, 
     let active = true;
     const schedule = () => {
       timer = setTimeout(async () => {
-        if (!document.hidden) await refresh();
+        if (!document.hidden && Date.now() >= notBefore.current) await refresh();
         if (active) schedule();
-      }, pollMs * limited.current);
+      }, Math.max(pollMs * limited.current, notBefore.current - Date.now()));
     };
     schedule();
     return () => {

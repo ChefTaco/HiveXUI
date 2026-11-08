@@ -34,6 +34,46 @@ export function createRateGate(now: () => number = Date.now, sleep = delay) {
   };
 }
 
+/** Paths whose reads wait out a 429's Retry-After together: Magnus counts them in one per-person budget. */
+const COOLDOWN_PREFIXES = ['/ardent/'] as const;
+/** The longest a read waits for its single retry; a longer Retry-After goes to the caller as the error. */
+export const READ_RETRY_MAX_MS = 30_000;
+const COOLDOWN_MAX_MS = 60_000;
+const COOLDOWN_DEFAULT_MS = 5_000;
+
+/** Retry-After as milliseconds: seconds or an HTTP date, a few seconds when absent, at most a minute. */
+export function retryAfterMs(header: string | null, now: () => number = () => Date.now()): number {
+  const text = header?.trim() ?? '';
+  const seconds = /^\d+$/.test(text) ? Number(text) * 1000 : Number.NaN;
+  const date = Number.isNaN(seconds) && text ? Date.parse(text) - now() : Number.NaN;
+  const value = Number.isFinite(seconds) ? seconds : Number.isFinite(date) ? date : COOLDOWN_DEFAULT_MS;
+  return Math.min(Math.max(value, 1000), COOLDOWN_MAX_MS);
+}
+
+/**
+ * After a 429 on a read, every read under the same prefix holds back until Retry-After has passed, so
+ * a page that fans out several reads does not keep the person's budget exhausted. Mutations never wait
+ * here: Magnus gives them their own budget.
+ */
+export function createReadCooldown(now: () => number = () => Date.now(), sleep = delay) {
+  const until = new Map<string, number>();
+  const prefixOf = (path: string) => COOLDOWN_PREFIXES.find((prefix) => path.startsWith(prefix));
+  return {
+    applies: (path: string): boolean => prefixOf(path) !== undefined,
+    hold(path: string, ms: number): void {
+      const prefix = prefixOf(path);
+      if (prefix) until.set(prefix, Math.max(until.get(prefix) ?? 0, now() + ms));
+    },
+    /** Forget every hold (sign-out, tests). */
+    clear: (): void => until.clear(),
+    async wait(path: string, signal?: AbortSignal): Promise<void> {
+      const prefix = prefixOf(path);
+      if (!prefix) return;
+      for (let left = (until.get(prefix) ?? 0) - now(); left > 0; left = (until.get(prefix) ?? 0) - now()) await sleep(left, signal);
+    },
+  };
+}
+
 function delay(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(resolve, ms);
@@ -44,3 +84,4 @@ function delay(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 export const rateGate = createRateGate();
+export const readCooldown = createReadCooldown();

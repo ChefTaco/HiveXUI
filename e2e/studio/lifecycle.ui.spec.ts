@@ -122,12 +122,17 @@ test('2. Agent Studio installs the HiveSkills catalog skill onto the agent', asy
   expect(JSON.stringify(audited)).toContain(skill.version);
   const config = await resource('config');
   expect(config.text).toContain(skill.slug);
+  // Ardent lists the running profile, which loads the skill at its next restart: the console says so.
+  expect((await resource('skills')).skills.find((item: any) => item.name === skill.slug)?.enabled).toBe(false);
+  await expect(page.getByText('Enabled — applies after restart')).toBeVisible({ timeout: 30_000 });
 });
 
 test('3. Agent Studio applies a model change from its draft', async () => {
   await page.goto(`${stack().origin}/studio/agents/${encodeURIComponent(ref())}?tab=preview`);
   const draft = page.locator('.agent-draft');
   await expect(draft).toBeVisible({ timeout: 60_000 });
+  // The draft starts from the saved configuration, so the skill enabled before a restart is on.
+  await expect(draft.locator('label.toggle', { hasText: stack().skill!.slug }).locator('input')).toBeChecked();
   await draft.getByRole('textbox', { name: 'Model' }).fill(ALTERNATE_MODEL);
   await shot(page, '4x-05-apply-model-draft');
   await draft.getByRole('button', { name: 'Apply', exact: true }).click();
@@ -145,6 +150,7 @@ test('3. Agent Studio applies a model change from its draft', async () => {
   // The model takes effect when the profile restarts; the agent's next request carries it.
   await action('service-restart');
   await eventually('the profile back after the restart', async () => (await resource('memory/status').catch(() => null))?.status === 'ready', 120_000);
+  expect((await resource('skills')).skills.find((item: any) => item.name === stack().skill!.slug)?.enabled).toBe(true);
   const before = modelLog().length;
   const preview = await magnus(`${profilePath()}/action`, { method: 'POST', body: { action: 'preview-submit', body: { prompt: 'Say hello in one line.' } } }).catch((error: Error) => ({ error: error.message }));
   expect(preview.error ?? null).toBeNull();
