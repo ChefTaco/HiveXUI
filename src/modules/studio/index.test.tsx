@@ -117,6 +117,21 @@ describe('the Studio page', () => {
     expect(root.querySelector('.studio-switcher')?.textContent).toContain('Project not found');
   });
 
+  it('offers the guide for the area on screen in the top bar', async () => {
+    const pages: Array<[string, string]> = [
+      ['/studio', 'Help: Projects'],
+      ['/studio/p/adventure/team', 'Help: Team Assignment'],
+      ['/studio/p/adventure/room', 'Help: Conversation Room'],
+      ['/studio/p/adventure/review', 'Help: Agent Studio and Review'],
+    ];
+    for (const [path, label] of pages) {
+      const root = await open(path);
+      expect(button(label, root.querySelector('header.topbar')!), path).toBeDefined();
+      await view!.unmount();
+      view = undefined;
+    }
+  });
+
   it('returns the Agents tab to the agent last opened in the project', async () => {
     const root = await open('/studio/p/adventure/agents/node-1~writer');
     expect(root.querySelector('[aria-current="page"]')?.textContent).toBe('Agents');

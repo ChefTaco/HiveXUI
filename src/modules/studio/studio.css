@@ -64,9 +64,35 @@
     gap: var(--space-2);
     white-space: nowrap;
   }
-  .studio-close {
+  .studio-close,
+  .studio-help {
     width: 2.75rem;
     height: 2.75rem;
+  }
+  /* The "?" guide in a drawer: a summary, then sections of points or key tables. */
+  .studio-guide {
+    display: grid;
+    gap: var(--space-5);
+  }
+  .studio-guide__section {
+    display: grid;
+    gap: var(--space-2);
+  }
+  .studio-guide__points {
+    display: grid;
+    gap: var(--space-2);
+    padding-left: var(--space-5);
+    list-style: disc;
+  }
+  .studio-guide__keys {
+    display: grid;
+    gap: var(--space-2);
+  }
+  .studio-guide__key {
+    display: grid;
+    grid-template-columns: minmax(7rem, auto) minmax(0, 1fr);
+    align-items: baseline;
+    gap: var(--space-3);
   }
   .studio-main {
     display: grid;
