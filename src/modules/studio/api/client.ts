@@ -139,7 +139,8 @@ const FALLBACK: Record<number, string> = {
   429: 'Too many requests. Wait a moment and try again.',
 };
 
-async function failure(response: Response): Promise<StudioApiError> {
+/** The error for a non-success answer, read from its body. */
+export async function studioFailure(response: Response): Promise<StudioApiError> {
   if (response.status === 401) void handleUnauthorized();
   const parsed = errorResponseSchema.safeParse(await response.json().catch(() => null));
   const error = parsed.success ? parsed.data.error : undefined;
@@ -176,7 +177,7 @@ async function call<S extends z.ZodType>(method: string, path: string, schema: S
     signal: options.signal ? AbortSignal.any([options.signal, timeout]) : timeout,
     ...(body !== undefined ? { body } : {}),
   });
-  if (!response.ok) throw await failure(response);
+  if (!response.ok) throw await studioFailure(response);
   const parsed = schema.safeParse(await response.json().catch(() => undefined));
   if (!parsed.success) {
     // Field names only: a response can hold data that must not reach the console.
@@ -191,6 +192,7 @@ export const studio = {
   post: <S extends z.ZodType>(path: string, schema: S, options?: WriteOptions) => call('POST', path, schema, options),
   patch: <S extends z.ZodType>(path: string, schema: S, options?: WriteOptions) => call('PATCH', path, schema, options),
   put: <S extends z.ZodType>(path: string, schema: S, options?: WriteOptions) => call('PUT', path, schema, options),
+  delete: <S extends z.ZodType>(path: string, schema: S, options?: WriteOptions) => call('DELETE', path, schema, options),
   /** The raw body with its MIME type, as the files route takes it. */
   upload: <S extends z.ZodType>(path: string, schema: S, file: Blob, contentType: string, options?: WriteOptions) =>
     call('POST', path, schema, { ...options, raw: file, contentType, timeoutMs: UPLOAD_TIMEOUT_MS }),

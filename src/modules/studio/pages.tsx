@@ -5,6 +5,7 @@ import { parseProfileRef, profileHref } from '../magnus/pages/agents/ardent/logi
 import { LoadingRows } from '../magnus/ui/resource-state';
 import type { StudioConnection } from './api/client';
 import './projects/projects.css';
+import { AgentStudio } from './agents/page';
 import { StudioLink } from './link';
 import { CreateProject } from './projects/create';
 import { ProjectsHome } from './projects/home';
@@ -125,6 +126,9 @@ function implemented(match: StudioMatch): ReactNode {
       return <Gallery />;
     case 'team-gallery':
       return <Gallery projectId={match.projectId!} />;
+    case 'agent':
+    case 'project-agent':
+      return <AgentStudio agentRef={match.agentRef!} projectId={match.projectId} />;
     default:
       return null;
   }
