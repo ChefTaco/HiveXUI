@@ -221,7 +221,10 @@
   .room-msg__md :where(ul, ol) {
     padding-left: var(--space-5);
   }
-  .room-msg__text--live::after {
+  /* The cursor follows the last block of the live Markdown (a list's last item), inline at the end of its text. */
+  .room-msg__text--live > :not(ul, ol):last-child::after,
+  .room-msg__text--live > :is(ul, ol):last-child > li:last-child::after,
+  .room-msg__text--live:empty::after {
     display: inline-block;
     width: 0.5em;
     height: 1em;
@@ -231,7 +234,9 @@
     vertical-align: text-bottom;
     animation: var(--animate-flicker);
   }
-  html[data-fx='low'] .room-msg__text--live::after {
+  html[data-fx='low'] .room-msg__text--live > :not(ul, ol):last-child::after,
+  html[data-fx='low'] .room-msg__text--live > :is(ul, ol):last-child > li:last-child::after,
+  html[data-fx='low'] .room-msg__text--live:empty::after {
     animation: none;
   }
   .room-msg__links,

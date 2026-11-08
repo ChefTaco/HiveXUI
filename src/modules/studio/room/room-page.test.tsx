@@ -90,6 +90,31 @@ describe('the conversation room', () => {
     expect(root.querySelector('[data-agent="node-1~lead"][role="button"]')?.getAttribute('aria-label')).toBe('Story Lead, Replied');
   });
 
+  it('renders a streaming reply as Markdown while it arrives, safe for partial input, in the bubble the final text keeps', async () => {
+    const root = await open();
+    await receive(frame(6, 'message.created', { message: agentReply() }));
+    const bubble = () => root.querySelector(`[data-message="${messageId(2)}"] .room-msg__text`)!;
+    await receive(deltaFrame(messageId(2), 'Regions: **Ashen'));
+    // An unclosed emphasis is plain text until it closes; nothing is lost or reordered.
+    expect(bubble().classList).toContain('room-msg__md');
+    expect(bubble().classList).toContain('room-msg__text--live');
+    expect(bubble().textContent).toBe('Regions: **Ashen');
+    await receive(deltaFrame(messageId(2), ' Fen**\n\n- one\n- tw'));
+    expect(bubble().querySelector('strong')?.textContent).toBe('Ashen Fen');
+    expect([...bubble().querySelectorAll('li')].map((item) => item.textContent)).toEqual(['one', 'tw']);
+    await receive(deltaFrame(messageId(2), 'o\n\n```js\nconst gate = <img src=x onerror=alert(1)>'));
+    // An open fence shows as code up to the end, and raw HTML is never rendered.
+    expect(bubble().querySelector('pre code')?.textContent).toBe('const gate = <img src=x onerror=alert(1)>\n');
+    expect(bubble().querySelector('img')).toBeNull();
+    const live = bubble();
+    await receive(frame(7, 'message.updated', { message: agentReply({ state: 'complete', body_md: 'Regions: **Ashen Fen**\n\n- one\n- two', updated_at: '2026-11-08T10:05:00.000Z' }) }));
+    // The final message takes the same element and Markdown, without the live cursor.
+    expect(bubble()).toBe(live);
+    expect(bubble().classList).not.toContain('room-msg__text--live');
+    expect(bubble().querySelector('strong')?.textContent).toBe('Ashen Fen');
+    expect(bubble().querySelector('pre')).toBeNull();
+  });
+
   it('renders a finished reply as Markdown without raw HTML', async () => {
     const root = await open();
     await receive(frame(6, 'message.created', { message: agentReply({ state: 'complete', body_md: 'Regions: **Ashen Fen** and *Glowmere*.\n\n- one\n- two\n\n<img src=x onerror=alert(1)>[site](https://example.com)' }) }));

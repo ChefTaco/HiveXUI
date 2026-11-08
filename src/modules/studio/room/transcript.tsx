@@ -11,7 +11,7 @@ import { answerClarification, type Message, type StudioFile, type Task } from '.
 import { StudioLink } from '../link';
 import { projectHref } from '../routes';
 import type { Role } from './addressing';
-import { MessageBody } from './message-body';
+import { ReplyBody } from './message-body';
 import { visibleLiveText, type TranscriptState } from './transcript-state';
 
 export interface Author {
@@ -331,21 +331,20 @@ function MessageItem({ message, live, context }: { message: Message; live: Trans
           <span>{`${authorOf(replyTo, context.roles).name}: ${quote(replyTo.body_md, 70)}`}</span>
         </button>
       ) : null}
-      {streaming ? (
-        visible === null ? (
-          <p className="room-msg__text m-0 text-sm text-text-muted">
-            <span className="typing-dots" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </span>{' '}
-            Working…
-          </p>
-        ) : (
-          <p className="room-msg__text room-msg__text--live m-0 text-sm text-text">{visible}</p>
-        )
+      {streaming && visible === null ? (
+        <p className="room-msg__text m-0 text-sm text-text-muted">
+          <span className="typing-dots" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>{' '}
+          Working…
+        </p>
+      ) : streaming || message.body_md ? (
+        // One element for the live and the final text, so the bubble does not jump when the reply completes.
+        <ReplyBody text={streaming ? (visible ?? '') : message.body_md} live={streaming} />
       ) : (
-        message.body_md ? <MessageBody text={message.body_md} /> : <p className="room-msg__text m-0 text-sm text-text">{message.state === 'failed' ? 'The turn ended without a reply.' : ''}</p>
+        <p className="room-msg__text m-0 text-sm text-text">{message.state === 'failed' ? 'The turn ended without a reply.' : ''}</p>
       )}
       <Attachments message={message} files={context.files} />
       {message.kind === 'clarification' ? <ClarificationCard message={message} context={context} /> : null}
