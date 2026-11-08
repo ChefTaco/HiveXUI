@@ -1,0 +1,115 @@
+@layer components {
+  /* Ardent Project Studio: a fullscreen page with its own top bar. Layout only; colors and type come
+     from utilities and the shared shell classes (topbar, tabs, topbar-icon). */
+  .studio-shell {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    min-height: 100vh;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .studio-bar {
+    flex-wrap: wrap;
+    row-gap: var(--space-2);
+  }
+  .studio-mark {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .studio-mark__icon {
+    width: 1.5rem;
+    height: 1.5rem;
+    flex: none;
+  }
+  .studio-mark__text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+  }
+  .studio-project {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: var(--space-4);
+  }
+  .studio-switcher {
+    display: inline-flex;
+    min-width: 0;
+    max-width: 18rem;
+    flex: 0 1 auto;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .studio-switcher__name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .studio-tabs {
+    flex-wrap: nowrap;
+  }
+  .studio-bar__end {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--space-3);
+    margin-left: auto;
+  }
+  .studio-connection {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    white-space: nowrap;
+  }
+  .studio-close {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+  .studio-main {
+    display: grid;
+    width: 100%;
+    max-width: 92.5rem;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    gap: var(--space-6);
+    margin: 0 auto;
+    padding: var(--space-6) var(--space-6) var(--space-10);
+  }
+  .studio-main:focus {
+    outline: none;
+  }
+  @media (max-width: 920px) {
+    .studio-main {
+      padding: var(--space-4) var(--space-4) var(--space-8);
+    }
+  }
+  /* On a phone the project row moves under the mark, the close button stays in the corner. */
+  @media (max-width: 639.98px) {
+    .studio-mark__sub {
+      display: none;
+    }
+    .studio-project {
+      order: 3;
+      width: 100%;
+      gap: var(--space-2);
+    }
+    .studio-switcher {
+      flex: 1 1 auto;
+    }
+    .studio-switcher__label {
+      display: none;
+    }
+    .studio-tabs {
+      flex: none;
+    }
+    .studio-tabs .tab {
+      padding-inline: var(--space-2);
+    }
+    .studio-bar__end {
+      gap: var(--space-1);
+    }
+  }
+}

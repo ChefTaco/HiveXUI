@@ -22,6 +22,13 @@ it('probes Magnus with its own path once it is installed', async () => {
   expect(rows.find((row) => row.product === 'magnus')).toMatchObject({ name: 'Magnus', path: '/api/magnus/health/ready', state: 'ready' });
 });
 
+it('probes Ardent Project Studio at its own prefix once it is installed', async () => {
+  configureEndpoint('ardentstudio', '/api/ardentstudio');
+  const send = vi.fn<typeof fetch>().mockImplementation(async () => new Response('{}'));
+  const rows = await readSuiteHealth(send);
+  expect(rows.find((row) => row.product === 'ardentstudio')).toMatchObject({ name: 'Ardent Project Studio', path: '/api/ardentstudio/health/ready', state: 'ready' });
+});
+
 it('still reports denied and unavailable states for installed products', async () => {
   const send = vi
     .fn<typeof fetch>()

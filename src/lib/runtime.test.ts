@@ -77,6 +77,16 @@ it('accepts magnus as a suite product with its public client', () => {
   ).toBe(true);
 });
 
+it('accepts Ardent Project Studio as a suite product with its public client', () => {
+  const config = {
+    schema: 1,
+    products: { ardentstudio: '/api/ardentstudio' },
+    identity: { issuer: 'https://identity.example.com', apiPrefix: '/api/oathweave', clients: { ardentstudio: 'hivexui-ardentstudio' } },
+  };
+  expect(runtimeSchema.safeParse(config).success).toBe(true);
+  expect(runtimeSchema.safeParse({ ...config, identity: { ...config.identity, clients: {} } }).success).toBe(false);
+});
+
 it('requires explicit standalone legacy mode and a client for every suite product', () => {
   expect(runtimeSchema.safeParse({ schema: 1, products: {} }).success).toBe(
     false,

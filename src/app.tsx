@@ -7,9 +7,11 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 const SecurityModule = lazy(() => import('./modules/security'));
 const MagnusModule = lazy(() => import('./modules/magnus'));
+const StudioModule = lazy(() => import('./modules/studio'));
 const ChatInviteRedemption = lazy(() => import('./modules/chat/invite-redemption'));
 const ChatModule = lazy(() => import('./modules/chat'));
 const SkillsModule = lazy(() => import('./modules/skills'));
@@ -40,6 +42,7 @@ import {
 import { activeMagnusNavPath, type MagnusNavContext } from './modules/magnus/nav';
 import { isFleetPath, toConsolePath } from './modules/magnus/paths';
 import { matchRoute } from './modules/magnus/routes';
+import { isStudioPath, openStudio } from './modules/studio/paths';
 import {
   browserIdentity,
   productEnabled,
@@ -143,9 +146,33 @@ function ConsoleApp() {
     );
   }
 
+  return <SignedIn user={user} onLogout={handleAuthExpired} />;
+}
+
+const subscribeLocation = (listener: () => void) => {
+  window.addEventListener('popstate', listener);
+  return () => window.removeEventListener('popstate', listener);
+};
+const currentPath = () => location.pathname;
+
+/**
+ * Studio is a fullscreen page: under /studio, and only while it is installed, it replaces the shell
+ * rather than rendering inside it. Every other address is the console. Each one reads its state from
+ * the address when it mounts, so moving between them needs nothing else.
+ */
+function SignedIn({ user, onLogout }: { user: AdminUser | null; onLogout: () => void }) {
+  const pathname = useSyncExternalStore(subscribeLocation, currentPath);
+  // The Registry may answer late and remove Studio; this re-reads the gate when it does.
+  useRegistry();
+  if (isStudioPath(pathname) && viewAvailable('studio', productInstalled))
+    return (
+      <Suspense fallback={<><Background /><div className="center-load"><span className="spinner spinner--lg" /></div></>}>
+        <StudioModule onAuthExpired={onLogout} />
+      </Suspense>
+    );
   return (
-    <StoreProvider onAuthExpired={handleAuthExpired}>
-      <Shell user={user} onLogout={handleAuthExpired} />
+    <StoreProvider onAuthExpired={onLogout}>
+      <Shell user={user} onLogout={onLogout} />
     </StoreProvider>
   );
 }
@@ -580,6 +607,13 @@ function Shell({
   }
 
   function navigate(requested: string, path?: string) {
+    // Studio opens over the console and returns here when it closes.
+    if (requested === 'studio' && viewAvailable('studio', productInstalled)) {
+      setNavOpen(false);
+      setPaletteOpen(false);
+      openStudio(path);
+      return;
+    }
     const next: ViewKey = viewAvailable(requested, productInstalled)
       ? requested
       : 'hive';
@@ -778,6 +812,7 @@ function Shell({
 function titleFor(view: ViewKey): string {
   const map: Record<ViewKey, string> = {
     magnus: 'Magnus',
+    studio: 'Studio',
     account: 'Account security',
     security: 'Cindertrace',
     chat: 'ChatterMost',

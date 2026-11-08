@@ -209,6 +209,25 @@ describe('Magnus requests', () => {
   });
 });
 
+describe('Ardent Project Studio requests', () => {
+  it('are their own product under /api/ardentstudio', () => {
+    expect(productFor('/api/ardentstudio/v1/projects')).toBe('ardentstudio');
+    expect(productFor('/api/ardentstudio/health/ready')).toBe('ardentstudio');
+    expect(productFor('/api/ardentstudiox/v1')).toBe('emberpath');
+  });
+  it('use the Studio prefix and token', async () => {
+    configureEndpoint('ardentstudio', '/api/ardentstudio');
+    setAccessProvider(async () => {});
+    rememberAccess('ardentstudio', 'obviously-fake-studio', Date.now() + 60000);
+    rememberAccess('magnus', 'obviously-fake-magnus', Date.now() + 60000);
+    const request = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ ok: true }));
+    await createApiFetch(request)('/api/ardentstudio/v1/projects');
+    expect(request.mock.calls[0]![0]).toBe('/api/ardentstudio/v1/projects');
+    expect(new Headers(request.mock.calls[0]![1]!.headers).get('authorization')).toBe('Bearer obviously-fake-studio');
+    expect(request.mock.calls[0]![1]!.credentials).toBe('omit');
+  });
+});
+
 describe('the end of a session', () => {
   it('tells long-lived readers on logout, but not on a same-session token refresh', () => {
     const listener = vi.fn();

@@ -1,5 +1,6 @@
 import { MAGNUS_NAV, visibleMagnusNav, type MagnusNavContext, type MagnusNavIcon } from '../modules/magnus/nav';
 import { FLEET_PREFIX, isFleetPath } from '../modules/magnus/paths';
+import { isStudioPath } from '../modules/studio/paths';
 import type { Product } from './transport';
 
 export type IamViewKey =
@@ -18,6 +19,7 @@ export type ViewKey =
   | 'chat'
   | 'security'
   | 'magnus'
+  | 'studio'
   | 'hive'
   | IamViewKey
   | 'workspaces'
@@ -85,6 +87,17 @@ function magnusGroups(context?: MagnusNavContext): NavGroup[] {
   }));
 }
 
+/**
+ * Ardent Project Studio. Its entries open the fullscreen page at /studio rather than a view inside
+ * the shell, so they never become the current page in the sidebar.
+ */
+const STUDIO_GROUP: NavGroup = {
+  label: 'Studio',
+  items: [
+    { key: 'studio', label: 'Projects', icon: 'Workflow', gate: { all: ['ardentstudio'] }, path: '/studio' },
+    { key: 'studio', label: 'Gallery', icon: 'Library', gate: { all: ['ardentstudio'] }, path: '/studio/gallery' },
+  ],
+};
 const HIVE_GROUP: NavGroup = {
   label: 'Hive',
   items: [
@@ -153,7 +166,7 @@ const SYSTEM_GROUP: NavGroup = {
   ],
 };
 /** Every group and entry, whatever is installed or ported. */
-export const NAV_GROUPS: readonly NavGroup[] = [HIVE_GROUP, ...magnusGroups(), ...PRODUCT_GROUPS, SYSTEM_GROUP];
+export const NAV_GROUPS: readonly NavGroup[] = [HIVE_GROUP, ...magnusGroups(), STUDIO_GROUP, ...PRODUCT_GROUPS, SYSTEM_GROUP];
 
 const ITEMS = new Map<string, NavItem>(
   NAV_GROUPS.flatMap((group) => group.items).map((item) => [item.key, item]),
@@ -171,7 +184,7 @@ function gateOpen(gate: ProductGate | undefined, installed: ProductCheck): boole
  * also depend on what has been ported and on what this session's role and capabilities allow.
  */
 export function visibleNavGroups(installed: ProductCheck, magnus: MagnusNavContext = {}): NavGroup[] {
-  return [HIVE_GROUP, ...magnusGroups(magnus), ...PRODUCT_GROUPS, SYSTEM_GROUP].map((group) => ({
+  return [HIVE_GROUP, ...magnusGroups(magnus), STUDIO_GROUP, ...PRODUCT_GROUPS, SYSTEM_GROUP].map((group) => ({
     ...group,
     items: group.items.filter((item) => gateOpen(item.gate, installed)),
   })).filter((group) => group.items.length > 0);
@@ -180,6 +193,7 @@ export function visibleNavGroups(installed: ProductCheck, magnus: MagnusNavConte
 const PRODUCT_ICON: Readonly<Record<string, NavIcon>> = {
   Hive: 'Hexagon',
   Magnus: 'Radar',
+  Studio: 'Workflow',
   Oathweave: 'Shield',
   Emberpath: 'Route',
   HiveMem: 'Brain',
@@ -361,11 +375,15 @@ export function resolveDeepLink(
   // Magnus owns everything under /fleet, query included, so its pages may paginate with ?page=.
   const fleetPath = isFleetPath(location.pathname);
   if (fleetPath && viewAvailable('magnus', installed)) return { view: 'magnus', url: null };
+  // Studio renders outside the shell. The shell only sees /studio when Studio is not installed,
+  // or for the moment before the console swaps to it, and then it must not rewrite the address.
+  const studioPath = isStudioPath(location.pathname);
+  if (studioPath && viewAvailable('studio', installed)) return { view: 'hive', url: null };
   const page = new URLSearchParams(location.search).get('page');
   if (page === 'magnus' && viewAvailable('magnus', installed)) return { view: 'magnus', url: FLEET_PREFIX };
-  if (page !== null && viewAvailable(page, installed)) return { view: page, url: null };
+  if (page !== null && page !== 'studio' && viewAvailable(page, installed)) return { view: page, url: null };
   const securityPath = SECURITY_PATH.test(location.pathname);
   // Cindertrace also uses ?page= for its own pagination, so its paths are honoured here.
   if (securityPath && viewAvailable('security', installed)) return { view: 'security', url: null };
-  return { view: 'hive', url: page !== null || securityPath || fleetPath ? '/' : null };
+  return { view: 'hive', url: page !== null || securityPath || fleetPath || studioPath ? '/' : null };
 }
