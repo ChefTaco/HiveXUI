@@ -90,6 +90,18 @@ describe('the conversation room', () => {
     expect(root.querySelector('[data-agent="node-1~lead"][role="button"]')?.getAttribute('aria-label')).toBe('Story Lead, Replied');
   });
 
+  it('renders a finished reply as Markdown without raw HTML', async () => {
+    const root = await open();
+    await receive(frame(6, 'message.created', { message: agentReply({ state: 'complete', body_md: 'Regions: **Ashen Fen** and *Glowmere*.\n\n- one\n- two\n\n<img src=x onerror=alert(1)>[site](https://example.com)' }) }));
+    const body = root.querySelector(`[data-message="${messageId(2)}"] .room-msg__text`)!;
+    expect(body.querySelector('strong')?.textContent).toBe('Ashen Fen');
+    expect(body.querySelector('em')?.textContent).toBe('Glowmere');
+    expect(body.querySelectorAll('li')).toHaveLength(2);
+    expect(body.querySelector('img')).toBeNull();
+    expect(body.textContent).not.toContain('**');
+    expect(body.querySelector('a')?.getAttribute('rel')).toBe('noopener noreferrer nofollow');
+  });
+
   it('reads the conversation again when the stream skips an event', async () => {
     await open();
     const reads = () => server.requests.filter((request) => request.path.startsWith(`/conversations/${TEAM_CONVERSATION_ID}/messages`)).length;

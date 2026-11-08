@@ -11,6 +11,7 @@ import { answerClarification, type Message, type StudioFile, type Task } from '.
 import { StudioLink } from '../link';
 import { projectHref } from '../routes';
 import type { Role } from './addressing';
+import { MessageBody } from './message-body';
 import { visibleLiveText, type TranscriptState } from './transcript-state';
 
 export interface Author {
@@ -344,7 +345,7 @@ function MessageItem({ message, live, context }: { message: Message; live: Trans
           <p className="room-msg__text room-msg__text--live m-0 text-sm text-text">{visible}</p>
         )
       ) : (
-        <p className="room-msg__text m-0 text-sm text-text">{message.body_md || (message.state === 'failed' ? 'The turn ended without a reply.' : '')}</p>
+        message.body_md ? <MessageBody text={message.body_md} /> : <p className="room-msg__text m-0 text-sm text-text">{message.state === 'failed' ? 'The turn ended without a reply.' : ''}</p>
       )}
       <Attachments message={message} files={context.files} />
       {message.kind === 'clarification' ? <ClarificationCard message={message} context={context} /> : null}
