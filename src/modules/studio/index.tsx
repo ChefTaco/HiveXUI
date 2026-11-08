@@ -6,6 +6,8 @@ import './studio.css';
 import { setAuthExpiredHandler } from '../magnus/api/client';
 import { useStudioConnection, type StudioConnection } from './api/client';
 import { AgentGate, useArdentAgents } from './gate';
+import { guideFor } from './help/guides';
+import { StudioHelp } from './help/help-button';
 import { StudioLink, useStudioPathname } from './link';
 import { StudioNotFound, StudioPage } from './pages';
 import { leaveStudio, STUDIO_PREFIX } from './paths';
@@ -71,6 +73,7 @@ function StudioBar({ match, connection }: { match: StudioMatch | null; connectio
       ) : null}
       <div className="studio-bar__end">
         <ConnectionState connection={connection} />
+        <StudioHelp guide={guideFor(match?.route.id)} />
         <button type="button" className="topbar-icon studio-close" aria-label="Close Studio" title="Close Studio" onClick={close}>
           <X aria-hidden="true" />
         </button>

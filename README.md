@@ -210,11 +210,16 @@ like every other product. See `src/modules/magnus/PORTING.md`.
 ### Ardent Project Studio
 
 With `ardentstudio` in `products`, the Studio entries open `/studio/*` as a fullscreen page outside
-the console shell, with its own top bar. **Close Studio** (✕) returns to the console page it was
-opened from, kept in `history.state`, or to the suite home; Escape does not close it. Studio waits
-for Magnus to report at least one reachable Ardent agent. Its service API is `/api/ardentstudio`;
-until this console carries that service's client, Studio pages say whether the service answers and
-show no records.
+the console shell, with its own top bar. You write a project brief, design a team and bind each role
+to a Magnus-managed Ardent agent, talk to the team in a Conversation Room where replies stream live,
+tune each agent in Agent Studio and review what it delivers. **Close Studio** (✕) returns to the
+console page it was opened from, kept in `history.state`, or to the suite home; Escape does not close
+it. Each area has a **?** guide in the top bar.
+
+Studio needs the ArdentStudio service at `/api/ardentstudio`, Magnus with at least one reachable
+Ardent agent, HiveMem for project knowledge and Oathweave for sign-in. Creating an agent and applying
+changes to one also need a Magnus ADMIN. [docs/STUDIO.md](docs/STUDIO.md) covers the routes, each
+area's workflows, the room's agent states, the keyboard map, accessibility and known limits.
 
 ### Sign-in portal
 
