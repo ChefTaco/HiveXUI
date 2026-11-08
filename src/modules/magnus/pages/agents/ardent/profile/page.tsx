@@ -28,6 +28,8 @@ import {
   type ArdentTask,
   type ArdentTaskEvent,
 } from '../schemas';
+import { hiveMemCredentialView } from '../hivemem-credential';
+import { HiveMemCredential } from './hivemem-credential';
 import { HiveMemEnable } from './hivemem-enable';
 import { ActionButton, ConfigEditor, IdentityEditor, MemoryPanel, PeerEditor, SettingsForm, SkillList, TaskTest, type ProfileRef } from './editors';
 
@@ -295,6 +297,7 @@ export default function ArdentProfilePage() {
   const installation = useMagnusResource((signal) => readInstallation(ref!.nodeId, signal), [ref?.nodeId, refreshKey], { enabled: !!ref });
   const profile = installation.data?.profiles.find((item) => item.id === ref?.profileId);
   const running = profile?.running ?? false;
+  const credentialExpired = hiveMemCredentialView(profile?.hivemem)?.kind === 'expired';
   const back = <Link href="/ardent/profiles" className="inline-flex items-center gap-1 text-sm"><ArrowLeft className="size-4" /> Profiles</Link>;
   if (!ref) {
     return (
@@ -320,9 +323,10 @@ export default function ArdentProfilePage() {
       </PageItem>
       {installation.error && !installation.data ? <p role="alert" className="m-0 text-sm text-warning">Node inventory is unavailable: {errorMessage(installation.error)}</p> : null}
       {installation.data?.commandOwners?.length ? <PageItem><CommandOwners installation={installation.data} onSettled={() => setRefreshKey((value) => value + 1)} /></PageItem> : null}
+      {profile?.hivemem !== undefined ? <PageItem><HiveMemCredential credential={profile.hivemem} /></PageItem> : null}
       <RequireRole roles={ADMIN_ONLY}>
         <PageItem className="empty:hidden">
-          <HiveMemEnable nodeId={nodeId} profileId={profileId} nodeName={installation.data?.nodeName} running={running} onEnabled={() => setRefreshKey((value) => value + 1)} />
+          <HiveMemEnable nodeId={nodeId} profileId={profileId} nodeName={installation.data?.nodeName} running={running} expired={credentialExpired} onEnabled={() => setRefreshKey((value) => value + 1)} />
         </PageItem>
       </RequireRole>
       <PageItem>

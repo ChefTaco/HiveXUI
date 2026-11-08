@@ -14,10 +14,11 @@ import { stoppedAt } from '../profiles/new-agent-logic';
 import type { ProfileRef } from './editors';
 
 /**
- * Shown only while the profile has no HiveMem identity (memory.provider is none), or while an
- * enablement runs. A read that fails shows nothing: the Skills tab reports memory problems.
+ * Shown only while the profile has no HiveMem identity (memory.provider is none), once Magnus reports
+ * its credential expired (enabling again re-enrolls it with a new one), or while an enablement runs.
+ * A read that fails shows nothing: the Skills tab reports memory problems.
  */
-export function HiveMemEnable({ nodeId, profileId, nodeName, running, onEnabled }: ProfileRef & { nodeName?: string | undefined; running: boolean; onEnabled?: () => void }) {
+export function HiveMemEnable({ nodeId, profileId, nodeName, running, expired = false, onEnabled }: ProfileRef & { nodeName?: string | undefined; running: boolean; expired?: boolean; onEnabled?: () => void }) {
   const memory = useMagnusResource((signal) => readResource(nodeId, profileId, 'memory/status', memoryStatusSchema, signal), [nodeId, profileId]);
   const { operation, note, follow } = useAgentOperation();
   const [operationId, setOperationId] = useState<string | null>(null);
@@ -30,7 +31,8 @@ export function HiveMemEnable({ nodeId, profileId, nodeName, running, onEnabled 
     if (operation?.status === 'succeeded') enabled.current?.();
   }, [operation?.status]);
   const missing = memory.data !== undefined && memory.data.agent_id === '';
-  if (!missing && !operationId) return null;
+  if (!missing && !expired && !operationId) return null;
+  const renew = expired && !missing;
 
   async function start(run: () => Promise<string>) {
     setConfirming(false);
@@ -49,10 +51,12 @@ export function HiveMemEnable({ nodeId, profileId, nodeName, running, onEnabled 
   const status = operation?.status;
   return (
     <FxPanel
-      tone={status === 'succeeded' ? undefined : 'warning'}
-      fxTone={status === 'succeeded' ? 'success' : 'warning'}
-      title={status === 'succeeded' ? 'HiveMem enabled' : 'HiveMem is not enabled'}
-      description={status === 'succeeded' ? 'This profile now keeps private memory in HiveMem.' : 'This profile keeps no long-term memory. Ardent Studio and every new agent rely on HiveMem.'}
+      tone={status === 'succeeded' ? undefined : renew ? 'danger' : 'warning'}
+      fxTone={status === 'succeeded' ? 'success' : renew ? 'danger' : 'warning'}
+      title={status === 'succeeded' ? 'HiveMem enabled' : renew ? 'Re-enroll in HiveMem' : 'HiveMem is not enabled'}
+      description={status === 'succeeded' ? 'This profile now keeps private memory in HiveMem.' : renew
+        ? "The profile's HiveMem credential expired. Enabling HiveMem again enrolls it with a new credential."
+        : 'This profile keeps no long-term memory. Ardent Studio and every new agent rely on HiveMem.'}
       actions={!operationId ? (
         <Button variant="primary" size="sm" icon={<Brain className="size-4" />} loading={busy} disabled={!running} onClick={() => setConfirming(true)}>Enable HiveMem</Button>
       ) : status === 'failed' ? (
