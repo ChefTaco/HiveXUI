@@ -62,6 +62,9 @@ describe('theme contrast', () => {
   it('labels on the hovered accent stay AA', () => {
     expect(contrast(color('--on-accent'), color('--accent-hover'))).toBeGreaterThanOrEqual(4.5);
   });
+  it.each(['--surface-page', '--surface', '--surface-raised', '--surface-hover'].flatMap((surface) => [1, 2, 3, 4, 5, 6].map((index) => [`--persona-${index}`, surface] as const)))('portrait color %s stands out on %s', (persona, surface) => {
+    expect(contrast(color(persona), color(surface))).toBeGreaterThanOrEqual(4.5);
+  });
   it.each(['--surface-page', '--surface', '--surface-raised'])('control outlines and focus reach 3:1 on %s', (surface) => {
     expect(contrast(color('--border-strong'), color(surface))).toBeGreaterThanOrEqual(3);
     expect(contrast(color('--focus'), color(surface))).toBeGreaterThanOrEqual(3);
