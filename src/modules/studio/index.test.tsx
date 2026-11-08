@@ -12,6 +12,9 @@ vi.mock('../../lib/runtime', async (importOriginal) => ({
 
 const PROFILE = { id: 'writer', name: 'Writer', backend: 'llamacpp', apiPort: 9910, running: true, a2aEnabled: false, channels: {}, error: null, nodeId: 'node-1', nodeName: 'node one', hostname: 'node-1.example.com', installationVersion: '2.1.2', reachable: true };
 
+const check = { status: 'ok', error: null };
+const READY = { status: 'ready', checks: { database: check, magnus: check, hivemem: check, agents: { status: 'ok', available: 1 } } };
+
 interface Answers {
   profiles: () => Response;
   health: () => Response;
@@ -32,7 +35,7 @@ beforeEach(() => {
     const path = new URL(String(input), 'https://console.example.com').pathname;
     requests.push(path);
     if (path === '/api/magnus/ardent/profiles') return answers.profiles();
-    if (path === '/api/ardentstudio/health/ready') return answers.health();
+    if (path === '/api/ardentstudio/v1/health/ready') return answers.health();
     return new Response('Not found', { status: 404 });
   }));
 });
@@ -110,7 +113,8 @@ describe('the Studio page', () => {
     expect(tabs.map((tab) => tab.textContent)).toEqual(['Team', 'Room', 'Agents']);
     expect(tabs.map((tab) => tab.getAttribute('href'))).toEqual(['/studio/p/adventure/team', '/studio/p/adventure/room', '/studio/p/adventure/review']);
     expect(root.querySelector('[aria-current="page"]')?.textContent).toBe('Room');
-    expect(text(root)).toContain('adventure');
+    // The service knows no such project, and the switcher says so rather than showing a name.
+    expect(root.querySelector('.studio-switcher')?.textContent).toContain('Project not found');
   });
 
   it('returns the Agents tab to the agent last opened in the project', async () => {
@@ -126,7 +130,7 @@ describe('the Studio page', () => {
     const root = await open('/studio/p/adventure/team');
     expect(text(root)).toContain("The Studio service isn't reachable");
     expect(text(root)).toContain('Offline');
-    answers.health = () => Response.json({ status: 'ready' });
+    answers.health = () => Response.json(READY);
     await click(button('Retry'));
     await settle();
     expect(text(root)).toContain('Connected');
