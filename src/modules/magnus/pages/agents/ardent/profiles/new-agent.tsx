@@ -39,6 +39,10 @@ export interface NewAgentWizardProps {
   onDone: (agentRef: string) => void;
   /** Offers Cancel before the deploy starts. */
   onCancel?: (() => void) | undefined;
+  /** The deploy was accepted and is running, for a host that shows the agent as being created. */
+  onDeployStarted?: ((agentRef: string) => void) | undefined;
+  /** The label of the button that calls onDone after a successful deploy. */
+  doneLabel?: string | undefined;
   className?: string | undefined;
 }
 
@@ -226,7 +230,7 @@ interface StepProps {
   errors: StepErrors;
 }
 
-function Wizard({ installations: given, onDone, onCancel, className }: NewAgentWizardProps) {
+function Wizard({ installations: given, onDone, onCancel, onDeployStarted, doneLabel = 'Open profile', className }: NewAgentWizardProps) {
   const loaded = useMagnusResource((signal) => listInstallations(signal), [], { enabled: !given });
   const installations = given ?? loaded.data;
   const choices = useMemo(() => nodeChoices(installations ?? []), [installations]);
@@ -259,6 +263,7 @@ function Wizard({ installations: given, onDone, onCancel, className }: NewAgentW
       setOperationId(id);
       setStep(4);
       follow(id);
+      onDeployStarted?.(agentRef(draft.nodeId, draft.profileId));
     } catch (caught) {
       setProblem(agentOperationError(caught, installation?.nodeName, 'The agent could not be deployed'));
     } finally {
@@ -310,7 +315,7 @@ function Wizard({ installations: given, onDone, onCancel, className }: NewAgentW
         {step < 3 ? <Button variant="primary" icon={<ArrowRight className="size-4" />} onClick={next}>Next</Button> : null}
         {step === 3 ? <Button variant="primary" icon={<Rocket className="size-4" />} loading={busy} onClick={() => void deploy()}>Deploy</Button> : null}
         {step === 4 && status === 'failed' ? <Button variant="primary" icon={<RotateCcw className="size-4" />} loading={busy} onClick={() => void resume()}>Resume</Button> : null}
-        {step === 4 && status === 'succeeded' ? <Button variant="primary" icon={<ExternalLink className="size-4" />} onClick={() => onDone(agentRef(draft.nodeId, draft.profileId))}>Open profile</Button> : null}
+        {step === 4 && status === 'succeeded' ? <Button variant="primary" icon={<ExternalLink className="size-4" />} onClick={() => onDone(agentRef(draft.nodeId, draft.profileId))}>{doneLabel}</Button> : null}
         {step === 4 && status === 'running' ? <span className="inline-flex items-center gap-2 text-sm text-text-muted"><Brain className="size-4" aria-hidden="true" /> The deploy continues on the server if you leave this page.</span> : null}
       </div>
     </div>

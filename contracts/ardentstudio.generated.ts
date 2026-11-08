@@ -35,6 +35,15 @@ export const fileIdSchema = prefixedId('fil');
 export const templateIdSchema = prefixedId('tpl');
 export const bindingIdSchema = prefixedId('bnd');
 export const teamRevisionIdSchema = prefixedId('trv');
+export const conversationIdSchema = prefixedId('cnv');
+export const messageIdSchema = prefixedId('msg');
+export const taskIdSchema = prefixedId('tsk');
+export const decisionIdSchema = prefixedId('dec');
+export const deliverableIdSchema = prefixedId('dlv');
+export const revisionIdSchema = prefixedId('drv');
+export const commentIdSchema = prefixedId('cmt');
+export const reviewDecisionIdSchema = prefixedId('rvd');
+export const exportIdSchema = prefixedId('exp');
 /** A Magnus-managed Ardent profile: `<nodeId>~<profile>`, the same reference Magnus uses. */
 export const agentRefSchema = z.string().regex(/^[A-Za-z0-9._-]{1,128}~[A-Za-z0-9._-]{1,128}$/);
 export const roleKeySchema = z.string().regex(/^[a-z][a-z0-9_-]{0,47}$/);
@@ -417,6 +426,538 @@ export const listAgentsResponseSchema = z.object({
   magnus: z.object({ state: z.enum(['ok', 'unavailable']), error: z.string().nullable() }),
 });
 
+
+// ── Room: layout, conversations, messages ──
+export const seatSchema = z.object({
+  id: z.string().regex(/^[a-z0-9-]{1,40}$/),
+  kind: z.enum(['desk', 'discussion', 'review', 'shelf', 'wall']),
+  x: z.number().min(-1000).max(1000),
+  y: z.number().min(-1000).max(1000),
+}).strict();
+export const placementSchema = z.object({ role_key: roleKeySchema, seat_id: z.string().regex(/^[a-z0-9-]{1,40}$/) }).strict();
+export const roomLayoutSchema = z.object({
+  project_id: projectIdSchema,
+  revision: z.number().int(),
+  seats: z.array(seatSchema),
+  placements: z.array(placementSchema),
+  zone_labels: z.record(z.string(), z.string()),
+  created_by: z.string(),
+  created_at: isoDate,
+});
+export const layoutResponseSchema = z.object({ layout: roomLayoutSchema.nullable() });
+export const putLayoutRequestSchema = z.object({
+  /** The revision this edit was based on (null for the first). A newer revision answers 409. */
+  base_revision: z.number().int().min(1).nullable(),
+  seats: z.array(seatSchema).max(64),
+  placements: z.array(placementSchema).max(64),
+  zone_labels: z.record(z.string().regex(/^[a-z0-9-]{1,40}$/), z.string().trim().max(60)).refine(value => Object.keys(value).length <= 32, 'At most 32 zone labels').default({}),
+}).strict();
+
+export const conversationKindSchema = z.enum(['team', 'direct', 'discussion']);
+export const desiredOutputSchema = z.enum(['decision', 'short_doc', 'options']);
+/** running: rounds in progress; summarizing: the coordinator summary; stopped by a person; done. */
+export const discussionStateSchema = z.enum(['running', 'summarizing', 'stopped', 'done']);
+export const discussionSchema = z.object({
+  question: z.string(),
+  desired_output: desiredOutputSchema,
+  participants: z.array(roleKeySchema),
+  max_rounds: z.number().int(),
+  round: z.number().int(),
+  state: discussionStateSchema,
+});
+export const conversationSchema = z.object({
+  id: conversationIdSchema,
+  project_id: projectIdSchema,
+  kind: conversationKindSchema,
+  parent_id: conversationIdSchema.nullable(),
+  title: z.string(),
+  /** The role a direct conversation talks to. */
+  role_key: roleKeySchema.nullable(),
+  discussion: discussionSchema.nullable(),
+  /** Project message seq of the newest message. */
+  last_message_seq: z.number().int(),
+  created_by: z.string(),
+  created_at: isoDate,
+  updated_at: isoDate,
+  stopped_at: isoDate.nullable(),
+});
+const conversationTitle = z.string().trim().min(1).max(200);
+export const createConversationRequestSchema = z.discriminatedUnion('kind', [
+  /** There is one team conversation per project; creating it again answers the existing one. */
+  z.object({ kind: z.literal('team'), title: conversationTitle.optional() }).strict(),
+  z.object({ kind: z.literal('direct'), role_key: roleKeySchema, title: conversationTitle.optional() }).strict(),
+  z.object({
+    kind: z.literal('discussion'),
+    title: conversationTitle.optional(),
+    parent_id: conversationIdSchema.optional(),
+    question: z.string().trim().min(1).max(4_000),
+    desired_output: desiredOutputSchema,
+    participants: z.array(roleKeySchema).min(1).max(8).refine(value => new Set(value).size === value.length, 'Duplicate participant'),
+    max_rounds: z.number().int().min(1).max(4).default(2),
+  }).strict(),
+]);
+export const listConversationsResponseSchema = z.object({ conversations: z.array(conversationSchema) });
+export const conversationResponseSchema = conversationSchema;
+
+export const messageAuthorSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('user'), user_id: z.string() }),
+  z.object({ kind: z.literal('agent'), binding_id: bindingIdSchema, role_key: z.string().nullable() }),
+  z.object({ kind: z.literal('system') }),
+]);
+export const messageStateSchema = z.enum(['streaming', 'complete', 'failed']);
+/**
+ * kind: message (a person), reply (an agent's turn), summary (a discussion summary), clarification
+ * (an agent's question; links.question, links.options, links.answer_message_id), answer,
+ * decision_proposal (links.proposal, links.decision_id), handoff (links.handoff), discussion_question
+ * and system (Studio notes such as a refused hand-off). links.task_id names the Studio task.
+ */
+export const messageSchema = z.object({
+  id: messageIdSchema,
+  project_id: projectIdSchema,
+  conversation_id: conversationIdSchema,
+  /** Per project, so the whole transcript has one order. */
+  seq: z.number().int(),
+  author: messageAuthorSchema,
+  /** Role keys. */
+  addressees: z.array(z.string()),
+  reply_to: messageIdSchema.nullable(),
+  thread_root: messageIdSchema.nullable(),
+  kind: z.string(),
+  /** Final text. While state is streaming, live text arrives as message.delta on the project stream. */
+  body_md: z.string(),
+  attachments: z.array(fileIdSchema),
+  links: z.record(z.string(), z.unknown()),
+  ardent: z.object({ task_id: z.string(), session_id: z.string().nullable() }).nullable(),
+  state: messageStateSchema,
+  created_at: isoDate,
+  updated_at: isoDate,
+});
+export const listMessagesQuerySchema = z.object({
+  after: z.string().regex(/^\d{1,15}$/).optional(),
+  limit: z.string().regex(/^\d{1,3}$/).optional(),
+});
+export const listMessagesResponseSchema = z.object({
+  messages: z.array(messageSchema),
+  /** Pass as ?after= for the next page; null when this page reached the end. */
+  next_after: z.number().int().nullable(),
+});
+export const recipientSchema = z.discriminatedUnion('kind', [
+  /** Team and Coordinator start a coordinator turn (unless the text @mentions roles). */
+  z.object({ kind: z.literal('team') }).strict(),
+  z.object({ kind: z.literal('coordinator') }).strict(),
+  /** One turn per role, in this order. */
+  z.object({ kind: z.literal('roles'), roles: z.array(roleKeySchema).min(1).max(10) }).strict(),
+]);
+export const postMessageRequestSchema = z.object({
+  body_md: z.string().trim().min(1).max(20_000),
+  to: recipientSchema.default({ kind: 'team' }),
+  reply_to: messageIdSchema.optional(),
+  thread_root: messageIdSchema.optional(),
+  /** Project files to attach. Text files are given to the agents as context. */
+  attachments: z.array(fileIdSchema).max(10).default([]),
+}).strict();
+
+// ── Tasks ──
+export const TASK_MODES = ['turn', 'assignment', 'discussion_turn', 'revision', 'review', 'team_proposal'] as const;
+export const taskModeSchema = z.enum(TASK_MODES);
+/** The Ardent state mirrored, plus pausing (requested, not yet at a step boundary). input_required waits for a person's answer. */
+export const taskStateSchema = z.enum(['queued', 'running', 'input_required', 'pausing', 'paused', 'completed', 'partial', 'failed', 'cancelled', 'unknown']);
+export const taskSchema = z.object({
+  id: taskIdSchema,
+  project_id: projectIdSchema,
+  title: z.string(),
+  mode: taskModeSchema,
+  role_key: z.string().nullable(),
+  binding_id: bindingIdSchema.nullable(),
+  /** The published team revision whose rules apply to this task. */
+  assignment_revision: z.number().int().nullable(),
+  conversation_id: conversationIdSchema.nullable(),
+  trigger_message_id: messageIdSchema.nullable(),
+  instructions_md: z.string(),
+  source: z.record(z.string(), z.unknown()),
+  state: taskStateSchema,
+  /** mission: an Ardent 2.2.0 team mission; turn: a task-submit with a composed prompt (older agents). Null until Ardent accepts it. */
+  dispatch: z.enum(['mission', 'turn']).nullable(),
+  ardent: z.object({ agent_ref: z.string().nullable(), task_id: z.string().nullable(), session_id: z.string().nullable() }),
+  outcome: z.unknown(),
+  reassigned_from: taskIdSchema.nullable(),
+  /** Tasks in one ordering group start one after another. */
+  group_id: z.string().nullable(),
+  group_position: z.number().int(),
+  created_by: z.string(),
+  created_at: isoDate,
+  updated_at: isoDate,
+  finished_at: isoDate.nullable(),
+});
+export const listTasksQuerySchema = z.object({
+  state: z.enum(['active', 'finished', 'all']).default('all'),
+  conversation_id: conversationIdSchema.optional(),
+});
+export const listTasksResponseSchema = z.object({ tasks: z.array(taskSchema) });
+export const createTaskRequestSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  instructions_md: z.string().max(20_000).default(''),
+  role_key: roleKeySchema,
+  mode: z.enum(['assignment', 'review']).default('assignment'),
+  /** Where the reply goes: this conversation, the source message's, else the team conversation. */
+  conversation_id: conversationIdSchema.optional(),
+  source_message_id: messageIdSchema.optional(),
+}).strict();
+export const reassignTaskRequestSchema = z.object({ role_key: roleKeySchema }).strict();
+export const taskResponseSchema = taskSchema;
+export const postMessageResponseSchema = z.object({ message: messageSchema, tasks: z.array(taskSchema) });
+export const answerRequestSchema = z.object({ body_md: z.string().trim().min(1).max(20_000), option: z.string().trim().min(1).max(300).optional() }).strict();
+export const followUpRequestSchema = z.object({ body_md: z.string().trim().max(20_000).default('') }).strict();
+
+// ── Decisions ──
+export const decisionSchema = z.object({
+  id: decisionIdSchema,
+  project_id: projectIdSchema,
+  title: z.string(),
+  statement_md: z.string(),
+  rationale_md: z.string(),
+  sources: z.array(z.object({ kind: z.string(), ref: z.string() })),
+  decided_by: z.string(),
+  superseded_by: decisionIdSchema.nullable(),
+  created_at: isoDate,
+});
+export const createDecisionRequestSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  statement_md: z.string().trim().min(1).max(20_000),
+  rationale_md: z.string().max(20_000).default(''),
+  /** Pin a message (for example an agent's proposal) as the decision's source. */
+  source_message_id: messageIdSchema.optional(),
+}).strict();
+export const supersedeDecisionRequestSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  statement_md: z.string().trim().min(1).max(20_000),
+  rationale_md: z.string().max(20_000).default(''),
+}).strict();
+export const listDecisionsResponseSchema = z.object({ decisions: z.array(decisionSchema) });
+export const decisionResponseSchema = decisionSchema;
+
+// ── Activity (derived from real records only) ──
+/**
+ * offline/available come from the 30-second status probe only. queued, working, reviewing, asking,
+ * waiting (behind another turn in its ordering group), paused and delivering come from Studio tasks
+ * and Ardent journal events. Speaking is not stored: it is the live message.delta stream itself.
+ * unknown: not probed yet.
+ */
+export const activityStateSchema = z.enum(['offline', 'available', 'queued', 'working', 'reviewing', 'asking', 'waiting', 'paused', 'delivering', 'unknown']);
+export const activitySchema = z.object({
+  binding_id: bindingIdSchema,
+  agent_ref: agentRefSchema,
+  state: activityStateSchema,
+  label: z.string(),
+  source: z.record(z.string(), z.unknown()),
+  since: isoDate,
+});
+
+
+// ── Deliverable review ──
+/** A received revision's review status. Distinct from the task that produced it and from the file's receipt. */
+export const reviewStatusSchema = z.enum(['unreviewed', 'changes_requested', 'accepted', 'rejected', 'superseded']);
+export const deliverableRevisionSchema = z.object({
+  id: revisionIdSchema,
+  deliverable_id: deliverableIdSchema,
+  revision: z.number().int(),
+  /** Download through GET /blobs/{sha256}. */
+  blob_sha256: sha256Schema,
+  mime: z.string(),
+  size: z.number().int(),
+  producer_binding_id: bindingIdSchema.nullable(),
+  source_task_id: taskIdSchema.nullable(),
+  source_message_id: messageIdSchema.nullable(),
+  /** The Ardent registration: agent_ref, artifact_id, task_id and the full artifact manifest. */
+  ardent: z.record(z.string(), z.unknown()).nullable(),
+  supersedes_revision_id: revisionIdSchema.nullable(),
+  received_at: isoDate,
+  review_status: reviewStatusSchema,
+});
+export const deliverableSchema = z.object({
+  id: deliverableIdSchema,
+  project_id: projectIdSchema,
+  requested_deliverable_id: requestedDeliverableIdSchema.nullable(),
+  name: z.string(),
+  kind: z.string(),
+  producer_role: z.string().nullable(),
+  final_revision_id: revisionIdSchema.nullable(),
+  created_at: isoDate,
+  updated_at: isoDate,
+  revisions: z.array(deliverableRevisionSchema),
+  comments: z.object({ open: z.number().int(), resolved: z.number().int() }),
+});
+/** An artifact an agent registered. pending: being streamed in; failed: not stored (error says why, such as a digest mismatch). */
+export const artifactImportSchema = z.object({
+  artifact_id: z.string(),
+  task_id: taskIdSchema,
+  agent_ref: agentRefSchema,
+  name: z.string(),
+  mime: z.string(),
+  size: z.number().int(),
+  sha256: sha256Schema,
+  state: z.enum(['pending', 'imported', 'failed']),
+  attempts: z.number().int(),
+  error: z.string().nullable(),
+  revision_id: revisionIdSchema.nullable(),
+  updated_at: isoDate,
+});
+export const listDeliverablesResponseSchema = z.object({ deliverables: z.array(deliverableSchema), imports: z.array(artifactImportSchema) });
+export const deliverableResponseSchema = deliverableSchema;
+
+const unit = z.number().min(0).max(1);
+/**
+ * Where a comment points. text: UTF-16 offsets into the revision decoded as UTF-8, with the quoted
+ * text and the revision digest (Markdown, plain text, CSV, JSON, SVG source). docx: a paragraph of
+ * the stored conversion. pdf: a page, with an optional normalized rectangle and quote. image: a
+ * normalized region, with SVG viewBox coordinates when known. file: the whole file.
+ */
+export const commentAnchorSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('text'), start: z.number().int().min(0), end: z.number().int().min(0), quote: z.string().max(4_000), source_sha256: sha256Schema }).strict(),
+  z.object({ kind: z.literal('docx'), paragraph_id: z.string().regex(/^[A-Za-z0-9_:-]{1,128}$/), start: z.number().int().min(0), end: z.number().int().min(0), quote: z.string().max(4_000) }).strict(),
+  z.object({ kind: z.literal('pdf'), page: z.number().int().min(1).max(10_000), rect: z.object({ x: unit, y: unit, w: unit, h: unit }).strict().optional(), quote: z.string().max(4_000).optional() }).strict(),
+  z.object({ kind: z.literal('image'), x: unit, y: unit, w: unit, h: unit,
+    viewbox: z.object({ x: z.number(), y: z.number(), w: z.number().positive(), h: z.number().positive() }).strict().optional() }).strict(),
+  z.object({ kind: z.literal('file') }).strict(),
+]);
+export const reviewCommentSchema = z.object({
+  id: commentIdSchema,
+  project_id: projectIdSchema,
+  revision_id: revisionIdSchema,
+  anchor: commentAnchorSchema,
+  body_md: z.string(),
+  author: z.string(),
+  state: z.enum(['open', 'resolved']),
+  /** The revision task this comment was sent with. */
+  revision_task_id: taskIdSchema.nullable(),
+  /** The revision that came back from that task. Resolving stays a person's choice. */
+  addressed_in_revision_id: revisionIdSchema.nullable(),
+  created_at: isoDate,
+  resolved_at: isoDate.nullable(),
+  updated_at: isoDate.nullable(),
+});
+export const createCommentRequestSchema = z.object({ anchor: commentAnchorSchema, body_md: z.string().trim().min(1).max(20_000) }).strict();
+export const listCommentsResponseSchema = z.object({ comments: z.array(reviewCommentSchema) });
+export const commentResponseSchema = reviewCommentSchema;
+export const reviewDecisionKindSchema = z.enum(['accepted', 'changes_requested', 'rejected']);
+export const reviewDecisionSchema = z.object({
+  id: reviewDecisionIdSchema,
+  project_id: projectIdSchema,
+  revision_id: revisionIdSchema,
+  decision: reviewDecisionKindSchema,
+  note_md: z.string(),
+  decided_by: z.string(),
+  created_at: isoDate,
+});
+export const createReviewDecisionRequestSchema = z.object({ decision: reviewDecisionKindSchema, note_md: z.string().max(20_000).default('') }).strict();
+export const reviewDecisionResponseSchema = reviewDecisionSchema;
+export const revisionDetailResponseSchema = z.object({
+  revision: deliverableRevisionSchema,
+  deliverable: deliverableSchema,
+  comments: z.array(reviewCommentSchema),
+  decisions: z.array(reviewDecisionSchema),
+});
+export const setFinalRequestSchema = z.object({ revision_id: revisionIdSchema }).strict();
+export const revisionRequestSchema = z.object({
+  /** Comments on revisions of one deliverable. */
+  comment_ids: z.array(commentIdSchema).min(1).max(50).refine(value => new Set(value).size === value.length, 'Duplicate comment'),
+  /** Defaults to the deliverable's producer role. */
+  role_key: roleKeySchema.optional(),
+  instructions_md: z.string().max(20_000).default(''),
+}).strict();
+export const revisionRequestResponseSchema = z.object({ message: messageSchema, task: taskSchema, comments: z.array(reviewCommentSchema) });
+export const exportRecordSchema = z.object({
+  id: exportIdSchema,
+  project_id: projectIdSchema,
+  revision_ids: z.array(revisionIdSchema),
+  /** The zip: download through GET /blobs/{sha256}. */
+  blob_sha256: sha256Schema,
+  manifest: z.record(z.string(), z.unknown()),
+  created_by: z.string(),
+  created_at: isoDate,
+});
+export const createExportRequestSchema = z.object({ deliverable_ids: z.array(deliverableIdSchema).min(1).max(200).optional() }).strict();
+export const listExportsResponseSchema = z.object({ exports: z.array(exportRecordSchema) });
+export const exportResponseSchema = exportRecordSchema;
+/** A DOCX converted by the canvas Word codec, stored once per file or revision so paragraph ids stay stable. */
+export const docxDocumentResponseSchema = z.object({
+  source: z.object({ kind: z.enum(['file', 'revision']), id: z.string() }),
+  blob_sha256: sha256Schema,
+  codec: z.string(),
+  codec_version: z.string(),
+  document_sha256: sha256Schema,
+  paragraphs: z.array(z.object({ id: z.string(), text: z.string() })),
+  /** The exchange document and canvas-editor value. */
+  document: z.unknown(),
+});
+
+
+// ── Agent Studio ──
+export const presentationSchema = z.object({
+  agent_ref: agentRefSchema,
+  display_name: z.string().nullable(),
+  portrait: avatarPresetSchema.nullable(),
+  avatar_file_id: fileIdSchema.nullable(),
+  updated_by: z.string().nullable(),
+  updated_at: isoDate.nullable(),
+});
+export const putPresentationRequestSchema = z.object({
+  display_name: z.string().trim().min(1).max(80).nullable(),
+  portrait: avatarPresetSchema.nullable(),
+  /** A project file uploaded with purpose avatar. */
+  avatar_file_id: fileIdSchema.nullable().default(null),
+}).strict();
+const skillName = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/);
+/** Unsaved changes to an agent. Each person has one draft per agent; Apply writes it through Magnus. */
+export const agentDraftBodySchema = z.object({
+  soul: z.string().min(1).max(131_072).optional(),
+  identity: z.string().min(1).max(131_072).optional(),
+  /** The complete set of enabled local skills. */
+  skills_enabled: z.array(skillName).max(100).optional(),
+  /** An Emberpath alias or model name, for Preview. */
+  model: z.string().trim().min(1).max(200).optional(),
+}).strict();
+/** The revisions the draft was based on; Apply refuses to overwrite a newer revision. */
+export const agentDraftBaseSchema = z.object({
+  soul_revision: sha256Schema.optional(),
+  identity_revision: sha256Schema.optional(),
+  /** Ardent's configuration revision, needed to change skills. */
+  config_revision: sha256Schema.optional(),
+}).strict();
+export const agentDraftSchema = z.object({
+  agent_ref: agentRefSchema,
+  user_id: z.string(),
+  base: agentDraftBaseSchema,
+  draft: agentDraftBodySchema,
+  created_at: isoDate,
+  updated_at: isoDate,
+});
+export const agentDraftResponseSchema = z.object({ draft: agentDraftSchema.nullable() });
+export const putAgentDraftRequestSchema = z.object({
+  /** Omitted soul and identity revisions are read from the agent through Magnus. */
+  base: agentDraftBaseSchema.default({}),
+  draft: agentDraftBodySchema,
+}).strict();
+export const previewRequestSchema = z.object({
+  prompt: z.string().trim().min(1).max(16_000),
+  /** Run with this person's draft (soul, identity, skills, model) instead of the saved agent. */
+  use_draft: z.boolean().default(true),
+  /** Start a fresh preview conversation instead of continuing the last one. */
+  new_session: z.boolean().default(false),
+}).strict();
+export const previewAcceptedEventSchema = z.object({ task_id: z.string(), session_id: z.string().nullable() });
+export const previewTextEventSchema = z.object({ step: z.number().int(), text: z.string() });
+/** Journal progress only (sequence and kind); details stay in Ardent. */
+export const previewJournalEventSchema = z.object({ sequence: z.number().int(), kind: z.string() });
+export const previewDoneEventSchema = z.object({ task_id: z.string(), state: z.string(), result: z.string().nullable(), error: z.string().nullable() });
+export const previewErrorEventSchema = z.object({ code: z.string(), message: z.string() });
+export const APPLY_PARTS = ['soul', 'identity', 'skills', 'model'] as const;
+export const applyRequestSchema = z.object({
+  parts: z.array(z.enum(APPLY_PARTS)).min(1).max(APPLY_PARTS.length).refine(value => new Set(value).size === value.length, 'Duplicate part'),
+}).strict();
+export const applyResultSchema = z.object({
+  part: z.enum(APPLY_PARTS),
+  /** applied; unchanged (the draft has no change for it); failed (error and code say why); unsupported (Studio cannot change it; use the Magnus console). */
+  status: z.enum(['applied', 'unchanged', 'failed', 'unsupported']),
+  error: z.string().nullable(),
+  code: z.string().nullable(),
+  /** The new Ardent revision when applied. */
+  revision: z.string().nullable(),
+});
+export const applyResponseSchema = z.object({
+  results: z.array(applyResultSchema),
+  /** Studio tasks still running on this agent; they keep the instructions they started with. */
+  active_tasks: z.number().int(),
+  note: z.string().nullable(),
+  /** What is left of the draft: applied parts are removed from it. */
+  draft: agentDraftSchema.nullable(),
+});
+export const developmentQuerySchema = z.object({
+  after: z.string().regex(/^[A-Za-z0-9_-]{1,400}$/).optional(),
+  limit: z.string().regex(/^\d{1,3}$/).optional(),
+  kind: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/).optional(),
+});
+export const developmentCommentSchema = z.object({ id: z.string(), agent_ref: agentRefSchema, record_ref: z.string(), body_md: z.string(), author: z.string(), created_at: isoDate });
+/** An Ardent development record. author and epistemic say who reported it: agent_reported records are the agent's own account. */
+export const developmentRecordSchema = z.object({
+  id: z.string(),
+  agent_ref: z.string(),
+  kind: z.string(),
+  title: z.string(),
+  body: z.string(),
+  author: z.enum(['agent', 'operator', 'runtime']),
+  epistemic: z.enum(['agent_reported', 'operator_reported', 'observed']),
+  before_sha256: sha256Schema.nullable(),
+  after_sha256: sha256Schema.nullable(),
+  sources: z.array(z.object({ kind: z.string(), ref: z.string() })),
+  created_at: z.string(),
+  comments: z.array(developmentCommentSchema),
+});
+export const developmentResponseSchema = z.object({
+  /** False when the agent's runtime does not publish development records; reason says why. */
+  supported: z.boolean(),
+  reason: z.string().nullable(),
+  records: z.array(developmentRecordSchema),
+  next: z.string().nullable(),
+});
+export const createDevelopmentCommentRequestSchema = z.object({
+  body_md: z.string().trim().min(1).max(8_000),
+  /** Also record the comment in the agent's development history (an operator note). */
+  relay_to_agent: z.boolean().default(false),
+}).strict();
+export const createDevelopmentCommentResponseSchema = z.object({ comment: developmentCommentSchema, relayed: z.boolean(), relay_error: z.string().nullable() });
+const credentialFreeUrl = (value: string) => {
+  try {
+    const url = new URL(value);
+    return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password && !url.search && !url.hash;
+  } catch { return false; }
+};
+/** An Emberpath alias, or an OpenAI-compatible endpoint and model. Never credentials. */
+export const newAgentModelSchema = z.union([
+  z.object({ emberpath_alias: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}$/) }).strict(),
+  z.object({ base_url: z.string().max(2048).refine(credentialFreeUrl, 'Expected an HTTP(S) URL without credentials, query or fragment'), model: z.string().min(1).max(200) }).strict(),
+]);
+export const newAgentRequestSchema = z.object({
+  node_id: z.string().regex(/^[A-Za-z0-9._-]{1,128}$/),
+  profile: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
+  api_port: z.number().int().min(1024).max(65535).optional(),
+  /** An agent template version: its soul, identity, local skills and portrait fill what is not given. */
+  template: templateRefSchema.optional(),
+  soul_md: z.string().min(1).max(131_072).optional(),
+  identity_md: z.string().min(1).max(131_072).optional(),
+  model: newAgentModelSchema,
+  skills: z.array(z.string().regex(/^[A-Za-z0-9_-]{1,100}$/)).max(100).optional(),
+  artifacts_max_bytes: z.number().int().min(1024).max(67_108_864).optional(),
+  /** Relay the operation's progress to this project's stream. */
+  project_id: projectIdSchema.optional(),
+  role_key: roleKeySchema.optional(),
+}).strict();
+export const agentOperationStepSchema = z.object({
+  name: z.string(),
+  status: z.enum(['pending', 'running', 'succeeded', 'skipped', 'failed']),
+  started_at: z.string().nullable(),
+  finished_at: z.string().nullable(),
+  receipt: z.record(z.string(), z.unknown()).nullable(),
+  error: z.string().nullable(),
+});
+/** A Magnus New Agent operation as Studio relays it. */
+export const agentOperationSchema = z.object({
+  id: z.string(),
+  agent_ref: agentRefSchema,
+  project_id: projectIdSchema.nullable(),
+  role_key: z.string().nullable(),
+  kind: z.enum(['deploy', 'hivemem']),
+  status: z.enum(['running', 'succeeded', 'failed']),
+  steps: z.array(agentOperationStepSchema),
+  error: z.string().nullable(),
+  attempts: z.number().int(),
+  created_by: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  completed_at: z.string().nullable(),
+});
+export const agentOperationResponseSchema = agentOperationSchema;
+
 // ── Project snapshot and stream ──
 export const snapshotResponseSchema = z.object({
   /** The stream cursor this snapshot is consistent with: reconnect with ?after=<seq>. */
@@ -424,6 +965,12 @@ export const snapshotResponseSchema = z.object({
   project: projectSchema,
   files: z.array(fileSchema),
   team: teamStateSchema,
+  conversations: z.array(conversationSchema),
+  /** Active tasks and those waiting for an answer. */
+  tasks: z.array(taskSchema),
+  decisions: z.array(decisionSchema),
+  activity: z.array(activitySchema),
+  layout: roomLayoutSchema.nullable(),
 });
 export const streamQuerySchema = z.object({ after: z.string().regex(/^\d{1,15}$/).optional() });
 export const PROJECT_EVENT_TYPES = [
@@ -433,7 +980,7 @@ export const PROJECT_EVENT_TYPES = [
   'layout.updated', 'conversation.created', 'conversation.updated', 'message.created', 'message.updated',
   'presence.updated', 'task.created', 'task.updated', 'decision.created', 'decision.updated',
   'deliverable.revision.created', 'review.comment.created', 'review.comment.updated', 'review.decision.created',
-  'export.created', 'agent.operation.updated',
+  'export.created', 'agent.operation.updated', 'deliverable.updated', 'artifact.import.updated',
 ] as const;
 export const projectEventTypeSchema = z.enum(PROJECT_EVENT_TYPES);
 /** A persisted event. The SSE `id` is its seq. */
@@ -446,7 +993,12 @@ export const projectEventSchema = z.object({
 });
 export const resetEventSchema = z.object({ seq: z.number().int(), reason: z.enum(['cursor_expired', 'cursor_ahead']) });
 export const heartbeatEventSchema = z.object({ seq: z.number().int(), at: isoDate });
-export const messageDeltaEventSchema = z.object({ message_id: z.string(), text: z.string() });
+/**
+ * Live reply text, never persisted or replayed. mode append adds text to the message's current
+ * step; replace sets the whole step (a new step, or a snapshot sent when a stream connects).
+ * The stored message (message.updated) replaces it when the turn ends.
+ */
+export const messageDeltaEventSchema = z.object({ message_id: z.string(), text: z.string(), mode: z.enum(['append', 'replace']).optional(), step: z.number().int().optional() });
 
 // ── Health ──
 const checkSchema = z.object({ status: z.enum(['ok', 'unavailable']), error: z.string().nullable() });
@@ -486,6 +1038,8 @@ const READ = ['ardentstudio:projects:read'] as const;
 const WRITE = ['ardentstudio:projects:write'] as const;
 const TEMPLATES_READ = ['ardentstudio:templates:read'] as const;
 const TEMPLATES_WRITE = ['ardentstudio:templates:write'] as const;
+const REVIEW = ['ardentstudio:review:write'] as const;
+const AGENTS_ADMIN = ['ardentstudio:agents:admin'] as const;
 
 export const ardentStudioBrowserRoutes: readonly ArdentStudioBrowserRoute[] = [
   // Health
@@ -504,7 +1058,7 @@ export const ardentStudioBrowserRoutes: readonly ArdentStudioBrowserRoute[] = [
   // Files
   { method: 'POST', path: '/projects/{projectId}/files', query: uploadFileQuerySchema, requestBody: 'raw', response: fileResponseSchema, permissions: WRITE, idempotent: true, successStatus: 201, note: 'Raw body up to ARDENT_STUDIO_MAX_BLOB_BYTES (default 64 MiB) with an allowed Content-Type (UPLOAD_MIME_TYPES). References are indexed into the project HiveMem workspace.' },
   { method: 'GET', path: '/projects/{projectId}/files', query: listFilesQuerySchema, response: listFilesResponseSchema, permissions: READ, idempotent: false },
-  { method: 'GET', path: '/blobs/{sha256}', response: null, permissions: READ, idempotent: false, note: 'Bytes as application/octet-stream with Content-Disposition attachment; the recorded type is in X-Blob-Mime. Only blobs that a project file references are served.' },
+  { method: 'GET', path: '/blobs/{sha256}', response: null, permissions: READ, idempotent: false, note: 'Bytes as application/octet-stream with Content-Disposition attachment; the recorded type is in X-Blob-Mime. Only blobs that a project file, a deliverable revision or an export references are served.' },
   { method: 'POST', path: '/files/{fileId}/reindex', response: fileResponseSchema, permissions: WRITE, idempotent: true, note: 'Queues the file for HiveMem sync again.' },
 
   // Templates
@@ -525,11 +1079,63 @@ export const ardentStudioBrowserRoutes: readonly ArdentStudioBrowserRoute[] = [
 
   // Agents
   { method: 'GET', path: '/agents', response: listAgentsResponseSchema, permissions: READ, idempotent: false, note: 'Magnus-managed Ardent profiles. When Magnus is unavailable the list is empty and magnus.state says so.' },
+  { method: 'POST', path: '/agents', requestBody: 'json', request: newAgentRequestSchema, response: agentOperationResponseSchema, permissions: AGENTS_ADMIN, idempotent: true, successStatus: 201, note: 'Magnus New Agent with the acting person: Magnus also requires that person to be a Magnus ADMIN (403 ACTING_ADMIN_REQUIRED). The agent always gets HiveMem. Progress is relayed as agent.operation.updated on project_id\'s stream.' },
+  { method: 'GET', path: '/agents/operations/{operationId}', response: agentOperationResponseSchema, permissions: READ, idempotent: false, note: 'Operations started from Studio. Magnus\'s current view, or the last relayed one when Magnus is unreachable.' },
+  { method: 'GET', path: '/agents/{agentRef}/presentation', response: presentationSchema, permissions: READ, idempotent: false },
+  { method: 'PUT', path: '/agents/{agentRef}/presentation', requestBody: 'json', request: putPresentationRequestSchema, response: presentationSchema, permissions: WRITE, idempotent: true, note: 'Studio-only display name and portrait; the agent itself is unchanged.' },
+  { method: 'GET', path: '/agents/{agentRef}/draft', response: agentDraftResponseSchema, permissions: READ, idempotent: false, note: 'The calling person\'s draft.' },
+  { method: 'PUT', path: '/agents/{agentRef}/draft', requestBody: 'json', request: putAgentDraftRequestSchema, response: agentDraftResponseSchema, permissions: WRITE, idempotent: true },
+  { method: 'DELETE', path: '/agents/{agentRef}/draft', response: agentDraftResponseSchema, permissions: WRITE, idempotent: true },
+  {
+    method: 'POST', path: '/agents/{agentRef}/preview', requestBody: 'json', request: previewRequestSchema, response: null, permissions: WRITE, idempotent: false,
+    events: { 'preview.accepted': previewAcceptedEventSchema, 'preview.text': previewTextEventSchema, 'preview.delta': previewTextEventSchema, 'preview.event': previewJournalEventSchema, 'preview.done': previewDoneEventSchema, 'preview.error': previewErrorEventSchema },
+    note: 'Streams a side-effect-free Ardent preview task (no memory writes, no mission tools, no identity changes, artifacts expire). Needs the agent\'s Magnus node agent at studio level 2: otherwise 409 PREVIEW_UNAVAILABLE. Sending x-idempotency-key again streams the same preview task.',
+  },
+  { method: 'POST', path: '/agents/{agentRef}/apply', requestBody: 'json', request: applyRequestSchema, response: applyResponseSchema, permissions: AGENTS_ADMIN, idempotent: true, note: 'Applies parts of the calling person\'s draft through Magnus (identity-save, skill-set) with the acting person, each against its base revision. Results are per part; running tasks keep their instructions.' },
+  { method: 'GET', path: '/agents/{agentRef}/development', query: developmentQuerySchema, response: developmentResponseSchema, permissions: READ, idempotent: false },
+  { method: 'POST', path: '/agents/{agentRef}/development/{recordId}/comments', requestBody: 'json', request: createDevelopmentCommentRequestSchema, response: createDevelopmentCommentResponseSchema, permissions: WRITE, idempotent: true, successStatus: 201 },
+
+  // Room
+  { method: 'GET', path: '/projects/{projectId}/layout', response: layoutResponseSchema, permissions: READ, idempotent: false },
+  { method: 'PUT', path: '/projects/{projectId}/layout', requestBody: 'json', request: putLayoutRequestSchema, response: layoutResponseSchema, permissions: WRITE, idempotent: true, note: 'Each save is a new revision. 409 when base_revision is not the latest.' },
+  { method: 'GET', path: '/projects/{projectId}/conversations', response: listConversationsResponseSchema, permissions: READ, idempotent: false },
+  { method: 'POST', path: '/projects/{projectId}/conversations', requestBody: 'json', request: createConversationRequestSchema, response: conversationResponseSchema, permissions: WRITE, idempotent: true, successStatus: 201, note: 'A discussion posts its question and starts round 1 at once: one turn per participant in order, then the next round, then a coordinator summary. Needs a published team with the participants bound (409 TEAM_NOT_READY).' },
+  { method: 'POST', path: '/conversations/{conversationId}/stop', response: conversationResponseSchema, permissions: WRITE, idempotent: true, note: 'Unstarted turns are cancelled; started ones are cancelled through Magnus.' },
+  { method: 'GET', path: '/conversations/{conversationId}/messages', query: listMessagesQuerySchema, response: listMessagesResponseSchema, permissions: READ, idempotent: false, note: 'Oldest first after ?after=<seq>; at most 200 (default 100).' },
+  { method: 'POST', path: '/conversations/{conversationId}/messages', requestBody: 'json', request: postMessageRequestSchema, response: postMessageResponseSchema, permissions: WRITE, idempotent: true, successStatus: 201, note: 'Team or Coordinator starts a coordinator turn; roles or @role_key mentions start one turn per addressee in order. A direct conversation always goes to its role; a discussion takes notes without starting turns. 409 TEAM_NOT_READY without a published team and bound roles.' },
+  { method: 'POST', path: '/messages/{messageId}/answer', requestBody: 'json', request: answerRequestSchema, response: postMessageResponseSchema, permissions: WRITE, idempotent: true, successStatus: 201, note: 'Answers a clarification: the answer continues the same agent session. 409 when it is already answered.' },
+  { method: 'POST', path: '/messages/{messageId}/follow-up', requestBody: 'json', request: followUpRequestSchema, response: postMessageResponseSchema, permissions: WRITE, idempotent: true, successStatus: 201, note: "Asks the agent that wrote the message to follow up on it." },
+
+  // Decisions and tasks
+  { method: 'GET', path: '/projects/{projectId}/decisions', response: listDecisionsResponseSchema, permissions: READ, idempotent: false },
+  { method: 'POST', path: '/projects/{projectId}/decisions', requestBody: 'json', request: createDecisionRequestSchema, response: decisionResponseSchema, permissions: WRITE, idempotent: true, successStatus: 201, note: 'Pinning is a person\'s act; an agent can only propose.' },
+  { method: 'POST', path: '/decisions/{decisionId}/supersede', requestBody: 'json', request: supersedeDecisionRequestSchema, response: decisionResponseSchema, permissions: WRITE, idempotent: true, successStatus: 201, note: 'Creates the new decision and marks this one superseded by it. 409 when it is already superseded.' },
+  { method: 'GET', path: '/projects/{projectId}/tasks', query: listTasksQuerySchema, response: listTasksResponseSchema, permissions: READ, idempotent: false },
+  { method: 'POST', path: '/projects/{projectId}/tasks', requestBody: 'json', request: createTaskRequestSchema, response: taskResponseSchema, permissions: WRITE, idempotent: true, successStatus: 201 },
+  { method: 'POST', path: '/tasks/{taskId}/pause', response: taskResponseSchema, permissions: WRITE, idempotent: true, note: 'A started task pauses at its next step boundary (state pausing, then paused); an unstarted one is held. 409 AGENT_UPGRADE_REQUIRED when the agent cannot pause.' },
+  { method: 'POST', path: '/tasks/{taskId}/resume', response: taskResponseSchema, permissions: WRITE, idempotent: true },
+  { method: 'POST', path: '/tasks/{taskId}/cancel', response: taskResponseSchema, permissions: WRITE, idempotent: true },
+  { method: 'POST', path: '/tasks/{taskId}/reassign', requestBody: 'json', request: reassignTaskRequestSchema, response: taskResponseSchema, permissions: WRITE, idempotent: true, successStatus: 201, note: 'Cancels the task when it is still active and creates the same work for another role, with reassigned_from.' },
+
+  // Deliverable review
+  { method: 'GET', path: '/projects/{projectId}/deliverables', response: listDeliverablesResponseSchema, permissions: READ, idempotent: false, note: 'Deliverables with every revision, plus artifact imports that are still pending or failed.' },
+  { method: 'GET', path: '/deliverables/{deliverableId}', response: deliverableResponseSchema, permissions: READ, idempotent: false },
+  { method: 'GET', path: '/revisions/{revisionId}', response: revisionDetailResponseSchema, permissions: READ, idempotent: false },
+  { method: 'GET', path: '/revisions/{revisionId}/comments', response: listCommentsResponseSchema, permissions: READ, idempotent: false },
+  { method: 'POST', path: '/revisions/{revisionId}/comments', requestBody: 'json', request: createCommentRequestSchema, response: commentResponseSchema, permissions: REVIEW, idempotent: true, successStatus: 201, note: 'The anchor kind must fit the revision type (422 ANCHOR_KIND). A text anchor must quote the revision exactly (422 ANCHOR_MISMATCH) and name its digest (409 ANCHOR_STALE). A docx anchor needs the stored conversion (409 DOCX_NOT_CONVERTED).' },
+  { method: 'POST', path: '/comments/{commentId}/resolve', response: commentResponseSchema, permissions: REVIEW, idempotent: true },
+  { method: 'POST', path: '/revisions/{revisionId}/decisions', requestBody: 'json', request: createReviewDecisionRequestSchema, response: reviewDecisionResponseSchema, permissions: REVIEW, idempotent: true, successStatus: 201, note: 'changes_requested needs a note or an open comment (422 NOTE_REQUIRED).' },
+  { method: 'POST', path: '/deliverables/{deliverableId}/final', requestBody: 'json', request: setFinalRequestSchema, response: deliverableResponseSchema, permissions: REVIEW, idempotent: true, note: 'One final revision per deliverable; a rejected revision cannot be final (409).' },
+  { method: 'POST', path: '/projects/{projectId}/revision-requests', requestBody: 'json', request: revisionRequestSchema, response: revisionRequestResponseSchema, permissions: ['ardentstudio:review:write', 'ardentstudio:projects:write'], idempotent: true, successStatus: 201, note: 'Starts a revision task for the producer role with the anchored comments as context, and links the comments to it. The revised file comes back as the next revision, superseding this one.' },
+  { method: 'GET', path: '/projects/{projectId}/exports', response: listExportsResponseSchema, permissions: READ, idempotent: false },
+  { method: 'POST', path: '/projects/{projectId}/exports', requestBody: 'json', request: createExportRequestSchema, response: exportResponseSchema, permissions: REVIEW, idempotent: true, successStatus: 201, note: 'A zip of the final revisions with manifest.json (Ardent manifest fields, review status and decisions). Deliverables without a final revision are listed as excluded; none at all answers 409 NOTHING_FINAL.' },
+  { method: 'GET', path: '/files/{fileId}/docx', response: docxDocumentResponseSchema, permissions: READ, idempotent: false, note: 'Answers 501 DOCX_CONVERTER_UNAVAILABLE until the canvas Word codec package is installed.' },
+  { method: 'GET', path: '/revisions/{revisionId}/docx', response: docxDocumentResponseSchema, permissions: READ, idempotent: false, note: 'Answers 501 DOCX_CONVERTER_UNAVAILABLE until the canvas Word codec package is installed.' },
 
   // Stream
   {
     method: 'GET', path: '/projects/{projectId}/stream', query: streamQuerySchema, response: null, permissions: READ, idempotent: false,
     events: { '*': projectEventSchema, reset: resetEventSchema, heartbeat: heartbeatEventSchema, 'message.delta': messageDeltaEventSchema },
-    note: 'Persisted events carry their seq as the SSE id and replay after ?after=. reset means the cursor is older than retained events (or ahead of them): refetch the snapshot. heartbeat every 15 s. The stream closes when the token expires or its session ends; reconnect with a fresh token.',
+    note: 'Persisted events carry their seq as the SSE id and replay after ?after=. reset means the cursor is older than retained events (or ahead of them): refetch the snapshot. message.delta (live reply text) has no id; on connect each streaming message gets one replace delta with its current text. heartbeat every 15 s. The stream closes when the token expires or its session ends; reconnect with a fresh token.',
   },
 ];

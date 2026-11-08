@@ -7,6 +7,11 @@
     align-items: center;
     gap: var(--space-3);
   }
+  .studio-toolbar > select {
+    width: auto;
+    min-width: 10rem;
+    flex: 0 1 12rem;
+  }
   .studio-search {
     position: relative;
     display: flex;
@@ -301,6 +306,14 @@
     gap: var(--space-2);
   }
   @media (max-width: 639.98px) {
+    /* The project row wraps under the mark; its tools take the end of the second line. */
+    .studio-project {
+      flex-wrap: wrap;
+      row-gap: var(--space-1);
+    }
+    .studio-project__tools {
+      margin-left: auto;
+    }
     .studio-tool-label {
       position: absolute;
       width: 1px;

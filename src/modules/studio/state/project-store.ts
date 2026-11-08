@@ -145,8 +145,8 @@ export class ProjectStore {
       }
     }
     this.set({ seq });
-    // Project, file and team events carry only what changed: the snapshot holds the whole record.
-    if (/^(project|file|team)\./.test(event.type)) this.scheduleRefetch();
+    // Project, file, team and task events carry only what changed: the snapshot holds the whole record.
+    if (/^(project|file|team|task)\./.test(event.type)) this.scheduleRefetch();
   }
 
   // After a mutation the answer is applied at once; the event that follows confirms it.
@@ -210,17 +210,29 @@ export function resetProjectStores(): void {
   stores.clear();
 }
 
-/** The project's live state for a component, and the store for its actions. */
-export function useProject(projectId: string): { state: ProjectState; store: ProjectStore } {
+const IDLE: ProjectState = { status: 'loading', snapshot: null, error: undefined, seq: 0, stream: 'idle', streamDetail: null, refreshing: false };
+const idleSubscribe = () => () => {};
+const idleState = () => IDLE;
+
+/** Like useProject, for a component that may have no project: it then reads nothing. */
+export function useOptionalProject(projectId: string | undefined): { state: ProjectState; store: ProjectStore | null } {
   const store = useMemo(() => {
+    if (!projectId) return null;
     const acquired = acquireProjectStore(projectId);
     acquired.release();
     return acquired.store;
   }, [projectId]);
   useEffect(() => {
+    if (!projectId) return;
     const acquired = acquireProjectStore(projectId);
     return acquired.release;
   }, [projectId]);
-  const state = useSyncExternalStore(store.subscribe, store.getState);
+  const state = useSyncExternalStore(store?.subscribe ?? idleSubscribe, store?.getState ?? idleState);
   return { state, store };
+}
+
+/** The project's live state for a component, and the store for its actions. */
+export function useProject(projectId: string): { state: ProjectState; store: ProjectStore } {
+  const { state, store } = useOptionalProject(projectId);
+  return { state, store: store! };
 }

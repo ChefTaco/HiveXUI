@@ -9,6 +9,8 @@ import { StudioLink } from './link';
 import { CreateProject } from './projects/create';
 import { ProjectsHome } from './projects/home';
 import { ArchivedNotice, ProjectLanding } from './projects/project-page';
+import { Gallery } from './gallery/gallery';
+import { TeamDesigner } from './team/designer';
 import { STUDIO_PREFIX } from './paths';
 import type { StudioMatch } from './routes';
 
@@ -117,6 +119,12 @@ function implemented(match: StudioMatch): ReactNode {
       return <CreateProject />;
     case 'project':
       return <ProjectLanding projectId={match.projectId!} />;
+    case 'team':
+      return <TeamDesigner projectId={match.projectId!} />;
+    case 'gallery':
+      return <Gallery />;
+    case 'team-gallery':
+      return <Gallery projectId={match.projectId!} />;
     default:
       return null;
   }

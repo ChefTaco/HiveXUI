@@ -6,6 +6,7 @@ import {
   listFilesResponseSchema,
   listProjectsResponseSchema,
   listTemplatesResponseSchema,
+  taskResponseSchema,
   projectResponseSchema,
   snapshotResponseSchema,
   teamStateSchema,
@@ -33,6 +34,7 @@ export type ValidationIssue = ValidationResult['issues'][number];
 export type TemplateSummary = z.infer<typeof listTemplatesResponseSchema>['templates'][number];
 export type TemplateDetail = z.infer<typeof templateDetailSchema>;
 export type TemplateVersion = z.infer<typeof templateVersionSchema>;
+export type Task = z.infer<typeof taskResponseSchema>;
 export type Agent = z.infer<typeof listAgentsResponseSchema>['agents'][number];
 export type AgentList = z.infer<typeof listAgentsResponseSchema>;
 export type CreateProject = z.input<typeof createProjectRequestSchema>;
@@ -86,6 +88,11 @@ export const applyTemplate = (id: string, templateId: string, version: number, r
   studio.post(project(id, '/team/apply-template'), teamStateSchema, { body: { template_id: templateId, version, replace_draft: replaceDraft }, idempotencyKey });
 export const saveTeamAsTemplate = (id: string, body: SaveAsTemplate, idempotencyKey?: Key) =>
   studio.post(project(id, '/team/save-as-template'), templateDetailSchema, { body, idempotencyKey });
+
+// Tasks
+/** Cancels the task if it is still active and creates the same work under the current team revision. */
+export const reassignTask = (taskId: string, roleKey: string, idempotencyKey?: Key) =>
+  studio.post(`/tasks/${segment(taskId)}/reassign`, taskResponseSchema, { body: { role_key: roleKey }, idempotencyKey });
 
 // Agents
 export const listAgents = (signal?: Signal) => studio.get('/agents', listAgentsResponseSchema, { signal });

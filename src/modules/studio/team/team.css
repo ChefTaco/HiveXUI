@@ -1,0 +1,494 @@
+@layer components {
+  /* Team Assignment: designer, canvas, views, inspector and gallery. Layout only; colors come from
+     utilities, and the canvas library reads its colors from the --xy-* properties set here. */
+  .studio-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-4);
+  }
+  .studio-revision {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .studio-connect {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .studio-connect select {
+    width: auto;
+    padding-block: var(--space-1);
+  }
+
+  .studio-designer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-4);
+  }
+  .studio-designer--inspecting {
+    grid-template-columns: minmax(0, 1fr) 23.75rem;
+  }
+  .studio-designer__view {
+    display: grid;
+    min-width: 0;
+    gap: var(--space-3);
+  }
+
+  /* Role card */
+  .studio-role-card {
+    display: grid;
+    width: 100%;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    text-align: left;
+  }
+  .studio-role-card--compact {
+    gap: var(--space-2);
+    padding: var(--space-2);
+  }
+  .studio-role-card__avatar {
+    display: inline-flex;
+    flex: none;
+  }
+  .studio-role-card__body {
+    display: grid;
+    min-width: 0;
+    gap: var(--space-1);
+  }
+  .studio-role-card__title {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .studio-role-card__name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .studio-role-card__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+  .studio-binding {
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .studio-binding__name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .studio-issue-marker {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+  }
+
+  /* Canvas */
+  .studio-canvas {
+    position: relative;
+    height: clamp(26rem, calc(100vh - 22rem), 48rem);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-panel);
+    background: var(--surface-sunken);
+    --xy-background-color: transparent;
+    --xy-handle-background-color: var(--accent);
+    --xy-handle-border-color: var(--surface);
+    --xy-connectionline-stroke: var(--accent);
+    --xy-connectionline-stroke-width: 2;
+  }
+  .studio-canvas--mini {
+    height: 18rem;
+  }
+  .studio-canvas__defs {
+    position: absolute;
+    width: 0;
+    height: 0;
+  }
+  .studio-canvas__zoom {
+    position: absolute;
+    right: var(--space-3);
+    bottom: var(--space-3);
+    z-index: 5;
+    display: flex;
+    gap: var(--space-1);
+  }
+  .studio-node {
+    width: 15.5rem;
+    border-radius: var(--radius-panel);
+  }
+  .studio-canvas--mini .studio-node {
+    width: 15.5rem;
+  }
+  .studio-node:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 3px;
+  }
+  .studio-node .studio-node__handle {
+    width: 0.625rem;
+    height: 0.625rem;
+  }
+  .studio-canvas--mini .studio-node__handle,
+  .studio-node .studio-node__handle--anchor {
+    visibility: hidden;
+  }
+  .studio-edge__hit {
+    cursor: pointer;
+  }
+  .studio-edge__label {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+  }
+  .studio-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-5);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .studio-legend li {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .studio-legend__sample {
+    flex: none;
+  }
+
+  /* Workflow view */
+  .studio-workflow {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+    align-items: start;
+    gap: var(--space-3);
+  }
+  .studio-stage {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-3);
+  }
+  .studio-stage__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  .studio-stage__title {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin: 0;
+  }
+  .studio-stage__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .studio-stage__roles {
+    display: grid;
+    gap: var(--space-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .studio-stage__role {
+    display: grid;
+    gap: var(--space-2);
+  }
+  .studio-stage__card {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border-radius: var(--radius-panel);
+    background: none;
+    cursor: pointer;
+  }
+  .studio-stage__handoffs {
+    display: grid;
+    gap: 2px;
+    margin: 0;
+    padding: 0 var(--space-2);
+    list-style: none;
+  }
+  .studio-stage__handoffs li {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  /* Table view. A positioned frame keeps visually hidden labels inside its scroll area. */
+  .studio-designer__view .table-wrap {
+    position: relative;
+  }
+  .studio-table td,
+  .studio-table th {
+    vertical-align: middle;
+  }
+  .studio-table input:not([type='radio']):not([type='checkbox']),
+  .studio-table select {
+    min-width: 9rem;
+  }
+  .studio-table__agent {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  /* Inspector */
+  .studio-inspector {
+    position: sticky;
+    top: var(--space-4);
+    display: grid;
+    max-height: calc(100vh - 8rem);
+    gap: var(--space-4);
+    overflow-y: auto;
+  }
+  .studio-inspector__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  .studio-inspector__body,
+  .studio-inspector__section {
+    display: grid;
+    gap: var(--space-3);
+  }
+  .studio-inspector__section h4 {
+    margin: 0;
+  }
+  .studio-inspector__row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: end;
+    gap: var(--space-4);
+  }
+  .studio-inspector__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .studio-inspector__list,
+  .studio-inspector__issues {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .studio-inspector__skill {
+    display: grid;
+    grid-template-columns: 7.5rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .studio-inspector__edge {
+    display: grid;
+    grid-template-columns: minmax(0, 5rem) minmax(0, 1fr) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  /* Bind picker */
+  .studio-agents {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .studio-agent {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--space-3);
+    padding: var(--space-3);
+  }
+  .studio-agent__main {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+    overflow-wrap: anywhere;
+  }
+  .studio-agent__name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  /* Validation and template panels */
+  .studio-validation {
+    display: grid;
+    gap: var(--space-3);
+  }
+  .studio-validation__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  .studio-validation__list {
+    display: grid;
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .studio-validation__item {
+    display: flex;
+    width: 100%;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+  }
+  button.studio-validation__item {
+    cursor: pointer;
+  }
+  .studio-radio-row {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .studio-diff {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .studio-diff__item {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-3);
+  }
+  .studio-diff__values {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--space-1) var(--space-3);
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  .studio-diff__values dd {
+    margin: 0;
+  }
+
+  /* Active work */
+  .studio-tasks {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .studio-task {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+  }
+  .studio-task__main {
+    display: grid;
+    min-width: 0;
+  }
+
+  /* Gallery detail */
+  .studio-template-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-4);
+  }
+  .studio-template-roles {
+    display: grid;
+    gap: var(--space-3);
+    margin: var(--space-4) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .studio-template-roles li {
+    display: grid;
+    gap: 2px;
+  }
+  .studio-template-roles .cell-strong {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .studio-excerpt {
+    max-height: 16rem;
+    overflow: auto;
+    white-space: pre-wrap;
+  }
+  .studio-versions {
+    display: grid;
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .studio-version {
+    display: grid;
+    gap: 2px;
+    padding: var(--space-2) var(--space-3);
+  }
+
+  @media (max-width: 920px) {
+    .studio-template-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .studio-designer--inspecting {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .studio-inspector {
+      position: static;
+      max-height: none;
+    }
+  }
+  @media (max-width: 639.98px) {
+    .studio-task {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+    .studio-canvas {
+      height: 26rem;
+    }
+    .studio-canvas--mini {
+      height: 12rem;
+    }
+    .studio-inspector__edge {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+    .studio-inspector__skill {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+    .studio-inspector__skill > :first-child {
+      grid-column: 1 / -1;
+    }
+  }
+}
