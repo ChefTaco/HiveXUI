@@ -31,11 +31,13 @@ describe('New Agent node choices', () => {
     const choices = nodeChoices([
       node('old', { capabilities: undefined }),
       node('ready'),
+      node('newer', { capabilities: { studio: 2 } }),
       node('bare', { installed: false }),
       node('gone', { reachable: false, error: 'connection refused' }),
     ]);
     expect(choices.map((choice) => [choice.installation.nodeId, choice.disabledReason])).toEqual([
       ['ready', null],
+      ['newer', null],
       ['old', 'Upgrade the Magnus agent on old name'],
       ['bare', 'Install the Ardent package on bare name first'],
       ['gone', 'gone name is unreachable: connection refused'],

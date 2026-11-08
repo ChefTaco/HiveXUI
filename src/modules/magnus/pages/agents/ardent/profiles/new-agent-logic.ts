@@ -58,7 +58,8 @@ export function nodeChoices(installations: readonly ArdentInstallation[]): NodeC
       ? `${installation.nodeName} is unreachable${installation.error ? `: ${installation.error}` : ''}`
       : !installation.installed
         ? `Install the Ardent package on ${installation.nodeName} first`
-        : installation.capabilities?.studio !== 1
+        // studio 1 is the bridge New Agent needs; later levels (2: missions on Ardent 2.2.0) include it.
+        : (installation.capabilities?.studio ?? 0) < 1
           ? `Upgrade the Magnus agent on ${installation.nodeName}`
           : null,
   }));
