@@ -412,7 +412,8 @@ export function CreateProject() {
           project={project.data ?? null}
           onSaved={(saved) => {
             project.setData(saved);
-            goStudio(`${STUDIO_PREFIX}/new?project=${encodeURIComponent(saved.id)}&step=2`, projectId ? 'push' : 'replace');
+            const template = search.get('template');
+            goStudio(`${STUDIO_PREFIX}/new?project=${encodeURIComponent(saved.id)}&step=2${template ? `&template=${encodeURIComponent(template)}` : ''}`, projectId ? 'push' : 'replace');
           }}
         />
       ) : step === 2 ? (

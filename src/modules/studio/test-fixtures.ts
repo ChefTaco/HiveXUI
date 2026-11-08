@@ -1,5 +1,5 @@
 // Fake Studio service records for tests. Tests only; nothing in the console imports it.
-import type { Agent, Project, ProjectSummary, Snapshot, StudioFile, TeamRevision, TeamState, TemplateDetail, TemplateSummary } from './api/endpoints';
+import type { Agent, Project, Task, ProjectSummary, Snapshot, StudioFile, TeamRevision, TeamState, TemplateDetail, TemplateSummary } from './api/endpoints';
 
 const id = (prefix: string, n: number) => `${prefix}_01HZX3K6Q1V8R2M4N6P8T0W${String(n).padStart(3, '0')}`;
 export const PROJECT_ID = id('prj', 1);
@@ -108,7 +108,7 @@ export const team = (overrides: Partial<TeamState> = {}): TeamState => ({
   ...overrides,
 });
 
-export const snapshot = (overrides: Partial<Snapshot> = {}): Snapshot => ({ seq: 5, project: project(), files: [file()], team: team(), ...overrides });
+export const snapshot = (overrides: Partial<Snapshot> = {}): Snapshot => ({ seq: 5, project: project(), files: [file()], team: team(), conversations: [], tasks: [], decisions: [], activity: [], layout: null, ...overrides });
 
 export const templateSummary = (overrides: Partial<TemplateSummary> = {}): TemplateSummary => ({
   id: TEMPLATE_ID,
@@ -153,6 +153,32 @@ export const templateDetail = (overrides: Partial<TemplateDetail> = {}): Templat
     ...overrides,
   };
 };
+
+export const task = (overrides: Partial<Task> = {}): Task => ({
+  id: id('tsk', 1),
+  project_id: PROJECT_ID,
+  title: 'Draft the drowned stacks',
+  mode: 'assignment',
+  role_key: 'world',
+  binding_id: id('bnd', 2),
+  assignment_revision: 1,
+  conversation_id: null,
+  trigger_message_id: null,
+  instructions_md: '',
+  source: {},
+  state: 'running',
+  dispatch: 'mission',
+  ardent: { agent_ref: 'node-1~world', task_id: 'task-1', session_id: null },
+  outcome: null,
+  reassigned_from: null,
+  group_id: null,
+  group_position: 0,
+  created_by: 'operator',
+  created_at: AT,
+  updated_at: AT,
+  finished_at: null,
+  ...overrides,
+});
 
 export const agent = (overrides: Partial<Agent> = {}): Agent => ({
   agent_ref: 'node-1~lead',

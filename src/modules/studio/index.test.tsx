@@ -127,7 +127,7 @@ describe('the Studio page', () => {
   });
 
   it('explains that the Studio service is not reachable rather than inventing records', async () => {
-    const root = await open('/studio/p/adventure/team');
+    const root = await open('/studio/p/adventure/review');
     expect(text(root)).toContain("The Studio service isn't reachable");
     expect(text(root)).toContain('Offline');
     answers.health = () => Response.json(READY);
