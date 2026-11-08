@@ -3,6 +3,7 @@ import type {
   MattermostPostList,
   MattermostUser,
 } from "../../../contracts/chattermost.generated";
+import { mentionedNames } from "@lib/chat-compose/mentions";
 
 export const TYPING_WINDOW_MS = 6500;
 export const REPLY_WINDOW_MS = 45000;
@@ -61,11 +62,7 @@ export function botTargets(
   if (channelType === "D" || channelType === "G") return bots;
   // The server addresses a slash command to the only bot present without a mention.
   if (message.startsWith("/") && bots.length === 1) return bots;
-  const mentions = new Set(
-    (message.toLowerCase().match(/@[a-z0-9._-]+/g) ?? []).map((mention) =>
-      mention.slice(1),
-    ),
-  );
+  const mentions = mentionedNames(message);
   return bots.filter((bot) => mentions.has(bot.username.toLowerCase()));
 }
 

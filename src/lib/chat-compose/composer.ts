@@ -1,4 +1,11 @@
-import type { MattermostCommand } from "../../../contracts/chattermost.generated";
+// Pure composer helpers shared by every console surface that writes messages: ChatterMost chat,
+// and Studio's room. Nothing here touches the DOM or a product API.
+
+/** A slash command as the palette needs it. ChatterMost's commands carry more. */
+export interface ComposerCommand {
+  trigger: string;
+  auto_complete_hint?: string | undefined;
+}
 
 /** Native ChatterMost's picker set, so both consoles offer the same emoji. */
 export const emojiChoices = [
@@ -122,10 +129,10 @@ export function insertAtCaret(
 
 const PALETTE_LIMIT = 8;
 /** The palette is open only while the first word is being typed; arguments close it. */
-export function commandSuggestions(
-  commands: MattermostCommand[],
+export function commandSuggestions<T extends ComposerCommand>(
+  commands: T[],
   draft: string,
-): MattermostCommand[] {
+): T[] {
   if (!draft.startsWith("/") || /\s/.test(draft)) return [];
   const needle = draft.slice(1).toLowerCase();
   return commands
@@ -137,10 +144,10 @@ export function commandSuggestions(
     )
     .slice(0, PALETTE_LIMIT);
 }
-export const completeCommand = (command: MattermostCommand) =>
+export const completeCommand = (command: ComposerCommand) =>
   "/" + command.trigger + (command.auto_complete_hint ? " " : "");
 /** Enter runs a command that is already fully typed and otherwise completes the selection. */
 export const enterCompletes = (
   draft: string,
-  selected: MattermostCommand | undefined,
+  selected: ComposerCommand | undefined,
 ) => !!selected && draft.slice(1).toLowerCase() !== selected.trigger.toLowerCase();

@@ -30,7 +30,7 @@ import {
   attachmentDrafts,
   clipboardAttachments,
   ChatAttachmentUploads,
-} from "./attachments";
+} from "@lib/chat-compose";
 import {
   ChatViewRequests,
   readChatLocation,
@@ -53,7 +53,7 @@ import {
   completeCommand,
   enterCompletes,
   insertAtCaret,
-} from "./composer";
+} from "@lib/chat-compose";
 import {
   LATEST_THRESHOLD_PX,
   REPLY_WINDOW_MS,
