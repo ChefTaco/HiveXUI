@@ -7,13 +7,16 @@ import { errorMessage } from '../../magnus/api/errors';
 import { useMagnusResource } from '../../magnus/api/use-resource';
 import { LoadingRows, ResourceError } from '../../magnus/ui/resource-state';
 import { idempotencyKey, StudioApiError } from '../api/client';
-import { applyTemplate, createProject, getProject, getTeam, listProjects, listTemplates, putTeamDraft, updateProject, type Project, type TemplateSummary } from '../api/endpoints';
+import { applyTemplate, createProject, getProject, getTeam, listAgents, listProjects, listTemplates, putTeamDraft, updateProject, type Project, type TemplateSummary } from '../api/endpoints';
 import { goStudio } from '../paths';
 import { setStudioQuery, StudioLink, useStudioSearch } from '../link';
 import { projectHref } from '../routes';
 import { useProject } from '../state/project-store';
 import { STUDIO_PREFIX } from '../paths';
 import { briefErrors, briefRequest, COMMON_FORMATS, emptyBrief, type BriefDraft, type DeliverableDraft, type DeliverableFormat, type Stage } from './logic';
+import { defaultProposer, ProposalProgress, ProposerSelect, useTeamProposals } from '../team/proposal-ui';
+import { proposalStatus } from '../team/proposal';
+import { LinkManager } from './links';
 import { ReferenceManager } from './references';
 
 const STEPS = ['Brief', 'References', 'Starting team'] as const;
@@ -191,7 +194,8 @@ function BriefStep({ project, onSaved }: { project: Project | null; onSaved: (pr
 function ReferencesStep({ projectId }: { projectId: string }) {
   const { state, store } = useProject(projectId);
   const files = state.snapshot?.files ?? [];
-  const pending = files.filter((file) => file.knowledge.state === 'pending' || file.knowledge.state === 'indexing').length;
+  const links = state.snapshot?.links ?? [];
+  const pending = [...files.map((file) => file.knowledge), ...links.map((link) => link.knowledge)].filter((knowledge) => knowledge.state === 'pending' || knowledge.state === 'indexing').length;
   return (
     <div className="page-stack">
       <Panel title="References" description="Source material the team should know. Indexing continues in the background; you can move on while it runs.">
@@ -212,6 +216,11 @@ function ReferencesStep({ projectId }: { projectId: string }) {
           <ResourceError error={state.error} title="The project could not be loaded" onRetry={() => store.start()} />
         )}
       </Panel>
+      {state.snapshot ? (
+        <Panel title="Links" description="Pages the team should know about. The title, address and note are indexed; the page itself is not fetched.">
+          <LinkManager store={store} links={links} readOnly={state.snapshot.project.status === 'archived'} />
+        </Panel>
+      ) : null}
       <div className="studio-form-actions">
         <Button variant="ghost" icon={<ArrowLeft className="size-4" />} onClick={() => setStudioQuery({ step: null }, 'push')}>
           Back
@@ -255,6 +264,21 @@ function StartingTeamStep({ projectId }: { projectId: string }) {
   const [failure, setFailure] = useState<string | null>(null);
   const [confirmReplace, setConfirmReplace] = useState(false);
   const group = useId();
+  // Optional: once the starting team is in place, ask an agent to propose a team from the brief.
+  const { state: projectState, store } = useProject(projectId);
+  const proposals = useTeamProposals(store);
+  const pending = proposals.latest && proposalStatus(proposals.latest).open ? proposals.latest : null;
+  const [ask, setAsk] = useState(false);
+  const [proposer, setProposer] = useState('');
+  // Set once the starting team is applied, so asking again after a refused proposal does not apply it twice.
+  const [applied, setApplied] = useState(false);
+  const agents = useMagnusResource((signal) => listAgents(signal), [], { enabled: ask });
+  const teamNow = projectState.snapshot?.team.draft ?? projectState.snapshot?.team.current ?? null;
+  const coordinatorRole = teamNow?.body.roles.find((role) => role.coordinator) ?? null;
+  const coordinator = coordinatorRole ? { name: coordinatorRole.name, agent_ref: coordinatorRole.agent_ref } : null;
+  useEffect(() => {
+    if (ask && !proposer && agents.data) setProposer(defaultProposer(coordinator?.agent_ref ?? null, agents.data.agents));
+  }, [ask, proposer, agents.data, coordinator?.agent_ref]);
   const templates = useMagnusResource((signal) => listTemplates({ kind: 'team' }, signal), []);
   const projects = useMagnusResource((signal) => listProjects({ status: 'all' }, signal), [], { enabled: start === 'copy' });
   const others = useMemo(() => (projects.data ?? []).filter((project) => project.id !== projectId && project.team.role_count > 0), [projects.data, projectId]);
@@ -268,7 +292,9 @@ function StartingTeamStep({ projectId }: { projectId: string }) {
     setBusy(true);
     setFailure(null);
     try {
-      if (start === 'template') {
+      if (applied || start === 'blank') {
+        // Nothing to apply, or already applied.
+      } else if (start === 'template') {
         const template = templates.data?.find((item) => item.id === templateId);
         if (!template) throw new Error('Choose a template.');
         await applyTemplate(projectId, template.id, template.latest_version, replace);
@@ -290,6 +316,11 @@ function StartingTeamStep({ projectId }: { projectId: string }) {
             stages: body.stages,
           },
         });
+      }
+      setApplied(true);
+      if (ask && !pending) {
+        const record = await proposals.propose(proposer || undefined);
+        if (!record) return;
       }
       open();
     } catch (error) {
@@ -360,13 +391,28 @@ function StartingTeamStep({ projectId }: { projectId: string }) {
           )}
         </Panel>
       ) : null}
+      <Panel title="Propose a team from the brief" description="Optional. An agent reads the brief, the deliverables, the templates and the available agents and proposes roles, relationships and bindings. You review the difference in Team Assignment; nothing is applied until you accept it.">
+        {pending ? (
+          <ProposalProgress record={pending} agentName={agents.data?.agents.find((agent) => agent.agent_ref === pending.agent_ref)?.display_name ?? pending.agent_ref} proposals={proposals} readOnly={false} />
+        ) : (
+          <div className="studio-form">
+            <Toggle checked={ask} onChange={setAsk} label="Ask an agent to propose a team after the starting team is set" />
+            {ask ? <ProposerSelect agents={agents} coordinator={coordinator} value={proposer} onChange={setProposer} /> : null}
+          </div>
+        )}
+        {proposals.proposeError ? (
+          <p role="alert" className="m-0 text-sm text-danger">
+            {proposals.proposeError} {applied ? 'The starting team is in place.' : ''}
+          </p>
+        ) : null}
+      </Panel>
       {failure ? <p role="alert" className="m-0 text-sm text-danger">{failure}</p> : null}
       <div className="studio-form-actions">
         <Button variant="ghost" icon={<ArrowLeft className="size-4" />} onClick={() => setStudioQuery({ step: '2' }, 'push')}>
           Back
         </Button>
-        <Button variant="primary" loading={busy} icon={<ArrowRight className="size-4" />} onClick={() => (start === 'blank' ? open() : void apply())} disabled={(start === 'template' && !templateId) || (start === 'copy' && !sourceProject)}>
-          Open Team Assignment
+        <Button variant="primary" loading={busy || proposals.proposing} icon={<ArrowRight className="size-4" />} onClick={() => void apply()} disabled={(start === 'template' && !templateId && !applied) || (start === 'copy' && !sourceProject && !applied) || (ask && !pending && !proposer)}>
+          {ask && !pending ? 'Ask and open Team Assignment' : 'Open Team Assignment'}
         </Button>
       </div>
       <ConfirmDialog

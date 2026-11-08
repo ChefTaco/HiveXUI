@@ -5,6 +5,13 @@ import type { Agent, ValidationIssue } from '../api/endpoints';
 import { defaultPortrait } from '../room/scene/model';
 import { PortraitBadge } from '../room/scene/portrait';
 import { STAGE_LABEL, type Role } from './model';
+import type { GhostChange } from './proposal';
+
+const GHOST_CARD: Record<Exclude<GhostChange, 'same'>, { className: string; label: string; tone: string }> = {
+  added: { className: 'border-success bg-success-soft border-dashed', label: 'Added', tone: 'badge--success' },
+  changed: { className: 'border-warning bg-warning-soft border-dashed', label: 'Changed', tone: 'badge--warning' },
+  removed: { className: 'border-danger bg-danger-soft border-dashed', label: 'Removed', tone: 'badge--danger' },
+};
 
 export type Binding = { state: 'bound'; agent: Agent | undefined; ref: string } | { state: 'creating' } | { state: 'unbound' };
 
@@ -62,17 +69,21 @@ export function IssueMarker({ issues }: { issues: readonly ValidationIssue[] }) 
 }
 
 /** A role on the canvas or in the Workflow view: who it is, who does it, what it delivers, and what is wrong. */
-export function RoleCard({ role, binding, issues, selected = false, compact = false }: { role: Role; binding: Binding; issues: readonly ValidationIssue[]; selected?: boolean; compact?: boolean }) {
+export function RoleCard({ role, binding, issues, selected = false, compact = false, ghost }: { role: Role; binding: Binding; issues: readonly ValidationIssue[]; selected?: boolean; compact?: boolean; ghost?: GhostChange | undefined }) {
   const portrait = defaultPortrait(binding.state === 'bound' ? binding.ref : role.key);
   const errors = issues.some((issue) => issue.severity === 'error');
+  const look = ghost && ghost !== 'same' ? GHOST_CARD[ghost] : null;
   return (
     <span
       className={cn(
-        'studio-role-card rounded-panel border bg-surface',
-        selected ? 'border-accent glow-accent' : errors ? 'border-danger' : 'border-border-strong',
+        'studio-role-card rounded-panel border',
+        look ? look.className : cn('bg-surface', selected ? 'border-accent glow-accent' : errors ? 'border-danger' : 'border-border-strong'),
+        look && selected && 'glow-accent',
+        ghost === 'removed' && 'studio-role-card--removed',
         compact && 'studio-role-card--compact',
       )}
     >
+      {look ? <span className={cn('badge studio-role-card__ghost', look.tone)}>{look.label}</span> : null}
       <span className={cn('studio-role-card__avatar', binding.state !== 'bound' && 'opacity-60')}>
         <PortraitBadge portrait={portrait} size={compact ? 28 : 36} />
       </span>
@@ -84,7 +95,7 @@ export function RoleCard({ role, binding, issues, selected = false, compact = fa
               <span className="sr-only">Coordinator: </span>
             </span>
           ) : null}
-          <span className="studio-role-card__name cell-strong">{role.name}</span>
+          <span className={cn('studio-role-card__name cell-strong', ghost === 'removed' && 'line-through')}>{role.name}</span>
           <IssueMarker issues={issues} />
         </span>
         <BindingLine binding={binding} />

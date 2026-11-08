@@ -1,5 +1,5 @@
 // Fake Studio service records for tests. Tests only; nothing in the console imports it.
-import type { Activity, Agent, Conversation, Decision, Message, Project, Task, ProjectSummary, Snapshot, StudioFile, TeamRevision, TeamState, TemplateDetail, TemplateSummary } from './api/endpoints';
+import type { Activity, Agent, Conversation, Decision, Message, Project, ReferenceLink, Task, ProjectSummary, Snapshot, StudioFile, TeamProposalRecord, TeamRevision, TeamState, TemplateDetail, TemplateSummary } from './api/endpoints';
 
 const id = (prefix: string, n: number) => `${prefix}_01HZX3K6Q1V8R2M4N6P8T0W${String(n).padStart(3, '0')}`;
 export const PROJECT_ID = id('prj', 1);
@@ -54,6 +54,20 @@ export const file = (overrides: Partial<StudioFile> = {}): StudioFile => ({
   created_by: 'operator',
   created_at: AT,
   knowledge: { state: 'indexed', source_id: 'src-1', revision: 'r1', chunks: 4, error: null, attempts: 1, updated_at: AT },
+  ...overrides,
+});
+
+export const link = (overrides: Partial<ReferenceLink> = {}): ReferenceLink => ({
+  id: id('lnk', 1),
+  project_id: PROJECT_ID,
+  url: 'https://example.com/tides',
+  title: 'Tide tables',
+  note_md: 'Use for the flooding schedule.',
+  created_by: 'operator',
+  created_at: AT,
+  updated_at: AT,
+  deleted_at: null,
+  knowledge: { state: 'indexed', source_id: 'ardentstudio:link:1', revision: 'r1', chunks: 1, error: null, attempts: 1, updated_at: AT },
   ...overrides,
 });
 
@@ -113,6 +127,27 @@ export const team = (overrides: Partial<TeamState> = {}): TeamState => ({
 });
 
 export const snapshot = (overrides: Partial<Snapshot> = {}): Snapshot => ({ seq: 5, project: project(), files: [file()], team: team(), conversations: [], tasks: [], decisions: [], activity: [], layout: null, summary: summary(), links: [], team_proposals: [], ...overrides });
+
+/** A team proposal, queued unless overridden. */
+export const proposal = (overrides: Partial<TeamProposalRecord> = {}): TeamProposalRecord => ({
+  id: id('prp', 1),
+  project_id: PROJECT_ID,
+  agent_ref: 'node-1~lead',
+  role_key: 'lead',
+  state: 'queued',
+  progress: 'Waiting for node-1~lead',
+  task_id: id('tsk', 9),
+  attempts: [{ attempt: 1, task_id: id('tsk', 9), outcome: 'pending', error: null }],
+  basis: { current_revision: 1, draft_revision: null, source_template: null },
+  proposal: null,
+  draft_body: null,
+  error: null,
+  created_by: 'operator',
+  created_at: AT,
+  updated_at: AT,
+  finished_at: null,
+  ...overrides,
+});
 
 export const templateSummary = (overrides: Partial<TemplateSummary> = {}): TemplateSummary => ({
   id: TEMPLATE_ID,

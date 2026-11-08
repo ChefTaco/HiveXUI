@@ -32,6 +32,8 @@ export interface Designer {
   confirmed: boolean;
   /** Takes the service's newest team, dropping unsaved edits (after a conflict). */
   reload: () => void;
+  /** Replaces the working copy and saves it now, for a change the person accepted as a whole. */
+  replace: (next: TeamDraft) => Promise<boolean>;
   /** Pins the draft to another template version with the next save, after its changes were applied. */
   pinTemplate: (ref: { template_id: string; version: number }) => void;
   readOnly: boolean;
@@ -166,9 +168,20 @@ export function useDesigner(store: ProjectStore, team: TeamState, context: { arc
     void store.refetch();
   }, [store]);
 
+  const replace = useCallback(
+    async (next: TeamDraft): Promise<boolean> => {
+      if (readOnly) return false;
+      // persist reads the latest copy, so set it before the render that would.
+      latest.current = next;
+      setDraft(next);
+      return persist();
+    },
+    [readOnly, persist],
+  );
+
   const pinTemplate = useCallback((ref: { template_id: string; version: number }) => {
     pendingPin.current = ref;
   }, []);
 
-  return { draft, edit, pinTemplate, save: dirty || save.state !== 'saved' ? save : { state: 'saved' }, flush: persist, publish, publishing, publishError, validation, confirmed, reload, readOnly };
+  return { draft, edit, replace, pinTemplate, save: dirty || save.state !== 'saved' ? save : { state: 'saved' }, flush: persist, publish, publishing, publishError, validation, confirmed, reload, readOnly };
 }

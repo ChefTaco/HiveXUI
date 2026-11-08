@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Archive, ArchiveRestore, ChevronsUpDown, FolderOpen, Plus, Search } from 'lucide-react';
 import { Badge, Button, ConfirmDialog, Drawer } from '@ui';
 import { errorMessage } from '../../magnus/api/errors';
@@ -10,6 +11,7 @@ import { StudioLink } from '../link';
 import { STUDIO_PREFIX } from '../paths';
 import { projectHref } from '../routes';
 import { useProject } from '../state/project-store';
+import { LinkManager } from './links';
 import { ReferenceManager } from './references';
 
 /** The current project's name, and a menu of the others. */
@@ -126,7 +128,9 @@ export function ProjectTools({ projectId }: { projectId: string }) {
   if (!project) return null;
   const archived = project.status === 'archived';
   const references = state.snapshot!.files.filter((file) => file.purpose === 'reference');
-  const failed = references.filter((file) => file.knowledge.state === 'failed').length;
+  const links = state.snapshot!.links;
+  const count = references.length + links.length;
+  const failed = [...references.map((file) => file.knowledge), ...links.map((link) => link.knowledge)].filter((knowledge) => knowledge.state === 'failed').length;
 
   async function toggleArchive() {
     setBusy(true);
@@ -144,27 +148,40 @@ export function ProjectTools({ projectId }: { projectId: string }) {
 
   return (
     <div className="studio-project__tools">
-      <Button size="sm" variant="ghost" onClick={() => setFiles(true)} aria-label={`Files, ${references.length}${failed ? `, ${failed} failed` : ''}`}>
+      <Button size="sm" variant="ghost" onClick={() => setFiles(true)} aria-label={`Files and links, ${count}${failed ? `, ${failed} failed` : ''}`}>
         Files
-        <span className="tab-count">{references.length}</span>
+        <span className="tab-count">{count}</span>
         {failed ? <Badge tone="danger">{failed} failed</Badge> : null}
       </Button>
       <Button size="sm" variant="ghost" icon={archived ? <ArchiveRestore className="size-4" /> : <Archive className="size-4" />} onClick={() => setConfirm(true)}>
         <span className="studio-tool-label">{archived ? 'Reopen' : 'Archive'}</span>
       </Button>
-      <Drawer open={files} title="Files" eyebrow={project.name} onClose={() => setFiles(false)}>
-        <ReferenceManager store={store} files={state.snapshot!.files} readOnly={archived} />
-      </Drawer>
-      <ConfirmDialog
-        open={confirm}
-        title={archived ? `Reopen ${project.name}?` : `Archive ${project.name}?`}
-        message={archived ? 'The project becomes editable again, with its team, references and history as they were.' : 'The project becomes read-only. Running tasks must be cancelled first. You can reopen it later.'}
-        confirmLabel={archived ? 'Reopen' : 'Archive'}
-        tone={archived ? 'primary' : 'warning'}
-        loading={busy}
-        onCancel={() => setConfirm(false)}
-        onConfirm={() => void toggleArchive()}
-      />
+      {/* The top bar's backdrop filter would hold fixed overlays inside it; they render on the body. */}
+      {createPortal(
+        <>
+          <Drawer open={files} title="Files and links" eyebrow={project.name} onClose={() => setFiles(false)}>
+            <section className="studio-drawer-section" aria-labelledby="studio-files-heading">
+              <h4 id="studio-files-heading" className="studio-drawer-section__title stat-label">Files</h4>
+              <ReferenceManager store={store} files={state.snapshot!.files} readOnly={archived} />
+            </section>
+            <section className="studio-drawer-section" aria-labelledby="studio-links-heading">
+              <h4 id="studio-links-heading" className="studio-drawer-section__title stat-label">Links</h4>
+              <LinkManager store={store} links={links} readOnly={archived} />
+            </section>
+          </Drawer>
+          <ConfirmDialog
+            open={confirm}
+            title={archived ? `Reopen ${project.name}?` : `Archive ${project.name}?`}
+            message={archived ? 'The project becomes editable again, with its team, references and history as they were.' : 'The project becomes read-only. Running tasks must be cancelled first. You can reopen it later.'}
+            confirmLabel={archived ? 'Reopen' : 'Archive'}
+            tone={archived ? 'primary' : 'warning'}
+            loading={busy}
+            onCancel={() => setConfirm(false)}
+            onConfirm={() => void toggleArchive()}
+          />
+        </>,
+        document.body,
+      )}
       {failure ? (
         <div role="alert" className="studio-tool-error warning-banner text-sm">
           <span>{failure.message}</span>

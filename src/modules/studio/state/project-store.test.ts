@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SseEvent } from '../../magnus/api/sse';
 import { StudioApiError } from '../api/client';
 import type { Snapshot } from '../api/endpoints';
-import { file, PROJECT_ID, project, snapshot } from '../test-fixtures';
+import { file, link, PROJECT_ID, project, proposal, snapshot } from '../test-fixtures';
 import { acquireProjectStore, ProjectStore, resetProjectStores } from './project-store';
 
 const frame = (seq: number, type: string, payload: Record<string, unknown> = {}): SseEvent => ({
@@ -55,6 +55,40 @@ describe('the project store', () => {
     expect(store.getState().snapshot!.files[0]!.knowledge).toMatchObject({ state: 'failed', error: 'HiveMem refused the source' });
     expect(store.getState().seq).toBe(6);
     expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it('patches the summary counts from a counts event and links from link events, without a refetch', async () => {
+    const { store, load, send } = harness([snapshot({ seq: 5, links: [link()] })]);
+    store.start();
+    await flush();
+    send(frame(6, 'project.updated', { fields: ['counts'], counts: { open_questions: 3, review_pending: 1, active_tasks: 2 } }));
+    send(frame(7, 'link.updated', { link: link({ title: 'Tide charts' }) }));
+    send(frame(8, 'link.deleted', { link: link({ deleted_at: '2026-11-08T11:00:00.000Z' }) }));
+    send(frame(9, 'team.proposal.updated', { proposal: proposal({ state: 'running' }) }));
+    await vi.advanceTimersByTimeAsync(2000);
+    const state = store.getState().snapshot!;
+    expect(state.summary).toMatchObject({ open_questions: 3, review_pending: 1, active_tasks: 2 });
+    expect(state.links).toEqual([]);
+    expect(state.team_proposals.map((item) => item.state)).toEqual(['running']);
+    expect(store.getState().seq).toBe(9);
+    expect(load).toHaveBeenCalledTimes(1);
+    send(frame(10, 'team.proposal.updated', { proposal: proposal({ state: 'ready' }) }));
+    expect(store.getState().snapshot!.team_proposals).toEqual([]);
+  });
+
+  it('re-reads the summary once after a burst of records that move the last activity', async () => {
+    const { store, load, send } = harness([snapshot({ seq: 5 })]);
+    store.start();
+    await flush();
+    for (let seq = 6; seq < 16; seq += 1) {
+      send(frame(seq, 'message.created', { message_id: `m${seq}` }));
+      await vi.advanceTimersByTimeAsync(100);
+    }
+    expect(load).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1500);
+    // Throttled, not pushed back by every message: a steady room still refreshes.
+    expect(load.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(load.mock.calls.length).toBeLessThanOrEqual(3);
   });
 
   it('re-reads the snapshot once for a burst of project and team events', async () => {

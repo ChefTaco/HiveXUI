@@ -14,10 +14,14 @@ import {
   postMessageResponseSchema,
   taskResponseSchema,
   fileResponseSchema,
+  linkResponseSchema,
   listAgentsResponseSchema,
+  listLinksResponseSchema,
+  listTeamProposalsResponseSchema,
   listFilesResponseSchema,
   listProjectsResponseSchema,
   listTemplatesResponseSchema,
+  teamProposalResponseSchema,
   projectResponseSchema,
   snapshotResponseSchema,
   teamStateSchema,
@@ -31,12 +35,14 @@ import {
   type postMessageRequestSchema,
   type putLayoutRequestSchema,
   type recipientSchema,
+  type createLinkRequestSchema,
   type createProjectRequestSchema,
   type createTemplateRequestSchema,
   type createTemplateVersionRequestSchema,
   type putTeamDraftRequestSchema,
   type saveAsTemplateRequestSchema,
   type teamDraftBodySchema,
+  type updateLinkRequestSchema,
   type updateProjectRequestSchema,
 } from '@contracts/ardentstudio.generated';
 import { segment, studio } from './client';
@@ -44,6 +50,10 @@ import { segment, studio } from './client';
 export type Project = z.infer<typeof projectResponseSchema>;
 export type ProjectSummary = z.infer<typeof listProjectsResponseSchema>['projects'][number];
 export type StudioFile = z.infer<typeof fileResponseSchema>;
+export type ReferenceLink = z.infer<typeof linkResponseSchema>;
+export type KnowledgeSync = StudioFile['knowledge'];
+export type TeamProposalRecord = z.infer<typeof teamProposalResponseSchema>;
+export type TeamProposal = NonNullable<TeamProposalRecord['proposal']>;
 export type Snapshot = z.infer<typeof snapshotResponseSchema>;
 export type TeamState = z.infer<typeof teamStateSchema>;
 export type TeamRevision = NonNullable<TeamState['current']>;
@@ -75,13 +85,15 @@ export type PutTeamDraft = z.input<typeof putTeamDraftRequestSchema>;
 export type CreateTemplate = z.input<typeof createTemplateRequestSchema>;
 export type CreateTemplateVersion = z.input<typeof createTemplateVersionRequestSchema>;
 export type SaveAsTemplate = z.input<typeof saveAsTemplateRequestSchema>;
+export type CreateLink = z.input<typeof createLinkRequestSchema>;
+export type UpdateLink = z.input<typeof updateLinkRequestSchema>;
 
 type Signal = AbortSignal | undefined;
 type Key = string | undefined;
 const project = (id: string, rest = '') => `/projects/${segment(id)}${rest}`;
 
 // Projects
-export const listProjects = (query: { status?: 'active' | 'archived' | 'all'; q?: string }, signal?: Signal) =>
+export const listProjects = (query: { status?: 'active' | 'archived' | 'all'; q?: string; needs_review?: 'true' | 'false' }, signal?: Signal) =>
   studio.get('/projects', listProjectsResponseSchema, { query, signal }).then((result) => result.projects);
 export const getProject = (id: string, signal?: Signal) => studio.get(project(id), projectResponseSchema, { signal });
 export const createProject = (body: CreateProject, idempotencyKey?: Key) => studio.post('/projects', projectResponseSchema, { body, idempotencyKey });
@@ -95,6 +107,14 @@ export const listFiles = (id: string, signal?: Signal) => studio.get(project(id,
 export const uploadFile = (id: string, file: Blob, name: string, mime: string, idempotencyKey?: Key, purpose: 'reference' | 'attachment' = 'reference') =>
   studio.upload(project(id, '/files'), fileResponseSchema, file, mime, { query: { name, purpose }, idempotencyKey });
 export const reindexFile = (fileId: string, idempotencyKey?: Key) => studio.post(`/files/${segment(fileId)}/reindex`, fileResponseSchema, { idempotencyKey });
+
+// Reference links
+export const listLinks = (id: string, signal?: Signal) => studio.get(project(id, '/links'), listLinksResponseSchema, { signal }).then((result) => result.links);
+/** 409 LINK_EXISTS when the project already holds this URL. */
+export const createLink = (id: string, body: CreateLink, idempotencyKey?: Key) => studio.post(project(id, '/links'), linkResponseSchema, { body, idempotencyKey });
+export const updateLink = (linkId: string, body: UpdateLink, idempotencyKey?: Key) => studio.patch(`/links/${segment(linkId)}`, linkResponseSchema, { body, idempotencyKey });
+export const deleteLink = (linkId: string, idempotencyKey?: Key) => studio.delete(`/links/${segment(linkId)}`, linkResponseSchema, { idempotencyKey });
+export const reindexLink = (linkId: string, idempotencyKey?: Key) => studio.post(`/links/${segment(linkId)}/reindex`, linkResponseSchema, { idempotencyKey });
 
 // Templates
 export const listTemplates = (query: { kind?: 'agent' | 'team'; source?: 'seed' | 'user'; archived?: 'true' | 'false' | 'all'; q?: string }, signal?: Signal) =>
@@ -117,6 +137,11 @@ export const publishTeam = (id: string, draftRevision: number, idempotencyKey?: 
   studio.post(project(id, '/team/publish'), teamStateSchema, { body: { draft_revision: draftRevision }, idempotencyKey });
 export const applyTemplate = (id: string, templateId: string, version: number, replaceDraft: boolean, idempotencyKey?: Key) =>
   studio.post(project(id, '/team/apply-template'), teamStateSchema, { body: { template_id: templateId, version, replace_draft: replaceDraft }, idempotencyKey });
+/** Asks one agent for a team proposal; nothing is applied. Without agentRef the bound coordinator is asked. */
+export const proposeTeam = (id: string, agentRef: string | undefined, idempotencyKey?: Key) =>
+  studio.post(project(id, '/team/propose'), teamProposalResponseSchema, { body: agentRef ? { agent_ref: agentRef } : {}, idempotencyKey });
+/** Newest first, at most 20. */
+export const listTeamProposals = (id: string, signal?: Signal) => studio.get(project(id, '/team/proposals'), listTeamProposalsResponseSchema, { signal }).then((result) => result.proposals);
 export const saveTeamAsTemplate = (id: string, body: SaveAsTemplate, idempotencyKey?: Key) =>
   studio.post(project(id, '/team/save-as-template'), templateDetailSchema, { body, idempotencyKey });
 
