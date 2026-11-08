@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { installBlockedReason, installFailure, installOutcome, matchCatalog, skillListKey } from './skill-catalog-logic';
+import { installBlockedReason, installFailure, installOutcome, matchCatalog, skillListKey, skillStateLabel, skillStates } from './skill-catalog-logic';
 
 const skill = (slug: string, name: string, description = '') => ({ slug, name, description });
 const result = { source: 'hiveskills' as const, name: 'web-research', version: '1.2.0', sha256: 'a'.repeat(64), files: 2, changed: true, enabled: true, revision: 'b'.repeat(64), enable_error: null, activation_required: true };
@@ -37,7 +37,41 @@ describe('catalog skill installs', () => {
     expect(installFailure(new Error(''))).toBe('The skill could not be installed');
   });
 
-  it('keys a skill list by its skills and revision', () => {
-    expect(skillListKey([{ name: 'a', enabled: true }, { name: 'b', enabled: false }], 'r1')).toBe('r1:a=1,b=0');
+  it('keys a skill list by its skills, their running state and revision', () => {
+    expect(skillListKey([{ name: 'a', enabled: true }, { name: 'b', enabled: false }], 'r1')).toBe('r1:a=11,b=00');
+    expect(skillListKey([{ name: 'a', enabled: true, running: false }], 'r1')).toBe('r1:a=10');
+  });
+});
+
+describe('configured and running skills', () => {
+  const listed = [
+    { name: 'outline', description: '', hash: 'h1', enabled: true },
+    { name: 'web-research', description: '', hash: 'h2', enabled: false },
+    { name: 'old', description: '', hash: 'h3', enabled: true },
+  ];
+
+  it('takes enabled from the saved configuration and keeps what the running profile reports', () => {
+    const states = skillStates(listed, 'execution:\n  backend: llamacpp\nskills:\n  enabled:\n    - outline\n    - web-research\n');
+    expect(states.map(({ name, enabled, running }) => ({ name, enabled, running }))).toEqual([
+      { name: 'outline', enabled: true, running: true },
+      { name: 'web-research', enabled: true, running: false },
+      { name: 'old', enabled: false, running: true },
+    ]);
+    expect(skillStates(listed, 'skills:\n  enabled: [outline]\n').map((item) => item.enabled)).toEqual([true, false, false]);
+    // Ardent's default is no enabled skills.
+    expect(skillStates(listed, 'execution:\n  backend: llamacpp\n').map((item) => item.enabled)).toEqual([false, false, false]);
+  });
+
+  it('falls back to the running state when the configuration cannot be read', () => {
+    for (const text of [undefined, 'skills: [unclosed', 'skills:\n  enabled: outline\n']) {
+      expect(skillStates(listed, text).map(({ enabled, running }) => [enabled, running])).toEqual([[true, true], [false, false], [true, true]]);
+    }
+  });
+
+  it('says when a change waits for a restart', () => {
+    expect(skillStateLabel({ enabled: true, running: true })).toEqual({ label: 'Enabled', tone: 'success', pending: false });
+    expect(skillStateLabel({ enabled: false })).toEqual({ label: 'Disabled', tone: 'neutral', pending: false });
+    expect(skillStateLabel({ enabled: true, running: false })).toEqual({ label: 'Enabled — applies after restart', tone: 'warning', pending: true });
+    expect(skillStateLabel({ enabled: false, running: true })).toEqual({ label: 'Disabled — applies after restart', tone: 'warning', pending: true });
   });
 });

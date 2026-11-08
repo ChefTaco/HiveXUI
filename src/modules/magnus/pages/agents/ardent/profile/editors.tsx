@@ -21,6 +21,7 @@ import {
   type RevisionedText,
 } from '../schemas';
 import { readYamlValue, setYamlValue, YamlSettingsError } from '../yaml-settings';
+import { skillStateLabel } from './skill-catalog-logic';
 
 export interface ProfileRef {
   nodeId: string;
@@ -373,11 +374,16 @@ export function PeerEditor({ entry, running, ...editor }: EditorProps & { entry:
 }
 
 /** The profile's local skills, each with an enable switch. */
+/**
+ * The profile's skills with a switch each. `enabled` is the saved configuration's state, which a
+ * switch changes; `running`, when given, is what the running profile loaded, and a difference says
+ * the change applies after a restart.
+ */
 export function SkillList({ initial, initialRevision, onChange, description = 'Working methods available to this profile', ...editor }: EditorProps & {
-  initial: readonly ArdentSkill[];
+  initial: ReadonlyArray<ArdentSkill & { running?: boolean }>;
   initialRevision: string;
   /** After a switch, with the skills and the configuration revision as the node now has them. */
-  onChange?: (skills: readonly ArdentSkill[], revision: string) => void;
+  onChange?: (skills: ReadonlyArray<ArdentSkill & { running?: boolean }>, revision: string) => void;
   description?: string;
 }) {
   const client = useClient(editor);
@@ -386,7 +392,7 @@ export function SkillList({ initial, initialRevision, onChange, description = 'W
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState('');
-  async function toggle(skill: ArdentSkill) {
+  async function toggle(skill: ArdentSkill & { running?: boolean }) {
     setBusy(skill.name);
     setError('');
     setFeedback('');
@@ -411,17 +417,20 @@ export function SkillList({ initial, initialRevision, onChange, description = 'W
       </div>
       {skills.length === 0 ? <FxPanel padding="sm"><p className="m-0 text-sm text-text-muted">No skills were reported.</p></FxPanel> : (
         <div className="grid gap-3 lg:grid-cols-2">
-          {skills.map((skill) => (
-            <FxPanel key={skill.name} padding="sm" className="min-w-0">
-              <div className="flex items-start justify-between gap-2">
-                <p className="m-0 text-base font-semibold">{skill.name}</p>
-                <Badge tone={skill.enabled ? 'success' : 'neutral'} dot>{skill.enabled ? 'Enabled' : 'Disabled'}</Badge>
-              </div>
-              <p className="m-0 mt-2 text-sm text-text-muted">{skill.description}</p>
-              <p className="m-0 mt-3 font-mono text-xs text-text-muted">{skill.hash.slice(0, 16)}</p>
-              <Button className="mt-3" size="sm" disabled={!!busy} loading={busy === skill.name} onClick={() => void toggle(skill)}>{skill.enabled ? 'Disable' : 'Enable'}</Button>
-            </FxPanel>
-          ))}
+          {skills.map((skill) => {
+            const state = skillStateLabel(skill);
+            return (
+              <FxPanel key={skill.name} padding="sm" className="min-w-0">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="m-0 text-base font-semibold">{skill.name}</p>
+                  <Badge tone={state.tone} dot>{state.label}</Badge>
+                </div>
+                <p className="m-0 mt-2 text-sm text-text-muted">{skill.description}</p>
+                <p className="m-0 mt-3 font-mono text-xs text-text-muted">{skill.hash.slice(0, 16)}</p>
+                <Button className="mt-3" size="sm" disabled={!!busy} loading={busy === skill.name} onClick={() => void toggle(skill)}>{skill.enabled ? 'Disable' : 'Enable'}</Button>
+              </FxPanel>
+            );
+          })}
         </div>
       )}
       <Outcome feedback={feedback} error={error} />

@@ -4,6 +4,7 @@ import { consoleSessionResponseSchema, nodeListResponseSchema } from '@contracts
 import { clearAccess, configureEndpoint, rememberAccess, setStepUpProvider } from '../../../lib/transport';
 import { apiPath, magnus, segment } from './client';
 import { agentDisabledMessage, MagnusApiError, MagnusContractError } from './errors';
+import { readCooldown } from './rate-gate';
 
 const SESSION = { success: true, data: { userId: 'alice', role: 'OPERATOR', capabilities: { hermes: false, agentVersion: '1', magnusVersion: '1', securityConsoleUrl: null } } };
 const request = vi.fn<typeof fetch>();
@@ -132,5 +133,60 @@ describe('step-up', () => {
     request.mockResolvedValue(Response.json({ error: { message: 'boom' } }, { status: 500 }));
     await expect(magnus.get('/x', z.unknown())).rejects.toBeInstanceOf(MagnusApiError);
     expect(request).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('rate-limited Ardent reads', () => {
+  const limited = (seconds: string) => Response.json({ error: 'RATE_LIMITED', message: 'Too many requests. Please try again later.' }, { status: 429, headers: { 'Retry-After': seconds } });
+  const OK = z.object({ ok: z.boolean() });
+  /** Move the fake clock in small steps, so timers set after a few awaits still fire on time. */
+  const tick = async (ms: number) => {
+    for (let passed = 0; passed < ms; passed += 50) await vi.advanceTimersByTimeAsync(Math.min(50, ms - passed));
+  };
+  beforeEach(() => {
+    readCooldown.clear();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    readCooldown.clear();
+  });
+
+  it('wait out Retry-After once and ask again, holding the other Ardent reads meanwhile', async () => {
+    request.mockResolvedValueOnce(limited('3')).mockImplementation(async () => Response.json({ ok: true }));
+    const first = magnus.get('/ardent/installations/node-1/profiles/lead/skills', OK);
+    await tick(50);
+    expect(request).toHaveBeenCalledTimes(1);
+    // Another read on the bridge waits for the same cooldown instead of using up the budget.
+    const second = magnus.get('/ardent/installations/node-1/profiles/lead/config', OK);
+    await tick(2_800);
+    expect(request).toHaveBeenCalledTimes(1);
+    // Reads elsewhere and mutations are not held.
+    await magnus.get('/nodes', OK);
+    await magnus.post('/ardent/installations/node-1/profiles/lead/action', OK, { body: {} });
+    expect(request).toHaveBeenCalledTimes(3);
+    await tick(300);
+    await expect(first).resolves.toEqual({ ok: true });
+    await expect(second).resolves.toEqual({ ok: true });
+    expect(request).toHaveBeenCalledTimes(5);
+  });
+
+  it('give a longer Retry-After to the caller, in words and as a number', async () => {
+    request.mockImplementation(async () => limited('45'));
+    const error = (await magnus.get('/ardent/profiles', OK).catch((caught: unknown) => caught)) as MagnusApiError;
+    expect(error).toMatchObject({ status: 429, code: 'RATE_LIMITED', retryAfterMs: 45_000, message: 'Too many requests. Try again in 45 seconds.' });
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it('ask again only once, and never repeat a mutation or a read outside the bridge', async () => {
+    request.mockImplementation(async () => limited('1'));
+    const read = magnus.get('/ardent/profiles', OK).catch((caught: unknown) => caught);
+    await tick(1_100);
+    expect(await read).toMatchObject({ status: 429 });
+    expect(request).toHaveBeenCalledTimes(2);
+    readCooldown.clear();
+    await expect(magnus.post('/ardent/agents', OK, { body: {} })).rejects.toMatchObject({ status: 429, retryAfterMs: 1_000 });
+    await expect(magnus.get('/nodes', OK)).rejects.toMatchObject({ status: 429 });
+    expect(request).toHaveBeenCalledTimes(4);
   });
 });

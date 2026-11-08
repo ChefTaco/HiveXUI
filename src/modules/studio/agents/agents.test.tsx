@@ -40,7 +40,7 @@ const node: Record<string, unknown> = {
   'identity/soul/history': { history: [{ name: 'SOUL.md.2026-11-01', revision: SHA('9') }] },
   'identity/identity/history': { history: [] },
   skills: { skills: [{ name: 'outline', description: 'Outlines', hash: 'h1', enabled: true }, { name: 'research', description: 'Research', hash: 'h2', enabled: false }] },
-  config: { text: 'execution:\n  backend: llamacpp\n', revision: SHA('c') },
+  config: { text: 'execution:\n  backend: llamacpp\nskills:\n  enabled: [outline]\n', revision: SHA('c') },
   'memory/status': { status: 'ready', agent_id: 'lead', workspace_id: 'ws-1', retrieval: 'hybrid', storage: 'ok', reason: null },
   tasks: { tasks: [{ id: 't-1', state: 'running', prompt: 'Draft chapter one', created_ms: Date.parse(AT) }, { id: 't-2', state: 'running', prompt: 'Map', created_ms: Date.parse(AT) }] },
   channels: {},
@@ -200,6 +200,40 @@ describe('Preview', () => {
     expect(text(results)).toContain('2 running tasks keep current instructions');
     // Studio applies through Magnus itself; the console sends nothing to the node.
     expect(magnusRequests.filter((request) => request.method !== 'GET')).toEqual([]);
+  });
+
+  it('builds the skills draft on the saved configuration, saying which skills wait for a restart', async () => {
+    studioRoute = (request) => (request.method === 'PUT' && request.path === `/agents/${REF}/draft` ? { draft: draftRecord(request.body as Record<string, unknown>) } : baseStudio(request));
+    // research was installed and enabled after the profile started: Ardent still lists it off.
+    magnusRoute = (request) => (request.method === 'GET' && request.path === `${NODE}/config`
+      ? { text: 'execution:\n  backend: llamacpp\nskills:\n  enabled:\n    - outline\n    - research\n', revision: SHA('c') }
+      : request.method === 'GET' ? node[request.path.slice(NODE.length + 1)] : undefined);
+    const root = await open(`/studio/p/${PROJECT_ID}/agents/${REF}?tab=preview`);
+    const toggle = (name: string) => [...root.querySelectorAll('.agent-skills label.toggle')].find((label) => label.textContent === name)!.querySelector('input')!;
+    expect(toggle('research').checked).toBe(true);
+    expect(toggle('outline').checked).toBe(true);
+    expect(text(root.querySelector('.agent-skills')!)).toContain('Agent: Enabled — applies after restart');
+    // Unchanged skills make no draft; turning outline off keeps research on.
+    await click(toggle('outline'));
+    await click(button('Save draft', root));
+    await settle();
+    expect(sent('PUT', `/agents/${REF}/draft`)[0]!.body).toEqual({ base: { config_revision: SHA('c') }, draft: { skills_enabled: ['research'] } });
+  });
+
+  it('shows the configured skill state on Capabilities, and switches from it', async () => {
+    magnusRoute = (request) => {
+      if (request.method === 'POST') return { revision: SHA('d'), activation_required: true };
+      if (request.path === `${NODE}/config`) return { text: 'skills:\n  enabled: [research]\n', revision: SHA('c') };
+      return node[request.path.slice(NODE.length + 1)];
+    };
+    const root = await open(`/studio/p/${PROJECT_ID}/agents/${REF}?tab=capabilities`);
+    expect(text(root)).toContain('Disabled — applies after restart');
+    expect(text(root)).toContain('Enabled — applies after restart');
+    // research is enabled in the configuration, so its switch turns it off.
+    const card = [...root.querySelectorAll('.grid > *')].find((item) => item.querySelector('p')?.textContent === 'research')!;
+    await click(button('Disable', card as HTMLElement));
+    await settle();
+    expect(magnusRequests.filter((request) => request.method === 'POST').map((request) => request.body)).toEqual([{ action: 'skill-set', target: 'research', body: { enabled: false, revision: SHA('c') } }]);
   });
 
   it('asks for a restart after skills and the model apply, and rebases a draft after a conflict', async () => {

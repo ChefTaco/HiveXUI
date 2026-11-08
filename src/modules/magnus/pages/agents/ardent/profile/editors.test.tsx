@@ -51,6 +51,18 @@ describe('the reusable profile editors', () => {
     expect(view.container.textContent).toContain('Disabled');
   });
 
+  it('switch a skill from its configured state and say when the running profile has not caught up', async () => {
+    const { client, calls } = fakeClient(() => ({ revision: 'rev-3' }));
+    view = await mount(<SkillList {...REF} client={client} initial={[{ name: 'web-research', description: 'Searches', hash: 'abc', enabled: true, running: false }]} initialRevision="rev-2" />);
+    expect(view.container.textContent).toContain('Enabled — applies after restart');
+    await click(button('Disable'));
+    await settle();
+    expect(calls).toEqual([{ action: 'skill-set', options: { body: { enabled: false, revision: 'rev-2' }, target: 'web-research' } }]);
+    // Configured off and not running: nothing waits for a restart any more.
+    expect(view.container.textContent).toContain('Disabled');
+    expect(view.container.textContent).not.toContain('applies after restart');
+  });
+
   it('name the raw editor the host offers when the form cannot read the configuration', async () => {
     view = await mount(<SettingsForm {...REF} entry={{ text: 'execution: [unclosed', revision: 'rev-1' }} section="providers" running={false} rawEditorHint="in Fleet details" />);
     expect(view.container.textContent).toContain('Edit it in Fleet details.');

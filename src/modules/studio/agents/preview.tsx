@@ -9,6 +9,7 @@ import { useMagnusResource } from '../../magnus/api/use-resource';
 import { readResource } from '../../magnus/pages/agents/ardent/api';
 import { profileHref, taskIsFinal } from '../../magnus/pages/agents/ardent/logic';
 import { identityFileName } from '../../magnus/pages/agents/ardent/profile/editors';
+import { skillStateLabel, skillStates } from '../../magnus/pages/agents/ardent/profile/skill-catalog-logic';
 import { revisionedTextSchema, skillsSchema, taskListSchema } from '../../magnus/pages/agents/ardent/schemas';
 import { idempotencyKey } from '../api/client';
 import { StudioLink } from '../link';
@@ -46,7 +47,8 @@ async function readAgent(context: AgentContext, signal?: AbortSignal): Promise<A
     readResource(nodeId, profileId, 'config', revisionedTextSchema, signal),
     getDraft(agentRef, signal),
   ]);
-  return { soul, identity, skills: skills.skills, configRevision: config.revision, draft };
+  // Ardent lists the running profile's skills; the draft builds on the saved configuration.
+  return { soul, identity, skills: skillStates(skills.skills, config.text), configRevision: config.revision, draft };
 }
 
 /** The per-part outcome of Apply, as the service reports it, including refusals and restarts. */
@@ -250,14 +252,20 @@ function DraftEditor({ context, initial, running, onDraft }: { context: AgentCon
           <legend className="field-label">Skills</legend>
           {skillNames.length ? (
             <div className="agent-skills__list">
-              {skillNames.map((name) => (
-                <Toggle
-                  key={name}
-                  label={name}
-                  checked={fields.skills.includes(name)}
-                  onChange={(on) => set({ skills: on ? [...fields.skills, name] : fields.skills.filter((item) => item !== name) })}
-                />
-              ))}
+              {skillNames.map((name) => {
+                const skill = now.skills.find((item) => item.name === name);
+                const state = skill ? skillStateLabel(skill) : null;
+                return (
+                  <div key={name} className="agent-skills__item">
+                    <Toggle
+                      label={name}
+                      checked={fields.skills.includes(name)}
+                      onChange={(on) => set({ skills: on ? [...fields.skills, name] : fields.skills.filter((item) => item !== name) })}
+                    />
+                    {state?.pending ? <span className="text-xs text-warning">Agent: {state.label}</span> : null}
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <p className="m-0 text-sm text-text-muted">The agent reports no local skills.</p>

@@ -34,7 +34,7 @@ import { HiveMemCredential } from './hivemem-credential';
 import { HiveMemEnable } from './hivemem-enable';
 import { ActionButton, ConfigEditor, IdentityEditor, MemoryPanel, PeerEditor, SettingsForm, SkillList, TaskTest, type ProfileRef } from './editors';
 import { SkillCatalog } from './skill-catalog';
-import { skillListKey } from './skill-catalog-logic';
+import { skillListKey, skillStates } from './skill-catalog-logic';
 
 const TABS = ['Overview', 'Configuration', 'Identity', 'Providers', 'Channels', 'Peers', 'Skills', 'Tasks & Artifacts', 'API Reference'] as const;
 type Tab = (typeof TABS)[number];
@@ -174,7 +174,8 @@ function SkillsTab({ nodeId, profileId, studioLevel, nodeName }: ProfileRef & { 
       readResource(nodeId, profileId, 'config', revisionedTextSchema, signal),
       readResource(nodeId, profileId, 'memory/status', memoryStatusSchema, signal),
     ]);
-    return { skills: skills.skills, revision: config.revision, memory };
+    // The list is the running profile; the switches follow the saved configuration.
+    return { skills: skillStates(skills.skills, config.text), revision: config.revision, memory };
   });
   return (
     <TabBody tab={tab} name="The skills" render={({ skills, revision: loaded, memory }) => (
