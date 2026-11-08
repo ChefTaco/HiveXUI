@@ -297,7 +297,8 @@ function StartingTeamStep({ projectId }: { projectId: string }) {
       } else if (start === 'template') {
         const template = templates.data?.find((item) => item.id === templateId);
         if (!template) throw new Error('Choose a template.');
-        await applyTemplate(projectId, template.id, template.latest_version, replace);
+        // The designer opens on this store: give it the applied team now, not when the event arrives.
+        store.setTeam(await applyTemplate(projectId, template.id, template.latest_version, replace));
       } else if (start === 'copy') {
         if (!sourceProject) throw new Error('Choose a project to copy from.');
         const [source, target] = await Promise.all([getTeam(sourceProject), getTeam(projectId)]);
@@ -308,14 +309,14 @@ function StartingTeamStep({ projectId }: { projectId: string }) {
           return;
         }
         const body = revision.body;
-        await putTeamDraft(projectId, {
+        store.setTeam(await putTeamDraft(projectId, {
           base_revision: target.current?.revision ?? null,
           body: {
             roles: body.roles.map(({ binding_id: _binding, knowledge: _knowledge, agent_ref, ...role }) => ({ ...role, agent_ref: keepBindings ? agent_ref : null, knowledge: [] })),
             relationships: body.relationships,
             stages: body.stages,
           },
-        });
+        }));
       }
       setApplied(true);
       if (ask && !pending) {
