@@ -1,0 +1,191 @@
+@layer components {
+  /* New Agent wizard and the agent operation checklist. Layout only; colors and type come from
+     utilities and tokens. The rail scrolls sideways on a narrow screen instead of wrapping. */
+  .agent-wizard {
+    display: grid;
+    min-width: 0;
+    gap: var(--space-5);
+  }
+  .agent-wizard-rail {
+    display: flex;
+    min-width: 0;
+    margin: 0;
+    padding: 0 0 var(--space-1);
+    gap: var(--space-2);
+    overflow-x: auto;
+    list-style: none;
+  }
+  .agent-wizard-rail__step {
+    display: inline-flex;
+    flex: 1 0 auto;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 2px solid var(--border);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    white-space: nowrap;
+  }
+  .agent-wizard-rail__step--done {
+    border-bottom-color: var(--success);
+    color: var(--text);
+  }
+  .agent-wizard-rail__step--current {
+    border-bottom-color: var(--accent);
+    color: var(--text-strong);
+  }
+  .agent-wizard-rail__index {
+    display: inline-grid;
+    width: 1.5rem;
+    height: 1.5rem;
+    flex: none;
+    place-items: center;
+    border: 1px solid currentColor;
+    border-radius: var(--radius-pill);
+    font-size: var(--text-xs);
+  }
+  .agent-wizard-body {
+    min-width: 0;
+  }
+  .agent-wizard-choice {
+    display: flex;
+    min-width: 0;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
+    background: var(--surface-sunken);
+    font-size: var(--text-sm);
+    transition: border-color var(--duration-fast);
+  }
+  .agent-wizard-choice input {
+    margin-top: 0.15rem;
+  }
+  .agent-wizard-choice:hover {
+    border-color: var(--border-strong);
+  }
+  .agent-wizard-choice--selected,
+  .agent-wizard-choice--selected:hover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .agent-wizard-choice--disabled,
+  .agent-wizard-choice--disabled:hover {
+    border-color: var(--border);
+    cursor: not-allowed;
+    opacity: 0.75;
+  }
+  .agent-wizard-pair,
+  .agent-wizard-identity {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: var(--space-3);
+  }
+  .agent-wizard-editor {
+    min-height: 16rem;
+    height: 40vh;
+  }
+  .agent-wizard-skills {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+    gap: var(--space-3);
+  }
+  .agent-wizard-note {
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
+    background: var(--surface-sunken);
+  }
+  .agent-wizard-facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+    gap: var(--space-3);
+  }
+  .agent-wizard-fact {
+    display: grid;
+    min-width: 0;
+    align-content: start;
+    gap: var(--space-1);
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--border);
+  }
+  .agent-wizard-preview {
+    min-width: 0;
+  }
+  .agent-wizard-preview pre {
+    max-height: 18rem;
+    overflow: auto;
+  }
+  .agent-wizard-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--border);
+  }
+
+  .agent-op-steps {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    gap: var(--space-2);
+    list-style: none;
+  }
+  .agent-op-step {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: 1.25rem minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
+    background: var(--surface-sunken);
+  }
+  .agent-op-step--running {
+    border-color: var(--info);
+  }
+  .agent-op-step[data-state='failed'] {
+    border-color: var(--danger);
+  }
+  .agent-op-step__icon {
+    display: inline-grid;
+    height: 1.25rem;
+    place-items: center;
+  }
+
+  @media (max-width: 640px) {
+    /* Numbers only, with the current step named, so the whole rail fits. */
+    .agent-wizard-rail__step {
+      flex: 0 0 auto;
+      padding-inline: var(--space-2);
+    }
+    .agent-wizard-rail__step--current {
+      flex: 1 0 auto;
+    }
+    .agent-wizard-rail__step:not(.agent-wizard-rail__step--current) .agent-wizard-rail__label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    .agent-wizard-pair,
+    .agent-wizard-identity {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .agent-op-step {
+      grid-template-columns: 1.25rem minmax(0, 1fr);
+    }
+    .agent-op-step .badge {
+      grid-column: 2;
+      justify-self: start;
+    }
+  }
+}

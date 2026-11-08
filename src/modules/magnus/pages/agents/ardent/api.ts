@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import {
+  ardentAgentOperationAcceptedResponseSchema,
+  ardentAgentOperationResponseSchema,
+  type ardentAgentDeployRequestSchema,
+} from '@contracts/magnus/browser';
 import { apiFetch } from '../../../../../lib/transport';
 import { apiPath, magnus, segment } from '../../../api/client';
 import { MagnusApiError } from '../../../api/errors';
@@ -14,6 +19,19 @@ export const listProfiles = (signal?: AbortSignal) => magnus.get('/ardent/profil
 /** A profile resource, read through the node. `resource` is one of the paths routes/ardent.ts allows. */
 export const readResource = <S extends z.ZodType>(nodeId: string, profileId: string, resource: string, schema: S, signal?: AbortSignal): Promise<z.output<S>> =>
   magnus.get(`${base(nodeId, profileId)}/${resource}`, ok(schema), { signal }).then((response) => (response as { data: z.output<S> }).data);
+
+/** New Agent: starts the deploy operation and answers its ID. ADMIN only. */
+export const deployAgent = (request: z.input<typeof ardentAgentDeployRequestSchema>): Promise<string> =>
+  magnus.post('/ardent/agents', ardentAgentOperationAcceptedResponseSchema, { body: request }).then((response) => response.data.operationId);
+export const readAgentOperation = (operationId: string, signal?: AbortSignal) =>
+  magnus.get(`/ardent/agents/operations/${segment(operationId)}`, ardentAgentOperationResponseSchema, { signal }).then((response) => response.data);
+/** Reruns a failed operation from its first unfinished step. */
+export const resumeAgentOperation = (operationId: string): Promise<string> =>
+  magnus.post(`/ardent/agents/operations/${segment(operationId)}/resume`, ardentAgentOperationAcceptedResponseSchema).then((response) => response.data.operationId);
+/** Enroll an existing, running profile in HiveMem (or rotate its credential). */
+export const enableHiveMem = (nodeId: string, profileId: string): Promise<string> =>
+  magnus.post(`${base(nodeId, profileId)}/hivemem`, ardentAgentOperationAcceptedResponseSchema).then((response) => response.data.operationId);
+export const agentOperationStreamPath = (operationId: string): string => `/ardent/agents/operations/${segment(operationId)}/stream`;
 
 /** How long a node may take, as the old console allowed. */
 const actionTimeout = (action: string): number => (action === 'package-install' ? 620_000 : action.startsWith('service-') ? 125_000 : 55_000);

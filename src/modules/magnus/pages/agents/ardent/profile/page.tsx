@@ -6,6 +6,7 @@ import { errorMessage } from '../../../../api/errors';
 import { useMagnusResource } from '../../../../api/use-resource';
 import { FxPanel, PageItem } from '../../../../effects';
 import Link, { useParams, useSearchParams } from '../../../../navigation';
+import { ADMIN_ONLY, RequireRole } from '../../../../session';
 import { LoadingRows, ResourceError } from '../../../../ui/resource-state';
 import { CodexNodePanel } from '../../codex/installation-card';
 import { Fact } from '../../shared/fx';
@@ -25,6 +26,7 @@ import {
   type ArdentTask,
   type ArdentTaskEvent,
 } from '../schemas';
+import { HiveMemEnable } from './hivemem-enable';
 import { ActionButton, ConfigEditor, IdentityEditor, MemoryPanel, PeerEditor, SettingsForm, SkillList, TaskTest, type ProfileRef } from './editors';
 
 const TABS = ['Overview', 'Configuration', 'Identity', 'Providers', 'Channels', 'Peers', 'Skills', 'Tasks & Artifacts', 'API Reference'] as const;
@@ -314,6 +316,11 @@ export default function ArdentProfilePage() {
         />
       </PageItem>
       {installation.error && !installation.data ? <p role="alert" className="m-0 text-sm text-warning">Node inventory is unavailable: {errorMessage(installation.error)}</p> : null}
+      <RequireRole roles={ADMIN_ONLY}>
+        <PageItem className="empty:hidden">
+          <HiveMemEnable nodeId={nodeId} profileId={profileId} nodeName={installation.data?.nodeName} running={running} onEnabled={() => setRefreshKey((value) => value + 1)} />
+        </PageItem>
+      </RequireRole>
       <PageItem>
         <div className="tabs" role="tablist" aria-label="Ardent profile sections">
           {TABS.map((item) => <button key={item} type="button" role="tab" aria-selected={tab === item} onClick={() => setTab(item)} className={cn('tab', tab === item && 'tab--active')}>{item}</button>)}
