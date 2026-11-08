@@ -193,7 +193,7 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
     }
   }
 
-  async function queueAction(label: string, id: string, action: () => Promise<Record<string, unknown>>) {
+  async function queueAction(label: string, action: () => Promise<Record<string, unknown>>) {
     const result = await run(label, action);
     if (result) {
       const queueData = await adminApi.memoryQueue().catch(() => { setPanelIssues((prior) => [...prior, 'Queue unavailable']); return null; });
@@ -348,9 +348,9 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
                     <span className="muted-line">{text(job.status)} · {text(job.workspace_id, 'default')}</span>
                   </div>
                   <div className="inline-actions">
-                    <Button size="sm" variant="ghost" disabled={!canManageQueue || !id || !runnable} loading={busy === `run-${id}`} onClick={() => void queueAction(`run-${id}`, id, () => adminApi.runMemoryQueueJob(id))}>Run</Button>
-                    <Button size="sm" variant="ghost" disabled={!canManageQueue || !id || !retryable} loading={busy === `retry-${id}`} onClick={() => void queueAction(`retry-${id}`, id, () => adminApi.retryMemoryQueueJob(id))}>Retry</Button>
-                    <Button size="sm" variant="danger" disabled={!canManageQueue || !id || !runnable} loading={busy === `cancel-${id}`} onClick={() => void queueAction(`cancel-${id}`, id, () => adminApi.cancelMemoryQueueJob(id))}>Cancel</Button>
+                    <Button size="sm" variant="ghost" disabled={!canManageQueue || !id || !runnable} loading={busy === `run-${id}`} onClick={() => void queueAction(`run-${id}`, () => adminApi.runMemoryQueueJob(id))}>Run</Button>
+                    <Button size="sm" variant="ghost" disabled={!canManageQueue || !id || !retryable} loading={busy === `retry-${id}`} onClick={() => void queueAction(`retry-${id}`, () => adminApi.retryMemoryQueueJob(id))}>Retry</Button>
+                    <Button size="sm" variant="danger" disabled={!canManageQueue || !id || !runnable} loading={busy === `cancel-${id}`} onClick={() => void queueAction(`cancel-${id}`, () => adminApi.cancelMemoryQueueJob(id))}>Cancel</Button>
                   </div>
                 </div>
               );

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertCircle, AlertTriangle, ArrowUpCircle, Loader2, Pencil, Plus, Power, RefreshCcwDot, RefreshCw, Server, ShieldCheck, Trash2 } from 'lucide-react';
 import { deleteNodeResponseSchema, systemUpdatesSummaryResponseSchema, tailscaleSummaryResponseSchema } from '@contracts/magnus/browser';
 import { Badge, Button, ConfirmDialog, EmptyState, IconButton, PageHeader, StatusDot, statusTone, TableFrame } from '@ui';

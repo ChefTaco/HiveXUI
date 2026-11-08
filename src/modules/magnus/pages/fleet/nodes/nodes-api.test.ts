@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearAccess, configureEndpoint } from '../../../../../lib/transport';
-import { diskSeverity, listAllNodes, nodeError, parseDisks, parseTags, worstPersistentDisk, type NodeRow } from './nodes-api';
+import { diskSeverity, listAllNodes, nodeError, parseDisks, parseTags, worstPersistentDisk } from './nodes-api';
 
 const node = (id: string, heartbeat: string | null = '2026-11-05T10:00:00.000Z') => ({ health: null, id, name: id, hostname: id, ipAddress: '192.0.2.1', port: 4100, status: 'ONLINE', os: 'linux', arch: 'x86_64', tags: '[]', metadata: '{}', roleId: null, lastHeartbeatAt: heartbeat, createdAt: '2026-11-05T10:00:00.000Z', updatedAt: '2026-11-05T10:00:00.000Z', agent: null, role: null, upgradeReadiness: null });
 const disk = (mountPoint: string, usagePercent: number, filesystemType?: string) => ({ mountPoint, totalBytes: 1, usedBytes: 1, freeBytes: 0, usagePercent, filesystem: 'x', ...(filesystemType ? { filesystemType } : {}) });

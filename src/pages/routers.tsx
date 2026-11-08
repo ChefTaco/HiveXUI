@@ -3,7 +3,7 @@ import { Badge, EmptyState, HealthBadge, JsonBlock, Panel, StatCard, StatusDot }
 import { Gauge } from '../components/gauge';
 import { Icon } from '../components/icons';
 import { Radar, radarRandom, type RadarBlip } from '../components/radar';
-import { Sparkline, TileTrend } from '../components/sparkline';
+import { Sparkline } from '../components/sparkline';
 import { compactNumber, relativeTime } from '../lib/format';
 import { series, useSessionSamples } from '../lib/session-samples';
 import { useStore } from '../lib/store';

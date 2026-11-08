@@ -3,11 +3,6 @@ import { apiFetch } from '../../lib/transport';
 import {
   SkillSchema,
   ReleaseSchema,
-  ChannelSchema,
-  TargetSchema,
-  AuditSchema,
-  ReceiptSchema,
-  DeploymentJobSchema,
   ManagedDeploymentSchema, DeploymentApprovalSchema, DeploymentCapabilitiesSchema,
   CreateSkillSchema,
   UploadReleaseSchema,

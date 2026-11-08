@@ -74,10 +74,6 @@ async function request<T, TBody extends JsonRequestBody = JsonRequestBody>(
   return (await response.json()) as T;
 }
 
-function iamPath(path: string): string {
-  return `/api/iam/${path.replace(/^\/+/, '')}`;
-}
-
 export const adminApi = {
   // ---- auth ----
   login(username: string, password: string) {

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { diskInfoSchema, nodeHealthResponseSchema, nodeListResponseSchema } from '@contracts/magnus/browser';
-import { magnus, segment } from '../../../api/client';
+import { magnus } from '../../../api/client';
 
 export type NodeRow = z.output<typeof nodeListResponseSchema>['data'][number];
 export type NodeHealth = z.output<typeof nodeHealthResponseSchema>['data'];

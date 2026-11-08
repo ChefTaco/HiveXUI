@@ -383,7 +383,6 @@ export function IamOperationsPage({
     (account) => account.active,
   ).length;
   const activeBots = clients.filter((client) => client.active).length;
-  const customRoles = roles.filter((role) => !role.isSystem).length;
   const activeSessions = sessions.length;
 
   return (
