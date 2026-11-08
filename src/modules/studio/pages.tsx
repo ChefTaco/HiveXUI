@@ -7,6 +7,7 @@ import type { StudioConnection } from './api/client';
 import './projects/projects.css';
 import { AgentStudio } from './agents/page';
 import { StudioLink } from './link';
+import { ProjectReview } from './review/page';
 import { CreateProject } from './projects/create';
 import { ProjectsHome } from './projects/home';
 import { ArchivedNotice, ProjectLanding } from './projects/project-page';
@@ -127,6 +128,8 @@ function implemented(match: StudioMatch): ReactNode {
       return <Gallery />;
     case 'team-gallery':
       return <Gallery projectId={match.projectId!} />;
+    case 'review':
+      return <ProjectReview projectId={match.projectId!} />;
     case 'agent':
     case 'project-agent':
       return <AgentStudio agentRef={match.agentRef!} projectId={match.projectId} />;

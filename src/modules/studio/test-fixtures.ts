@@ -32,9 +32,13 @@ export const summary = (overrides: Partial<ProjectSummary> = {}): ProjectSummary
     ...rest,
     brief_excerpt: brief_md,
     file_count: 1,
+    link_count: 0,
     deliverable_count: 1,
     team: { revision: 1, role_count: 3, bound_count: 2 },
-    last_activity: { type: 'team.revision.published', at: AT },
+    open_questions: 0,
+    review_pending: 0,
+    active_tasks: 0,
+    last_activity: { type: 'team.revision.published', at: AT, text: 'Team revision 1 published' },
     ...overrides,
   };
 };
@@ -108,7 +112,7 @@ export const team = (overrides: Partial<TeamState> = {}): TeamState => ({
   ...overrides,
 });
 
-export const snapshot = (overrides: Partial<Snapshot> = {}): Snapshot => ({ seq: 5, project: project(), files: [file()], team: team(), conversations: [], tasks: [], decisions: [], activity: [], layout: null, ...overrides });
+export const snapshot = (overrides: Partial<Snapshot> = {}): Snapshot => ({ seq: 5, project: project(), files: [file()], team: team(), conversations: [], tasks: [], decisions: [], activity: [], layout: null, summary: summary(), links: [], team_proposals: [], ...overrides });
 
 export const templateSummary = (overrides: Partial<TemplateSummary> = {}): TemplateSummary => ({
   id: TEMPLATE_ID,

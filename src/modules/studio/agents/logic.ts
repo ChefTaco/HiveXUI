@@ -5,7 +5,7 @@ import type { Agent, Snapshot } from '../api/endpoints';
 import { PORTRAIT_ACCENTS, PORTRAIT_EMBLEMS, PORTRAIT_PRESETS, type Portrait } from '../room/scene/model';
 import type { AgentDraft, ApplyPart, ApplyResult, DevelopmentRecord, DraftBody } from './api';
 
-export const AGENT_TABS = ['identity', 'capabilities', 'knowledge', 'preview', 'development'] as const;
+export const AGENT_TABS = ['identity', 'capabilities', 'knowledge', 'preview', 'development', 'review'] as const;
 export type AgentTab = (typeof AGENT_TABS)[number];
 export const TAB_LABEL: Record<AgentTab, string> = {
   identity: 'Identity',
@@ -13,6 +13,7 @@ export const TAB_LABEL: Record<AgentTab, string> = {
   knowledge: 'Knowledge',
   preview: 'Preview',
   development: 'Development',
+  review: 'Review',
 };
 export const agentTab = (value: string | null): AgentTab => (AGENT_TABS as readonly string[]).includes(value ?? '') ? (value as AgentTab) : 'identity';
 
@@ -73,6 +74,20 @@ export function applySummary(results: readonly ApplyResult[]): { text: string; t
   if (!applied) return { text: 'Nothing needed applying.', tone: 'neutral' };
   return { text: applied === 1 ? 'Applied. Identity history keeps the previous version.' : `${applied} parts applied. Identity history keeps the previous versions.`, tone: 'success' };
 }
+
+/** Magnus's refusals for a part, in plain words. Anything else shows the service's own message. */
+export const APPLY_CODE_TEXT: Record<string, string> = {
+  ACTING_ADMIN_REQUIRED: 'Only a Magnus administrator can change an agent. Ask an administrator to apply this draft.',
+  ACTING_SUBJECT_UNLINKED: 'Your sign-in is not linked to a Magnus account, so Magnus cannot check who is applying. Link it in Magnus, then apply again.',
+  CONFIG_PATH_FORBIDDEN: 'Magnus does not let Studio change this setting in the agent’s configuration.',
+  CONFLICT: 'The agent changed since this draft was made. Reload the agent as the draft’s base, check the draft, then apply again.',
+  MAGNUS_CONFLICT: 'The agent changed since this draft was made. Reload the agent as the draft’s base, check the draft, then apply again.',
+  INVALID_INPUT: 'The agent rejected this value. Check the draft and apply again.',
+  CONFIG_REVISION_REQUIRED: 'The draft does not record the agent’s configuration revision. Save the draft again, then apply.',
+  BASE_REVISION_MISSING: 'The draft does not record which version of the file it changes. Reload the agent as the draft’s base, then apply again.',
+};
+/** A failed part that a fresh base would let through. */
+export const needsRebase = (results: readonly ApplyResult[]): boolean => results.some((result) => result.status === 'failed' && ['CONFLICT', 'MAGNUS_CONFLICT', 'BASE_REVISION_MISSING', 'CONFIG_REVISION_REQUIRED'].includes(result.code ?? ''));
 
 /** The notice for an agent with work in flight: changes start with its next turn. */
 export const busyNotice = (running: number): string =>
@@ -149,12 +164,15 @@ export function sameBody(a: DraftBody, b: DraftBody): boolean {
   return a.soul === b.soul && a.identity === b.identity && a.model === b.model && (a.skills_enabled === undefined ? b.skills_enabled === undefined : b.skills_enabled !== undefined && sameSet(a.skills_enabled, b.skills_enabled));
 }
 
-/** The revisions a draft builds on: kept from the saved draft, else the agent's now, for each part it holds. */
+/**
+ * The revisions a draft builds on: kept from the saved draft, else the agent's now, for each part it
+ * holds. Skills and the model both change the configuration, so either records its revision.
+ */
 export function baseFor(body: DraftBody, now: AgentNow, saved: AgentDraft | null | undefined) {
   return {
     ...(body.soul !== undefined ? { soul_revision: saved?.base.soul_revision ?? now.soul.revision } : {}),
     ...(body.identity !== undefined ? { identity_revision: saved?.base.identity_revision ?? now.identity.revision } : {}),
-    ...(body.skills_enabled !== undefined ? { config_revision: saved?.base.config_revision ?? now.configRevision } : {}),
+    ...(body.skills_enabled !== undefined || body.model !== undefined ? { config_revision: saved?.base.config_revision ?? now.configRevision } : {}),
   };
 }
 

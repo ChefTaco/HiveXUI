@@ -14,6 +14,7 @@ import { idempotencyKey } from '../api/client';
 import { StudioLink } from '../link';
 import { applyDraft, discardDraft, getDraft, putDraft, type AgentDraft, type ApplyResponse } from './api';
 import {
+  APPLY_CODE_TEXT,
   applySummary,
   baseFor,
   bodyFrom,
@@ -21,6 +22,7 @@ import {
   draftIsEmpty,
   draftParts,
   fieldsFrom,
+  needsRebase,
   PART_LABEL,
   RESULT_TEXT,
   sameBody,
@@ -47,8 +49,8 @@ async function readAgent(context: AgentContext, signal?: AbortSignal): Promise<A
   return { soul, identity, skills: skills.skills, configRevision: config.revision, draft };
 }
 
-/** The per-part outcome of Apply, as the service reports it, including refusals. */
-export function ApplyResults({ response }: { response: ApplyResponse }) {
+/** The per-part outcome of Apply, as the service reports it, including refusals and restarts. */
+export function ApplyResults({ response, fleetHref, onRebase, rebasing }: { response: ApplyResponse; fleetHref: string; onRebase?: (() => void) | undefined; rebasing?: boolean }) {
   const summary = applySummary(response.results);
   return (
     <div className="agent-apply grid gap-2 rounded-control border border-border bg-surface-sunken p-3" role="status" aria-label="Apply results">
@@ -56,21 +58,43 @@ export function ApplyResults({ response }: { response: ApplyResponse }) {
       <ul className="agent-list">
         {response.results.map((result) => {
           const status = RESULT_TEXT[result.status];
+          const plain = result.code ? APPLY_CODE_TEXT[result.code] : undefined;
           return (
             <li key={result.part} className="agent-apply__row text-sm">
               <span className="font-medium">{PART_LABEL[result.part]}</span>
               <Badge tone={status.tone}>{status.label}</Badge>
+              {result.status === 'applied' && result.activation_required ? <Badge tone="warning">Needs a restart</Badge> : null}
               {result.revision ? <span className="font-mono text-xs text-text-muted">rev {result.revision.slice(0, 8)}</span> : null}
-              {result.error ? (
-                <span className="agent-apply__error text-xs text-text-muted">
-                  {result.error}
-                  {result.code ? <span className="font-mono"> ({result.code})</span> : null}
+              {plain || result.error ? (
+                <span className="agent-apply__error text-xs">
+                  {plain ? <span className="block text-text">{plain}</span> : null}
+                  {result.error ? (
+                    <span className="block text-text-muted">
+                      {result.error}
+                      {result.code ? <span className="font-mono"> ({result.code})</span> : null}
+                    </span>
+                  ) : null}
                 </span>
               ) : null}
             </li>
           );
         })}
       </ul>
+      {onRebase && needsRebase(response.results) ? (
+        <Button size="sm" className="justify-self-start" loading={rebasing} onClick={onRebase}>
+          Reload the agent as the draft&apos;s base
+        </Button>
+      ) : null}
+      {response.activation_required ? (
+        <div className="warning-banner grid gap-1 text-sm">
+          <p className="m-0 font-semibold">Restart the profile from the Magnus console to activate the new skills or model.</p>
+          {response.restart.reason ? <p className="m-0 text-xs">{response.restart.reason}</p> : null}
+          <StudioLink href={fleetHref} className="justify-self-start text-sm">
+            Open the profile in Fleet details
+            <ArrowUpRight className="ml-1 inline size-3" aria-hidden="true" />
+          </StudioLink>
+        </div>
+      ) : null}
       {response.active_tasks > 0 ? <p className="m-0 text-xs text-text-muted">{busyNotice(response.active_tasks)}</p> : null}
       {response.note ? <p className="m-0 text-xs text-text-muted">{response.note}</p> : null}
     </div>
@@ -82,7 +106,7 @@ function ModelField({ value, onChange }: { value: string; onChange: (value: stri
   const enabled = productInstalled('emberpath');
   const aliases = useMagnusResource(async () => (await adminApi.aliases()).data, [], { enabled });
   return (
-    <Field label="Model for previews" hint="An Emberpath alias or a model name. Empty uses the agent's own model. Apply cannot change the model; use Fleet details for that.">
+    <Field label="Model" hint="An Emberpath alias or a model name. Previews use it at once; Apply sets it as the agent's model, which takes effect after the profile restarts. Empty keeps the agent's own model.">
       <TextInput value={value} onChange={onChange} maxLength={200} spellCheck={false} autoComplete="off" placeholder="Agent's own model" list={aliases.data?.length ? listId : undefined} />
       {aliases.data?.length ? (
         <datalist id={listId}>
@@ -100,7 +124,7 @@ function DraftEditor({ context, initial, running, onDraft }: { context: AgentCon
   const [now, setNow] = useState<AgentNow>(initial);
   const [saved, setSaved] = useState<AgentDraft | null>(initial.draft);
   const [fields, setFields] = useState<DraftFields>(() => fieldsFrom(initial.draft?.draft, initial));
-  const [busy, setBusy] = useState<'save' | 'apply' | 'discard' | null>(null);
+  const [busy, setBusy] = useState<'save' | 'apply' | 'discard' | 'rebase' | null>(null);
   const [confirm, setConfirm] = useState<'apply' | 'discard' | null>(null);
   const [applied, setApplied] = useState<ApplyResponse | null>(null);
   const [feedback, setFeedback] = useState('');
@@ -165,6 +189,26 @@ function DraftEditor({ context, initial, running, onDraft }: { context: AgentCon
       }
     } catch (caught) {
       setError(errorMessage(caught, 'The draft could not be applied'));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /** After a conflict: the same draft, based on the agent as it is now. Apply then overwrites that version. */
+  async function rebase() {
+    if (!saved) return;
+    setBusy('rebase');
+    setError('');
+    setFeedback('');
+    try {
+      const fresh = await readAgent(context);
+      const next = await putDraft(context.agentRef, { base: baseFor(saved.draft, fresh, null), draft: saved.draft }, idempotencyKey());
+      setNow(fresh);
+      setSaved(next);
+      setApplied(null);
+      setFeedback('The draft now builds on the agent as it is. Check the draft against it, then apply again.');
+    } catch (caught) {
+      setError(errorMessage(caught, 'The agent could not be reloaded'));
     } finally {
       setBusy(null);
     }
@@ -239,11 +283,15 @@ function DraftEditor({ context, initial, running, onDraft }: { context: AgentCon
       </div>
       {feedback ? <p role="status" className="m-0 mt-3 text-sm text-success">{feedback}</p> : null}
       {error ? <p role="alert" className="m-0 mt-3 text-sm text-danger">{error}</p> : null}
-      {applied ? <div className="mt-3"><ApplyResults response={applied} /></div> : null}
+      {applied ? (
+        <div className="mt-3">
+          <ApplyResults response={applied} fleetHref={'/fleet' + profileHref(context.nodeId, context.profileId)} onRebase={saved ? () => void rebase() : undefined} rebasing={busy === 'rebase'} />
+        </div>
+      ) : null}
       <ConfirmDialog
         open={confirm === 'apply'}
         title={`Apply ${parts.map((part) => PART_LABEL[part]).join(', ')}?`}
-        message={`The agent's ${parts.map((part) => PART_LABEL[part]).join(', ')} change in every project, through Magnus. Identity history keeps the previous version.${running > 0 ? ' ' + busyNotice(running) : ''}`}
+        message={`The agent's ${parts.map((part) => PART_LABEL[part]).join(', ')} change in every project, through Magnus. Identity history keeps the previous version.${parts.some((part) => part === 'skills' || part === 'model') ? ' Skills and the model take effect after the profile restarts.' : ''}${running > 0 ? ' ' + busyNotice(running) : ''}`}
         confirmLabel="Apply"
         tone="primary"
         onCancel={() => setConfirm(null)}

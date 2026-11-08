@@ -134,7 +134,7 @@ describe('the Studio page', () => {
     await click(button('Retry'));
     await settle();
     expect(text(root)).toContain('Connected');
-    expect(text(root)).toContain('This console cannot open this page yet');
+    expect(text(root)).not.toContain("The Studio service isn't reachable");
   });
 
   it('does not take a page served in place of the service for the service', async () => {

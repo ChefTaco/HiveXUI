@@ -36,6 +36,8 @@ describe('drafts', () => {
 
   it('keeps the revisions a saved draft was based on, so Apply never overwrites newer work', () => {
     expect(baseFor({ soul: 'x', skills_enabled: [] }, now, null)).toEqual({ soul_revision: SHA('a'), config_revision: SHA('c') });
+    // The model lives in the configuration too.
+    expect(baseFor({ model: 'general' }, now, null)).toEqual({ config_revision: SHA('c') });
     expect(baseFor({ soul: 'x', identity: 'y' }, now, saved({ soul: 'old' }, { soul_revision: SHA('d') }))).toEqual({ soul_revision: SHA('d'), identity_revision: SHA('b') });
   });
 
@@ -46,7 +48,7 @@ describe('drafts', () => {
 });
 
 describe('apply results', () => {
-  const result = (part: 'soul' | 'identity' | 'skills' | 'model', status: 'applied' | 'unchanged' | 'failed' | 'unsupported') => ({ part, status, error: null, code: null, revision: null });
+  const result = (part: 'soul' | 'identity' | 'skills' | 'model', status: 'applied' | 'unchanged' | 'failed' | 'unsupported') => ({ part, status, error: null, code: null, revision: null, activation_required: false });
 
   it('never claims success when Magnus refused every part', () => {
     expect(applySummary([result('soul', 'failed'), result('identity', 'failed')])).toEqual({ text: 'Nothing was applied.', tone: 'danger' });
@@ -68,7 +70,8 @@ describe('apply results', () => {
 describe('the header and tabs', () => {
   it('reads an unknown tab as Identity', () => {
     expect(agentTab('preview')).toBe('preview');
-    expect(agentTab('review')).toBe('identity');
+    expect(agentTab('review')).toBe('review');
+    expect(agentTab('settings')).toBe('identity');
     expect(agentTab(null)).toBe('identity');
   });
 

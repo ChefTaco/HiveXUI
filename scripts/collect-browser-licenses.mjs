@@ -58,6 +58,8 @@ for (let index = 0; index < queue.length; index++) {
     'LICENSE.md',
     'LICENSE.txt',
     'license',
+    // ms, through react-markdown's debug dependency.
+    'license.md',
     // decimal.js-light, through recharts, spells it this way.
     'LICENCE.md',
     'OFL.txt',

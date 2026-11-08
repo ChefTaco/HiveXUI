@@ -18,6 +18,13 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        // The PDF worker ships as .mjs, which the image's nginx serves without a JavaScript type, and
+        // nosniff then stops the worker. The same file as .js is served as JavaScript.
+        assetFileNames: (asset) => (asset.names.some((name) => name.endsWith('.mjs')) ? 'assets/[name]-[hash].js' : 'assets/[name]-[hash][extname]'),
+      },
+    },
   },
   server: {
     port: 5174,

@@ -19,6 +19,7 @@ import { IdentityTab } from './identity';
 import { KnowledgeTab } from './knowledge';
 import { AGENT_TABS, agentTab, portraitFor, runtimeStatus, TAB_LABEL, type AgentTab } from './logic';
 import { PreviewTab } from './preview';
+import { ReviewTab } from './review';
 
 /** What every tab is given: the agent as Magnus and Studio report it, and the project it was opened in. */
 export interface AgentContext extends ProfileRef {
@@ -95,6 +96,8 @@ function TabBody({ tab, context }: { tab: AgentTab; context: AgentContext }): Re
       return <PreviewTab context={context} />;
     case 'development':
       return <DevelopmentTab context={context} />;
+    case 'review':
+      return <ReviewTab context={context} />;
   }
 }
 
