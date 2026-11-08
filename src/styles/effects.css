@@ -254,6 +254,19 @@
   animation: cursor-blink 1s step-end infinite;
 }
 
+/* A lit screen in an SVG scene, and dashes that flow along a path toward its end. */
+.fx-screen-glow {
+  filter: drop-shadow(0 0 var(--glow-mark-radius) var(--glow-accent));
+}
+.fx-dash-flow {
+  animation: fx-dash-flow 1.1s linear infinite;
+}
+@keyframes fx-dash-flow {
+  to {
+    stroke-dashoffset: -22;
+  }
+}
+
 /* A page block with nothing to show takes no gap in the stack. */
 .page-stack > div:empty {
   display: none;
@@ -336,11 +349,15 @@ html[data-fx='low'] .status-dot--live::after,
 html[data-fx='low'] .fx-blip--danger,
 html[data-fx='low'] .fx-pulse,
 html[data-fx='low'] .fx-cursor,
+html[data-fx='low'] .fx-dash-flow,
 html[data-fx='low'] .crumbs__cursor {
   animation: none;
 }
 html[data-fx='low'] .console-scanlines {
   display: none;
+}
+html[data-fx='low'] .fx-screen-glow {
+  filter: none;
 }
 
 /* Without motion the band would sit still across the row. */

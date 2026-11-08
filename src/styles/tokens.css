@@ -62,6 +62,14 @@
   --info-soft: rgb(0 176 255 / 0.1);
   --on-info: #00131f;
 
+  /* Persona: identity colors for agent portraits. They tell agents apart and never mean a status. */
+  --persona-1: #4dd8ff;
+  --persona-2: #ff4fa3;
+  --persona-3: #b38cff;
+  --persona-4: #5cf2c0;
+  --persona-5: #ffa25c;
+  --persona-6: #8fa8ff;
+
   /* Elevation. */
   --shadow-panel: inset 0 1px 0 rgb(255 255 255 / 0.02);
   --shadow-overlay: 0 24px 80px rgb(0 0 0 / 0.75), 0 0 32px rgb(0 229 255 / 0.1);
@@ -168,6 +176,13 @@
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
   --color-on-info: var(--on-info);
+
+  --color-persona-1: var(--persona-1);
+  --color-persona-2: var(--persona-2);
+  --color-persona-3: var(--persona-3);
+  --color-persona-4: var(--persona-4);
+  --color-persona-5: var(--persona-5);
+  --color-persona-6: var(--persona-6);
 
   --color-glow: var(--glow-accent);
   --color-glow-accent: var(--glow-accent);

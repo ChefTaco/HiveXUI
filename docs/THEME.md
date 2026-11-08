@@ -57,6 +57,7 @@ use only tokens, and limit it to layout. Unlayered CSS would beat every utility.
 | Accent | `text-accent`, `bg-accent text-on-accent`, `bg-accent-soft`, `hover:bg-accent-hover` |
 | Signal | `text-signal`, `bg-signal text-on-signal`, `bg-signal-soft` |
 | Status | `text-success`, `bg-success-soft`, `bg-success text-on-success`; same for `warning`, `danger`, `info` |
+| Persona | `fill-persona-1` to `fill-persona-6` (and `stroke-`, `border-`): identity colors for agent portraits, never a status |
 | Type | `text-xs` (12px, captions and labels), `text-sm` (13), `text-base` (14, default), `text-lg` (16), `text-xl` (18), `text-2xl` (22), `text-3xl` (28) |
 | Fonts | `font-sans` (default), `font-display` (headings), `font-mono` (code and identifiers) |
 | Radii | `rounded-chip`, `rounded-control`, `rounded-panel`, `rounded-dialog`, `rounded-pill` |
@@ -67,6 +68,7 @@ use only tokens, and limit it to layout. Unlayered CSS would beat every utility.
 | Backdrops | `panel-corners`, `grid-bg`, `scan-sweep`. Every `Panel` already has corner brackets |
 | Voice | `stat-label` for a short label, `data-figure` for a figure in the data font, `eyebrow` above a title |
 | Activity | `typing-dots` around three empty spans, always beside text saying what is happening |
+| SVG scenes | `fx-screen-glow` for a lit shape, `fx-dash-flow` for dashes moving along a path; both stop under `data-fx='low'` |
 
 `primary` is an alias of `accent` kept for ported pages; prefer `accent` in new code. Tailwind's
 default palette is removed, so `bg-red-500` produces nothing. There are no `dark:` variants.
