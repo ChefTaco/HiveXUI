@@ -2,10 +2,10 @@
 // Pages share a store per project id, so the header, the Files drawer and Team Assignment read the
 // same copy and the stream is opened once.
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
-import { activitySchema, conversationSchema, decisionSchema, fileSchema, taskSchema } from '@contracts/ardentstudio.generated';
+import { activitySchema, conversationSchema, decisionSchema, fileSchema, projectCountsSchema, referenceLinkSchema, taskSchema, teamProposalRecordSchema } from '@contracts/ardentstudio.generated';
 import type { StreamHandle, StreamState } from '../../magnus/api/stream';
 import type { SseEvent } from '../../magnus/api/sse';
-import { getSnapshot, type Project, type Snapshot, type StudioFile, type TeamState } from '../api/endpoints';
+import { getSnapshot, type Project, type ReferenceLink, type Snapshot, type StudioFile, type TeamProposalRecord, type TeamState } from '../api/endpoints';
 import { openProjectStream, reduceStreamFrame, type MessageDelta, type ProjectEvent } from '../api/stream';
 import { StudioApiError } from '../api/client';
 
@@ -24,6 +24,22 @@ export interface ProjectState {
 const knowledgeSchema = fileSchema.shape.knowledge;
 /** Events whose payload is enough to patch the copy; anything else re-reads the snapshot. */
 const REFETCH_DELAY_MS = 150;
+/**
+ * Records that move the summary's last activity without a counts event. The summary is re-read with
+ * the snapshot after a longer pause, so a burst of room messages costs one read.
+ */
+export const SUMMARY_EVENTS: ReadonlySet<string> = new Set([
+  'message.created',
+  'decision.created',
+  'deliverable.revision.created',
+  'review.decision.created',
+  'file.created',
+  'link.created',
+  'team.revision.published',
+  'export.created',
+]);
+const SUMMARY_REFETCH_DELAY_MS = 1500;
+const OPEN_PROPOSAL = new Set<TeamProposalRecord['state']>(['queued', 'running']);
 
 export interface ProjectStoreOptions {
   load?: (projectId: string, signal: AbortSignal) => Promise<Snapshot>;
@@ -41,6 +57,7 @@ export class ProjectStore {
   private handle: StreamHandle | null = null;
   private loading: AbortController | null = null;
   private refetchTimer: ReturnType<typeof setTimeout> | undefined;
+  private refetchDue = false;
   private stopped = false;
   private readonly load: NonNullable<ProjectStoreOptions['load']>;
   private readonly stream: typeof openProjectStream;
@@ -107,6 +124,7 @@ export class ProjectStore {
   /** Re-reads the snapshot. Concurrent calls share the newest read. */
   async refetch(): Promise<void> {
     clearTimeout(this.refetchTimer);
+    this.refetchDue = false;
     this.loading?.abort();
     const controller = new AbortController();
     this.loading = controller;
@@ -124,9 +142,12 @@ export class ProjectStore {
     }
   }
 
-  private scheduleRefetch(): void {
+  /** Debounced by default; a throttled request leaves a read that is already due in place. */
+  private scheduleRefetch(delay = REFETCH_DELAY_MS, throttle = false): void {
+    if (throttle && this.refetchDue) return;
     clearTimeout(this.refetchTimer);
-    this.refetchTimer = setTimeout(() => void this.refetch(), REFETCH_DELAY_MS);
+    this.refetchDue = true;
+    this.refetchTimer = setTimeout(() => void this.refetch(), delay);
   }
 
   /** One SSE frame. Public for tests and for pages that replay frames they hold. */
@@ -167,15 +188,42 @@ export class ProjectStore {
         return;
       }
     }
+    // A counts change carries the counts; nothing else about the project moved.
+    if (event.type === 'project.updated' && snapshot && Array.isArray(event.payload.fields) && event.payload.fields.length === 1 && event.payload.fields[0] === 'counts') {
+      const counts = projectCountsSchema.safeParse(event.payload.counts);
+      if (counts.success) {
+        this.set({ seq, snapshot: { ...snapshot, seq, summary: { ...snapshot.summary, ...counts.data } } });
+        return;
+      }
+    }
+    if (/^link\./.test(event.type) && snapshot) {
+      const link = referenceLinkSchema.safeParse(event.payload.link);
+      if (link.success) {
+        const links = event.type === 'link.deleted' || link.data.deleted_at ? snapshot.links.filter((item) => item.id !== link.data.id) : upsert(snapshot.links, link.data);
+        this.set({ seq, snapshot: { ...snapshot, seq, links } });
+        if (SUMMARY_EVENTS.has(event.type)) this.scheduleRefetch(SUMMARY_REFETCH_DELAY_MS, true);
+        return;
+      }
+    }
+    if (event.type === 'team.proposal.updated' && snapshot) {
+      const proposal = teamProposalRecordSchema.safeParse(event.payload.proposal);
+      if (proposal.success) {
+        const rest = snapshot.team_proposals.filter((item) => item.id !== proposal.data.id);
+        this.set({ seq, snapshot: { ...snapshot, seq, team_proposals: OPEN_PROPOSAL.has(proposal.data.state) ? [proposal.data, ...rest] : rest } });
+        return;
+      }
+    }
     const patched = snapshot ? patchSnapshot(snapshot, event) : null;
     if (patched) {
       this.set({ seq, snapshot: { ...patched, seq } });
+      if (SUMMARY_EVENTS.has(event.type)) this.scheduleRefetch(SUMMARY_REFETCH_DELAY_MS, true);
       return;
     }
     this.set({ seq });
     // Project, file, team and layout events carry only what changed, and so does a task event this copy
     // could not read: the snapshot holds the whole record.
     if (/^(project|file|team|task|layout)\./.test(event.type)) this.scheduleRefetch();
+    else if (SUMMARY_EVENTS.has(event.type)) this.scheduleRefetch(SUMMARY_REFETCH_DELAY_MS, true);
   }
 
   // After a mutation the answer is applied at once; the event that follows confirms it.
@@ -199,6 +247,10 @@ export class ProjectStore {
   }
   setLayout(layout: Snapshot['layout']): void {
     if (this.state.snapshot) this.set({ snapshot: { ...this.state.snapshot, layout } });
+  }
+  upsertLink(link: ReferenceLink): void {
+    const snapshot = this.state.snapshot;
+    if (snapshot) this.set({ snapshot: { ...snapshot, links: link.deleted_at ? snapshot.links.filter((item) => item.id !== link.id) : upsert(snapshot.links, link) } });
   }
   upsertFile(file: StudioFile): void {
     const snapshot = this.state.snapshot;

@@ -96,6 +96,29 @@
     flex-wrap: wrap;
     gap: var(--space-1);
   }
+  .studio-card__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .studio-card__badges .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  /* One line of the newest record; the time stays visible. */
+  .studio-card__activity {
+    display: flex;
+    min-width: 0;
+    max-width: 100%;
+    gap: 0.25em;
+    white-space: nowrap;
+  }
+  .studio-card__activity-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
   /* Create flow */
   .studio-steps {
@@ -242,6 +265,81 @@
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-2);
+  }
+
+  /* Link references */
+  .studio-links {
+    display: grid;
+    gap: var(--space-3);
+  }
+  .studio-link-add {
+    padding: var(--space-3);
+  }
+  .studio-link-form {
+    display: grid;
+    gap: var(--space-3);
+  }
+  .studio-link-form__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+  .studio-link-form__duplicate {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .studio-link {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-3) 0;
+  }
+  .studio-link:last-child {
+    border-bottom: 0;
+  }
+  .studio-link__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--space-2) var(--space-3);
+  }
+  .studio-link__main {
+    display: grid;
+    min-width: 0;
+    flex: 1 1 14rem;
+    gap: 2px;
+  }
+  .studio-link__title {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    overflow-wrap: anywhere;
+  }
+  .studio-link__url {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .studio-link__note {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .studio-link__edit {
+    padding-left: var(--space-6);
+  }
+  .studio-drawer-section {
+    display: grid;
+    gap: var(--space-3);
+  }
+  .studio-drawer-section + .studio-drawer-section {
+    margin-top: var(--space-6);
+  }
+  .studio-drawer-section__title {
+    margin: 0;
   }
 
   /* Project header */

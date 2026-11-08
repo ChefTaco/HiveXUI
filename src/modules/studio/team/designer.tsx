@@ -1,7 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowUpCircle, BookmarkPlus, CheckCircle2, LayoutGrid, Library, ListChecks, Play, Plus, Rows3, Upload, Workflow, X } from 'lucide-react';
+import { ArrowUpCircle, BookmarkPlus, CheckCircle2, LayoutGrid, Library, ListChecks, Play, Plus, Rows3, Sparkles, Upload, Workflow, X } from 'lucide-react';
 import { Badge, Button, ConfirmDialog, PageHeader, Panel } from '@ui';
 import { cn } from '@lib/cn';
+import { useToast } from '../../../components/toast';
 import { useMagnusResource } from '../../magnus/api/use-resource';
 import { LoadingRows } from '../../magnus/ui/resource-state';
 import { getTemplate, listAgents, type Agent } from '../api/endpoints';
@@ -18,6 +19,8 @@ import { RoleInspector, useNarrow } from './inspector';
 import { EdgeLegend } from './legend';
 import { addRelationship, addRole, bindRole, draftFromRevision, duplicateRole, findRole, RELATIONSHIP_LABEL, removeRole, treeOrder, type KeyCommand, type RelationshipType, type Role } from './model';
 import { ActiveWork, SaveRoleTemplate, SaveTeamTemplate, TemplateUpdate, ValidationPanel } from './panels';
+import { basisWarning, composeAccepted, diffTeam, draftFromProposal, ghostView } from './proposal';
+import { ProposalProgress, ProposalReview, ProposalTable, ProposeDrawer, useTeamProposals } from './proposal-ui';
 import { TableView } from './table-view';
 import { useDesigner } from './use-designer';
 import { issuesByRole, validateDraft } from './validation';
@@ -32,6 +35,9 @@ const VIEWS: ReadonlyArray<{ view: DesignerView; label: string; icon: typeof Lay
   { view: 'table', label: 'Table', icon: Rows3 },
 ];
 const AGENT_POLL_MS = 30_000;
+const NO_ISSUES: ReadonlyMap<string, never[]> = new Map();
+/** A proposal preview is laid out afresh: its new roles have no saved place. */
+const FRESH_LAYOUT: Positions = {};
 
 const layoutKey = (projectId: string) => `studio-team-layout:${projectId}`;
 function readPositions(projectId: string): Positions {
@@ -99,6 +105,53 @@ function Designer({ state, store }: { state: NonNullable<ProjectState['snapshot'
   const [updating, setUpdating] = useState(false);
   const [connectType, setConnectType] = useState<RelationshipType>('reports_to');
   const [welcome, setWelcome] = useState(search.get('start') === '1');
+  const toast = useToast();
+
+  // A coordinator-proposed team: progress, then a ghost diff over the team until it is accepted or discarded.
+  const proposals = useTeamProposals(store);
+  const record = proposals.latest;
+  const [proposeOpen, setProposeOpen] = useState(false);
+  const [hiddenProposal, setHiddenProposal] = useState<string | null>(null);
+  const ready = record?.state === 'ready' && record.draft_body ? record : null;
+  const reviewing = ready !== null && hiddenProposal !== ready.id;
+  const proposed = useMemo(() => (ready ? draftFromProposal(ready.draft_body!) : null), [ready]);
+  const agentName = useCallback((ref: string) => agents.get(ref)?.display_name ?? ref, [agents]);
+  const diff = useMemo(() => (proposed ? diffTeam(draft, proposed, agentName) : null), [draft, proposed, agentName]);
+  const ghost = useMemo(() => (proposed && diff ? ghostView(draft, proposed, diff) : null), [draft, proposed, diff]);
+  const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
+  const [applying, setApplying] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
+  const [confirmBasis, setConfirmBasis] = useState<{ mode: 'all' | 'selected'; warning: string } | null>(null);
+  const [ghostFocus, setGhostFocus] = useState<{ key: string; tick: number } | null>(null);
+  // Every changed role starts selected for a newly ready proposal.
+  useEffect(() => {
+    setChosen(new Set((diff?.roles ?? []).filter((item) => item.change !== 'same').map((item) => item.key)));
+    setApplyError(null);
+    // Only a different proposal resets the choice; edits to the draft keep it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready?.id]);
+
+  async function accept(mode: 'all' | 'selected', confirmed = false) {
+    if (!ready || !proposed || !diff) return;
+    const warning = basisWarning(ready, state.team, designer.save.state !== 'saved');
+    if (warning && !confirmed) {
+      setConfirmBasis({ mode, warning });
+      return;
+    }
+    const keys = new Set([...chosen].filter((key) => diff.roles.some((item) => item.key === key && item.change !== 'same')));
+    // Accept all is the proposal's own draft body; accepting roles merges them into the draft on screen.
+    const next = mode === 'all' ? proposed : composeAccepted(draft, proposed, diff, keys);
+    setApplying(true);
+    setApplyError(null);
+    const saved = await designer.replace(next);
+    setApplying(false);
+    if (!saved) {
+      setApplyError('The accepted changes could not be saved to the draft. See the message above, then try again.');
+      return;
+    }
+    proposals.dismiss(ready.id);
+    toast.success(mode === 'all' ? 'Applied the proposed team to the draft' : `Applied ${keys.size} proposed ${keys.size === 1 ? 'role' : 'roles'} to the draft`, 'Review it, bind each role, then publish.');
+  }
 
   const select = useCallback((key: string | null) => setStudioQuery({ role: key }), []);
   const inspect = useCallback((key: string) => {
@@ -271,17 +324,54 @@ function Designer({ state, store }: { state: NonNullable<ProjectState['snapshot'
             </label>
           </>
         ) : null}
+        <Button size="sm" variant="ghost" icon={<Sparkles className="size-4" />} disabled={readOnly} onClick={() => setProposeOpen(true)}>
+          Propose team
+        </Button>
         <Button size="sm" variant={showIssues ? 'default' : 'ghost'} aria-expanded={showIssues} icon={errorCount ? <ListChecks className="size-4 text-danger" /> : <CheckCircle2 className="size-4" />} onClick={() => setShowIssues((value) => !value)}>
           Validate ({validation.issues.length})
         </Button>
       </div>
       {showIssues ? <ValidationPanel validation={validation} confirmed={designer.confirmed} names={names} onPick={(key) => inspect(key)} /> : null}
+      {record && !reviewing ? (
+        <ProposalProgress record={record} agentName={agentName(record.agent_ref)} proposals={proposals} readOnly={readOnly} onReview={() => setHiddenProposal(null)} onRetry={() => setProposeOpen(true)} />
+      ) : null}
 
       <ActiveWork tasks={state.tasks} current={currentRevision} names={names} readOnly={readOnly} onReassigned={() => void store.refetch()} />
 
-      <div className={cn('studio-designer', role && inspecting && !narrow && 'studio-designer--inspecting')}>
+      <div className={cn('studio-designer', reviewing ? 'studio-designer--reviewing' : role && inspecting && !narrow && 'studio-designer--inspecting')}>
         <div className="studio-designer__view">
-          {draft.roles.length === 0 ? (
+          {reviewing && ghost ? (
+            view === 'team' ? (
+              <>
+                <Suspense fallback={<Panel aria-busy="true"><LoadingRows rows={5} /></Panel>}>
+                  <TeamCanvas
+                    draft={ghost.draft}
+                    ghost={ghost}
+                    agents={agents}
+                    creating={creating}
+                    issues={NO_ISSUES}
+                    selected={null}
+                    readOnly
+                    label={`Proposed team preview: ${ghost.draft.roles.length} roles. Tab moves through roles; arrows move between manager, reports and siblings; Enter goes to the role's accept box.`}
+                    positions={FRESH_LAYOUT}
+                    focus={ghostFocus}
+                    layoutTick={layoutTick}
+                    onInspect={(key) => document.getElementById(`proposal-role-${key}`)?.focus()}
+                    onCommand={(_key, next) => {
+                      if (next.kind === 'focus') setGhostFocus((current) => ({ key: next.key, tick: (current?.tick ?? 0) + 1 }));
+                      else if (next.kind === 'layout') setLayoutTick((tick) => tick + 1);
+                    }}
+                  />
+                </Suspense>
+                <EdgeLegend />
+              </>
+            ) : (
+              <>
+                {view === 'workflow' ? <p className="m-0 text-sm text-text-muted">The proposal preview shows in the Team and Table views.</p> : null}
+                <ProposalTable draft={ghost.draft} ghost={ghost} agents={agents} />
+              </>
+            )
+          ) : draft.roles.length === 0 ? (
             <Panel>
               <div className="empty-state">
                 <p className="empty-state__title">No roles yet</p>
@@ -320,7 +410,7 @@ function Designer({ state, store }: { state: NonNullable<ProjectState['snapshot'
             <TableView {...viewProps} edit={edit} onSelect={select} onInspect={inspect} onBind={setBinding} onDuplicate={duplicate} onDelete={setDeleting} />
           )}
         </div>
-        {role && inspecting ? (
+        {role && inspecting && !reviewing ? (
           <RoleInspector
             narrow={narrow}
             draft={draft}
@@ -338,6 +428,22 @@ function Designer({ state, store }: { state: NonNullable<ProjectState['snapshot'
             onDuplicate={duplicate}
             onDelete={setDeleting}
             onSaveAsTemplate={setRoleTemplate}
+          />
+        ) : null}
+        {reviewing && ready && diff ? (
+          <ProposalReview
+            record={ready}
+            diff={diff}
+            agentName={agentName(ready.agent_ref)}
+            selected={chosen}
+            readOnly={readOnly}
+            applying={applying}
+            applyError={applyError}
+            onSelect={(key, on) => setChosen((current) => (on ? new Set(current).add(key) : new Set([...current].filter((item) => item !== key))))}
+            onAcceptAll={() => void accept('all')}
+            onAcceptSelected={() => void accept('selected')}
+            onDiscard={() => proposals.dismiss(ready.id)}
+            onHide={() => setHiddenProposal(ready.id)}
           />
         ) : null}
       </div>
@@ -388,6 +494,31 @@ function Designer({ state, store }: { state: NonNullable<ProjectState['snapshot'
           setDeleting(null);
           if (next && next !== key) setTimeout(() => focusRole(next), 0);
           else select(null);
+        }}
+      />
+      <ProposeDrawer
+        open={proposeOpen}
+        agents={agentsResource}
+        coordinator={(() => {
+          const coordinator = draft.roles.find((item) => item.coordinator);
+          return coordinator ? { name: coordinator.name, agent_ref: coordinator.agent_ref } : null;
+        })()}
+        proposals={proposals}
+        readOnly={readOnly}
+        onClose={() => setProposeOpen(false)}
+      />
+      <ConfirmDialog
+        open={confirmBasis !== null}
+        title="The team changed since this proposal"
+        message={`${confirmBasis?.warning ?? ''} ${confirmBasis?.mode === 'all' ? 'Accept all replaces the draft with the proposed team, so those changes would be undone.' : 'The accepted roles are merged into the draft as it is now; check the result before publishing.'}`}
+        confirmLabel={confirmBasis?.mode === 'all' ? 'Replace the draft' : 'Apply the selected roles'}
+        tone="warning"
+        loading={applying}
+        onCancel={() => setConfirmBasis(null)}
+        onConfirm={() => {
+          const mode = confirmBasis!.mode;
+          setConfirmBasis(null);
+          void accept(mode, true);
         }}
       />
       <SaveTeamTemplate open={savingTeam} projectId={projectId} hasDraft={Boolean(state.team.draft)} source={source} onClose={() => setSavingTeam(false)} />

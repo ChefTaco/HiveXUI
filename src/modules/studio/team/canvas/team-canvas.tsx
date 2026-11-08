@@ -25,6 +25,7 @@ import type { Agent, ValidationIssue } from '../../api/endpoints';
 import { EDGE_LOOK, EdgeMarkers } from '../legend';
 import { keyCommand, RELATIONSHIP_LABEL, treeOrder, type KeyCommand, type Relationship, type Role, type TeamDraft } from '../model';
 import { bindingOf, bindingText, RoleCard } from '../role-card';
+import type { GhostChange } from '../proposal';
 import { autoLayout, NODE_HEIGHT, type Positions } from './layout';
 
 export interface TeamCanvasProps {
@@ -48,7 +49,11 @@ export interface TeamCanvasProps {
   onPositions?: ((positions: Positions) => void) | undefined;
   onConnect?: (from: string, to: string) => void;
   onEdgeSelect?: (index: number) => void;
+  /** A proposal drawn over the team: how each role, and each line by index, differs. Display only. */
+  ghost?: { roles: ReadonlyMap<string, GhostChange>; edges: readonly GhostChange[] } | undefined;
 }
+
+const GHOST_WORDS: Record<GhostChange, string> = { added: 'added by the proposal', changed: 'changed by the proposal', removed: 'removed by the proposal', same: 'unchanged' };
 
 type RoleData = { role: Role; index: number };
 type RoleNode = Node<RoleData, 'role'>;
@@ -91,10 +96,11 @@ const RoleNodeView = memo(function RoleNodeView({ id, data }: NodeProps<RoleNode
     if (command.kind === 'inspect') props.onInspect?.(id);
     else props.onCommand?.(id, command);
   };
-  const label = `${role.name}${role.coordinator ? ', coordinator' : ''}. ${bindingText(binding)}.${issues.length ? ` ${issues.length} ${issues.length === 1 ? 'issue' : 'issues'}.` : ''}`;
+  const change = props.ghost?.roles.get(role.key);
+  const label = `${role.name}${role.coordinator ? ', coordinator' : ''}${change ? `, ${GHOST_WORDS[change]}` : ''}. ${bindingText(binding)}.${issues.length ? ` ${issues.length} ${issues.length === 1 ? 'issue' : 'issues'}.` : ''}`;
   return (
     <div
-      className="studio-node"
+      className={cn('studio-node', change && change !== 'same' && 'studio-node--ghost')}
       data-role-key={role.key}
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : -1}
@@ -104,7 +110,7 @@ const RoleNodeView = memo(function RoleNodeView({ id, data }: NodeProps<RoleNode
       onFocus={interactive ? () => props.onSelect?.(role.key) : undefined}
     >
       <Handle id="t" type="target" position={Position.Top} isConnectable={!props.readOnly && interactive} className="studio-node__handle" />
-      <RoleCard role={role} binding={binding} issues={issues} selected={props.selected === role.key} compact={props.mini ?? false} />
+      <RoleCard role={role} binding={binding} issues={issues} selected={props.selected === role.key} compact={props.mini ?? false} ghost={change} />
       <Handle id="b" type="source" position={Position.Bottom} isConnectable={!props.readOnly && interactive} className="studio-node__handle" />
       {/* Anchors for lines between roles side by side or drawn upwards; not for drawing new lines. */}
       {SIDE_HANDLES.map(([handle, type, position]) => (
@@ -118,6 +124,7 @@ function RelationshipEdgeView({ id, sourceX, sourceY, targetX, targetY, sourcePo
   const relationship = data!.relationship;
   const look = EDGE_LOOK[relationship.type];
   const { props } = useContext(Context)!;
+  const change = props.ghost?.edges[data!.index];
   const [path, labelX, labelY] =
     relationship.type === 'reports_to'
       ? getSmoothStepPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, borderRadius: 10 })
@@ -125,8 +132,17 @@ function RelationshipEdgeView({ id, sourceX, sourceY, targetX, targetY, sourcePo
   const marker = look.arrow ? `url(#studio-canvas-${props.mini ? 'mini' : 'main'}-${relationship.type})` : undefined;
   return (
     <g className="studio-edge" data-edge={id}>
-      <title>{`${relationship.from} ${RELATIONSHIP_LABEL[relationship.type]} ${relationship.to}${relationship.stage === 'revise' ? ' (revise loop)' : ''}`}</title>
-      <path d={path} fill="none" className={look.stroke} strokeWidth={look.width} strokeDasharray={look.dash} strokeLinecap="round" markerEnd={marker} />
+      <title>{`${relationship.from} ${RELATIONSHIP_LABEL[relationship.type]} ${relationship.to}${relationship.stage === 'revise' ? ' (revise loop)' : ''}${change && change !== 'same' ? `, ${GHOST_WORDS[change]}` : ''}`}</title>
+      {change === 'added' || change === 'removed' ? (
+        // A wide halo in the change's color under the line keeps the relationship's own style readable.
+        <path d={path} fill="none" className={cn('studio-edge__ghost', change === 'added' ? 'stroke-success' : 'stroke-danger')} strokeWidth={change === 'added' ? 9 : 7} strokeDasharray={change === 'removed' ? '3 6' : undefined} strokeLinecap="round" />
+      ) : null}
+      <path d={path} fill="none" className={cn(look.stroke, change === 'removed' && 'studio-edge--removed')} strokeWidth={look.width} strokeDasharray={look.dash} strokeLinecap="round" markerEnd={marker} />
+      {change === 'added' || change === 'removed' ? (
+        <text x={labelX} y={labelY + 4} textAnchor="middle" className={cn('studio-edge__ghost-mark', change === 'added' ? 'fill-success' : 'fill-danger')} aria-hidden="true">
+          {change === 'added' ? '+' : '−'}
+        </text>
+      ) : null}
       {props.mini ? null : <path d={path} fill="none" stroke="transparent" strokeWidth={16} className="studio-edge__hit" onClick={() => props.onEdgeSelect?.(data!.index)} />}
       {relationship.stage === 'revise' ? (
         <text x={labelX} y={labelY - 6} textAnchor="middle" className="studio-edge__label fill-text-muted">

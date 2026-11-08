@@ -28,9 +28,25 @@ const ACTIVITY: Record<string, string> = {
   'review.decision.created': 'Review decision',
   'export.created': 'Export created',
   'agent.operation.updated': 'Agent operation progressed',
+  'link.created': 'Link added',
+  'link.updated': 'Link changed',
+  'link.deleted': 'Link removed',
+  'team.proposal.updated': 'Team proposal progressed',
 };
 /** The recorded event type in words; an unknown type is shown as recorded. */
 export const activityLabel = (type: string): string => ACTIVITY[type] ?? type;
+
+/** The card's activity line: the service's own text for its newest record, else the event in words. */
+export function activityLine(activity: NonNullable<ProjectSummary['last_activity']>): string {
+  return activity.text.trim() || activityLabel(activity.type);
+}
+
+const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
+export const questionsText = (count: number): string => plural(count, 'open question', 'open questions');
+export const reviewText = (count: number): string => `${count} to review`;
+export const tasksText = (count: number): string => (count ? plural(count, 'active task', 'active tasks') : 'No active tasks');
+export const referencesText = (summary: Pick<ProjectSummary, 'file_count' | 'link_count' | 'deliverable_count'>): string =>
+  [plural(summary.file_count, 'file', 'files'), plural(summary.link_count, 'link', 'links'), `${plural(summary.deliverable_count, 'deliverable', 'deliverables')} requested`].join(' · ');
 
 export function teamLine(team: ProjectSummary['team']): string {
   if (team.role_count === 0) return team.revision ? `r${team.revision} · no roles` : 'No team yet';

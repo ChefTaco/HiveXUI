@@ -51,7 +51,7 @@ describe('the projects home', () => {
     expect(cards).toHaveLength(2);
     expect(text(cards[0])).toContain('Sunken Archive');
     expect(text(cards[0])).toContain('r1 · 2 of 3 roles bound');
-    expect(text(cards[0])).toContain('Team revision published');
+    expect(text(cards[0])).toContain('Team revision 1 published');
     expect(text(cards[1])).toContain('No team yet');
     expect(text(cards[1])).toContain('No recorded activity');
     expect(cards[0]!.querySelector('a')?.getAttribute('href')).toBe(`/studio/p/${PROJECT_ID}`);

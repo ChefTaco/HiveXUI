@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Archive, FileText, FolderKanban, Library, Plus, Search, Users } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Activity, Archive, ClipboardCheck, FileText, FolderKanban, Library, MessageCircleQuestion, Plus, Search, Users } from 'lucide-react';
 import { Badge, EmptyState, PageHeader, Skeleton } from '@ui';
 import { cn } from '@lib/cn';
 import { relativeTime } from '@lib/format';
@@ -9,7 +9,8 @@ import { listProjects, type ProjectSummary } from '../api/endpoints';
 import { setStudioQuery, StudioLink, useStudioSearch } from '../link';
 import { STUDIO_PREFIX } from '../paths';
 import { projectHref } from '../routes';
-import { activityLabel, teamLine } from './logic';
+import { activityLine, questionsText, referencesText, reviewText, tasksText, teamLine } from './logic';
+import { SUMMARY_POLL_MS, useLiveSummaries, type Counts } from './live-summaries';
 
 type Status = 'active' | 'archived';
 const SEARCH_DELAY_MS = 250;
@@ -26,6 +27,22 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
         </h3>
         {project.status === 'archived' ? <Badge tone="neutral">Archived</Badge> : null}
       </div>
+      {project.open_questions || project.review_pending ? (
+        <p className="studio-card__badges m-0">
+          {project.open_questions ? (
+            <Badge tone="warning">
+              <MessageCircleQuestion className="size-3" aria-hidden="true" />
+              {questionsText(project.open_questions)}
+            </Badge>
+          ) : null}
+          {project.review_pending ? (
+            <Badge tone="accent">
+              <ClipboardCheck className="size-3" aria-hidden="true" />
+              {reviewText(project.review_pending)}
+            </Badge>
+          ) : null}
+        </p>
+      ) : null}
       <p className="studio-card__brief text-sm text-text-muted">{project.brief_excerpt || 'No brief yet.'}</p>
       <dl className="studio-card__facts text-sm">
         <div>
@@ -36,17 +53,24 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
           </dd>
         </div>
         <div>
+          <dt className="sr-only">Work</dt>
+          <dd className={project.active_tasks ? undefined : 'text-text-muted'}>
+            <Activity className="size-4 text-text-muted" aria-hidden="true" />
+            {tasksText(project.active_tasks)}
+          </dd>
+        </div>
+        <div>
           <dt className="sr-only">References and deliverables</dt>
           <dd>
             <FileText className="size-4 text-text-muted" aria-hidden="true" />
-            {project.file_count} {project.file_count === 1 ? 'reference' : 'references'} · {project.deliverable_count} {project.deliverable_count === 1 ? 'deliverable' : 'deliverables'} requested
+            {referencesText(project)}
           </dd>
         </div>
       </dl>
       <div className="studio-card__foot text-xs text-text-muted">
         {project.last_activity ? (
-          <span>
-            {activityLabel(project.last_activity.type)} · <time dateTime={project.last_activity.at}>{relativeTime(project.last_activity.at)}</time>
+          <span className="studio-card__activity">
+            <span className="studio-card__activity-text">{activityLine(project.last_activity)}</span> · <time dateTime={project.last_activity.at}>{relativeTime(project.last_activity.at)}</time>
           </span>
         ) : (
           <span>No recorded activity</span>
@@ -91,8 +115,21 @@ export function ProjectsHome() {
     const timer = setTimeout(() => setStudioQuery({ q: text.trim() || null }), SEARCH_DELAY_MS);
     return () => clearTimeout(timer);
   }, [text, query]);
-  const projects = useMagnusResource((signal) => listProjects({ status, ...(query ? { q: query } : {}) }, signal), [status, query]);
-  const filtered = Boolean(query);
+  const needsReview = search.get('review') === '1';
+  const projects = useMagnusResource((signal) => listProjects({ status, ...(query ? { q: query } : {}), ...(needsReview ? { needs_review: 'true' as const } : {}) }, signal), [status, query, needsReview], { pollMs: SUMMARY_POLL_MS });
+  const filtered = Boolean(query) || needsReview;
+  const { data, setData, refresh } = projects;
+  const patch = useCallback(
+    (projectId: string, counts: Counts) => {
+      if (!data) return;
+      // A card that no longer needs review leaves the filtered list with the next read.
+      setData(data.map((project) => (project.id === projectId ? { ...project, ...counts } : project)));
+      if (needsReview && counts.review_pending === 0) void refresh();
+    },
+    [data, setData, refresh, needsReview],
+  );
+  const reread = useCallback(() => void refresh(), [refresh]);
+  useLiveSummaries(data, patch, reread);
 
   return (
     <div className="page-stack">
@@ -126,6 +163,10 @@ export function ProjectsHome() {
             </button>
           ))}
         </div>
+        <button type="button" aria-pressed={needsReview} className={cn('btn btn--sm', needsReview && 'border-accent bg-accent-soft text-accent')} onClick={() => setStudioQuery({ review: needsReview ? null : '1' })}>
+          <ClipboardCheck className="btn-ico" aria-hidden="true" />
+          Needs review
+        </button>
       </div>
       {projects.data ? (
         projects.data.length ? (
@@ -137,8 +178,20 @@ export function ProjectsHome() {
               ))}
             </ul>
           </>
+        ) : needsReview && !query ? (
+          <EmptyState framed icon={<ClipboardCheck className="size-6" />} title="Nothing needs review" message={`No ${status === 'archived' ? 'archived' : 'active'} project has a delivery waiting for you.`} action={<button type="button" className="btn" onClick={() => setStudioQuery({ review: null })}>Show all projects</button>} />
         ) : filtered ? (
-          <EmptyState framed icon={<Search className="size-6" />} title="No projects match" message={`Nothing ${status === 'archived' ? 'archived' : 'active'} matches “${query}”.`} action={<button type="button" className="btn" onClick={() => setText('')}>Clear search</button>} />
+          <EmptyState
+            framed
+            icon={<Search className="size-6" />}
+            title="No projects match"
+            message={`Nothing ${status === 'archived' ? 'archived' : 'active'}${needsReview ? ' that needs review' : ''} matches “${query}”.`}
+            action={
+              <button type="button" className="btn" onClick={() => { setText(''); setStudioQuery({ review: null }); }}>
+                Clear filters
+              </button>
+            }
+          />
         ) : status === 'archived' ? (
           <EmptyState framed icon={<Archive className="size-6" />} title="No archived projects" message="Archiving a project makes it read-only. Archived projects are listed here and can be reopened." />
         ) : (
