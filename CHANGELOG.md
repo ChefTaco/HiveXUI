@@ -1,5 +1,56 @@
 # Changelog
 
+## 0.2.0 - 2026-11-08
+
+### Added
+
+- Ardent Project Studio, a fullscreen page at `/studio` for the `ardentstudio` product (runtime
+  product, `/api/ardentstudio` transport prefix, readiness row and a Studio sidebar section shown
+  only when it is installed). It renders outside the console shell with its own top bar, project
+  switcher, Files and links drawer, connection state, per-area help and a Close Studio button that
+  returns to the page it was opened from. Every page waits behind a Magnus check for at least one
+  Ardent agent; a Magnus ADMIN can open New Agent from that check. The ArdentStudio browser
+  contract is vendored with provenance and a check (`contracts:ardentstudio:import`).
+- Studio projects: a home with real project summaries, search, Active, Archived and Needs review
+  filters, open question and review badges, active tasks and the last activity line, followed live
+  from the project event streams. `/studio/new` creates a project from a brief, deliverables, file
+  and link references with their HiveMem indexing state and retry, and a starting team from a
+  template, another project or blank. "Propose a team from the brief" asks the coordinator or a
+  chosen agent and shows the proposal as a diff that is applied only on Accept.
+- Team Assignment: a canvas, Workflow and Table view over one draft team, with role cards, four
+  relationship styles, auto-layout, a full keyboard model, a role inspector, agent binding and
+  New Agent in a drawer, validation, Publish, reassign, and a work-aware role delete with Undo. The
+  template Gallery lists team and agent templates with versions, Use, Customize, Duplicate as
+  variant and Archive, and offers a newer pinned version as a per-change diff.
+- The Conversation Room: an isometric room drawn in SVG beside the transcript, fed by the agent
+  activity the ArdentStudio service derives with a live speaking overlay. Replies stream as
+  Markdown and are replaced by the stored message. The composer has recipients, mentions, threads
+  and attachments; clarification and decision cards, discussions, Tasks and Decisions drawers,
+  layout editing, keyboard navigation, a screen reader roster and throttled announcements.
+- Agent Studio at `/studio/agents/:agentRef` and per project: identity and presentation, SOUL.md
+  and IDENTITY.md with history, skills and provider settings, project knowledge and private
+  memory, a per-person draft with a streaming preview and Apply with per-part results (including
+  `activation_required` and Magnus refusals), development records with comments, the HiveMem
+  credential Magnus renews, and installs of HiveSkills catalog skills. Ardent profile pages link to
+  it with Open in Studio.
+- Deliverable Review: deliverables with review status, revisions checked against their SHA-256,
+  previews for Markdown, text, images, PDF and DOCX, compare views, anchored comments, revision
+  requests to the producer role, Accept, Request changes, Reject, Mark final and export packages.
+- Magnus: a New Agent wizard for Ardent profiles (node, profile, SOUL.md and IDENTITY.md, model,
+  skills, required HiveMem, review and a deploy checklist that follows the operation with resume
+  on failure), Enable HiveMem for existing profiles, the HiveMem credential state and renewal times
+  on profile pages, a HiveSkills catalog picker on the profile Skills tab, and the Ardent command
+  owners holding a node with reconciliation of an action whose outcome is unknown (ADMIN only).
+- `docs/STUDIO.md` and end-to-end acceptance scenarios (`npm run e2e`) against a stack built from
+  source.
+
+### Fixed
+
+- Skill lists and Agent Studio drafts take a skill's enabled state from the saved configuration and
+  say when it applies after a restart; Ardent reads refused with 429 wait out `Retry-After`.
+- New Agent accepts nodes whose agent reports a later Studio bridge level.
+- The Magnus console no longer sets a timeout for the removed Ardent profile import action.
+
 ## 0.1.1 - 2026-11-05
 
 ### Security
@@ -15,7 +66,7 @@
   that set its own `Cache-Control` dropped the server's headers. Only `/health`, `/api/` and error
   pages had them.
 
-
+## 0.1.0 - 2026-11-05
 
 First release of the HiveXUI console image.
 
