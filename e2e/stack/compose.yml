@@ -1,0 +1,146 @@
+# Ardent Project Studio end-to-end stack. Started by e2e/stack/stack.mjs, which builds the
+# images from sibling checkouts, writes throwaway secrets, certificates and configuration into
+# STUDIO_E2E_RUN, and publishes only the console ingress on a loopback port.
+name: ${STUDIO_E2E_PROJECT:-studio-e2e}
+
+x-service: &service
+  restart: unless-stopped
+  security_opt: ["no-new-privileges:true"]
+
+services:
+  model:
+    <<: *service
+    image: ${STUDIO_E2E_NODE_IMAGE:-node:24.22.1-bookworm-slim}
+    command: ["node", "/stack/model/server.mjs"]
+    user: "1000:1000"
+    volumes: ["${STUDIO_E2E_STACK}:/stack:ro"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 3s
+      retries: 20
+
+  oathweave-redis:
+    <<: *service
+    image: ${STUDIO_E2E_REDIS_IMAGE:-redis:7-alpine}
+    command: ["redis-server", "/config/redis.conf"]
+    volumes: ["${STUDIO_E2E_RUN}/config/oathweave-redis.conf:/config/redis.conf:ro"]
+
+  oathweave:
+    <<: *service
+    image: studio-e2e-oathweave:local
+    depends_on: [oathweave-redis]
+    env_file: ["${STUDIO_E2E_RUN}/config/oathweave.env"]
+    volumes:
+      - "${STUDIO_E2E_RUN}/certs/oathweave.crt:/config/tls.crt:ro"
+      - "${STUDIO_E2E_RUN}/certs/oathweave.key:/config/tls.key:ro"
+      - "${STUDIO_E2E_RUN}/certs/ca.pem:/config/authority.pem:ro"
+      - "${STUDIO_E2E_RUN}/config/suite-bootstrap.json:/config/suite-bootstrap.json:ro"
+      - oathweave-data:/data
+
+  hivemem:
+    <<: *service
+    image: studio-e2e-hivemem:local
+    depends_on: [oathweave]
+    env_file: ["${STUDIO_E2E_RUN}/config/hivemem.env"]
+    volumes:
+      - "${STUDIO_E2E_RUN}/certs/hivemem.crt:/config/tls.crt:ro"
+      - "${STUDIO_E2E_RUN}/certs/hivemem.key:/config/tls.key:ro"
+      - "${STUDIO_E2E_RUN}/certs/ca.pem:/config/authority.pem:ro"
+      - hivemem-data:/data
+
+  magnus-postgres:
+    <<: *service
+    image: ${STUDIO_E2E_POSTGRES_IMAGE:-postgres:17-alpine}
+    env_file: ["${STUDIO_E2E_RUN}/config/magnus-postgres.env"]
+    volumes: [magnus-postgres-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U magnus -d magnus"]
+      interval: 3s
+      retries: 30
+
+  magnus-redis:
+    <<: *service
+    image: ${STUDIO_E2E_REDIS_IMAGE:-redis:7-alpine}
+    command: ["redis-server", "/config/redis.conf"]
+    volumes: ["${STUDIO_E2E_RUN}/config/magnus-redis.conf:/config/redis.conf:ro"]
+
+  magnus:
+    <<: *service
+    image: studio-e2e-magnus:local
+    depends_on:
+      magnus-postgres: { condition: service_healthy }
+      magnus-redis: { condition: service_started }
+      oathweave: { condition: service_started }
+    env_file: ["${STUDIO_E2E_RUN}/config/magnus.env"]
+    volumes:
+      - "${STUDIO_E2E_RUN}/certs/magnus.crt:/config/tls.crt:ro"
+      - "${STUDIO_E2E_RUN}/certs/magnus.key:/config/tls.key:ro"
+      - "${STUDIO_E2E_RUN}/certs/ca.pem:/config/authority.pem:ro"
+      - magnus-data:/var/lib/magnus
+
+  # A fleet node: systemd, the Magnus agent as root, Ardent gateways as user services.
+  node1:
+    image: studio-e2e-node:local
+    hostname: node1
+    restart: unless-stopped
+    cgroup: private
+    cap_add: [SYS_ADMIN]
+    security_opt: ["apparmor=unconfined"]
+    tmpfs: ["/run", "/run/lock", "/tmp"]
+    depends_on: [magnus, model, hivemem]
+    networks:
+      default:
+        aliases: [node1.studio.test]
+    volumes:
+      - "${STUDIO_E2E_RUN}/config/agent.env:/etc/magnus-agent/agent.env:ro"
+      - "${STUDIO_E2E_RUN}/certs/node1.crt:/etc/magnus-agent/tls.crt:ro"
+      - "${STUDIO_E2E_RUN}/certs/node1.key:/etc/magnus-agent/tls.key:ro"
+      - "${STUDIO_E2E_RUN}/certs/ca.pem:/etc/studio-e2e/ca.pem:ro"
+      - "${STUDIO_E2E_RUN}/config/ardent-user-environment.conf:/var/lib/ardent/.config/environment.d/50-studio-e2e.conf:ro"
+      - "${STUDIO_E2E_RUN}/ardent-stage:/opt/ardent-stage:ro"
+
+  ardentstudio:
+    <<: *service
+    image: studio-e2e-ardentstudio:local
+    depends_on: [magnus, hivemem, oathweave]
+    env_file: ["${STUDIO_E2E_RUN}/config/ardentstudio.env"]
+    volumes:
+      - "${STUDIO_E2E_RUN}/certs/ca.pem:/config/authority.pem:ro"
+      - ardentstudio-data:/data
+
+  hivexui:
+    <<: *service
+    image: studio-e2e-hivexui:local
+    volumes: ["${STUDIO_E2E_RUN}/config/runtime.json:/usr/share/nginx/html/runtime.json:ro"]
+
+  ingress:
+    <<: *service
+    image: ${STUDIO_E2E_CADDY_IMAGE:-caddy:2.11.7-alpine}
+    command: ["caddy", "run", "--config", "/config/Caddyfile", "--adapter", "caddyfile"]
+    depends_on: [hivexui, oathweave, magnus, hivemem, ardentstudio]
+    env_file: ["${STUDIO_E2E_RUN}/config/ingress.env"]
+    ports: ["127.0.0.1:${STUDIO_E2E_PORT}:8443"]
+    volumes:
+      - "${STUDIO_E2E_RUN}/config/Caddyfile:/config/Caddyfile:ro"
+      - "${STUDIO_E2E_RUN}/certs/console.crt:/config/console.crt:ro"
+      - "${STUDIO_E2E_RUN}/certs/console.key:/config/console.key:ro"
+      - "${STUDIO_E2E_RUN}/certs/ca.pem:/config/backend-ca.pem:ro"
+
+  # One-shot helper on the stack network for bootstrap and checks (`compose run --rm tools`).
+  tools:
+    image: ${STUDIO_E2E_NODE_IMAGE:-node:24.22.1-bookworm-slim}
+    profiles: [tools]
+    user: "1000:1000"
+    environment:
+      NODE_EXTRA_CA_CERTS: /state/certs/ca.pem
+      STUDIO_E2E_STATE: /state
+    volumes:
+      - "${STUDIO_E2E_STACK}:/stack:ro"
+      - "${STUDIO_E2E_RUN}:/state"
+
+volumes:
+  oathweave-data:
+  hivemem-data:
+  magnus-postgres-data:
+  magnus-data:
+  ardentstudio-data:

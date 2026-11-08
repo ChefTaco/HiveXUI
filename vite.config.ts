@@ -1,3 +1,5 @@
+/// <reference types="vitest/config" />
+import { configDefaults } from 'vitest/config';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwind from '@tailwindcss/vite';
@@ -25,6 +27,10 @@ export default defineConfig({
         assetFileNames: (asset) => (asset.names.some((name) => name.endsWith('.mjs')) ? 'assets/[name]-[hash].js' : 'assets/[name]-[hash][extname]'),
       },
     },
+  },
+  test: {
+    // e2e/ holds the Playwright end-to-end specs (npm run e2e), not unit tests.
+    exclude: [...configDefaults.exclude, 'e2e/**'],
   },
   server: {
     port: 5174,

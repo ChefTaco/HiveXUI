@@ -221,6 +221,32 @@ Ardent agent, HiveMem for project knowledge and Oathweave for sign-in. Creating 
 changes to one also need a Magnus ADMIN. [docs/STUDIO.md](docs/STUDIO.md) covers the routes, each
 area's workflows, the room's agent states, the keyboard map, accessibility and known limits.
 
+#### End-to-end tests
+
+`npm run e2e` runs the Studio acceptance scenarios (`e2e/studio/*.spec.ts`: an adventure and a
+research project, through the Studio API and in the browser) against a real stack built from the
+product checkouts next to this one: Oathweave, HiveMem, Magnus (server, PostgreSQL, Redis and one
+node agent in a systemd container that manages Ardent gateways), ArdentStudio and this console
+behind Hive's ingress configuration (`../Hive/deployment/Caddyfile`). The only fixture is the model:
+`e2e/stack/model/server.mjs`, a deterministic OpenAI-compatible streaming server with scripted
+replies and mission tool calls. Every secret and certificate is generated per run.
+
+```bash
+npm run e2e:stack -- up      # build the images (once), start, enroll the node, deploy two agents
+npm run e2e -- --trace off   # the specs; they start the stack themselves when none is running
+npm run e2e:stack -- down    # remove the stack's containers, volumes and run directory
+```
+
+Docker with Compose is required; without it the specs are skipped, so `npm run e2e` stays green
+where Docker is unavailable. The stack uses the compose project `studio-e2e`, publishes only the
+console on a free loopback port and keeps its state in `output/studio-e2e/`; screenshots go to
+`output/studio-e2e-shots/` (or `STUDIO_E2E_SHOTS`). `STUDIO_E2E_PRODUCTS_ROOT` points at another
+directory of checkouts, `STUDIO_E2E_MAGNUS_DIR` at another Magnus checkout,
+`STUDIO_E2E_ARDENT_TGZ` at an Ardent package to stage on the node instead of one packed from
+`../Ardent`, and `STUDIO_E2E_REBUILD=1` rebuilds the images. `STUDIO_E2E_KEEP=1` keeps a stack the
+specs started. The node container runs systemd and needs `CAP_SYS_ADMIN` in a private cgroup
+namespace; it never touches the host's cgroups.
+
 ### Sign-in portal
 
 The central `/auth/authorize` portal accepts standard Code with S256 PKCE requests for explicitly
