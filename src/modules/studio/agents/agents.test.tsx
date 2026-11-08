@@ -129,7 +129,7 @@ describe('Preview', () => {
     studioRoute = (request) => {
       if (request.method === 'PUT' && request.path === `/agents/${REF}/draft`) return { draft: saved };
       if (request.method === 'POST' && request.path === `/agents/${REF}/apply`)
-        return { results: [{ part: 'soul', status: 'failed', error: 'Magnus refused: a service identity may not save identities', code: 'FORBIDDEN', revision: null }], active_tasks: 2, note: null, draft: saved };
+        return { results: [{ part: 'soul', status: 'failed', error: 'Magnus refused: the acting person is not a Magnus ADMIN', code: 'ACTING_ADMIN_REQUIRED', revision: null, activation_required: false }], activation_required: false, restart: { available: false, reason: null }, active_tasks: 2, note: null, draft: saved };
       return baseStudio(request);
     };
     const root = await open(`/studio/p/${PROJECT_ID}/agents/${REF}?tab=preview`);
@@ -149,10 +149,49 @@ describe('Preview', () => {
     const results = root.querySelector('[aria-label="Apply results"]')!;
     expect(text(results)).toContain('Nothing was applied.');
     expect(text(results)).toContain('Failed');
-    expect(text(results)).toContain('Magnus refused: a service identity may not save identities (FORBIDDEN)');
+    expect(text(results)).toContain('Only a Magnus administrator can change an agent.');
+    expect(text(results)).toContain('Magnus refused: the acting person is not a Magnus ADMIN (ACTING_ADMIN_REQUIRED)');
     expect(text(results)).toContain('2 running tasks keep current instructions');
     // Studio applies through Magnus itself; the console sends nothing to the node.
     expect(magnusRequests.filter((request) => request.method !== 'GET')).toEqual([]);
+  });
+
+  it('asks for a restart after skills and the model apply, and rebases a draft after a conflict', async () => {
+    const saved = { agent_ref: REF, user_id: 'operator', base: { soul_revision: SHA('0'), config_revision: SHA('c') }, draft: { soul: 'Newer soul.', model: 'general' }, created_at: AT, updated_at: AT };
+    studioRoute = (request) => {
+      if (request.method === 'GET' && request.path === `/agents/${REF}/draft`) return { draft: saved };
+      if (request.method === 'PUT' && request.path === `/agents/${REF}/draft`) return { draft: { ...saved, ...(request.body as object) } };
+      if (request.method === 'POST' && request.path === `/agents/${REF}/apply`)
+        return {
+          results: [
+            { part: 'soul', status: 'failed', error: 'Revision mismatch', code: 'CONFLICT', revision: null, activation_required: false },
+            { part: 'model', status: 'applied', error: null, code: null, revision: SHA('d'), activation_required: true },
+          ],
+          activation_required: true,
+          restart: { available: false, reason: 'Magnus does not let Studio restart profiles.' },
+          active_tasks: 0,
+          note: null,
+          draft: { ...saved, draft: { soul: 'Newer soul.' }, base: { soul_revision: SHA('0') } },
+        };
+      return baseStudio(request);
+    };
+    const root = await open(`/studio/agents/${REF}?tab=preview`);
+    await click(button('Apply', root));
+    await click(button('Apply', dialog()!));
+    await settle();
+    expect(sent('POST', `/agents/${REF}/apply`)[0]!.body).toEqual({ parts: ['soul', 'model'] });
+    const results = root.querySelector('[aria-label="Apply results"]')!;
+    expect(text(results)).toContain('1 of 2 parts applied; 1 failed.');
+    expect(text(results)).toContain('Needs a restart');
+    expect(text(results)).toContain('Restart the profile from the Magnus console to activate');
+    expect(text(results)).toContain('Magnus does not let Studio restart profiles.');
+    expect(results.querySelector('a[href^="/fleet/"]')?.getAttribute('href')).toBe(`/fleet/ardent/profiles/${REF}`);
+    expect(text(results)).toContain('The agent changed since this draft was made.');
+    await click(button("Reload the agent as the draft's base", results));
+    await settle();
+    // The same draft, now based on the agent's current SOUL.md revision.
+    expect(sent('PUT', `/agents/${REF}/draft`).at(-1)!.body).toEqual({ base: { soul_revision: SHA('a') }, draft: { soul: 'Newer soul.' } });
+    expect(text(root)).toContain('The draft now builds on the agent as it is.');
   });
 
   it('streams the reply as the agent writes it', async () => {
