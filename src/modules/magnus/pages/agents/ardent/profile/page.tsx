@@ -10,7 +10,7 @@ import { ADMIN_ONLY, RequireRole } from '../../../../session';
 import { LoadingRows, ResourceError } from '../../../../ui/resource-state';
 import { CodexNodePanel } from '../../codex/installation-card';
 import { Fact } from '../../shared/fx';
-import { fetchArtifact, readInstallation, readResource, saveBlob } from '../api';
+import { ardentAction, fetchArtifact, readInstallation, readResource, saveBlob } from '../api';
 import { asRecord, channelLabel, displayValue, parseProfileRef, taskArtifacts, taskIsFinal, type ArdentArtifact } from '../logic';
 import { CommandOwners } from '../command-owners';
 import { OpenInStudio, studioOffered } from '../open-in-studio';
@@ -21,6 +21,7 @@ import {
   peersSchema,
   providersSchema,
   revisionedTextSchema,
+  skillInstallResultSchema,
   skillsSchema,
   statusSchema,
   taskEventsSchema,
@@ -32,6 +33,8 @@ import { hiveMemCredentialView } from '../hivemem-credential';
 import { HiveMemCredential } from './hivemem-credential';
 import { HiveMemEnable } from './hivemem-enable';
 import { ActionButton, ConfigEditor, IdentityEditor, MemoryPanel, PeerEditor, SettingsForm, SkillList, TaskTest, type ProfileRef } from './editors';
+import { SkillCatalog } from './skill-catalog';
+import { skillListKey } from './skill-catalog-logic';
 
 const TABS = ['Overview', 'Configuration', 'Identity', 'Providers', 'Channels', 'Peers', 'Skills', 'Tasks & Artifacts', 'API Reference'] as const;
 type Tab = (typeof TABS)[number];
@@ -162,7 +165,9 @@ function PeersTab({ nodeId, profileId, running }: ProfileRef & { running: boolea
   );
 }
 
-function SkillsTab({ nodeId, profileId }: ProfileRef) {
+function SkillsTab({ nodeId, profileId, studioLevel, nodeName }: ProfileRef & { studioLevel: number | null; nodeName?: string | undefined }) {
+  // The newest configuration revision a skill switch answered, the base for enabling an installed skill.
+  const [revision, setRevision] = useState<string | null>(null);
   const tab = useMagnusResource(async (signal) => {
     const [skills, config, memory] = await Promise.all([
       readResource(nodeId, profileId, 'skills', skillsSchema, signal),
@@ -172,9 +177,20 @@ function SkillsTab({ nodeId, profileId }: ProfileRef) {
     return { skills: skills.skills, revision: config.revision, memory };
   });
   return (
-    <TabBody tab={tab} name="The skills" render={({ skills, revision, memory }) => (
+    <TabBody tab={tab} name="The skills" render={({ skills, revision: loaded, memory }) => (
       <>
-        <SkillList nodeId={nodeId} profileId={profileId} initial={skills} initialRevision={revision} />
+        <SkillList key={skillListKey(skills, loaded)} nodeId={nodeId} profileId={profileId} initial={skills} initialRevision={loaded} onChange={(_skills, next) => setRevision(next)} />
+        <RequireRole roles={ADMIN_ONLY}>
+          <SkillCatalog
+            className="mt-4"
+            installed={skills}
+            revision={revision ?? loaded}
+            studioLevel={studioLevel}
+            nodeName={nodeName}
+            install={(request) => ardentAction(nodeId, profileId, 'skill-install', skillInstallResultSchema, { body: request })}
+            onInstalled={() => { setRevision(null); void tab.refresh(); }}
+          />
+        </RequireRole>
         <MemoryPanel nodeId={nodeId} profileId={profileId} status={memory} className="mt-3" />
       </>
     )} />
@@ -341,7 +357,7 @@ export default function ArdentProfilePage() {
         {tab === 'Providers' ? <ProvidersTab nodeId={nodeId} profileId={profileId} running={running} /> : null}
         {tab === 'Channels' ? <ChannelsTab nodeId={nodeId} profileId={profileId} running={running} /> : null}
         {tab === 'Peers' ? <PeersTab nodeId={nodeId} profileId={profileId} running={running} /> : null}
-        {tab === 'Skills' ? <SkillsTab nodeId={nodeId} profileId={profileId} /> : null}
+        {tab === 'Skills' ? <SkillsTab nodeId={nodeId} profileId={profileId} studioLevel={installation.data ? installation.data.capabilities?.studio ?? 0 : null} nodeName={installation.data?.nodeName} /> : null}
         {tab === 'Tasks & Artifacts' ? <TasksTab nodeId={nodeId} profileId={profileId} onChanged={() => setRefreshKey((value) => value + 1)} /> : null}
         {tab === 'API Reference' ? <ApiTab nodeId={nodeId} profileId={profileId} /> : null}
       </PageItem>

@@ -34,7 +34,7 @@ export const enableHiveMem = (nodeId: string, profileId: string): Promise<string
 export const agentOperationStreamPath = (operationId: string): string => `/ardent/agents/operations/${segment(operationId)}/stream`;
 
 /** How long a node may take, as the old console allowed. */
-const actionTimeout = (action: string): number => (action === 'package-install' ? 620_000 : action.startsWith('service-') ? 125_000 : 55_000);
+const actionTimeout = (action: string): number => (action === 'package-install' ? 620_000 : action.startsWith('service-') || action === 'skill-install' ? 125_000 : 55_000);
 
 export const ardentAction = <S extends z.ZodType>(nodeId: string, profileId: string, action: string, schema: S, options: { body?: unknown; target?: string | undefined } = {}): Promise<z.output<S>> =>
   magnus
