@@ -14,6 +14,9 @@ import { checklistSteps, DEPLOY_STEPS, HIVEMEM_STEPS, receiptSummary, stepLabel,
 export function agentOperationError(caught: unknown, nodeName: string | undefined, fallback: string): string {
   if (caught instanceof MagnusApiError && caught.code === 'AGENT_UPGRADE_REQUIRED')
     return `Upgrade the Magnus agent on ${nodeName ?? 'this node'} first: it predates the Ardent bridge that creates agents and enrolls them in HiveMem.`;
+  // Magnus names the command holding the node; it is listed below the steps with its Reconcile action.
+  if (caught instanceof MagnusApiError && caught.code === 'COMMAND_OWNER_UNSETTLED')
+    return `${caught.message} The command is listed below.`;
   return errorMessage(caught, fallback);
 }
 

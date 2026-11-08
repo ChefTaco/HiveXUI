@@ -9,6 +9,7 @@ import { ActionConfirm } from '../../../../ui/action-confirm';
 import { LoadingRows, ResourceError } from '../../../../ui/resource-state';
 import { Fact } from '../../shared/fx';
 import { ardentAction, listInstallations } from '../api';
+import { CommandOwners } from '../command-owners';
 import { profileHref } from '../logic';
 import { packageInstalledSchema, serviceStateSchema, type ArdentInstallation } from '../schemas';
 
@@ -119,6 +120,7 @@ export default function ArdentInstallationsPage() {
                     <Badge tone={!item.reachable ? 'danger' : item.installed ? 'success' : 'neutral'} dot>{!item.reachable ? 'Check failed' : item.installed ? 'Installed' : 'Not installed'}</Badge>
                   </div>
                   {item.error ? <p className="m-0 rounded-control border border-danger bg-danger-soft px-3 py-2 text-sm text-danger">{item.error}</p> : null}
+                  <CommandOwners installation={item} onSettled={inventory.refresh} />
                   <div className="grid gap-3 border-t border-border pt-3 sm:grid-cols-3">
                     <Fact label="Version"><span className="font-mono">{item.version ?? '—'}</span></Fact>
                     <Fact label="Owner"><span className="font-mono">{item.owner || 'Unavailable'}</span></Fact>

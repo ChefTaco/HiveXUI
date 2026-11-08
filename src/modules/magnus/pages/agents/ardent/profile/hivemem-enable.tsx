@@ -8,6 +8,7 @@ import { FxPanel } from '../../../../effects';
 import { ActionConfirm } from '../../../../ui/action-confirm';
 import { enableHiveMem, readResource, resumeAgentOperation } from '../api';
 import { memoryStatusSchema } from '../schemas';
+import { NodeCommandOwners } from '../command-owners';
 import { agentOperationError, OperationChecklist, useAgentOperation } from '../profiles/agent-operation';
 import { stoppedAt } from '../profiles/new-agent-logic';
 import type { ProfileRef } from './editors';
@@ -63,6 +64,7 @@ export function HiveMemEnable({ nodeId, profileId, nodeName, running, onEnabled 
       {operationId ? <OperationChecklist operation={operation} kind="hivemem" /> : null}
       {note ? <p role="status" className="m-0 mt-3 text-sm text-warning">{note}</p> : null}
       {status === 'failed' ? <p role="alert" className="m-0 mt-3 break-words text-sm text-danger">{stoppedAt(operation)} Finished steps are kept; Resume continues from the step that failed.</p> : null}
+      {status === 'failed' && operation ? <div className="mt-3"><NodeCommandOwners key={operation.attempts} nodeId={operation.nodeId} /></div> : null}
       {status === 'succeeded' ? <p role="status" className="m-0 mt-3 text-sm text-success">HiveMem is enabled and the profile answered with memory ready.</p> : null}
       {problem ? <p role="alert" className="m-0 mt-3 break-words text-sm text-danger">{problem}</p> : null}
       <ActionConfirm
