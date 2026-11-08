@@ -238,8 +238,14 @@ the room, it also has **Back to the room**. The other way, each Ardent profile p
 
 1. **Identity.** Name and portrait (**Global**), the **Project role** (**This project only**), and
    `SOUL.md` and `IDENTITY.md` with history and restore.
-2. **Capabilities.** Local skills, the model (with Emberpath aliases), channels and peers, and
-   active tasks. Skill and model changes take effect when the profile restarts.
+2. **Capabilities.** Local skills, the HiveSkills catalog, the model (with Emberpath aliases),
+   channels and peers, and active tasks. Skill and model changes take effect when the profile
+   restarts. Search the catalog, choose a skill and **Install** its stable release, optionally
+   enabled in the same step: the Studio service asks Magnus (`skill-install`) for the signed-in
+   person, who must be a Magnus ADMIN; Magnus fetches the release from its HiveSkills registry and
+   checks it against the catalog digest. The same picker is on the Skills tab of the agent's Magnus
+   profile page. It needs a node agent at Studio level 3; below that it asks for an agent upgrade,
+   and with an older Magnus or Studio service it says which to upgrade.
 3. **Knowledge.** The project's references from its HiveMem workspace, and the agent's own memory,
    labelled **Private to this agent**.
 4. **Preview.** A draft (SOUL, IDENTITY, skills, model) beside a streaming preview chat. Previews
@@ -364,9 +370,9 @@ drops it.
   page view waits for the canvas engine package to be published; comment anchors (paragraph ids)
   will stay the same. When the service has no Word converter, Review says so and offers the
   download.
-- **HiveSkills install.** Agent Studio links to the HiveSkills catalog but cannot install a catalog
-  skill onto an Ardent agent yet: that needs a Magnus release that offers it. Install skills on the
-  node from Fleet details.
+- **HiveSkills install** needs a Magnus release with `skill-install` and its HiveSkills registry
+  configured (`MAGNUS_ARDENT_HIVESKILLS_URL`); otherwise Install says what is missing. Only the
+  stable channel's release is offered.
 - **Apply needs a Magnus release** that runs agent changes for the Studio service on behalf of the
   signed-in Magnus ADMIN. With an older Magnus, or without that role, each part of Apply fails with
   Magnus's reason (for example "Only a Magnus administrator can change an agent").

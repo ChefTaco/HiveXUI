@@ -15,6 +15,15 @@ import {
   type EnrollTarget,
 } from '../../../contracts/hiveskills.generated';
 
+/**
+ * GET /v1/skills/:slug: a public catalog entry with the release promoted on the channel (null when none
+ * is). The generated contract does not describe this payload, so it is typed here from the registry.
+ */
+export const CatalogEntrySchema = SkillSchema.extend({
+  release: z.object({ version: z.string(), sha256: z.string().regex(/^[a-f0-9]{64}$/), notes: z.string().nullable().optional(), createdAt: z.string().optional() }).nullable(),
+});
+export type CatalogEntry = z.infer<typeof CatalogEntrySchema>;
+
 export function createSkillsApi(send: typeof apiFetch = apiFetch) {
   async function request<T>(
     path: string,
@@ -46,6 +55,8 @@ export function createSkillsApi(send: typeof apiFetch = apiFetch) {
   }
   return {
     catalog: () => request('/v1/skills', SkillListSchema),
+    catalogEntry: (slug: string, channel: 'stable' | 'canary' = 'stable') =>
+      request('/v1/skills/' + encodeURIComponent(slug) + (channel === 'stable' ? '' : '?channel=' + channel), CatalogEntrySchema),
     me: () =>
       request(
         '/auth/me',

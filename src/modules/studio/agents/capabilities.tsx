@@ -1,14 +1,19 @@
+import { useState } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import { Badge, Panel, statusTone } from '@ui';
 import { adminApi } from '@lib/api';
 import { productInstalled } from '../../../lib/runtime';
+import { idempotencyKey } from '../api/client';
 import { useMagnusResource } from '../../magnus/api/use-resource';
-import { readResource } from '../../magnus/pages/agents/ardent/api';
+import { readInstallation, readResource } from '../../magnus/pages/agents/ardent/api';
 import { channelLabel, displayValue, profileHref, taskIsFinal } from '../../magnus/pages/agents/ardent/logic';
 import { SettingsForm, SkillList } from '../../magnus/pages/agents/ardent/profile/editors';
+import { SkillCatalog } from '../../magnus/pages/agents/ardent/profile/skill-catalog';
+import { skillListKey } from '../../magnus/pages/agents/ardent/profile/skill-catalog-logic';
 import { channelsSchema, peersSchema, revisionedTextSchema, skillsSchema, taskListSchema } from '../../magnus/pages/agents/ardent/schemas';
 import { StudioLink } from '../link';
 import { projectHref } from '../routes';
+import { installCatalogSkill } from './api';
 import { projectTasks } from './logic';
 import type { AgentContext } from './page';
 import { Loaded, ScopeBadge, when } from './shared';
@@ -21,24 +26,28 @@ function SkillsPanel({ context }: { context: AgentContext }) {
     const [list, config] = await Promise.all([readResource(nodeId, profileId, 'skills', skillsSchema, signal), readResource(nodeId, profileId, 'config', revisionedTextSchema, signal)]);
     return { skills: list.skills, revision: config.revision };
   }, [agentRef]);
-  const hiveskills = productInstalled('hiveskills');
+  const installation = useMagnusResource((signal) => readInstallation(nodeId, signal), [nodeId]);
+  // The newest configuration revision a skill switch answered, the base for enabling an installed skill.
+  const [revision, setRevision] = useState<string | null>(null);
   return (
-    <Panel title="Skills" description="Local working methods on the agent's node. A change takes effect when the profile restarts." actions={<ScopeBadge scope="global" />} className="min-w-0">
+    <Panel title="Skills" description="Local working methods on the agent's node, and the HiveSkills catalog. A change takes effect when the profile restarts." actions={<ScopeBadge scope="global" />} className="min-w-0">
       <Loaded resource={skills} title="Skills could not be read from the node">
-        {(data) => <SkillList nodeId={nodeId} profileId={profileId} initial={data.skills} initialRevision={data.revision} description="Enable or disable each skill" />}
+        {(data) => (
+          <>
+            <SkillList key={skillListKey(data.skills, data.revision)} nodeId={nodeId} profileId={profileId} initial={data.skills} initialRevision={data.revision}
+              description="Enable or disable each skill" onChange={(_skills, next) => setRevision(next)} />
+            <SkillCatalog
+              className="agent-note mt-4 rounded-control border border-border bg-surface-sunken p-3"
+              installed={data.skills}
+              revision={revision ?? data.revision}
+              studioLevel={installation.data ? installation.data.capabilities?.studio ?? 0 : null}
+              nodeName={installation.data?.nodeName}
+              install={(request) => installCatalogSkill(agentRef, request, idempotencyKey())}
+              onInstalled={() => { setRevision(null); void skills.refresh(); }}
+            />
+          </>
+        )}
       </Loaded>
-      <div className="agent-note mt-4 rounded-control border border-border bg-surface-sunken p-3 text-sm">
-        <p className="m-0 font-semibold text-text-strong">HiveSkills catalog</p>
-        <p className="m-0 mt-1 text-text-muted">
-          Installing a catalog skill onto an Ardent agent needs a Magnus release that offers it. Until then, browse the catalog and install skills on the node from Fleet details.
-        </p>
-        {hiveskills ? (
-          <StudioLink href="/skills" className="btn btn--sm btn--ghost mt-2 no-underline">
-            Browse HiveSkills
-            <ArrowUpRight className="btn-ico" aria-hidden="true" />
-          </StudioLink>
-        ) : null}
-      </div>
     </Panel>
   );
 }

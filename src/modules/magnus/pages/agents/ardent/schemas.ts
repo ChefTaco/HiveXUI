@@ -138,6 +138,17 @@ export const peersSchema = z.object({ peers: z.array(entrySchema) });
 export const skillSchema = z.object({ name: z.string(), description: z.string().optional().default(''), hash: z.string().optional().default(''), enabled: z.boolean() });
 export type ArdentSkill = z.output<typeof skillSchema>;
 export const skillsSchema = z.object({ skills: z.array(skillSchema) });
+/**
+ * The skill-install answer (Magnus ardentSkillInstallResultSchema). changed is false when the same release was
+ * installed already; a failed enable leaves the skill installed with enable_error saying why.
+ */
+export const skillInstallResultSchema = z.object({
+  source: z.literal('hiveskills'), name: z.string(), version: z.string(), sha256: z.string(), files: z.number(),
+  changed: z.boolean(), enabled: z.boolean(), revision: z.string().nullable(), enable_error: z.string().nullable(), activation_required: z.boolean(),
+});
+export type SkillInstallResult = z.output<typeof skillInstallResultSchema>;
+/** The node agent level that installs catalog skills (Magnus ARDENT_STUDIO_CAPABILITY.skillInstall). */
+export const SKILL_INSTALL_STUDIO_LEVEL = 3;
 export const memoryStatusSchema = z.object({
   status: z.string(),
   agent_id: z.string(),

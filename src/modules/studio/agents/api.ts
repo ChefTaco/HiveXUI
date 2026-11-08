@@ -1,12 +1,13 @@
 // Agent Studio's routes on the Studio service, typed by the vendored contract. The agent itself
 // (identity, skills, configuration, memory) is read and changed through Magnus with the shared
-// Ardent profile client; these are the parts Studio owns: presentation, drafts, previews, Apply and
-// development records.
+// Ardent profile client; these are the parts Studio owns: presentation, drafts, previews, Apply,
+// catalog skill installs and development records.
 import type { z } from 'zod';
 import {
   agentDraftResponseSchema,
   applyResponseSchema,
   createDevelopmentCommentResponseSchema,
+  installSkillResponseSchema,
   developmentResponseSchema,
   listTasksResponseSchema,
   presentationSchema,
@@ -15,6 +16,7 @@ import {
   type agentDraftBaseSchema,
   type applyResultSchema,
   type developmentRecordSchema,
+  type installSkillRequestSchema,
   type putPresentationRequestSchema,
 } from '@contracts/ardentstudio.generated';
 import { segment, studio } from '../api/client';
@@ -42,6 +44,10 @@ export const putDraft = (ref: string, body: { base: DraftBase; draft: DraftBody 
   studio.put(agentPath(ref, '/draft'), agentDraftResponseSchema, { body, idempotencyKey }).then((result) => result.draft);
 export const discardDraft = (ref: string, idempotencyKey?: Key) => studio.delete(agentPath(ref, '/draft'), agentDraftResponseSchema, { idempotencyKey });
 export const applyDraft = (ref: string, parts: readonly ApplyPart[], idempotencyKey?: Key) => studio.post(agentPath(ref, '/apply'), applyResponseSchema, { body: { parts }, idempotencyKey });
+
+/** Install a HiveSkills catalog release through Magnus as the signed-in person (a Magnus ADMIN). */
+export const installCatalogSkill = (ref: string, body: z.input<typeof installSkillRequestSchema>, idempotencyKey?: Key) =>
+  studio.post(agentPath(ref, '/skills/install'), installSkillResponseSchema, { body, idempotencyKey });
 
 export const listDevelopment = (ref: string, query: { after?: string | undefined; kind?: string | undefined; limit?: number }, signal?: Signal) =>
   studio.get(agentPath(ref, '/development'), developmentResponseSchema, { query, signal });
