@@ -16,7 +16,7 @@ export const readResource = <S extends z.ZodType>(nodeId: string, profileId: str
   magnus.get(`${base(nodeId, profileId)}/${resource}`, ok(schema), { signal }).then((response) => (response as { data: z.output<S> }).data);
 
 /** How long a node may take, as the old console allowed. */
-const actionTimeout = (action: string): number => (action === 'package-install' ? 620_000 : action === 'profile-import-hermes' ? 100_000 : action.startsWith('service-') ? 125_000 : 55_000);
+const actionTimeout = (action: string): number => (action === 'package-install' ? 620_000 : action.startsWith('service-') ? 125_000 : 55_000);
 
 export const ardentAction = <S extends z.ZodType>(nodeId: string, profileId: string, action: string, schema: S, options: { body?: unknown; target?: string | undefined } = {}): Promise<z.output<S>> =>
   magnus
