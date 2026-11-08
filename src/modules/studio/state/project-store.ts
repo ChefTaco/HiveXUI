@@ -2,7 +2,7 @@
 // Pages share a store per project id, so the header, the Files drawer and Team Assignment read the
 // same copy and the stream is opened once.
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
-import { fileSchema } from '@contracts/ardentstudio.generated';
+import { activitySchema, conversationSchema, decisionSchema, fileSchema, taskSchema } from '@contracts/ardentstudio.generated';
 import type { StreamHandle, StreamState } from '../../magnus/api/stream';
 import type { SseEvent } from '../../magnus/api/sse';
 import { getSnapshot, type Project, type Snapshot, type StudioFile, type TeamState } from '../api/endpoints';
@@ -35,6 +35,9 @@ export class ProjectStore {
   private readonly listeners = new Set<() => void>();
   private readonly eventListeners = new Set<(event: ProjectEvent) => void>();
   private readonly deltaListeners = new Set<(delta: MessageDelta) => void>();
+  private readonly resetListeners = new Set<() => void>();
+  /** The live text of each reply still streaming, so a page opened mid-reply starts from all of it. */
+  private readonly live = new Map<string, { step: number; text: string }>();
   private handle: StreamHandle | null = null;
   private loading: AbortController | null = null;
   private refetchTimer: ReturnType<typeof setTimeout> | undefined;
@@ -61,6 +64,15 @@ export class ProjectStore {
     this.deltaListeners.add(listener);
     return () => this.deltaListeners.delete(listener);
   }
+  /** Live text of the replies streaming now, as replace deltas a new listener can start from. */
+  liveDeltas(): MessageDelta[] {
+    return [...this.live].map(([id, entry]) => ({ message_id: id, text: entry.text, mode: 'replace', step: entry.step }));
+  }
+  /** The stream lost its place (a reset or a skipped seq): pages that keep their own lists read them again. */
+  onReset(listener: () => void): () => void {
+    this.resetListeners.add(listener);
+    return () => this.resetListeners.delete(listener);
+  }
 
   private set(next: Partial<ProjectState>): void {
     this.state = { ...this.state, ...next };
@@ -85,6 +97,7 @@ export class ProjectStore {
 
   stop(): void {
     this.stopped = true;
+    this.live.clear();
     clearTimeout(this.refetchTimer);
     this.loading?.abort();
     this.handle?.close();
@@ -122,13 +135,23 @@ export class ProjectStore {
     switch (action.kind) {
       case 'ignore':
         return;
-      case 'delta':
+      case 'delta': {
+        const { message_id: id, text, mode = 'append', step = 0 } = action.delta;
+        const current = this.live.get(id);
+        if (!current || mode === 'replace' || step > current.step) this.live.set(id, { step, text });
+        else if (step === current.step) this.live.set(id, { step, text: current.text + text });
         for (const listener of [...this.deltaListeners]) listener(action.delta);
         return;
+      }
       case 'reset':
         void this.refetch();
+        for (const listener of [...this.resetListeners]) listener();
         return;
       case 'event':
+        if (action.event.type === 'message.updated' || action.event.type === 'message.created') {
+          const message = action.event.payload.message as { id?: unknown; state?: unknown } | undefined;
+          if (typeof message?.id === 'string' && message.state !== 'streaming') this.live.delete(message.id);
+        }
         this.apply(seq, action.event);
         for (const listener of [...this.eventListeners]) listener(action.event);
     }
@@ -144,9 +167,15 @@ export class ProjectStore {
         return;
       }
     }
+    const patched = snapshot ? patchSnapshot(snapshot, event) : null;
+    if (patched) {
+      this.set({ seq, snapshot: { ...patched, seq } });
+      return;
+    }
     this.set({ seq });
-    // Project, file, team and task events carry only what changed: the snapshot holds the whole record.
-    if (/^(project|file|team|task)\./.test(event.type)) this.scheduleRefetch();
+    // Project, file, team and layout events carry only what changed, and so does a task event this copy
+    // could not read: the snapshot holds the whole record.
+    if (/^(project|file|team|task|layout)\./.test(event.type)) this.scheduleRefetch();
   }
 
   // After a mutation the answer is applied at once; the event that follows confirms it.
@@ -156,12 +185,59 @@ export class ProjectStore {
   setTeam(team: TeamState): void {
     if (this.state.snapshot) this.set({ snapshot: { ...this.state.snapshot, team } });
   }
+  /** A room record a mutation answered with, ahead of its event. */
+  upsertRecord(kind: 'conversations' | 'tasks' | 'decisions', record: Snapshot['conversations'][number] | Snapshot['tasks'][number] | Snapshot['decisions'][number]): void {
+    const snapshot = this.state.snapshot;
+    if (!snapshot) return;
+    if (kind === 'tasks') {
+      const task = record as Snapshot['tasks'][number];
+      const tasks = SNAPSHOT_TASK_STATES.has(task.state) ? upsert(snapshot.tasks, task) : snapshot.tasks.filter((item) => item.id !== task.id);
+      this.set({ snapshot: { ...snapshot, tasks } });
+      return;
+    }
+    this.set({ snapshot: { ...snapshot, [kind]: upsert(snapshot[kind] as Array<typeof record>, record) } });
+  }
+  setLayout(layout: Snapshot['layout']): void {
+    if (this.state.snapshot) this.set({ snapshot: { ...this.state.snapshot, layout } });
+  }
   upsertFile(file: StudioFile): void {
     const snapshot = this.state.snapshot;
     if (!snapshot) return;
     const files = snapshot.files.some((item) => item.id === file.id) ? snapshot.files.map((item) => (item.id === file.id ? file : item)) : [...snapshot.files, file];
     this.set({ snapshot: { ...snapshot, files } });
   }
+}
+
+const upsert = <T extends { id: string }>(items: readonly T[], item: T): T[] =>
+  items.some((existing) => existing.id === item.id) ? items.map((existing) => (existing.id === item.id ? item : existing)) : [...items, item];
+
+const SNAPSHOT_TASK_STATES: ReadonlySet<string> = new Set(['queued', 'running', 'input_required', 'pausing', 'paused']);
+
+/** The snapshot with a room record from an event's payload, or null when the event carries no whole record. */
+export function patchSnapshot(snapshot: Snapshot, event: ProjectEvent): Snapshot | null {
+  const payload = event.payload;
+  if (event.type === 'conversation.created' || event.type === 'conversation.updated') {
+    const parsed = conversationSchema.safeParse(payload.conversation);
+    return parsed.success ? { ...snapshot, conversations: upsert(snapshot.conversations, parsed.data) } : null;
+  }
+  if (event.type === 'task.created' || event.type === 'task.updated') {
+    const parsed = taskSchema.safeParse(payload.task);
+    if (!parsed.success) return null;
+    // The snapshot holds active tasks and those waiting for an answer; a finished one leaves it.
+    const tasks = SNAPSHOT_TASK_STATES.has(parsed.data.state) ? upsert(snapshot.tasks, parsed.data) : snapshot.tasks.filter((task) => task.id !== parsed.data.id);
+    return { ...snapshot, tasks };
+  }
+  if (event.type === 'decision.created' || event.type === 'decision.updated') {
+    const parsed = decisionSchema.safeParse(payload.decision);
+    return parsed.success ? { ...snapshot, decisions: upsert(snapshot.decisions, parsed.data) } : null;
+  }
+  if (event.type === 'presence.updated') {
+    const parsed = activitySchema.safeParse(payload);
+    if (!parsed.success) return null;
+    const others = snapshot.activity.filter((item) => item.binding_id !== parsed.data.binding_id);
+    return { ...snapshot, activity: [...others, parsed.data] };
+  }
+  return null;
 }
 
 interface Entry {

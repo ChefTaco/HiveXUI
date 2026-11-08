@@ -22,9 +22,9 @@ import {
   type Iso,
   type Point,
 } from './geometry';
-import { DeliveryShelf, Desk, DiscussionTable, DisplayBoard, ReviewStation, RoomShell, ShelfList } from './kit';
+import { DeliveryShelf, Desk, DiscussionTable, DisplayBoard, ReviewStation, RoomShell, ShelfList, zoneLabelPoints } from './kit';
 import type { DisplayWall, RoomLayout, SceneAgent, SceneArc, Seat, ShelfItem } from './model';
-import { placePlates, type PlateSide, type Rect } from './plates';
+import { labelBox, placePlates, type PlateSide, type Rect } from './plates';
 import { useTweenedPosition } from './tween';
 import './scene.css';
 
@@ -278,8 +278,18 @@ function IsoRoom({ agents, layout, wall = {}, arcs = [], shelf = [], discussion 
     return { x: point.x, y: point.y - 44 * size };
   };
   const shapes = arcShapes(arcs, head, iso.at(DELIVERY_SHELF.x, DELIVERY_SHELF.y, 72), iso.scale, size);
-  // Fixed labels the name plates keep clear of: the display wall, the shelf list and hand-off labels.
+  // Fixed labels the name plates keep clear of: the display wall, the furniture names, the shelf list
+  // and hand-off labels.
+  const labelAt = zoneLabelPoints(iso);
   const obstacles: Rect[] = [
+    ...(['table', 'review', 'shelf', 'desks-east', 'desks-west'] as const).flatMap((zone) => {
+      const text = layout.zoneLabels[zone];
+      if (!text) return [];
+      const box = labelBox(labelAt[zone].x, labelAt[zone].y, text);
+      // Wall names are slanted with the wall, so they reach further up and down.
+      const slant = zone.startsWith('desks') ? (box.right - box.left) * 0.32 : 0;
+      return [{ ...box, top: box.top - slant, bottom: box.bottom + slant }];
+    }),
     { left: corner.x - boardWidth / 2, top: corner.y, right: corner.x + boardWidth / 2, bottom: corner.y + boardHeight },
     ...(shelf.length ? [{ left: shelfAt.x - 78, top: shelfAt.y + 8, right: shelfAt.x + 78, bottom: shelfAt.y + 92 }] : []),
     ...shapes.filter((shape) => shape.arc.kind === 'handoff').map((shape) => ({ left: shape.middle.x - 90, top: shape.middle.y - 14, right: shape.middle.x + 90, bottom: shape.middle.y + 14 })),

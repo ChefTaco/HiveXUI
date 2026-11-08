@@ -12,6 +12,7 @@ import { ProjectsHome } from './projects/home';
 import { ArchivedNotice, ProjectLanding } from './projects/project-page';
 import { Gallery } from './gallery/gallery';
 import { TeamDesigner } from './team/designer';
+import { ConversationRoom } from './room/room-page';
 import { STUDIO_PREFIX } from './paths';
 import type { StudioMatch } from './routes';
 
@@ -129,6 +130,8 @@ function implemented(match: StudioMatch): ReactNode {
     case 'agent':
     case 'project-agent':
       return <AgentStudio agentRef={match.agentRef!} projectId={match.projectId} />;
+    case 'room':
+      return <ConversationRoom projectId={match.projectId!} />;
     default:
       return null;
   }

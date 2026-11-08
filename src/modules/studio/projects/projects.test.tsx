@@ -247,7 +247,7 @@ describe('a project in the top bar', () => {
       }
       return undefined;
     };
-    const root = await open(`/studio/p/${PROJECT_ID}/room`);
+    const root = await open(`/studio/p/${PROJECT_ID}/review`);
     await click(button('Archive', root));
     expect(document.querySelector('[role="alertdialog"]')?.textContent).toContain('Archive Sunken Archive?');
     expect(server.mutations()).toHaveLength(0);
