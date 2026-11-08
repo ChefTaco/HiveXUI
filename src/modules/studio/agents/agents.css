@@ -1,0 +1,256 @@
+@layer components {
+  /* Agent Studio: header, tabs, the draft and preview workbench and the development timeline.
+     Layout only; colors and type come from utilities and the shared classes. */
+  .agent-head {
+    display: grid;
+    gap: var(--space-3);
+  }
+  .agent-head__back {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    justify-self: start;
+  }
+  .agent-head__main {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--space-4);
+  }
+  .agent-head__portrait {
+    display: grid;
+    flex: none;
+    place-items: center;
+    padding: var(--space-2);
+  }
+  .agent-head__identity {
+    display: grid;
+    min-width: 0;
+    flex: 1 1 18rem;
+    gap: var(--space-1);
+  }
+  .agent-head__name {
+    font-size: var(--text-2xl);
+    overflow-wrap: anywhere;
+  }
+  .agent-head__facts {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
+  }
+  .agent-head__facts .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .agent-head__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .agent-head__projects {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .agent-head__project-list,
+  .agent-chips,
+  .agent-record__sources {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .agent-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+  .agent-tabpanel {
+    min-width: 0;
+  }
+  .agent-scope {
+    flex: none;
+  }
+  .agent-columns {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
+    align-items: start;
+    gap: var(--space-4);
+  }
+  .agent-section {
+    display: grid;
+    gap: var(--space-3);
+  }
+  .agent-section__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .agent-presentation {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--space-4);
+  }
+  .agent-presentation__preview {
+    display: grid;
+    flex: none;
+    place-items: center;
+    padding: var(--space-3);
+  }
+  .agent-presentation__fields {
+    min-width: 0;
+    flex: 1 1 16rem;
+  }
+  .agent-facts {
+    display: grid;
+    grid-template-columns: minmax(7rem, auto) minmax(0, 1fr);
+    gap: var(--space-2) var(--space-3);
+  }
+  .agent-list {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .agent-list__row {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .agent-list__row > :first-child {
+    flex: 1 1 12rem;
+  }
+
+  /* Preview: the draft beside the conversation; stacked on narrow screens. */
+  .agent-preview {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-4);
+  }
+  .agent-draft__text {
+    width: 100%;
+    min-height: 12rem;
+    resize: vertical;
+  }
+  .agent-skills {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .agent-skills__list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+  .agent-draft__actions,
+  .agent-chat__controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .agent-chat__controls {
+    justify-content: space-between;
+    margin-top: var(--space-2);
+  }
+  .agent-apply__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .agent-apply__error {
+    flex-basis: 100%;
+  }
+  .agent-chat__log {
+    display: grid;
+    max-height: 60vh;
+    gap: var(--space-4);
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+  }
+  .agent-chat__exchange {
+    display: grid;
+    gap: var(--space-2);
+  }
+  .agent-chat__prompt {
+    justify-self: end;
+    max-width: 90%;
+  }
+  .agent-chat__reply {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  .agent-chat__input {
+    width: 100%;
+    min-height: 5rem;
+    resize: vertical;
+  }
+
+  /* Development timeline. */
+  .agent-timeline {
+    display: grid;
+    gap: var(--space-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .agent-record {
+    min-width: 0;
+  }
+  .agent-record__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .agent-record__reported {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .agent-record__sources {
+    margin-top: var(--space-1);
+  }
+  .agent-record__comments {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .agent-record__input {
+    width: 100%;
+    min-height: 5rem;
+    resize: vertical;
+  }
+
+  @media (max-width: 1023.98px) {
+    .agent-preview {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  @media (max-width: 639.98px) {
+    .agent-facts {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .agent-head__actions {
+      flex-basis: 100%;
+    }
+  }
+}
