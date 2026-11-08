@@ -11,6 +11,7 @@ import { ADMIN_ONLY, RequireRole } from '../../../../session';
 import { identityFileName } from '../profile/editors';
 import { deployAgent, listInstallations, readResource, resumeAgentOperation } from '../api';
 import { skillsSchema, type ArdentInstallation } from '../schemas';
+import { NodeCommandOwners } from '../command-owners';
 import { agentOperationError, OperationChecklist, useAgentOperation } from './agent-operation';
 import {
   agentRef,
@@ -304,6 +305,7 @@ function Wizard({ installations: given, onDone, onCancel, onDeployStarted, doneL
             <OperationChecklist operation={operation} kind="deploy" />
             {note ? <p role="status" className="m-0 text-sm text-warning">{note}</p> : null}
             {status === 'failed' ? <p role="alert" className="m-0 break-words text-sm text-danger">{stoppedAt(operation)} Finished steps are kept; Resume continues from the step that failed.</p> : null}
+            {status === 'failed' && operation ? <NodeCommandOwners key={operation.attempts} nodeId={operation.nodeId} /> : null}
             {status === 'succeeded' ? <p role="status" className="m-0 text-sm text-success">The agent is running with its identity, model and HiveMem memory.</p> : null}
           </div>
         ) : null}

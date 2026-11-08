@@ -18,6 +18,35 @@ export const ardentProfileSummarySchema = z.object({
 });
 export type ArdentProfileSummary = z.output<typeof ardentProfileSummarySchema>;
 
+// packages/contracts/src/ardent.ts: a command owner holding the node's managed execution slot. While one
+// is held no other Ardent action runs there; `unknown` means nobody knows what the command did.
+export const ardentCommandOwnerSchema = z.object({
+  commandId: z.string(),
+  state: z.enum(['reserved', 'running', 'unknown']),
+  label: z.string().nullable(),
+  profile: z.string().nullable(),
+  action: z.string().nullable(),
+  /** An Ardent action, which `command-reconcile` can settle. */
+  ardent: z.boolean(),
+  acquiredAt: z.string(),
+  dispatchedAt: z.string().nullable(),
+  deadline: z.string(),
+  /** When a reconciliation is first accepted. */
+  reconcilableAfter: z.string(),
+});
+export type ArdentCommandOwner = z.output<typeof ardentCommandOwnerSchema>;
+
+// packages/contracts/src/ardent.ts: the answer to the `command-reconcile` action.
+export const ardentCommandReconcileResultSchema = z.object({
+  commandId: z.string(),
+  outcome: z.enum(['settled', 'already-settled']),
+  receipt: z.enum(['completed', 'reconciled', 'unknown', 'absent']).nullable(),
+  settlement: z.string().nullable(),
+  evidenceSha256: z.string().nullable(),
+  decisionId: z.string().nullable(),
+});
+export type ArdentCommandReconcileResult = z.output<typeof ardentCommandReconcileResultSchema>;
+
 // packages/contracts/src/ardent.ts
 export const ardentInstallationSchema = z.object({
   nodeId: z.string(),
@@ -34,6 +63,10 @@ export const ardentInstallationSchema = z.object({
   stagedPackageError: z.string().nullable().optional(),
   /** Bridge features of the node agent. Absent on agents older than the Studio bridge. */
   capabilities: z.object({ studio: z.number().int().min(0).optional() }).optional(),
+  /** Held command owners, oldest first. Absent from a Magnus without command reconciliation, which hides the feature. */
+  commandOwners: z.array(ardentCommandOwnerSchema).optional(),
+  /** Whether Magnus can sign a decision about an unknown outcome (COMMAND_RECONCILIATION_SECRET). */
+  commandReconciliation: z.object({ configured: z.boolean() }).optional(),
 });
 export type ArdentInstallation = z.output<typeof ardentInstallationSchema>;
 

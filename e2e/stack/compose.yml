@@ -27,7 +27,7 @@ services:
 
   oathweave:
     <<: *service
-    image: studio-e2e-oathweave:local
+    image: studio-e2e-oathweave:${STUDIO_E2E_TAG:-local}
     depends_on: [oathweave-redis]
     env_file: ["${STUDIO_E2E_RUN}/config/oathweave.env"]
     volumes:
@@ -39,7 +39,7 @@ services:
 
   hivemem:
     <<: *service
-    image: studio-e2e-hivemem:local
+    image: studio-e2e-hivemem:${STUDIO_E2E_TAG:-local}
     depends_on: [oathweave]
     env_file: ["${STUDIO_E2E_RUN}/config/hivemem.env"]
     volumes:
@@ -66,7 +66,7 @@ services:
 
   magnus:
     <<: *service
-    image: studio-e2e-magnus:local
+    image: studio-e2e-magnus:${STUDIO_E2E_TAG:-local}
     depends_on:
       magnus-postgres: { condition: service_healthy }
       magnus-redis: { condition: service_started }
@@ -80,7 +80,7 @@ services:
 
   # A fleet node: systemd, the Magnus agent as root, Ardent gateways as user services.
   node1:
-    image: studio-e2e-node:local
+    image: studio-e2e-node:${STUDIO_E2E_TAG:-local}
     hostname: node1
     restart: unless-stopped
     cgroup: private
@@ -101,7 +101,7 @@ services:
 
   ardentstudio:
     <<: *service
-    image: studio-e2e-ardentstudio:local
+    image: studio-e2e-ardentstudio:${STUDIO_E2E_TAG:-local}
     depends_on: [magnus, hivemem, oathweave]
     env_file: ["${STUDIO_E2E_RUN}/config/ardentstudio.env"]
     volumes:
@@ -110,7 +110,7 @@ services:
 
   hivexui:
     <<: *service
-    image: studio-e2e-hivexui:local
+    image: studio-e2e-hivexui:${STUDIO_E2E_TAG:-local}
     volumes: ["${STUDIO_E2E_RUN}/config/runtime.json:/usr/share/nginx/html/runtime.json:ro"]
 
   ingress:

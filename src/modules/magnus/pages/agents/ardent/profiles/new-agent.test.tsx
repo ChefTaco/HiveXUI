@@ -33,6 +33,8 @@ const SUCCEEDED = operation('succeeded', Object.fromEntries(DEPLOY_STEPS.map((na
 
 interface Answers {
   deploy?: (request: RecordedRequest) => unknown;
+  resume?: () => unknown;
+  installation?: ArdentInstallation;
   streams?: Response[];
 }
 let view: Mounted | undefined;
@@ -43,6 +45,8 @@ async function load(role: string, answers: Answers = {}) {
     if (path === '/console/session') return { success: true, data: { userId: 'alice', role, capabilities: { hermes: false, terminal: false, agentVersion: '1.2.0', magnusVersion: '1.2.0', securityConsoleUrl: null } } };
     if (method === 'GET' && path === '/ardent/installations/node-1/profiles/lead/skills') return { success: true, data: { skills: [{ name: 'research', description: 'Finds sources', hash: 'h', enabled: true }] } };
     if (method === 'POST' && path === '/ardent/agents') return answers.deploy?.(request) ?? new Response(JSON.stringify({ success: true, data: { operationId: 'op-1' } }), { status: 202, headers: { 'content-type': 'application/json' } });
+    if (method === 'GET' && path === '/ardent/installations/node-1' && answers.installation) return { success: true, data: answers.installation };
+    if (method === 'POST' && path === '/ardent/agents/operations/op-1/resume' && answers.resume) return answers.resume();
     if (method === 'POST' && path === '/ardent/agents/operations/op-1/resume') return new Response(JSON.stringify({ success: true, data: { operationId: 'op-1' } }), { status: 202, headers: { 'content-type': 'application/json' } });
     if (method === 'GET' && path === '/ardent/agents/operations/op-1/stream') return streams.shift() ?? sse([['done', SUCCEEDED]]);
     return undefined;
@@ -139,6 +143,28 @@ describe('the New Agent wizard', () => {
     expect(document.body.textContent).toContain('HiveMem ready');
     await click(button('Open profile'));
     expect(onDone).toHaveBeenCalledWith('node-1~scout');
+  });
+
+  it('explains a resume refused for an unsettled command and lists that command with its Reconcile action', async () => {
+    const owner = { commandId: 'native-7', state: 'unknown' as const, label: 'ardent:scout:service-start', profile: 'scout', action: 'service-start', ardent: true,
+      acquiredAt: '2026-11-08T00:00:00.000Z', dispatchedAt: '2026-11-08T00:00:01.000Z', deadline: '2026-11-08T00:02:05.000Z', reconcilableAfter: '2026-11-08T00:03:05.000Z' };
+    await load('ADMIN', {
+      streams: [sse([['done', FAILED]])],
+      installation: { ...INSTALLATIONS[0]!, commandOwners: [owner], commandReconciliation: { configured: true } },
+      resume: () => Response.json({ success: false, error: { code: 'COMMAND_OWNER_UNSETTLED',
+        message: 'The node could not confirm the outcome of service-start on scout (command native-7), so no Ardent action can run there.' } }, { status: 409 }),
+    });
+    await walkToReview();
+    await click(button('Deploy'));
+    await settle(10);
+    const owners = document.querySelector('section[aria-label="Unsettled commands on alpha"]');
+    expect(owners?.textContent).toContain('service-start on scout');
+    expect(owners?.textContent).toContain('Outcome unknown');
+    expect(button('Reconcile', owners!)).toBeDefined();
+    await click(button('Resume'));
+    await settle(5);
+    expect([...document.querySelectorAll('[role="alert"]')].map((item) => item.textContent).join(' ')).toContain(
+      'The node could not confirm the outcome of service-start on scout (command native-7), so no Ardent action can run there. The command is listed below.');
   });
 
   it('shows a running step as it streams, before the operation ends', async () => {

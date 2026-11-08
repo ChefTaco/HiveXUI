@@ -13,6 +13,7 @@
 //   STUDIO_E2E_REBUILD=1      rebuild images even when they exist
 //   STUDIO_E2E_PROJECT        compose project name (default studio-e2e)
 //   STUDIO_E2E_PORT           loopback console port (default: a free port)
+//   STUDIO_E2E_TAG            tag of the stack's images (default local), so runs of other checkouts keep theirs
 // Only the model is a fixture (e2e/stack/model/server.mjs). Nothing here uses real credentials.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto';
@@ -24,6 +25,8 @@ const stack = import.meta.dirname;
 const hivexui = resolve(stack, '../..');
 const root = resolve(process.env.STUDIO_E2E_PRODUCTS_ROOT ?? dirname(hivexui));
 const project = process.env.STUDIO_E2E_PROJECT ?? 'studio-e2e';
+const tag = process.env.STUDIO_E2E_TAG ?? 'local';
+if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(tag)) throw new Error('STUDIO_E2E_TAG must be a lowercase image tag');
 const run = join(hivexui, 'output', project);
 const statePath = join(run, 'state.json');
 
@@ -39,7 +42,7 @@ export function dockerAvailable() {
 }
 
 function composeEnv(port) {
-  return { ...process.env, STUDIO_E2E_PROJECT: project, STUDIO_E2E_RUN: run, STUDIO_E2E_STACK: stack, STUDIO_E2E_PORT: String(port) };
+  return { ...process.env, STUDIO_E2E_PROJECT: project, STUDIO_E2E_RUN: run, STUDIO_E2E_STACK: stack, STUDIO_E2E_PORT: String(port), STUDIO_E2E_TAG: tag };
 }
 function compose(args, port, options = {}) {
   return sh('docker', ['compose', '-p', project, '-f', join(stack, 'compose.yml'), ...args], { env: composeEnv(port), ...options });
@@ -58,12 +61,12 @@ function imageExists(tag) { return spawnSync('docker', ['image', 'inspect', tag]
 function buildImages() {
   const magnus = resolve(process.env.STUDIO_E2E_MAGNUS_DIR ?? join(root, 'Magnus'));
   const images = [
-    ['studio-e2e-oathweave:local', join(root, 'Oathweave'), 'Dockerfile'],
-    ['studio-e2e-hivemem:local', join(root, 'HiveMem'), 'Dockerfile'],
-    ['studio-e2e-ardentstudio:local', join(root, 'ArdentStudio'), 'Dockerfile'],
-    ['studio-e2e-hivexui:local', hivexui, 'Dockerfile'],
-    ['studio-e2e-magnus:local', magnus, 'services/control-api/Dockerfile'],
-    ['studio-e2e-node:local', magnus, join(stack, 'node.Dockerfile')],
+    [`studio-e2e-oathweave:${tag}`, join(root, 'Oathweave'), 'Dockerfile'],
+    [`studio-e2e-hivemem:${tag}`, join(root, 'HiveMem'), 'Dockerfile'],
+    [`studio-e2e-ardentstudio:${tag}`, join(root, 'ArdentStudio'), 'Dockerfile'],
+    [`studio-e2e-hivexui:${tag}`, hivexui, 'Dockerfile'],
+    [`studio-e2e-magnus:${tag}`, magnus, 'services/control-api/Dockerfile'],
+    [`studio-e2e-node:${tag}`, magnus, join(stack, 'node.Dockerfile')],
   ];
   for (const [tag, context, file] of images) {
     if (imageExists(tag) && process.env.STUDIO_E2E_REBUILD !== '1') continue;
@@ -118,7 +121,7 @@ function configure(port) {
   const studioMagnus = 'ardentstudio-magnus', studioHivemem = 'ardentstudio-hivemem';
   const s = Object.fromEntries(['oathCookie', 'oathAgent', 'oathRedis', 'nativeHive', 'nativeRouter', 'memJwt', 'memRenewal', 'magnusDb', 'magnusRedis',
     'magnusApi', 'magnusJwt', 'magnusManager', 'magnusAudit', 'magnusResult', 'magnusLog', 'magnusRotation', 'magnusMetrics', 'magnusWebhook',
-    'magnusReconcile', 'studioMagnus', 'studioHivemem'].map(name => [name, secret()]));
+    'magnusReconcile', 'magnusCommandReconcile', 'studioMagnus', 'studioHivemem'].map(name => [name, secret()]));
   const config = join(run, 'config');
   const redirect = `${origin}/auth/callback`;
   const clients = [
@@ -167,7 +170,7 @@ function configure(port) {
     + line('API_SECRET', s.magnusApi) + line('JWT_SECRET', s.magnusJwt) + line('NODE_MANAGER_SECRET', s.magnusManager)
     + line('AUDIT_HMAC_SECRET', s.magnusAudit) + line('RESULT_SIGNING_SECRET', s.magnusResult) + line('LOG_INGEST_SIGNING_SECRET', s.magnusLog)
     + line('CREDENTIAL_ROTATION_KEY', s.magnusRotation) + line('METRICS_TOKEN', s.magnusMetrics) + line('WEBHOOK_ENCRYPTION_KEY', s.magnusWebhook)
-    + line('RESOURCE_PARTICIPANT_RECONCILIATION_SECRET', s.magnusReconcile)
+    + line('RESOURCE_PARTICIPANT_RECONCILIATION_SECRET', s.magnusReconcile) + line('COMMAND_RECONCILIATION_SECRET', s.magnusCommandReconcile)
     + line('TLS_CERT_PATH', '/config/tls.crt') + line('TLS_KEY_PATH', '/config/tls.key') + line('CONTROL_API_BIND_HOST', '0.0.0.0') + line('CONTROL_API_PORT', '4000')
     + line('CONTROL_API_URL', 'https://magnus:4000') + line('CORS_ORIGIN', origin) + line('DASHBOARD_PUBLIC_ORIGIN', origin)
     + line('SECURITY_FUSION_MODE', 'off') + line('ENABLE_AGENT_DISCOVERY', 'false') + line('AGENT_TLS_DOMAIN_SUFFIX', 'studio.test')
@@ -179,6 +182,8 @@ function configure(port) {
 
   write(join(config, 'agent.env'), line('NODE_ENV', 'production') + line('CONTROL_API_URL', 'https://magnus:4000') + line('HOST_FQDN', 'node1.studio.test')
     + line('NODE_MANAGER_SECRET', s.magnusManager) + line('RESULT_SIGNING_SECRET', s.magnusResult) + line('NODE_MANAGER_PORT', '4100')
+    // The same independent key on both sides lets an ADMIN reconcile an Ardent action whose outcome is unknown.
+    + line('COMMAND_RECONCILIATION_SECRET', s.magnusCommandReconcile)
     + line('TLS_CERT_PATH', '/etc/magnus-agent/tls.crt') + line('TLS_KEY_PATH', '/etc/magnus-agent/tls.key') + line('NODE_EXTRA_CA_CERTS', '/etc/studio-e2e/ca.pem')
     + line('MAGNUS_AGENT_PRIVILEGED', 'true') + line('MAGNUS_AGENT_SELF_UPGRADE', 'false') + line('MAGNUS_EXECUTION_SUPERVISOR_ENABLED', 'true')
     + line('AGENT_INSTALL_DIR', '/var/lib/magnus-agent') + line('ARDENT_OWNER_USER', 'ardent') + line('ARDENT_STAGED_PACKAGE', '/opt/ardent-stage/ardent-package.tgz'));
@@ -248,14 +253,6 @@ async function up() {
   compose(['up', '-d', '--quiet-pull'], port, { stdio: ['ignore', 'inherit', 'inherit'] });
   say('bootstrapping the fleet node and agents');
   bootstrap('enroll', port);
-  // The reviewed Ardent-only scope names each drain receipt by digest; the API never returns
-  // receipts, so the operator side of the ceremony reads them from Magnus's database.
-  const state = JSON.parse(readFileSync(statePath, 'utf8'));
-  const rows = compose(['exec', '-T', 'magnus-postgres', 'psql', '-U', 'magnus', '-d', 'magnus', '-At', '-F', ' ', '-c',
-    `SELECT participant, encode(sha256(convert_to("receiptJson", 'UTF8')), 'hex') FROM resource_drain_participants WHERE "nodeId" = '${state.node.id.replace(/'/g, '')}'`], port);
-  const receipts = Object.fromEntries(rows.split('\n').map(row => row.split(' ')));
-  state.enrollment.receiptSha256 = { agent: receipts.agent, api: receipts.api, dashboard: receipts.dashboard };
-  write(statePath, JSON.stringify(state, null, 2));
   bootstrap('agents', port);
   say(`ready: ${settings.origin} (state in ${statePath})`);
 }

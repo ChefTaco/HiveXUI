@@ -216,9 +216,12 @@ the service sends a fresh snapshot, every agent's activity is replaced by it.
 
 ### Streaming
 
-Replies stream. A reply bubble opens with the first live text and fills in as it arrives. When the
-reply finishes, the stored message replaces the bubble's text: the final message is authoritative,
-and live text is only a view of it. A step that starts with structured output (JSON) shows
+Replies stream. A reply bubble opens with the first live text and fills in as it arrives, rendered
+as Markdown by the same renderer as a finished message, so headings, lists, emphasis and code show
+while they arrive and the bubble does not change shape when the reply completes. Partial Markdown is
+safe: an open code fence shows as code to the end, an unclosed emphasis shows its marker until it
+closes, and raw HTML is never rendered. When the reply finishes, the stored message replaces the
+bubble's text: the final message is authoritative, and live text is only a view of it. A step that starts with structured output (JSON) shows
 "Working…" until plain text arrives, so raw JSON never streams into the transcript. Opening a
 conversation while a reply streams starts from the text so far.
 

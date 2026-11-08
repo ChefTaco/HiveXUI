@@ -12,6 +12,7 @@ import { CodexNodePanel } from '../../codex/installation-card';
 import { Fact } from '../../shared/fx';
 import { fetchArtifact, readInstallation, readResource, saveBlob } from '../api';
 import { asRecord, channelLabel, displayValue, parseProfileRef, taskArtifacts, taskIsFinal, type ArdentArtifact } from '../logic';
+import { CommandOwners } from '../command-owners';
 import { OpenInStudio, studioOffered } from '../open-in-studio';
 import {
   channelsSchema,
@@ -318,6 +319,7 @@ export default function ArdentProfilePage() {
         />
       </PageItem>
       {installation.error && !installation.data ? <p role="alert" className="m-0 text-sm text-warning">Node inventory is unavailable: {errorMessage(installation.error)}</p> : null}
+      {installation.data?.commandOwners?.length ? <PageItem><CommandOwners installation={installation.data} onSettled={() => setRefreshKey((value) => value + 1)} /></PageItem> : null}
       <RequireRole roles={ADMIN_ONLY}>
         <PageItem className="empty:hidden">
           <HiveMemEnable nodeId={nodeId} profileId={profileId} nodeName={installation.data?.nodeName} running={running} onEnabled={() => setRefreshKey((value) => value + 1)} />
