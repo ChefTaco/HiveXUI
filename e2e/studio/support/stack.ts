@@ -15,7 +15,16 @@ export type StackState = {
   admin: { username: string; password: string; subject: string };
   node: { id: string; hostname: string };
   agents: { profile: string; ref: string }[];
+  /** The synthetic HiveSkills catalog skill the bootstrap publishes. */
+  skill?: { slug: string; version: string; sha256: string };
+  /** Lifetime of the agents' HiveMem credentials, in hours. */
+  credentialHours?: number;
+  /** Throwaway stack secrets; the specs use only the HiveMem admin token, for read-only checks. */
+  secrets?: { hivememAdminToken: string };
 };
+
+/** A container of this stack, by compose service name. */
+export const container = (service: string): string => `${stack().project ?? 'studio-e2e'}-${service}-1`;
 
 export function stackAvailable(): boolean {
   if (!existsSync(statePath)) return false;

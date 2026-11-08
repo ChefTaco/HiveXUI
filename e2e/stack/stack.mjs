@@ -14,6 +14,7 @@
 //   STUDIO_E2E_PROJECT        compose project name (default studio-e2e)
 //   STUDIO_E2E_PORT           loopback console port (default: a free port)
 //   STUDIO_E2E_TAG            tag of the stack's images (default local), so runs of other checkouts keep theirs
+//   STUDIO_E2E_HIVEMEM_HOURS  lifetime of the agents' HiveMem credentials in hours (default 1, the shortest Magnus allows)
 // Only the model is a fixture (e2e/stack/model/server.mjs). Nothing here uses real credentials.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto';
@@ -63,6 +64,7 @@ function buildImages() {
   const images = [
     [`studio-e2e-oathweave:${tag}`, join(root, 'Oathweave'), 'Dockerfile'],
     [`studio-e2e-hivemem:${tag}`, join(root, 'HiveMem'), 'Dockerfile'],
+    [`studio-e2e-hiveskills:${tag}`, join(root, 'HiveSkills'), 'Dockerfile'],
     [`studio-e2e-ardentstudio:${tag}`, join(root, 'ArdentStudio'), 'Dockerfile'],
     [`studio-e2e-hivexui:${tag}`, hivexui, 'Dockerfile'],
     [`studio-e2e-magnus:${tag}`, magnus, 'services/control-api/Dockerfile'],
@@ -94,7 +96,7 @@ function certificates(origin) {
   const ssl = args => sh('openssl', args, { cwd: certs });
   ssl(['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', 'ca.key', '-out', 'ca.pem', '-days', '2', '-subj', '/CN=studio-e2e-authority',
     '-addext', 'basicConstraints=critical,CA:TRUE', '-addext', 'keyUsage=critical,keyCertSign,cRLSign']);
-  const leaves = { oathweave: ['oathweave', 'localhost'], hivemem: ['hivemem', 'localhost'], magnus: ['magnus', 'localhost'],
+  const leaves = { oathweave: ['oathweave', 'localhost'], hivemem: ['hivemem', 'localhost'], hiveskills: ['hiveskills', 'localhost'], magnus: ['magnus', 'localhost'],
     node1: ['node1.studio.test', 'node1', 'localhost'], console: [new URL(origin).hostname] };
   for (const [name, names] of Object.entries(leaves)) {
     writeFileSync(join(certs, `${name}.ext`), `subjectAltName=${names.map(item => `DNS:${item}`).join(',')},IP:127.0.0.1\nbasicConstraints=critical,CA:FALSE\nextendedKeyUsage=serverAuth\nkeyUsage=critical,digitalSignature,keyEncipherment\n`);
@@ -105,6 +107,7 @@ function certificates(origin) {
   for (const file of readdirSync(certs)) if (file.endsWith('.crt') || file === 'ca.pem') chmodSync(join(certs, file), 0o644);
 }
 
+/** A HiveMem admin token for the specs' read-only checks (workspace owner, audit). Magnus never gets it. */
 function hivememToken(jwtSecret) {
   const now = Math.floor(Date.now() / 1000);
   const encode = value => Buffer.from(JSON.stringify(value)).toString('base64url');
@@ -119,15 +122,20 @@ function configure(port) {
   const nativeIssuer = `oathweave-${project}`;
   const admin = { username: 'admin', email: 'admin@example.com', password: `e2e-${secret(12)}`, subject: secret(16) };
   const studioMagnus = 'ardentstudio-magnus', studioHivemem = 'ardentstudio-hivemem';
+  // Magnus's own HiveMem service identity, as the Hive suite declares it: New Agent enrolls agents with it.
+  const magnusHivemem = 'magnus-hivemem';
+  const magnusHivememScopes = ['admin:agents', 'workspaces:write', 'memories:read', 'memories:write', 'sessions:read', 'sessions:write'];
+  const credentialHours = process.env.STUDIO_E2E_HIVEMEM_HOURS ?? '1';
   const s = Object.fromEntries(['oathCookie', 'oathAgent', 'oathRedis', 'nativeHive', 'nativeRouter', 'memJwt', 'memRenewal', 'magnusDb', 'magnusRedis',
     'magnusApi', 'magnusJwt', 'magnusManager', 'magnusAudit', 'magnusResult', 'magnusLog', 'magnusRotation', 'magnusMetrics', 'magnusWebhook',
-    'magnusReconcile', 'magnusCommandReconcile', 'studioMagnus', 'studioHivemem'].map(name => [name, secret()]));
+    'magnusReconcile', 'magnusCommandReconcile', 'studioMagnus', 'studioHivemem', 'magnusHivemem', 'skillsSession'].map(name => [name, secret()]));
   const config = join(run, 'config');
   const redirect = `${origin}/auth/callback`;
   const clients = [
     { id: 'hivexui-oathweave', audience: 'oathweave', permissions: ['iam:users:read', 'iam:users:write', 'iam:roles:read', 'iam:sessions:revoke', 'iam:audit:read'] },
     { id: 'hivexui-hivemem', audience: 'hivemem', permissions: ['hivemem:admin:all'] },
     { id: 'hivexui-magnus', audience: 'magnus', permissions: ['magnus:view', 'magnus:operate', 'magnus:admin'] },
+    { id: 'hivexui-hiveskills', audience: 'hiveskills', permissions: ['hiveskills:admin'] },
     { id: 'hivexui-ardentstudio', audience: 'ardentstudio', permissions: ['ardentstudio:projects:read', 'ardentstudio:projects:write', 'ardentstudio:templates:read',
       'ardentstudio:templates:write', 'ardentstudio:review:write', 'ardentstudio:agents:admin'] },
   ].map(client => ({ ...client, redirectUris: [redirect], firstParty: true }));
@@ -148,8 +156,9 @@ function configure(port) {
     + line('OATHWEAVE_SUITE_BOOTSTRAP_FILE', '/config/suite-bootstrap.json')
     + line('IAM_MACHINE_CLIENT_POLICIES', JSON.stringify({
       [studioMagnus]: { audience: 'magnus', permissions: ['magnus:ardent'], lifetimeSeconds: 300, rotationOwner: 'hive-suite', issuer: 'browser' },
-      [studioHivemem]: { audience: 'hivemem', permissions: ['hivemem:workspaces:write', 'hivemem:memories:write'], lifetimeSeconds: 300, rotationOwner: 'hive-suite' } }))
-    + line('IAM_MACHINE_CLIENT_SECRETS', JSON.stringify({ [studioMagnus]: s.studioMagnus, [studioHivemem]: s.studioHivemem }))
+      [studioHivemem]: { audience: 'hivemem', permissions: ['hivemem:workspaces:write', 'hivemem:memories:write'], lifetimeSeconds: 300, rotationOwner: 'hive-suite' },
+      [magnusHivemem]: { audience: 'hivemem', permissions: magnusHivememScopes.map(scope => `hivemem:${scope}`), lifetimeSeconds: 300, rotationOwner: 'hive-suite' } }))
+    + line('IAM_MACHINE_CLIENT_SECRETS', JSON.stringify({ [studioMagnus]: s.studioMagnus, [studioHivemem]: s.studioHivemem, [magnusHivemem]: s.magnusHivemem }))
     + line('TLS_CERT_PATH', '/config/tls.crt') + line('TLS_KEY_PATH', '/config/tls.key') + line('CORS_ORIGIN', origin)
     + line('WEBAUTHN_RP_ID', 'localhost') + line('WEBAUTHN_RP_ORIGIN', origin) + line('WEBAUTHN_RP_NAME', 'Oathweave')
     + line('IAM_RECOVERY_OUTBOX_DIRECTORY', '/data/iam/recovery-outbox'));
@@ -158,8 +167,19 @@ function configure(port) {
     + line('HIVEMEM_STORAGE_PATH', '/data/memory') + line('HIVEMEM_TS_PERSISTENCE', 'memory')
     + line('HIVEMEM_JWT_SECRET', s.memJwt) + line('HIVEMEM_RENEWAL_SECRET', s.memRenewal)
     + line('HIVEMEM_TS_TLS_CERT_FILE', '/config/tls.crt') + line('HIVEMEM_TS_TLS_KEY_FILE', '/config/tls.key')
+    + line('HIVEMEM_INITIAL_ACCOUNT_FILE', '/config/initial-account.json')
     + line('HIVEMEM_OATHWEAVE_IDENTITIES_JSON', JSON.stringify([{ issuer, subject: admin.subject, localId: 'admin', credentialGeneration: 0 }]))
-    + line('HIVEMEM_OATHWEAVE_SERVICES_JSON', JSON.stringify([{ issuer: nativeIssuer, clientId: studioHivemem, localId: 'ardentstudio', scopes: ['workspaces:write', 'memories:write'] }])));
+    + line('HIVEMEM_OATHWEAVE_SERVICES_JSON', JSON.stringify([{ issuer: nativeIssuer, clientId: studioHivemem, localId: 'ardentstudio', scopes: ['workspaces:write', 'memories:write'] },
+      { issuer: nativeIssuer, clientId: magnusHivemem, localId: 'magnus-ardent', scopes: magnusHivememScopes }])));
+
+  // The operator's own HiveMem account, as the Hive suite enrolls it on first start (the console reads its profile).
+  write(join(config, 'hivemem-initial-account.json'), JSON.stringify({ schema: 1, id: 'admin', displayName: admin.username }));
+
+  // The HiveSkills registry Magnus installs Ardent skills from; the bootstrap publishes one synthetic skill.
+  write(join(config, 'hiveskills.env'), common + line('HIVE_AUTO_MIGRATE', 'true') + identity + line('HIVE_SKILLS_HOST', '0.0.0.0') + line('HIVE_SKILLS_PORT', '4030')
+    + line('HIVE_SKILLS_DATA_DIR', '/data/skills') + line('HIVE_SKILLS_SESSION_SECRET', s.skillsSession) + line('HIVE_SKILLS_ADMIN_USERS', admin.username)
+    + line('HIVE_SKILLS_PUBLIC_URL', `${origin}/api/hiveskills`) + line('HIVE_SKILLS_TLS_CERT_FILE', '/config/tls.crt') + line('HIVE_SKILLS_TLS_KEY_FILE', '/config/tls.key')
+    + line('HIVESKILLS_OATHWEAVE_IDENTITIES_JSON', JSON.stringify([{ issuer, subject: admin.subject, localId: admin.username }])));
 
   write(join(config, 'magnus-postgres.env'), line('POSTGRES_DB', 'magnus') + line('POSTGRES_USER', 'magnus') + line('POSTGRES_PASSWORD', s.magnusDb));
   write(join(config, 'magnus-redis.conf'), `bind 0.0.0.0\nprotected-mode yes\nrequirepass ${s.magnusRedis}\n`, 0o644);
@@ -177,8 +197,12 @@ function configure(port) {
     + line('MAGNUS_CONSOLE_BASE_PATH', '/fleet') + line('MAGNUS_HERMES_ENABLED', 'true') + line('RESOURCE_ENROLLMENT_DASHBOARD_PARTICIPANT', 'absent')
     + line('MAGNUS_OATHWEAVE_IDENTITIES_JSON', JSON.stringify([{ issuer, subject: admin.subject, localUserId: 'operator-admin', role: 'ADMIN' },
       { issuer, subject: studioMagnus, localUserId: 'ardentstudio', role: 'ARDENT_SERVICE' }]))
-    + line('MAGNUS_ARDENT_HIVEMEM_URL', 'https://hivemem:18790/') + line('MAGNUS_ARDENT_HIVEMEM_ENROLLMENT_TOKEN', hivememAdminToken)
-    + line('MAGNUS_ARDENT_HIVEMEM_WORKSPACE_ID', 'agents'));
+    // Magnus enrolls agents in HiveMem as its Oathweave service identity (no static HiveMem token) and
+    // creates their ardent-agents workspace. Short credentials let the specs see a renewal.
+    + line('MAGNUS_ARDENT_HIVEMEM_URL', 'https://hivemem:18790/') + line('MAGNUS_ARDENT_HIVEMEM_TOKEN_URL', 'https://oathweave:4200/api/v1/oauth/token')
+    + line('MAGNUS_ARDENT_HIVEMEM_CLIENT_ID', magnusHivemem) + line('MAGNUS_ARDENT_HIVEMEM_CLIENT_SECRET', s.magnusHivemem)
+    + line('MAGNUS_ARDENT_HIVEMEM_CREDENTIAL_HOURS', credentialHours)
+    + line('MAGNUS_ARDENT_HIVESKILLS_URL', 'https://hiveskills:4030'));
 
   write(join(config, 'agent.env'), line('NODE_ENV', 'production') + line('CONTROL_API_URL', 'https://magnus:4000') + line('HOST_FQDN', 'node1.studio.test')
     + line('NODE_MANAGER_SECRET', s.magnusManager) + line('RESULT_SIGNING_SECRET', s.magnusResult) + line('NODE_MANAGER_PORT', '4100')
@@ -200,11 +224,12 @@ function configure(port) {
     + line('ARDENT_STUDIO_HIVEMEM_CLIENT_SECRET', s.studioHivemem) + line('ARDENT_STUDIO_HIVEMEM_SCOPE', "'hivemem:workspaces:write hivemem:memories:write'"));
 
   write(join(config, 'runtime.json'), JSON.stringify({ schema: 1, mode: 'suite',
-    products: { oathweave: '/api/oathweave', hivemem: '/api/hivemem', magnus: '/api/magnus', ardentstudio: '/api/ardentstudio' },
-    identity: { issuer, apiPrefix: '/api/oathweave', clients: { oathweave: 'hivexui-oathweave', hivemem: 'hivexui-hivemem', magnus: 'hivexui-magnus', ardentstudio: 'hivexui-ardentstudio' } } }), 0o644);
+    products: { oathweave: '/api/oathweave', hivemem: '/api/hivemem', hiveskills: '/api/hiveskills', magnus: '/api/magnus', ardentstudio: '/api/ardentstudio' },
+    identity: { issuer, apiPrefix: '/api/oathweave', clients: { oathweave: 'hivexui-oathweave', hivemem: 'hivexui-hivemem', hiveskills: 'hivexui-hiveskills', magnus: 'hivexui-magnus',
+      ardentstudio: 'hivexui-ardentstudio' } } }), 0o644);
 
   write(join(config, 'ingress.env'), line('HIVE_CONSOLE_HOST', 'localhost') + line('XDG_CONFIG_HOME', '/data/config') + line('XDG_DATA_HOME', '/data')
-    + ['oathweave:OATHWEAVE:4200', 'hivemem:HIVEMEM:18790', 'magnus:MAGNUS:4000'].map(entry => {
+    + ['oathweave:OATHWEAVE:4200', 'hivemem:HIVEMEM:18790', 'hiveskills:HIVESKILLS:4030', 'magnus:MAGNUS:4000'].map(entry => {
       const [host, label, hostPort] = entry.split(':');
       return line(`${label}_ENDPOINT`, `https://${host}:${hostPort}`) + line(`${label}_TLS_NAME`, host);
     }).join('') + line('ARDENTSTUDIO_ENDPOINT', 'http://ardentstudio:8097'));
@@ -213,7 +238,7 @@ function configure(port) {
   cpSync(caddyfile, join(config, 'Caddyfile'));
   chmodSync(join(config, 'Caddyfile'), 0o644);
 
-  return { origin, issuer, admin, port, secrets: { magnusApi: s.magnusApi, magnusReconcile: s.magnusReconcile, hivememAdminToken } };
+  return { origin, issuer, admin, port, credentialHours: Number(credentialHours), secrets: { magnusApi: s.magnusApi, magnusReconcile: s.magnusReconcile, hivememAdminToken } };
 }
 
 function stageArdent(tarball) {

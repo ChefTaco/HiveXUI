@@ -1,5 +1,6 @@
 // Runs inside the stack network (compose `tools` service). Phase "enroll" waits for the stack,
-// prepares HiveMem and starts the Magnus resource enrollment of the fleet node; phase "agents"
+// publishes the synthetic HiveSkills catalog skill and starts the Magnus resource enrollment of the
+// fleet node (Magnus itself creates the agents' HiveMem workspace as its Oathweave service); phase "agents"
 // activates the reviewed Ardent-only scope (over the evidence Magnus's ADMIN API reports: the drain
 // receipt digests and scheduler snapshot), installs the staged Ardent package and deploys the first
 // agents through Magnus's New Agent operation, signed in as the seeded operator through the console
@@ -9,6 +10,7 @@ import { lookup as dnsLookup } from 'node:dns';
 import { readFileSync, writeFileSync } from 'node:fs';
 import https from 'node:https';
 import { join } from 'node:path';
+import { gzipSync } from 'node:zlib';
 
 const stateDir = process.env.STUDIO_E2E_STATE ?? '/state';
 const statePath = join(stateDir, 'state.json');
@@ -87,16 +89,55 @@ export async function productToken(client) {
 async function waitForStack() {
   await until('Oathweave', async () => (await request('https://oathweave:4200/api/v1/health/ready')).status === 200);
   await until('HiveMem', async () => (await request('https://hivemem:18790/v1/health')).status === 200);
+  await until('HiveSkills', async () => (await request('https://hiveskills:4030/healthz')).status === 200);
   await until('Magnus', async () => (await request(`${MAGNUS}/health`)).status === 200);
   await until('the console ingress', async () => (await request('https://localhost:8443/_hive/ready', { via: 'ingress', headers: { Host: new URL(state.origin).host } })).status === 200);
   say('services are up');
 }
 
+/** A gzip-compressed ustar archive of regular files, as HiveSkills and Magnus accept for a skill release. */
+export function skillArchive(files) {
+  const blocks = [];
+  const field = (block, offset, length, value) => block.write(value, offset, length, 'utf8');
+  for (const [name, text] of Object.entries(files)) {
+    const body = Buffer.from(text, 'utf8');
+    const header = Buffer.alloc(512);
+    field(header, 0, 100, name); field(header, 100, 8, '0000644\0'); field(header, 108, 8, '0001750\0'); field(header, 116, 8, '0001750\0');
+    field(header, 124, 12, body.length.toString(8).padStart(11, '0') + '\0'); field(header, 136, 12, '00000000000\0');
+    header.fill(32, 148, 156); field(header, 156, 1, '0'); field(header, 257, 6, 'ustar\0'); field(header, 263, 2, '00');
+    field(header, 148, 8, header.reduce((sum, byte) => sum + byte, 0).toString(8).padStart(6, '0') + '\0 ');
+    blocks.push(header, body, Buffer.alloc((512 - (body.length % 512)) % 512));
+  }
+  return gzipSync(Buffer.concat([...blocks, Buffer.alloc(1024)]));
+}
+
+export const SYNTHETIC_SKILL = { slug: 'field-notes', version: '1.0.0' };
+
+/** Publish one synthetic skill on HiveSkills' stable channel, as a registry administrator through the console. */
+async function publishSkill() {
+  const token = await productToken('hivexui-hiveskills');
+  const headers = { Authorization: `Bearer ${token}`, Host: new URL(state.origin).host };
+  const base = 'https://localhost:8443/api/hiveskills';
+  const send = async (method, path, body, accept = [200, 201]) => {
+    const response = await request(base + path, { method, via: 'ingress', headers, body });
+    if (!accept.includes(response.status)) throw new Error(`HiveSkills ${method} ${path}: ${response.status} ${response.text.slice(0, 300)}`);
+    return response.json;
+  };
+  const { slug, version } = SYNTHETIC_SKILL;
+  await send('POST', '/admin/skills', { slug, name: 'Field notes', description: 'Keeps short, dated field notes while working on a project.' }, [201, 409]);
+  const archive = skillArchive({
+    'SKILL.md': `---\nname: ${slug}\ndescription: Keep short, dated field notes while working on a project.\n---\n\n# Field notes\n\nWrite one dated line per finding. Keep notes factual and short.\n`,
+    'templates/note.md': '- YYYY-MM-DD: finding\n',
+  });
+  const release = await send('POST', `/admin/skills/${slug}/releases`, { version, archiveBase64: archive.toString('base64'), notes: 'Synthetic end-to-end skill' }, [201, 409]);
+  await send('PUT', `/admin/channels/stable/${slug}`, { version });
+  state.skill = { slug, version, sha256: release?.sha256 ?? sha256(archive) };
+  say(`HiveSkills publishes ${slug} ${version} on stable`);
+}
+
 async function enroll() {
   await waitForStack();
-  const workspace = await request('https://hivemem:18790/v1/workspaces', { method: 'POST', headers: { Authorization: `Bearer ${state.secrets.hivememAdminToken}` },
-    body: { workspace_id: 'agents', title: 'Agents', description: 'Workspace for agents deployed by Magnus' } });
-  if (![200, 201, 409].includes(workspace.status)) throw new Error(`HiveMem workspace: ${workspace.status} ${workspace.text.slice(0, 200)}`);
+  await publishSkill();
   const node = await until('the node heartbeat', async () => {
     const nodes = await magnus('/nodes');
     const list = Array.isArray(nodes) ? nodes : nodes.nodes ?? nodes.items ?? [];
