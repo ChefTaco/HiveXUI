@@ -27,6 +27,7 @@ The sidebar has one section per installed product, plus Hive and System.
 | Cindertrace | `cindertrace` | Security cases, entities, events, evidence, sources, policies, audit and approval controls. Not the investigation lab, which keeps its own console |
 | ChatterMost | `chattermost` | Channels, DMs, threads, files, search, message editing, reactions, realtime refresh and administration. Invite redemption is at `/signup` |
 | Magnus | `magnus` | Fleet, operations, provisioning, Hermes Agent, Ardent and Codex pages at `/fleet`, and a web terminal on node detail where a fleet gateway is deployed |
+| Studio | `ardentstudio` | Ardent Project Studio: Projects and Gallery open a fullscreen page at `/studio`. Needs at least one Ardent agent in Magnus |
 | System | | API docs and settings |
 
 Cindertrace's [investigation lab](https://github.com/ChefTaco/cindertrace/blob/main/docs/INVESTIGATION-LAB.md)
@@ -205,6 +206,15 @@ explicitly rotating a replacement and updating the owning agent's protected conf
 
 With `magnus` in `products`, the fleet console is the module at `/fleet`, signed in through Oathweave
 like every other product. See `src/modules/magnus/PORTING.md`.
+
+### Ardent Project Studio
+
+With `ardentstudio` in `products`, the Studio entries open `/studio/*` as a fullscreen page outside
+the console shell, with its own top bar. **Close Studio** (✕) returns to the console page it was
+opened from, kept in `history.state`, or to the suite home; Escape does not close it. Studio waits
+for Magnus to report at least one reachable Ardent agent. Its service API is `/api/ardentstudio`;
+until this console carries that service's client, Studio pages say whether the service answers and
+show no records.
 
 ### Sign-in portal
 
