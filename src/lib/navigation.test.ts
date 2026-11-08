@@ -110,6 +110,27 @@ describe('navigation model', () => {
     expect(visibleNavGroups(only('magnus', 'oathweave')).map((group) => group.product ?? group.label).indexOf('Magnus')).toBe(1);
   });
 
+  it('shows the Studio section only with Ardent Project Studio installed, after Magnus', () => {
+    for (const installed of [ALL, only('magnus'), only()]) expect(visibleNavGroups(installed).some((group) => group.label === 'Studio')).toBe(false);
+    expect(viewAvailable('studio', ALL)).toBe(false);
+    const groups = visibleNavGroups(only('magnus', 'oathweave', 'ardentstudio'));
+    const studio = groups.find((group) => group.label === 'Studio')!;
+    expect(studio.items.map((item) => [item.label, item.key, item.path])).toEqual([
+      ['Projects', 'studio', '/studio'],
+      ['Gallery', 'studio', '/studio/gallery'],
+    ]);
+    const labels = groups.map((group) => group.product ?? group.label);
+    expect(labels.indexOf('Studio')).toBe(labels.lastIndexOf('Magnus') + 1);
+    expect(viewAvailable('studio', only('ardentstudio'))).toBe(true);
+    expect(navProducts(groups).find((product) => product.label === 'Studio')?.sections).toHaveLength(1);
+  });
+
+  it('offers the Studio pages in the palette and never marks them current in the shell', () => {
+    const products = navProducts(visibleNavGroups(only('ardentstudio')));
+    expect(paletteScreens(products).filter((screen) => screen.view === 'studio').map((screen) => screen.path)).toEqual(['/studio', '/studio/gallery']);
+    expect(findActiveNav(products, 'hive', null).item?.key).toBe('hive');
+  });
+
   it('keeps System last, whatever is installed', () => {
     expect(visibleNavGroups(only('magnus', 'oathweave')).at(-1)!.label).toBe('System');
   });
@@ -296,6 +317,19 @@ describe('deep links', () => {
   it('sends the old ?page=magnus form to /fleet', () => {
     expect(link('/?page=magnus', only('magnus'))).toEqual({ view: 'magnus', url: '/fleet' });
     expect(link('/?page=magnus', ALL)).toEqual({ view: 'hive', url: '/' });
+  });
+
+  it('leaves /studio to Studio when it is installed, and clears it when it is not', () => {
+    const STUDIO = only('ardentstudio');
+    expect(link('/studio', STUDIO)).toEqual({ view: 'hive', url: null });
+    expect(link('/studio/p/adventure/room?c=1', STUDIO)).toEqual({ view: 'hive', url: null });
+    expect(link('/studio', ALL)).toEqual({ view: 'hive', url: '/' });
+    expect(link('/studio/gallery', IDENTITY)).toEqual({ view: 'hive', url: '/' });
+    expect(link('/studios', STUDIO)).toEqual({ view: 'hive', url: null });
+  });
+
+  it('does not open Studio inside the shell from ?page=studio', () => {
+    expect(link('/?page=studio', only('ardentstudio'))).toEqual({ view: 'hive', url: '/' });
   });
 
   it('builds the address for a Magnus page', () => {

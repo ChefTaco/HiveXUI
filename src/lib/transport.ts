@@ -5,7 +5,8 @@ export type Product =
   | 'hiveskills'
   | 'cindertrace'
   | 'chattermost'
-  | 'magnus';
+  | 'magnus'
+  | 'ardentstudio';
 interface Access {
   value: string;
   expiresAt: number;
@@ -117,6 +118,7 @@ export function productFor(path: string): Product {
   if (path.startsWith('/api/security/')) return 'cindertrace';
   if (path.startsWith('/api/chat/')) return 'chattermost';
   if (path.startsWith('/api/magnus/')) return 'magnus';
+  if (path.startsWith('/api/ardentstudio/')) return 'ardentstudio';
   return 'emberpath';
 }
 
@@ -149,6 +151,7 @@ export function createApiFetch(request: typeof fetch) {
       cindertrace: '/api/security',
       chattermost: '/api/chat',
       magnus: '/api/magnus',
+      ardentstudio: '/api/ardentstudio',
     };
     if (prefix) target = prefix + path.slice(logical[product].length);
     const headers = new Headers(init.headers);

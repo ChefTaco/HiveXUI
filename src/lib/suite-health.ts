@@ -23,6 +23,7 @@ export const readiness: ReadonlyArray<{
     path: '/api/chat/api/v4/system/ping',
   },
   { product: 'magnus', name: 'Magnus', path: '/api/magnus/health/ready' },
+  { product: 'ardentstudio', name: 'Ardent Project Studio', path: '/api/ardentstudio/health/ready' },
 ];
 export const REGISTRY_ROW = 'hive-registry';
 export interface ServiceReadiness {
