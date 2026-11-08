@@ -1,73 +1,56 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowUpRight, BookOpen, Radio } from 'lucide-react';
-import { Badge, Button, EmptyState, Field, PageHeader, Select, TextInput } from '@ui';
-import { errorMessage } from '../../../../api/errors';
+import { useState } from 'react';
+import { ArrowUpRight, BookOpen, Plus, Radio } from 'lucide-react';
+import { Badge, Button, EmptyState, PageHeader } from '@ui';
 import { useMagnusResource } from '../../../../api/use-resource';
 import { FxPanel, PageItem } from '../../../../effects';
 import Link, { useRouter } from '../../../../navigation';
+import { ADMIN_ONLY, RequireRole } from '../../../../session';
 import { LoadingRows, ResourceError } from '../../../../ui/resource-state';
-import { ardentAction, listInstallations, listProfiles } from '../api';
-import { isProfileId, profileHref } from '../logic';
-import { profileCreatedSchema, type ArdentInstallation } from '../schemas';
-
-function CreateProfile({ installations }: { installations: readonly ArdentInstallation[] }) {
-  const router = useRouter();
-  const installed = installations.filter((item) => item.installed && item.reachable);
-  const [nodeId, setNodeId] = useState('');
-  const [profileId, setProfileId] = useState('default');
-  const [apiPort, setApiPort] = useState('9910');
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState('');
-  useEffect(() => setNodeId((current) => current || installed[0]?.nodeId || ''), [installed[0]?.nodeId]); // eslint-disable-line react-hooks/exhaustive-deps
-  async function create(event: FormEvent) {
-    event.preventDefault();
-    setError('');
-    const port = Number(apiPort);
-    if (!nodeId || !isProfileId(profileId) || !Number.isSafeInteger(port) || port < 1024 || port > 65535) {
-      setError('Choose an installed node, a valid profile ID, and an API port from 1024 to 65535.');
-      return;
-    }
-    setCreating(true);
-    try {
-      const created = await ardentAction(nodeId, profileId, 'profile-create', profileCreatedSchema, { body: { api_port: port } });
-      if (!created.initialized || created.profile !== profileId || created.apiPort !== port) throw new Error('The node did not confirm the profile');
-      router.push(profileHref(nodeId, profileId));
-    } catch (caught) {
-      setError(errorMessage(caught, 'The profile could not be created'));
-    } finally {
-      setCreating(false);
-    }
-  }
-  return (
-    <FxPanel title="Create profile" description="Initialize a node-local Ardent profile with a private management token. Channels remain disabled until configured." interactive={false}>
-      <form className="grid items-end gap-3 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_8rem_auto]" onSubmit={(event) => void create(event)}>
-        <Field label="Managed node"><Select value={nodeId} onChange={setNodeId} options={[{ value: '', label: installed.length ? 'Select an installed node' : 'No installed nodes' }, ...installed.map((item) => ({ value: item.nodeId, label: `${item.nodeName} (${item.hostname})` }))]} /></Field>
-        <Field label="Profile ID"><TextInput value={profileId} onChange={setProfileId} maxLength={64} /></Field>
-        <Field label="API port"><TextInput type="number" min={1024} max={65535} value={apiPort} onChange={setApiPort} /></Field>
-        <Button type="submit" variant="primary" loading={creating} disabled={!nodeId}>{creating ? 'Creating…' : 'Create'}</Button>
-      </form>
-      {error ? <p role="alert" className="m-0 mt-3 text-sm text-danger">{error}</p> : null}
-    </FxPanel>
-  );
-}
+import { listInstallations, listProfiles } from '../api';
+import { parseProfileRef, profileHref } from '../logic';
+import { NewAgentWizard } from './new-agent';
 
 export default function ArdentProfilesPage() {
   const inventory = useMagnusResource(async (signal) => {
     const [profiles, installations] = await Promise.all([listProfiles(signal), listInstallations(signal)]);
     return { profiles, installations };
   });
+  const router = useRouter();
   const data = inventory.data;
+  // Open by default on an empty fleet, where creating an agent is the only thing to do.
+  const [creating, setCreating] = useState<boolean | null>(null);
+  const showWizard = creating ?? (data !== undefined && data.profiles.length === 0);
   const unreachable = data?.installations.filter((item) => !item.reachable) ?? [];
   return (
     <div className="page-stack">
       <PageItem>
-        <PageHeader eyebrow="Magnus Ardent" title="Profiles" description={data ? `${data.profiles.length} profiles reported by managed nodes` : 'Reading node profiles…'} />
+        <PageHeader
+          eyebrow="Magnus Ardent"
+          title="Profiles"
+          description={data ? `${data.profiles.length} profiles reported by managed nodes` : 'Reading node profiles…'}
+          actions={data && !showWizard ? <RequireRole roles={ADMIN_ONLY}><Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setCreating(true)}>New Agent</Button></RequireRole> : undefined}
+        />
       </PageItem>
       {!data ? (
         <PageItem><FxPanel interactive={false}>{inventory.loading ? <LoadingRows /> : <ResourceError error={inventory.error} title="Ardent profiles are unavailable" onRetry={() => void inventory.refresh()} />}</FxPanel></PageItem>
       ) : (
         <>
-          <PageItem><CreateProfile installations={data.installations} /></PageItem>
+          {showWizard ? (
+            <RequireRole roles={ADMIN_ONLY}>
+              <PageItem>
+                <FxPanel title="New Agent" description="Deploy an Ardent agent on a fleet node with its identity, model, skills and HiveMem memory." interactive={false}>
+                  <NewAgentWizard
+                    installations={data.installations}
+                    onCancel={() => setCreating(false)}
+                    onDone={(ref) => {
+                      const parsed = parseProfileRef(ref);
+                      if (parsed) router.push(profileHref(parsed.nodeId, parsed.profileId));
+                    }}
+                  />
+                </FxPanel>
+              </PageItem>
+            </RequireRole>
+          ) : null}
           {unreachable.length > 0 ? (
             <PageItem>
               <FxPanel tone="warning" fxTone="warning" title="Node inventory needs attention" description="Profiles on disconnected nodes cannot be inspected or managed.">

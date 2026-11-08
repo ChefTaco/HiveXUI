@@ -32,6 +32,8 @@ export const ardentInstallationSchema = z.object({
   checkedAt: z.string(),
   stagedPackage: z.object({ version: z.string(), sha256: z.string() }).nullable().optional(),
   stagedPackageError: z.string().nullable().optional(),
+  /** Bridge features of the node agent. Absent on agents older than the Studio bridge. */
+  capabilities: z.object({ studio: z.number().int().min(0).optional() }).optional(),
 });
 export type ArdentInstallation = z.output<typeof ardentInstallationSchema>;
 
@@ -97,7 +99,6 @@ export type OpenApiDocument = z.output<typeof openApiSchema>;
 export const configValidationSchema = z.object({ valid: z.boolean(), runtime_problems: z.array(z.string()).optional() });
 export const peerValidationSchema = z.object({ valid: z.boolean(), peers: z.number() });
 export const taskAcceptedSchema = z.object({ task_id: z.string(), state: z.string() });
-export const profileCreatedSchema = z.object({ profile: z.string(), apiPort: z.number(), initialized: z.boolean() });
 export const serviceStateSchema = z.object({ service: z.string(), running: z.boolean() });
 export const packageInstalledSchema = z.object({ installed: z.boolean(), version: z.string(), changed: z.boolean().optional() });
 /** An action whose answer the page reports but does not depend on. */
