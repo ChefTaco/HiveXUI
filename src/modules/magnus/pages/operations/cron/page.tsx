@@ -9,6 +9,7 @@ import { agentDisabledMessage, errorMessage } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
 import { FxPanel, PageItem, ScanPanel } from '../../../effects';
 import { FormError } from '../shared/parts';
+import { ManagedJobs } from './managed-jobs';
 import { describeSchedule, initiallyExpanded, jobMatches, publishBody, type ScannedJob } from './cron-model';
 
 type PublishTarget = { job: ScannedJob; nodeName: string };
@@ -75,6 +76,7 @@ export default function CronPage() {
           actions={<Button size="sm" icon={<RefreshCw className={cn('size-4', scanning && 'animate-spin')} />} disabled={scanning} onClick={() => void scan.refresh()}>{scanning ? 'Scanning…' : results ? 'Rescan' : 'Scan nodes'}</Button>}
         />
       </PageItem>
+      <PageItem><ManagedJobs /></PageItem>
       {!scanning && !failed && !results ? (
         <PageItem>
           <FxPanel interactive={false}>

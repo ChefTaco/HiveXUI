@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.4 - 2026-11-09
+
+- Command dispatch offers a finite timeout and binds it to the approval dialog.
+- Cron Jobs supports creating, pausing and resuming finite managed UTC schedules on enrolled
+  nodes, with explicit expiry, execution budgets and increasing revisions. Expired authority is
+  shown clearly, and viewers receive status without write controls.
+
 ## 0.2.3 - 2026-11-09
 
 - API-key privacy controls use the reviewed Emberpath 2.0.3 contract, which accepts metadata-only
