@@ -26,7 +26,8 @@ it('probes Ardent Project Studio at its own prefix once it is installed', async 
   configureEndpoint('ardentstudio', '/api/ardentstudio');
   const send = vi.fn<typeof fetch>().mockImplementation(async () => new Response('{}'));
   const rows = await readSuiteHealth(send);
-  expect(rows.find((row) => row.product === 'ardentstudio')).toMatchObject({ name: 'Ardent Project Studio', path: '/api/ardentstudio/health/ready', state: 'ready' });
+  expect(rows.find((row) => row.product === 'ardentstudio')).toMatchObject({ name: 'Ardent Project Studio', path: '/api/ardentstudio/v1/health/ready', state: 'ready' });
+  expect(send.mock.calls.map(([path]) => path)).toContain('/api/ardentstudio/v1/health/ready');
 });
 
 it('still reports denied and unavailable states for installed products', async () => {

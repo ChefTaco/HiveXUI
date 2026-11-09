@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 - 2026-11-09
+
+- The installation overview probes Ardent Project Studio at the versioned readiness route from
+  its public contract, fixing a false failure after a full-stack installation.
+
 ## 0.2.0 - 2026-11-08
 
 ### Added
