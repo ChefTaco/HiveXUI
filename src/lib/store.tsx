@@ -10,6 +10,7 @@ import {
 import { adminApi, ApiError } from './api';
 import { browserIdentity, productInstalled } from './runtime';
 import { allowedStoreResource } from './router-access';
+import { optionalRouterPrincipal } from './router-principal';
 import type {
   ApiDoc,
   AuditEvent,
@@ -111,7 +112,10 @@ export function StoreProvider({
       const browser = !!browserIdentity();
       const user =
         browser && productInstalled('emberpath')
-          ? (await adminApi.resourceMe('emberpath')).user
+          ? await optionalRouterPrincipal(
+              () => adminApi.resourceMe('emberpath'),
+              () => browserIdentity()!.me(),
+            )
           : null;
       const loaders = {
         providers: adminApi.providers,

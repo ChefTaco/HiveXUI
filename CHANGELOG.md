@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.2 - 2026-11-09
+
+- A signed-in user without an Emberpath identity can use other products without a misleading
+  console-wide Unauthorized warning. Router reads remain disabled; session expiry and service
+  failures remain visible.
+
 ## 0.2.1 - 2026-11-09
 
 - The installation overview probes Ardent Project Studio at the versioned readiness route from
