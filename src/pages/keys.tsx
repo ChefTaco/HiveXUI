@@ -292,7 +292,7 @@ export function KeysPage({ currentUser }: { currentUser: AdminUser | null }) {
             <div className="inline-actions"><Button onClick={() => { try { setMetadataText(JSON.stringify({ ...parseMetadataInput(metadataText), tracePrivacy: 'metadata-only' }, null, 2)); } catch { toast.error('Invalid metadata'); } }}>Use metadata-only traces</Button></div>
         {usageError && <p role="alert">{usageError}</p>}
         {usage !== null && <Panel title="Usage and budgets" eyebrow="Null cost means price or usage is unknown"><JsonBlock value={usage} /></Panel>}
-        <Field label="Metadata" hint='Optional JSON object e.g. {"service":"my-api","env":"prod"}'>
+        <Field label="Metadata" hint='Optional JSON object e.g. {"owner":"my-api","environment":"prod"}'>
               <TextArea value={metadataText} onChange={setMetadataText} rows={7} placeholder="{}" />
             </Field>
             <Badge tone={isCreate ? 'info' : 'neutral'}>{created ? createdKeyMessage : ''}</Badge>

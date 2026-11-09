@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.3 - 2026-11-09
+
+- API-key privacy controls use the reviewed Emberpath 2.0.3 contract, which accepts metadata-only
+  traces. Metadata examples use supported fields and explain where custom labels belong.
+
 ## 0.2.2 - 2026-11-09
 
 - A signed-in user without an Emberpath identity can use other products without a misleading

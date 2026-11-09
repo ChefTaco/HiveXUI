@@ -60,3 +60,11 @@ it('accepts only public authenticated principal fields before storing product pe
   const request = vi.fn().mockResolvedValue({user: {...user, passwordHash: 'obviously-fake-stored-password-hash'}});
   expect(await createEmberpathApi(request).emberpathMe()).toEqual({user});
 });
+
+
+it('sends metadata-only trace controls through the released key contract', async () => {
+  const request = vi.fn().mockResolvedValue({data: {id: 'key', name: 'Fixture', keyPrefix: 'fakekey', apiKey: 'obviously-fake-one-time-key'}});
+  const api = createEmberpathApi(request);
+  await api.createClientKey({name: 'Fixture', metadata: {tracePrivacy: 'metadata-only', owner: 'fixture', environment: 'test'}});
+  expect(request).toHaveBeenCalledExactlyOnceWith('/api/client-keys', {method: 'POST', body: {name: 'Fixture', metadata: {tracePrivacy: 'metadata-only', owner: 'fixture', environment: 'test'}}});
+});
