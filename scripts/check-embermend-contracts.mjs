@@ -1,0 +1,13 @@
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+const root = new URL('../contracts/', import.meta.url);
+const manifest = JSON.parse(readFileSync(new URL('embermend.provenance.json', root), 'utf8'));
+if (manifest.schema !== 1 || manifest.product !== 'embermend-browser' || manifest.repository !== 'https://github.com/ChefTaco/Embermend' || !/^[a-f0-9]{40}$/u.test(manifest.revision) || !/^\d+\.\d+\.\d+$/u.test(manifest.version) || manifest.files?.length !== 1) throw new Error('Embermend contract provenance drift');
+const file = manifest.files[0];
+if (file.path !== 'embermend.generated.ts' || file.source !== 'packages/contracts/src/index.ts' || !/^[a-f0-9]{64}$/u.test(file.sourceSha256)) throw new Error('Unexpected Embermend contract source');
+const source = readFileSync(new URL(file.path, root), 'utf8');
+const hash = bytes => createHash('sha256').update(bytes).digest('hex');
+const header = `// Generated from Embermend public contracts; source SHA-256 ${file.sourceSha256}.\n// Regenerate using Embermend scripts/export-browser-contracts.mjs.\n`;
+if (!source.startsWith(header) || hash(source.slice(header.length)) !== file.sourceSha256 || hash(source) !== file.sha256 || /export const VERSION = '([^']+)'/u.exec(source)?.[1] !== manifest.version) throw new Error('Embermend browser contract drift');
+for (const match of source.matchAll(/\bfrom\s+['"]([^'"]+)['"]|\bimport\s*\(\s*['"]([^'"]+)['"]/gu)) if ((match[1] ?? match[2]) !== 'zod') throw new Error('Browser contract imports backend implementation');
+console.log('Embermend immutable browser contracts verified.');

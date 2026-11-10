@@ -23,6 +23,7 @@ export const readiness: ReadonlyArray<{
     name: 'ChatterMost',
     path: '/api/chat/api/v4/system/ping',
   },
+  { product: 'embermend', name: 'Embermend', path: '/api/embermend/api/v1/readiness' },
   { product: 'magnus', name: 'Magnus', path: '/api/magnus/health/ready' },
   { product: 'ardentstudio', name: 'Ardent Project Studio', path: `${ARDENT_STUDIO_API_PREFIX}/health/ready` },
 ];
