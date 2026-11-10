@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.6 - 2026-11-10
+
+- Require Alpine libxslt 1.1.43-r4 or newer, including fixes for CVE-2026-9947 and CVE-2026-87636.
+- Execute and scan each native image before publication, including unfixed HIGH/CRITICAL findings, retain raw reports and verify the published runtime matches the scanned candidate.
+
 ## 0.2.5 - 2026-11-10
 
 - Command results refresh the displayed status from the same server response, including pending, failed and timed-out commands.
