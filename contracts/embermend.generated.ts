@@ -1,4 +1,4 @@
-// Generated from Embermend public contracts; source SHA-256 d87e6c0ccb13b4a39402899a7cbfd15d43e5dfa82fe236c2eb37e191f68ceec5.
+// Generated from Embermend public contracts; source SHA-256 495ca81a452137903e1e6c2927b00a8bafabc32febb8288519be388ab87c2f56.
 // Regenerate using Embermend scripts/export-browser-contracts.mjs.
 import { z } from 'zod';
 
@@ -149,6 +149,7 @@ export const assessmentRequestSchema = z.object({ id, scope: scopeSchema, target
 export const jobSchema = z.object({ id, kind: id, status: z.enum(['queued', 'running', 'completed', 'failed', 'unknown', 'canceled']), progress: z.number().min(0).max(1), cancelRequested: z.boolean(), deadline: timestamp, error: z.string().nullable(), result: z.json().nullable() }).strict();
 export const recommendationSchema = z.object({
   plan: planSchema, digest: sha256, status: id,
+  jobs: z.array(jobSchema).default([]),
   publications: z.array(z.object({ id, planId: id, revision: z.number().int().positive(), digest: sha256, surface: id, explanation: z.string(), publishedAt: timestamp })),
   executions: z.array(z.object({ id, state: id, actionId: id, targetId: id, receipt: receiptSchema.nullable() })),
   campaign: z.object({ id, installationId: id, paused: z.boolean(), generation: z.number().int(), createdAt: timestamp }).nullable(),
@@ -175,3 +176,9 @@ export const profileAssignmentSchema = z.object({ id, scope: scopeSchema, profil
 export const scheduleSchema = z.object({ id, scope: scopeSchema, kind: z.enum(['assessment', 'vulnerabilities', 'scan']), payload: z.unknown(), intervalSeconds: z.number().int().min(300).max(2592000), nextAt: timestamp, enabled: z.boolean() }).strict();
 export const compatibilitySchema = z.object({ product: z.literal('embermend'), version: id, protocol: z.literal(1), magnusRequired: z.literal(true), operatorSurface: z.literal('hivexui'), runtime: id, storage: z.literal('postgresql'), supportedTargets: z.array(id) }).strict();
 export const readinessSchema = z.object({ status: z.enum(['ready', 'degraded']), serviceAvailable: z.literal(true), assessmentReady: z.boolean(), managedDispatch: z.boolean(), eligibleTargets: z.number().int().min(0), blockers: z.array(id), capabilities: capabilitySchema.nullable() }).strict();
+
+/** Version-one scanner stdio reply. Failure is explicit and carries no provider data. */
+export const scannerBrokerReplySchema = z.union([
+  z.object({ id: z.string().min(1).max(200), result: z.unknown() }).strict(),
+  z.object({ id: z.string().min(1).max(200), error: z.literal('MODEL_BROKER_UNAVAILABLE') }).strict(),
+]);

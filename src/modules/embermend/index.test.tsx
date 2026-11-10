@@ -32,6 +32,20 @@ afterEach(async () => { await clearView(); api.mockReset(); });
 async function clearView() { await view?.unmount(); view = undefined; }
 async function ready() { view = await mount(<EmbermendModule />); for (let i = 0; i < 20 && !document.body.textContent?.includes(row.plan.objective); i++) await settle(10); }
 describe('Embermend recommendation decisions', () => {
+  it('retains a held job after refresh and never offers to repeat its dispatch', async () => {
+    row.status = 'authorized';
+    row.jobs = [{ id: 'fixture-held-job', kind: 'campaign', status: 'unknown', progress: 0, cancelRequested: false, deadline: row.plan.expiresAt, error: 'TARGET_NOT_ELIGIBLE', result: null }];
+    await ready();
+    expect(document.body.textContent).toContain('Work: unknown');
+    expect(document.body.textContent).toContain('Work needs review');
+    expect(document.body.textContent).toContain('TARGET_NOT_ELIGIBLE');
+    expect(button('Start authorized work')).toBeUndefined();
+    await clearView(); await ready();
+    expect(document.body.textContent).toContain('fixture-held-job');
+    expect(button('Start authorized work')).toBeUndefined();
+    expect(mutations).toHaveLength(0);
+  });
+
   it('binds a decision to the displayed immutable revision and digest', async () => {
     await ready(); const approve = button('Approve revision 3'); expect(approve).toBeDefined(); if (!approve) throw new Error('Missing decision control'); await click(approve);
     expect(mutations).toEqual([{ path: '/api/embermend/api/v1/decisions', body: { planId: 'fixture-plan', revision: 3, digest: hash, decision: 'approve', expiresAt: row.plan.expiresAt } }]);
