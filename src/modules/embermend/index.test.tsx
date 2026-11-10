@@ -28,7 +28,8 @@ beforeEach(() => {
     return Response.json({ error: 'NOT_FOUND' }, { status: 404 });
   });
 });
-afterEach(async () => { await view?.unmount(); view = undefined; api.mockReset(); });
+afterEach(async () => { await clearView(); api.mockReset(); });
+async function clearView() { await view?.unmount(); view = undefined; }
 async function ready() { view = await mount(<EmbermendModule />); for (let i = 0; i < 20 && !document.body.textContent?.includes(row.plan.objective); i++) await settle(10); }
 describe('Embermend recommendation decisions', () => {
   it('binds a decision to the displayed immutable revision and digest', async () => {
@@ -38,7 +39,7 @@ describe('Embermend recommendation decisions', () => {
   });
   it('never displays approval authority to a coordinator or before publication', async () => {
     kind = 'coordinator'; await ready(); expect(button('Approve revision 3')).toBeUndefined();
-    await view?.unmount(); view = undefined; kind = 'operator'; row.publications = []; await ready(); expect(button('Approve revision 3')).toBeUndefined(); expect(mutations).toHaveLength(0);
+    await clearView(); kind = 'operator'; row.publications = []; await ready(); expect(button('Approve revision 3')).toBeUndefined(); expect(mutations).toHaveLength(0);
   });
   it('reports a stale decision without retrying its mutation', async () => {
     failDecision = true; await ready(); const approve = button('Approve revision 3'); if (!approve) throw new Error('Missing decision control'); await click(approve); await settle(20);
@@ -57,6 +58,27 @@ describe('Embermend recommendation decisions', () => {
   it('does not display verified security when a finding has no recorded occurrences', async () => {
     findingRows = [{ finding: { id: 'fixture-finding', scope, kind: 'hardening', identity: hash, component: 'fixture-node', weakness: 'configuration-permissions', title: 'Fixture permissions', severity: 'medium', confidence: 1, validity: 'validated', rationale: 'Observed fixture state', evidenceIds: ['fixture-evidence'], classifications: [], priority: 40 }, occurrences: [] }];
     await ready(); expect(document.body.textContent).toContain('verification outstanding'); expect(document.body.textContent).not.toContain('verified for recorded scope');
+  });
+
+  function risk(sourceState: 'open' | 'verified-fixed' | 'not-applicable', runtimeState: 'unknown' | 'verified-resolved' | 'verified-mitigated' | 'not-applicable', branch = 'main') {
+    return { finding: { id: 'fixture-finding', scope, kind: 'code', identity: hash, component: 'fixture-app', weakness: 'injection', title: 'Fixture query', severity: 'high', confidence: 1, validity: 'validated', rationale: 'Controlled query proof', evidenceIds: ['fixture-evidence'], classifications: [], priority: 70 }, occurrences: [{ id: 'fixture-occurrence-' + branch, findingId: 'fixture-finding', subjectId: 'fixture-repository', branch, revision: 'a'.repeat(40), artifactDigest: null, sourceState, runtimeState, coverage: { status: 'complete', requested: ['fixture-app'], examined: ['fixture-app'], excluded: [], failures: [], mode: 'full', observedAt: '2026-11-10T00:00:00Z' }, evidenceIds: ['fixture-evidence'], recurrenceOf: null }] };
+  }
+  it('keeps source verification visible while runtime exposure remains unknown', async () => {
+    findingRows = [risk('verified-fixed', 'unknown')]; await ready();
+    expect(document.body.textContent).toContain('Source outcome: verified'); expect(document.body.textContent).toContain('Runtime outcome: unknown'); expect(document.body.textContent).toContain('verification outstanding'); expect(document.body.textContent).not.toContain('verified for recorded scope');
+  });
+  it('does not claim overall verification from runtime closure while source work remains open', async () => {
+    findingRows = [risk('open', 'verified-resolved')]; await ready();
+    expect(document.body.textContent).toContain('Source outcome: outstanding'); expect(document.body.textContent).toContain('Runtime outcome: verified'); expect(document.body.textContent).not.toContain('verified for recorded scope');
+  });
+  it('retains other maintained branch work and distinguishes mitigation from closure', async () => {
+    const main = risk('verified-fixed', 'verified-mitigated'); const release = risk('open', 'verified-mitigated', 'release'); findingRows = [{ ...main, occurrences: [...main.occurrences, ...release.occurrences] }]; await ready();
+    expect(document.body.textContent).toContain('Source outcome: outstanding'); expect(document.body.textContent).toContain('Runtime outcome: mitigated'); expect(document.body.textContent).not.toContain('verified for recorded scope');
+  });
+  it('requires applicable verified dimensions and current validity for an overall verified outcome', async () => {
+    findingRows = [risk('verified-fixed', 'not-applicable')]; await ready(); expect(document.body.textContent).toContain('verified for recorded scope');
+    await clearView(); findingRows = [risk('not-applicable', 'not-applicable')]; await ready(); expect(document.body.textContent).not.toContain('verified for recorded scope');
+    await clearView(); const disputed = risk('verified-fixed', 'verified-resolved'); findingRows = [{ ...disputed, finding: { ...disputed.finding, validity: 'disputed' } }]; await ready(); expect(document.body.textContent).toContain('review required'); expect(document.body.textContent).not.toContain('verified for recorded scope');
   });
 
 });

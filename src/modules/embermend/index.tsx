@@ -6,11 +6,16 @@ import { Panel, Button, Badge } from '../../components/ui';
 
 const findingsSchema = z.array(z.object({ finding: findingSchema, occurrences: z.array(occurrenceSchema) }));
 type FindingRow = z.infer<typeof findingsSchema>[number];
-function verifiedForScope(row: Recommendation, findings: readonly FindingRow[]): boolean {
-  return row.plan.findingIds.every(id => {
-    const record = findings.find(item => item.finding.id === id);
-    return record !== undefined && record.occurrences.length > 0 && record.occurrences.every(item => item.runtimeState === 'verified-resolved' || item.runtimeState === 'not-applicable' && item.sourceState === 'verified-fixed');
-  });
+function outcomeForScope(row: Recommendation, findings: readonly FindingRow[], dimension: 'source' | 'runtime'): 'verified' | 'not applicable' | 'outstanding' | 'unknown' | 'review required' | 'mitigated' {
+  const records = row.plan.findingIds.map(id => findings.find(item => item.finding.id === id));
+  if (!records.length || records.some(record => !record || !record.occurrences.length)) return 'unknown';
+  const states = records.flatMap(record => record?.occurrences.map(item => dimension === 'source' ? item.sourceState : item.runtimeState) ?? []);
+  if (states.every(state => state === 'not-applicable')) return 'not applicable';
+  if (records.some(record => record?.finding.validity !== 'validated')) return 'review required';
+  if (states.some(state => state === 'unknown')) return 'unknown';
+  if (states.every(state => state === 'not-applicable' || state === (dimension === 'source' ? 'verified-fixed' : 'verified-resolved'))) return 'verified';
+  if (dimension === 'runtime' && states.every(state => ['not-applicable', 'verified-mitigated', 'verified-resolved'].includes(state))) return 'mitigated';
+  return 'outstanding';
 }
 async function request(path: string, body?: unknown): Promise<unknown> {
   const response = await apiFetch('/api/embermend/api/v1/' + path, { method: body === undefined ? 'GET' : 'POST', headers: { ...(body === undefined ? {} : { 'content-type': 'application/json' }) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
@@ -59,12 +64,14 @@ export default function EmbermendModule() {
     <div className="space-y-4" aria-label="Security recommendations">{recommendations.map(row => {
       const published = row.publications.some(item => item.revision === row.plan.revision && item.digest === row.digest);
       const awaiting = row.status === 'explained';
+      const source = outcomeForScope(row, findings, 'source'); const runtime = outcomeForScope(row, findings, 'runtime');
+      const verified = [source, runtime].every(state => state === 'verified' || state === 'not applicable') && [source, runtime].some(state => state === 'verified');
       return <Panel key={`${row.plan.id}:${row.plan.revision}`}>
         <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="eyebrow">Revision {row.plan.revision} · {row.plan.scope.targetIds.length} managed {row.plan.scope.targetIds.length === 1 ? 'target' : 'targets'}</p><h3>{row.plan.objective}</h3></div><Badge tone={row.campaign?.paused ? 'warning' : row.status === 'authorized' ? 'success' : 'neutral'}>{row.campaign?.paused ? 'Paused' : awaiting ? 'Awaiting decision' : row.status === 'authorized' ? 'Authorized' : row.status}</Badge></div>
         <p className="whitespace-pre-wrap">{row.plan.explanation}</p>
         <p><strong>Service impact:</strong> {row.plan.impact}</p>
         {row.plan.uncertainty.length ? <p><strong>Uncertainty:</strong> {row.plan.uncertainty.join('; ')}</p> : null}
-        <div className="flex flex-wrap gap-2 py-3" aria-label="Remediation progress"><Badge>Explained: {published ? 'published' : 'pending'}</Badge><Badge>Execution: {row.executions.length ? row.executions.map(item => item.state).join(', ') : 'not dispatched'}</Badge><Badge>Security outcome: {verifiedForScope(row, findings) ? 'verified for recorded scope' : 'verification outstanding'}</Badge></div>
+        <div className="flex flex-wrap gap-2 py-3" aria-label="Remediation progress"><Badge>Explained: {published ? 'published' : 'pending'}</Badge><Badge>Execution: {row.executions.length ? row.executions.map(item => item.state).join(', ') : 'not dispatched'}</Badge><Badge>Source outcome: {source}</Badge><Badge>Runtime outcome: {runtime}</Badge><Badge>Security outcome: {verified ? 'verified for recorded scope' : 'verification outstanding'}</Badge></div>
         {awaiting && published && access?.kind === 'operator' && access.permissions.includes('approve') ? <div className="flex flex-wrap gap-2"><Button disabled={busy} onClick={() => void decide(row, 'approve')}>Approve revision {row.plan.revision}</Button><Button disabled={busy} onClick={() => void decide(row, 'reject')}>Reject recommendation</Button></div> : null}
         {row.status === 'authorized' && !row.executions.length && access?.permissions.includes('execute') ? <Button disabled={busy || row.campaign?.paused === true} onClick={() => void execute(row)}>Start authorized work</Button> : null}
         {access?.permissions.includes('execute') ? <Button disabled={busy} onClick={() => void pause(row)}>{row.campaign?.paused ? 'Resume dispatch' : 'Pause further dispatch'}</Button> : null}

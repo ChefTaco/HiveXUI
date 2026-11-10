@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Show independent source and runtime remediation outcomes, preserve unknown exposure and mitigation, and require every applicable recorded dimension before claiming verified security.
+
 ## 0.2.5 - 2026-11-10
 
 - Command results refresh the displayed status from the same server response, including pending, failed and timed-out commands.
