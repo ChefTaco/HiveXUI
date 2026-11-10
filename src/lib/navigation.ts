@@ -151,7 +151,7 @@ const PRODUCT_GROUPS: readonly NavGroup[] = [
   },
   {
     label: 'Embermend',
-    items: [{ key: 'embermend', label: 'Recommendations', icon: 'Shield', gate: { all: ['embermend', 'magnus'] } }],
+    items: [{ key: 'embermend', label: 'Recommendations', icon: 'Shield', gate: { all: ['embermend'] } }],
   },
   {
     label: 'Cindertrace',

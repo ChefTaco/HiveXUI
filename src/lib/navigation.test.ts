@@ -44,6 +44,14 @@ const IDENTITY_PAGES = [
 const EMBERPATH_PAGES = ['routers', 'providers', 'routing', 'testing', 'traces', 'keys', 'audit'];
 
 describe('navigation model', () => {
+  it('keeps Embermend records accessible without a Magnus browser client', () => {
+    const installed = only('oathweave', 'embermend');
+    expect(layout(installed).Embermend).toEqual(['embermend']);
+    expect(viewAvailable('embermend', installed)).toBe(true);
+    expect(viewAvailable('magnus', installed)).toBe(false);
+    expect(viewAvailable('embermend', only('oathweave', 'magnus'))).toBe(false);
+  });
+
   it('shows one section per product when everything is installed', () => {
     expect(layout(ALL)).toEqual({
       Hive: ['hive', 'incidents'],
