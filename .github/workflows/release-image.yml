@@ -38,6 +38,51 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ github.token }}
+      - name: Build the native candidate
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/${{ matrix.arch }}
+          load: true
+          tags: hivexui-candidate:${{ matrix.arch }}
+          provenance: false
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ github.ref_name }}
+            org.opencontainers.image.licenses=Apache-2.0
+      - name: Verify non-root runtime and patched library
+        env:
+          CANDIDATE: hivexui-candidate:${{ matrix.arch }}
+        run: |
+          test "$(docker run --rm --entrypoint id "$CANDIDATE" -u)" = 101
+          docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges:true --entrypoint sh "$CANDIDATE" -ec 'apk info -e "libxslt>=1.1.43-r4"; nginx -v'
+          container=$(docker run -d --read-only --cap-drop ALL --security-opt no-new-privileges:true --tmpfs /tmp:mode=1777 --tmpfs /var/cache/nginx:uid=101,gid=101,mode=700 "$CANDIDATE")
+          trap 'docker logs "$container"; docker rm -f "$container" >/dev/null' EXIT
+          ready=false
+          for attempt in $(seq 1 40); do
+            if docker exec "$container" wget -q -O /dev/null http://127.0.0.1:8080/health; then ready=true; break; fi
+            sleep 0.25
+          done
+          test "$ready" = true
+          page=$(docker exec "$container" wget -q -O - http://127.0.0.1:8080/fleet/commands)
+          [[ "$page" == *'id="root"'* ]]
+          docker image inspect "$CANDIDATE" --format '{{.Id}}' > "$RUNNER_TEMP/validated-config"
+      - name: Scan all HIGH and CRITICAL findings before publication
+        env:
+          CANDIDATE: hivexui-candidate:${{ matrix.arch }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/image-security"
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$RUNNER_TEMP/image-security:/reports" \
+            aquasec/trivy@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e image \
+            --image-src docker --scanners vuln --severity HIGH,CRITICAL --exit-code 1 \
+            --format json --output "/reports/hivexui-${{ matrix.arch }}.json" "$CANDIDATE"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: image-security-${{ matrix.arch }}
+          path: ${{ runner.temp }}/image-security
+          if-no-files-found: ignore
       - id: build
         uses: docker/build-push-action@v7
         with:
@@ -50,6 +95,12 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ github.ref_name }}
             org.opencontainers.image.licenses=Apache-2.0
+      - name: Require the published candidate to match the scanned runtime
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          expected=$(cat "$RUNNER_TEMP/validated-config")
+          docker buildx imagetools inspect "$IMAGE@$DIGEST" --raw | jq -e --arg expected "$expected" '.config.digest==$expected'
       - id: result
         run: echo "digest-${{ matrix.arch }}=${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
   publish:
