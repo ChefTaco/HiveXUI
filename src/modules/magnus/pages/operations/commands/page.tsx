@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Play, ShieldCheck, TerminalSquare, Zap } from 'lucide-react';
-import { commandDispatchedResponseSchema, commandDryRunResponseSchema, commandResultResponseSchema } from '@contracts/magnus/browser';
+import { commandDetailResponseSchema, commandDispatchedResponseSchema, commandDryRunResponseSchema } from '@contracts/magnus/browser';
 import { Badge, Button, Field, PageHeader, statusTone, TextArea, TextInput } from '@ui';
 import { cn } from '@lib/cn';
 import { idempotencyKey, magnus, segment } from '../../../api/client';
@@ -73,8 +73,9 @@ export default function CommandsPage() {
 
   async function fetchResult(commandId: string) {
     try {
-      const { data } = await magnus.get(`/commands/${segment(commandId)}/result`, commandResultResponseSchema);
-      setOutput(resultText(data));
+      const { data } = await magnus.get(`/commands/${segment(commandId)}`, commandDetailResponseSchema);
+      setResults((current) => current.map((row) => row.id === data.id ? { ...row, status: data.status } : row));
+      setOutput(data.result ? resultText(data.result) : `Result not yet available (${data.status})`);
     } catch (error) {
       setOutput(error instanceof MagnusApiError && error.notFound ? 'Result not yet available' : errorMessage(error));
     }
@@ -146,7 +147,7 @@ export default function CommandsPage() {
           <FxPanel title="Dispatched commands" fxTone="success">
             <ul className="m-0 grid list-none gap-2 p-0">
               {results.map((result) => (
-                <li key={`${result.id}-${result.status}`} className="scan-sweep flex flex-wrap items-center justify-between gap-2 rounded-control border border-border px-4 py-2 hover:border-accent">
+                <li key={result.id} className="scan-sweep flex flex-wrap items-center justify-between gap-2 rounded-control border border-border px-4 py-2 hover:border-accent">
                   <div className="min-w-0 text-sm">
                     <span className="font-mono text-accent" title={result.id}>{result.id.slice(0, 12)}…</span>
                     <span className="ml-3 font-mono text-text-muted" title={result.nodeId}>→ {result.nodeId.slice(0, 12)}…</span>

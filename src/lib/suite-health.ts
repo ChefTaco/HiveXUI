@@ -1,5 +1,5 @@
 import { registryHealthSchema } from '@contracts/hive-registry/browser';
-import { ARDENT_STUDIO_API_PREFIX } from '@contracts/ardentstudio.generated';
+import { ARDENT_STUDIO_API_PREFIX, readyResponseSchema } from '@contracts/ardentstudio.generated';
 import { REGISTRY_PREFIX } from './registry';
 import { browserIdentity, productInstalled } from './runtime';
 import { apiFetch, productPrefix, type Product } from './transport';
@@ -89,6 +89,17 @@ export async function readSuiteHealth(
             response = await send(service.path, {
               signal: AbortSignal.timeout(5000),
             });
+          let setupMessage: string | undefined;
+          if (service.product === 'ardentstudio' && response.status === 503 &&
+              (response.headers.get('content-type') ?? '').includes('application/json')) {
+            const body = readyResponseSchema.safeParse(await response.json().catch(() => null));
+            if (body.success && body.data.status === 'not_ready') {
+              const { checks } = body.data;
+              if (checks.database.status === 'ok' && checks.magnus.status === 'ok' &&
+                  checks.hivemem.status === 'ok' && checks.agents.status === 'unavailable' && checks.agents.available === 0)
+                setupMessage = 'No Ardent agent is available. Install Ardent and create or start a profile in Magnus → Ardent to finish Studio setup.';
+            }
+          }
           return {
             ...service,
             state: response.ok
@@ -100,7 +111,7 @@ export async function readSuiteHealth(
               ? 'Product readiness check passed'
               : response.status === 401 || response.status === 403
                 ? 'This identity cannot inspect this product'
-                : 'Readiness check failed',
+                : setupMessage ?? 'Readiness check failed',
             latencyMs: Math.round(performance.now() - started),
           };
         } catch {

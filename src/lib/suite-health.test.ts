@@ -71,3 +71,29 @@ describe('the Registry row', () => {
     expect((await readSuiteHealth(send)).map((row) => row.product)).not.toContain('hive-registry');
   });
 });
+
+describe('fresh Studio setup', () => {
+  const ok = { status: 'ok', error: null };
+  const waiting = { status: 'not_ready', checks: { database: ok, magnus: ok, hivemem: ok, agents: { status: 'unavailable', available: 0 } } };
+  const probe = async (body: unknown, status = 503) => {
+    configureEndpoint('ardentstudio', '/api/ardentstudio');
+    const send = vi.fn<typeof fetch>().mockImplementation(async () => Response.json(body, { status }));
+    return (await readSuiteHealth(send)).find((row) => row.product === 'ardentstudio');
+  };
+  it('explains the first-agent setup without claiming readiness', async () => {
+    expect(await probe(waiting)).toMatchObject({ state: 'unavailable', message: expect.stringContaining('create or start a profile in Magnus') });
+  });
+  it.each(['database', 'magnus', 'hivemem'] as const)('preserves %s failures rather than suggesting only an agent setup', async (dependency) => {
+    const body = { ...waiting, checks: { ...waiting.checks, [dependency]: { status: 'unavailable', error: 'private backend diagnostic' } } };
+    expect(await probe(body)).toMatchObject({ state: 'unavailable', message: 'Readiness check failed' });
+  });
+  it.each([401, 403])('keeps access denial for HTTP %s', async (status) => {
+    expect(await probe(waiting, status)).toMatchObject({ state: 'denied', message: 'This identity cannot inspect this product' });
+  });
+  it.each([null, { status: 'not_ready' }, { ...waiting, checks: { ...waiting.checks, agents: { status: 'unavailable', available: '0' } } }])('does not infer setup from malformed answers', async (body) => {
+    expect(await probe(body)).toMatchObject({ state: 'unavailable', message: 'Readiness check failed' });
+  });
+  it('does not explain a server error as an empty installation', async () => {
+    expect(await probe(waiting, 500)).toMatchObject({ state: 'unavailable', message: 'Readiness check failed' });
+  });
+});

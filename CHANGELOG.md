@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Command results refresh the displayed status from the same server response, including pending, failed and timed-out commands.
+- Fresh Studio readiness explains how to install or start its first Ardent agent while preserving dependency failures and access denials.
+
 ## 0.2.4 - 2026-11-09
 
 - Command dispatch offers a finite timeout and binds it to the approval dialog.
