@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.5 - 2026-11-10
 
 - Command results refresh the displayed status from the same server response, including pending, failed and timed-out commands.
 - Fresh Studio readiness explains how to install or start its first Ardent agent while preserving dependency failures and access denials.
