@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.7 - 2026-11-11
+
+- Observe dispatched command statuses and selected output until their terminal result, retrying reads without redispatching work and stopping when the view closes.
+- Use the registered uptime diagnostic and its 60-second budget in the quick action; explain custom-budget outcome review before dispatch.
+- Explain that Ardent profiles must be stopped before a package update and started after verification.
+
 ## 0.2.6 - 2026-11-10
 
 - Require Alpine libxslt 1.1.43-r4 or newer, including fixes for CVE-2026-9947 and CVE-2026-87636.
