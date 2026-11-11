@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [0.2.8] - 2026-11-11
 
 - Build on patched Node.js 24.22.3 for upstream TLS and HTTP/2 security fixes.
 
