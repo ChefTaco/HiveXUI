@@ -10,7 +10,7 @@ x-service: &service
 services:
   model:
     <<: *service
-    image: ${STUDIO_E2E_NODE_IMAGE:-node:24.22.1-bookworm-slim}
+    image: ${STUDIO_E2E_NODE_IMAGE:-node:24.22.3-bookworm-slim}
     command: ["node", "/stack/model/server.mjs"]
     user: "1000:1000"
     volumes: ["${STUDIO_E2E_STACK}:/stack:ro"]
@@ -141,7 +141,7 @@ services:
 
   # One-shot helper on the stack network for bootstrap and checks (`compose run --rm tools`).
   tools:
-    image: ${STUDIO_E2E_NODE_IMAGE:-node:24.22.1-bookworm-slim}
+    image: ${STUDIO_E2E_NODE_IMAGE:-node:24.22.3-bookworm-slim}
     profiles: [tools]
     user: "1000:1000"
     environment:

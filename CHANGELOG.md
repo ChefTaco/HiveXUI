@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Build on patched Node.js 24.22.3 for upstream TLS and HTTP/2 security fixes.
+
 ## 0.2.7 - 2026-11-11
 
 - Observe dispatched command statuses and selected output until their terminal result, retrying reads without redispatching work and stopping when the view closes.
