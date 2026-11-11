@@ -7,6 +7,7 @@ export interface QuickAction {
   icon: ReactNode;
   variant?: 'warning' | 'danger';
   description: string;
+  timeoutSeconds?: number;
 }
 
 /** Common Ubuntu administration tasks. A click only fills in the command; nothing runs until Execute is confirmed. */
@@ -18,7 +19,7 @@ export const QUICK_ACTIONS: readonly QuickAction[] = [
   { label: 'Disk Usage', command: 'df -h', icon: <HardDrive className="size-4" />, description: 'Show disk space usage on all mounted filesystems' },
   { label: 'Memory & Top', command: 'free -h && echo "---" && top -bn1 | head -20', icon: <MemoryStick className="size-4" />, description: 'Show memory usage and top processes' },
   { label: 'Running Services', command: 'systemctl list-units --type=service --state=running --no-pager', icon: <Activity className="size-4" />, description: 'List all currently running systemd services' },
-  { label: 'Uptime & Load', command: 'uptime && cat /proc/loadavg', icon: <Clock className="size-4" />, description: 'Show system uptime and CPU load averages' },
+  { label: 'Uptime & Load', command: '/usr/bin/uptime', timeoutSeconds: 60, icon: <Clock className="size-4" />, description: 'Show uptime and load with the registered 60-second diagnostic budget' },
   { label: 'Tail Syslog', command: 'sudo tail -100 /var/log/syslog', icon: <FileText className="size-4" />, description: 'Show the last 100 lines of the system log' },
   { label: 'Reboot', command: 'sudo reboot', icon: <RotateCcw className="size-4" />, variant: 'danger', description: 'Immediately reboot the node' },
 ];

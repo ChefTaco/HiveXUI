@@ -46,7 +46,8 @@ function PackageControls({ item, refresh }: { item: ArdentInstallation; refresh:
       {item.stagedPackageError ? <p role="alert" className="m-0 mt-2 text-danger">{item.stagedPackageError}</p> : null}
       {feedback ? <p role="status" className="m-0 mt-2 text-success">{feedback}</p> : null}
       {error ? <p role="alert" className="m-0 mt-2 text-danger">{error}</p> : null}
-      <ActionConfirm open={confirming} title={item.installed ? 'Update the Ardent package?' : 'Install the Ardent package?'} message={`${item.installed ? 'Update' : 'Install'} Ardent ${staged?.version ?? ''} on this node? Profiles running there may restart.`} confirmLabel={item.installed ? 'Update package' : 'Install package'} onConfirm={() => void install()} onCancel={() => setConfirming(false)} />
+      {staged && item.version !== staged.version ? <p className="m-0 mt-2 text-text-muted">Stop this node’s profiles before updating. Review unfinished work first; start the profiles again after the package is verified.</p> : null}
+      <ActionConfirm open={confirming} title={item.installed ? 'Update the Ardent package?' : 'Install the Ardent package?'} message={`${item.installed ? 'Update' : 'Install'} Ardent ${staged?.version ?? ''} on this node? All profiles must be stopped first. Start them again after the package is verified.`} confirmLabel={item.installed ? 'Update package' : 'Install package'} onConfirm={() => void install()} onCancel={() => setConfirming(false)} />
     </div>
   );
 }
