@@ -1,8 +1,6 @@
 import { securityPost,securityFetch } from '@security/lib/security-api';
-"use client";
-
 import { useState, useEffect } from "react";
-import { useRouter } from "@security/navigation";
+import { useSecurityRefresh } from "@security/lib/page-data";
 import { Button, Panel } from '@ui';
 
 interface ExistingAction {
@@ -27,12 +25,12 @@ export function ContainmentPanel({
   actions: ExistingAction[];
   available?: boolean; canApprove?: boolean; approvalMode?: "console" | "external";
 }): React.ReactElement | null {
-  const router = useRouter();
+  const refresh = useSecurityRefresh();
   useEffect(() => {
     if (!actions.some(action => ['dispatch_pending','executing','verifying','release_pending','releasing'].includes(action.status))) return;
-    const timer = setInterval(() => router.refresh(), 3000);
+    const timer = setInterval(refresh, 3000);
     return () => clearInterval(timer);
-  }, [actions, router]);
+  }, [actions, refresh]);
   const [nodeId, setNodeId] = useState("");
   const [serviceName, setServiceName] = useState("");
   const [kind, setKind] = useState<"service_restart" | "host_isolation">(
@@ -51,7 +49,7 @@ export function ContainmentPanel({
     try {
       await fn();
       setMessage(label);
-      router.refresh();
+      refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Request failed");
     } finally {

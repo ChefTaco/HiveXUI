@@ -1696,8 +1696,6 @@ td .badge {
 
 /* ===== LISTS ===== */
 .stack-list,
-.action-queue,
-.activity-rail,
 .timeline-list,
 .check-list {
   display: grid;
@@ -1733,8 +1731,6 @@ td .badge {
   text-align: left;
 }
 .stack-item--button:hover,
-.action-item:hover,
-.activity-item:hover,
 .timeline-item:hover {
   border-color: var(--border-strong);
   background: var(--surface-hover);
@@ -1757,8 +1753,6 @@ td .badge {
   display: inline-flex;
   margin-top: 0;
 }
-.action-item,
-.activity-item,
 .timeline-item {
   display: grid;
   width: 100%;
@@ -1772,65 +1766,18 @@ td .badge {
   cursor: pointer;
   text-align: left;
 }
-.action-item {
-  grid-template-columns: 3px minmax(0, 1fr) auto;
-  min-height: 4.5rem;
-  padding: var(--space-3) var(--space-3) var(--space-3) 0;
-}
-.action-item strong,
-.activity-item strong {
-  display: block;
-  overflow-wrap: anywhere;
-  color: var(--text-strong);
-  font-size: var(--text-sm);
-}
-.action-item small,
-.activity-item small {
-  display: block;
-  margin-top: 2px;
-  overflow-wrap: anywhere;
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-}
-.action-rail,
 .timeline-rail {
   align-self: stretch;
   border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
   background: var(--text-muted);
 }
-.action-item--warning .action-rail,
 .timeline-rail--warning {
   background: var(--warning);
 }
-.action-item--danger .action-rail,
 .timeline-rail--critical {
   background: var(--danger);
 }
-.action-item--info .action-rail,
 .timeline-rail--info {
-  background: var(--info);
-}
-.activity-item {
-  grid-template-columns: 0.625rem minmax(0, 1fr);
-  min-height: 3.25rem;
-  padding: var(--space-2) var(--space-3);
-}
-.activity-dot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: var(--text-muted);
-}
-.activity-dot--success {
-  background: var(--success);
-}
-.activity-dot--warning {
-  background: var(--warning);
-}
-.activity-dot--danger {
-  background: var(--danger);
-}
-.activity-dot--info {
   background: var(--info);
 }
 .timeline-item {
@@ -1851,15 +1798,11 @@ td .badge {
 }
 
 /* ===== SERVICE CARDS ===== */
-.service-command-grid,
-.app-status-grid,
 .runbook-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 17.5rem), 1fr));
   gap: var(--space-4);
 }
-.service-command,
-.app-status-card,
 .runbook-card {
   --card-tone: var(--border-strong);
   display: flex;
@@ -1872,65 +1815,13 @@ td .badge {
   background: var(--surface);
   box-shadow: inset 3px 0 0 var(--card-tone), var(--shadow-panel);
 }
-.service-command--online {
-  --card-tone: var(--success);
-}
-.service-command--degraded {
-  --card-tone: var(--warning);
-}
-.service-command--offline {
-  --card-tone: var(--danger);
-}
-.service-command__top,
-.app-status-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-.service-command__top p {
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-}
-.service-command__top h3,
-.app-status-top h3,
 .runbook-card h3 {
   font-size: var(--text-lg);
 }
-.service-command__summary,
-.app-status-role,
 .runbook-card p {
   overflow-wrap: anywhere;
   color: var(--text-muted);
   font-size: var(--text-sm);
-}
-.service-command__checks {
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  gap: var(--space-2);
-}
-.mini-check {
-  display: inline-flex;
-  max-width: 100%;
-  padding: 1px var(--space-2);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-pill);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  overflow-wrap: anywhere;
-}
-.mini-check--success {
-  border-color: color-mix(in srgb, var(--success) 45%, transparent);
-  color: var(--success);
-}
-.mini-check--warning {
-  border-color: color-mix(in srgb, var(--warning) 45%, transparent);
-  color: var(--warning);
-}
-.mini-check--danger {
-  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
-  color: var(--danger);
 }
 .runbook-action {
   flex: 1;
@@ -1950,16 +1841,6 @@ td .badge {
   color: var(--text);
   font-size: var(--text-xs);
   overflow-wrap: anywhere;
-}
-.app-status-summary {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-top: auto;
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
 }
 .pulse-grid {
   display: grid;
@@ -1992,84 +1873,6 @@ td .badge {
   font-size: var(--text-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* Hive apps service map. */
-.hive-lattice {
-  display: grid;
-  min-height: 17rem;
-  grid-template-columns: 1fr auto 1fr;
-  grid-template-rows: repeat(3, minmax(4.5rem, auto));
-  align-items: center;
-  gap: var(--space-3) var(--space-5);
-  padding: var(--space-6);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-panel);
-  background: var(--surface);
-}
-.lattice-core {
-  display: grid;
-  width: 8rem;
-  height: 8rem;
-  grid-column: 2;
-  grid-row: 2;
-  place-items: center;
-  align-content: center;
-  gap: var(--space-1);
-  border: 1px solid var(--accent);
-  border-radius: 50%;
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-.lattice-core strong {
-  font-family: var(--font-display);
-  font-size: var(--text-lg);
-}
-.lattice-node {
-  min-height: 4.5rem;
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-control);
-  background: var(--surface-raised);
-  color: var(--text);
-  cursor: pointer;
-  text-align: left;
-  transition: border-color 0.15s, background 0.15s;
-}
-.lattice-node:hover {
-  background: var(--surface-hover);
-}
-.lattice-node span {
-  display: block;
-  color: var(--text-strong);
-  font-weight: 600;
-}
-.lattice-node small {
-  display: block;
-  margin-top: var(--space-1);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-}
-.lattice-node--iam {
-  grid-column: 1;
-  grid-row: 1;
-}
-.lattice-node--memory {
-  grid-column: 3;
-  grid-row: 2;
-}
-.lattice-node--router {
-  grid-column: 1;
-  grid-row: 3;
-}
-.lattice-node--online {
-  box-shadow: inset 3px 0 0 var(--success);
-}
-.lattice-node--degraded {
-  box-shadow: inset 3px 0 0 var(--warning);
-}
-.lattice-node--offline {
-  box-shadow: inset 3px 0 0 var(--danger);
 }
 
 /* Identity workbench. */
@@ -2740,24 +2543,6 @@ td .badge {
   .audit-json-arrow {
     display: none;
   }
-  .hive-lattice {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto;
-    min-height: 0;
-  }
-  .lattice-core,
-  .lattice-node,
-  .lattice-node--iam,
-  .lattice-node--memory,
-  .lattice-node--router {
-    width: 100%;
-    grid-column: 1;
-    grid-row: auto;
-  }
-  .lattice-core {
-    height: 6rem;
-    border-radius: var(--radius-panel);
-  }
 }
 /* Narrow screens: every multi-column layout collapses, so nothing runs off the edge. */
 @media (max-width: 639.98px) {
@@ -2766,8 +2551,6 @@ td .badge {
   .field-grid,
   .page-grid--2,
   .iam-ops-grid,
-  .service-command-grid,
-  .app-status-grid,
   .runbook-grid,
   .testing-grid,
   .audit-check-grid {

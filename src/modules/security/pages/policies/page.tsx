@@ -1,8 +1,7 @@
 import { Badge, Panel } from "@ui";
 import { FusionHeader } from "@security/components/security-fusion/fusion-ui";
 import { fusionFetch } from "@security/lib/security-fusion";
-
-export const dynamic = "force-dynamic";
+import { SecurityPage, useSecurityData } from "@security/lib/page-data";
 
 interface Policies {
   eventRetentionDays: number;
@@ -26,8 +25,12 @@ interface Policies {
     defaultPolicy: string;
   };
 }
-export default async function PoliciesPage(): Promise<React.ReactElement> {
-  const policy = await fusionFetch<Policies>("policies");
+export default function PoliciesPage(): React.ReactElement {
+  const loaded = useSecurityData(() => fusionFetch<Policies>("policies"), "policies");
+  return <SecurityPage data={loaded}>{(policy) => <PolicyView policy={policy} />}</SecurityPage>;
+}
+
+function PolicyView({ policy }: { policy: Policies | null }): React.ReactElement {
   const evidenceMiB = Math.round(
     (policy?.perCaseCeilings.preservedEvidenceBytes ?? 8388608) / 1048576,
   );

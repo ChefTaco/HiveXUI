@@ -8,15 +8,14 @@ import {
   type FusionCollector,
   type FusionSource,
 } from "@security/lib/security-fusion";
+import { SecurityPage, useSecurityData } from "@security/lib/page-data";
 
-export const dynamic = "force-dynamic";
-
-export default async function SourcesPage(): Promise<React.ReactElement> {
-  const [sources, collectors] = await Promise.all([
-    fusionFetch<FusionSource[]>("sources"),
-    fusionFetch<FusionCollector[]>("source-registry"),
-  ]);
-  return (
+export default function SourcesPage(): React.ReactElement {
+  const loaded = useSecurityData(
+    () => Promise.all([fusionFetch<FusionSource[]>("sources"), fusionFetch<FusionCollector[]>("source-registry")]),
+    "sources",
+  );
+  return <SecurityPage data={loaded}>{([sources, collectors]) => (
     <div className="page-stack">
       <FusionHeader
         eyebrow="Security feeds"
@@ -29,5 +28,5 @@ export default async function SourcesPage(): Promise<React.ReactElement> {
         <CollectorRegistry collectors={collectors ?? []} />
       </section>
     </div>
-  );
+  )}</SecurityPage>;
 }

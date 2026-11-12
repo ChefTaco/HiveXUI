@@ -7,6 +7,7 @@ import { can } from '../lib/permissions';
 import type { AdminUser, ConfigImportRequest, RoutingGoal, RoutingObjectiveConfig } from '../lib/types';
 import { Icon } from '../components/icons';
 import { UpgradesPanel } from '../components/upgrades';
+import { productInstalled } from '../lib/runtime';
 
 const ROUTING_GOALS: Array<{ value: RoutingGoal; label: string; copy: string }> = [
   { value: 'balanced', label: 'Balanced', copy: 'Use quality, throughput, and cost together.' },
@@ -29,6 +30,11 @@ function parseRoutingObjective(settings: Array<{ key: string; parsed?: unknown }
 }
 
 /** Settings without Emberpath: the installation lifecycle is all that remains. */
+/** The Settings screen: Emberpath's settings where it is installed, the installation's otherwise. */
+export function SettingsScreen({ currentUser }: { currentUser: AdminUser | null }) {
+  return productInstalled('emberpath') ? <SettingsPage currentUser={currentUser} /> : <InstallationSettingsPage />;
+}
+
 export function InstallationSettingsPage() {
   return (
     <>

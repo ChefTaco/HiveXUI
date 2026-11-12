@@ -2,6 +2,7 @@ import type { MemoryProfile } from '../../contracts/hivemem.generated';
 import { memoryCan } from '../lib/memory-access';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { MemoryAccess } from '../components/memory-access';
+import { browserIdentity } from '../lib/runtime';
 const MemoryOperationsModule = lazy(() => import('../modules/memory-operations'));
 import { Badge, Button, EmptyState, Field, JsonBlock, Panel, StatCard, TextArea, TextInput, PageHeader, useConfirm } from '../components/ui';
 import { Icon } from '../components/icons';
@@ -49,6 +50,11 @@ function recordsFrom(value: unknown, keys: string[]): Array<Record<string, unkno
 
 function memoryId(memory: Record<string, unknown>): string {
   return text(memory.id, text(memory.memory_id, ''));
+}
+
+/** The Memories screen: with suite sign-in, the dashboard waits for this identity's HiveMem profile. */
+export function MemoriesScreen({ currentUser }: { currentUser: AdminUser | null }) {
+  return browserIdentity() ? <MemoryAccess>{(profile) => <MemoryDashboardPage currentUser={currentUser} profile={profile} />}</MemoryAccess> : <MemoryDashboardPage currentUser={currentUser} />;
 }
 
 export function MemoryDashboardPage({ currentUser, profile = null }: { currentUser: AdminUser | null; profile?: MemoryProfile | null }) {

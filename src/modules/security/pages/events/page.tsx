@@ -9,12 +9,11 @@ import {
   sourceLabel,
   type FusionEvent,
 } from "@security/lib/security-fusion";
+import { SecurityPage, useSecurityData } from "@security/lib/page-data";
 
-export const dynamic = "force-dynamic";
-
-export default async function EventsPage(): Promise<React.ReactElement> {
-  const events = await fusionFetch<FusionEvent[]>("events?limit=100");
-  return (
+export default function EventsPage(): React.ReactElement {
+  const loaded = useSecurityData(() => fusionFetch<FusionEvent[]>("events?limit=100"), "events");
+  return <SecurityPage data={loaded}>{(events) => (
     <div className="page-stack">
       <FusionHeader
         eyebrow="Normalized observations"
@@ -56,5 +55,5 @@ export default async function EventsPage(): Promise<React.ReactElement> {
         </TableFrame>
       )}
     </div>
-  );
+  )}</SecurityPage>;
 }

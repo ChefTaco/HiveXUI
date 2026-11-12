@@ -1,26 +1,18 @@
-import { useEffect, useState, type ReactElement } from 'react';
-import { FusionNav } from './components/security-fusion/fusion-nav';
-import { usePathname } from './navigation';
+import { lazy, Suspense, useCallback, useMemo, useState, useSyncExternalStore, type ComponentType } from 'react';
 import { productEnabled } from '../../lib/runtime';
-import { labEnabled } from './lib/security-fusion';
+import { CINDERTRACE_PAGES, matchSubroute, SECURITY_PREFIX, underPrefix, type SubRouteProps } from '../../lib/routes';
+import { SecurityRefresh } from './lib/page-data';
 import { EmptyState, LoadingRows } from '@ui';
 
-const pages = {
-  overview: () => import('./pages/page'),
-  cases: () => import('./pages/cases/page'),
-  detail: () => import('./pages/cases/[caseId]/page'),
-  events: () => import('./pages/events/page'),
-  entities: () => import('./pages/entities/page'),
-  evidence: () => import('./pages/evidence/page'),
-  sources: () => import('./pages/sources/page'),
-  policies: () => import('./pages/policies/page'),
-  audit: () => import('./pages/audit/page'),
-  lab: () => import('./pages/lab/page'),
+// One chunk per page, made once so a page keeps its state while its address stays the same.
+const PAGES = new Map<string, ComponentType<SubRouteProps>>(CINDERTRACE_PAGES.map((page) => [page.id, lazy(page.load)]));
+
+const subscribe = (listener: () => void) => {
+  window.addEventListener('popstate', listener);
+  return () => window.removeEventListener('popstate', listener);
 };
-type Render = (props: {
-  params: Promise<{ caseId: string }>;
-  searchParams: Promise<{ date?: string; page?: string }>;
-}) => Promise<ReactElement>;
+const address = () => location.pathname + location.search;
+
 export default function SecurityModule() {
   if (!productEnabled('cindertrace'))
     return (
@@ -32,77 +24,37 @@ export default function SecurityModule() {
     );
   return <ConfiguredSecurityModule />;
 }
+
+/** Cindertrace's pages, chosen from the route table by address. The shell's sidebar lists them. */
 function ConfiguredSecurityModule() {
-  const path = usePathname();
+  const current = useSyncExternalStore(subscribe, address);
   const [revision, setRevision] = useState(0);
-  const [content, setContent] = useState<ReactElement | null>(null);
-  const [error, setError] = useState('');
-  const [lab, setLab] = useState(false);
-  useEffect(() => {
-    let current = true;
-    void labEnabled().then((enabled) => {
-      if (current) setLab(enabled);
-    });
-    return () => {
-      current = false;
-    };
-  }, []);
-  useEffect(() => {
-    const refresh = () => setRevision((value) => value + 1);
-    window.addEventListener('security-refresh', refresh);
-    return () => window.removeEventListener('security-refresh', refresh);
-  }, []);
-  useEffect(() => {
-    let current = true;
-    setContent(null);
-    setError('');
-    const parts = path.split('/').filter(Boolean);
-    const key =
-      parts[1] === 'cases' && parts[2] ? 'detail' : (parts[1] ?? 'overview');
-    const load = pages[key as keyof typeof pages];
-    if (!load) {
-      setError('This security page is unavailable');
-      return;
-    }
-    const searchParams = new URLSearchParams(location.search);
-    const query: { date?: string; page?: string } = {};
-    if (searchParams.has('date')) query.date = searchParams.get('date')!;
-    if (searchParams.has('page')) query.page = searchParams.get('page')!;
-    void load()
-      .then((module) =>
-        (module.default as Render)({
-          params: Promise.resolve({ caseId: parts[2] ?? '' }),
-          searchParams: Promise.resolve(query),
-        }),
-      )
-      .then((value) => {
-        if (current) setContent(value);
-      })
-      .catch((reason) => {
-        if (current)
-          setError(
-            reason instanceof Error
-              ? reason.message
-              : 'Security information could not be loaded',
-          );
-      });
-    return () => {
-      current = false;
-    };
-  }, [path, revision]);
+  const bump = useCallback(() => setRevision((value) => value + 1), []);
+  const refresh = useMemo(() => ({ revision, refresh: bump }), [revision, bump]);
+  const [pathname, query = ''] = current.split('?');
+  // ?page=security opens the overview at the root address.
+  const match = matchSubroute(SECURITY_PREFIX, CINDERTRACE_PAGES, underPrefix(pathname!, SECURITY_PREFIX) ? pathname!.replace(/\/+$/, '') : SECURITY_PREFIX);
+  const search = useMemo(() => new URLSearchParams(query), [query]);
+  const Page = match ? PAGES.get(match.page.id) : undefined;
   return (
     <section className="security-module">
-      <FusionNav labEnabled={lab} />
-      {error ? (
-        <p className="error-banner" role="alert">
-          {error}
-        </p>
+      {Page && match ? (
+        <SecurityRefresh.Provider value={refresh}>
+          <Suspense
+            fallback={
+              <div role="status" aria-label="Loading security information">
+                <LoadingRows />
+              </div>
+            }
+          >
+            {/* A new address starts the page afresh, as following a link always has. */}
+            <Page key={current} params={match.params} search={search} />
+          </Suspense>
+        </SecurityRefresh.Provider>
       ) : (
-        (content ?? (
-          <div role="status" aria-label="Loading security information">
-            <LoadingRows />
-          </div>
-        ))
+        <p className="error-banner" role="alert">
+          This security page is unavailable
+        </p>
       )}
     </section>
   );

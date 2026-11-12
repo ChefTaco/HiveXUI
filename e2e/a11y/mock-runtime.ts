@@ -129,6 +129,51 @@ const workspace = (id: string, title: string, owner: string) => ({
 });
 const WORKSPACES = [workspace('ws-alpha', 'Alpha project', 'agent-admin'), workspace('ws-beta', 'Beta research', 'agent-b')];
 
+// What a legacy installation's native status API reports about its products.
+const hiveApp = (key: string, name: string, status: string, summary: string, latencyMs: number, details: Record<string, unknown> = {}) => ({
+  key, name, role: 'Product API', status, summary, internalUrl: '', publicUrl: '', consoleUrl: `https://${key}.example.com`, latencyMs, details,
+  checks: [{ name: 'readiness', status: status === 'online' ? 'pass' : 'warn', message: summary }],
+});
+const HIVE_APPS = [
+  hiveApp('router', 'Hive Router', 'online', 'Routing traffic', 14, {
+    tlsCertificate: { configured: true, status: 'pass', message: 'Certificate is valid.', domains: ['hive.example.com'], expectedHost: 'hive.example.com', hostnameMatched: true, validTo: '2027-02-01T00:00:00.000Z', daysRemaining: 81, issuer: 'Example CA' },
+    securityExporterJwks: { state: 'healthy', remainingMs: 3_600_000, trustedKeyCount: 2 },
+  }),
+  hiveApp('iam', 'Hive IAM', 'online', 'Identity core ready', 9),
+  hiveApp('memory', 'Hive Memory', 'degraded', 'Consolidation is behind', 41),
+];
+
+// Cindertrace answers in a { success, data } envelope that the browser checks against its contract.
+const fusion = (data: unknown) => ({ success: true, data });
+const fusionCase = (id: string, title: string, severity: string, confidence: number) => ({
+  id, title, severity, status: 'open', confidence, summary: `${title} across the lab network.`, firstSeenAt: T0, lastSeenAt: T1,
+  recommendedInvestigation: ['Confirm the source address owner', 'Compare with the change calendar'], evidenceSteps: [],
+});
+const FUSION_CASES = [
+  fusionCase('case-1', 'Repeated sign-in failures', 'high', 0.82),
+  fusionCase('case-2', 'Unexpected outbound DNS volume', 'medium', 0.61),
+  fusionCase('case-3', 'New service listening on a node', 'low', 0.4),
+];
+const fusionEvent = (i: number, source: string, kind: string, severity: string, summary: string) => ({
+  id: `fev_${i}`, eventId: `evt-${i}`, source, kind, observedAt: new Date(NOW_MS - i * 600_000).toISOString(), severity, confidence: 0.5 + i / 10,
+  summary, integritySha256: 'c'.repeat(64), attributes: { host: `node-${i}.example.internal` },
+});
+const FUSION_EVENTS = [
+  fusionEvent(1, 'hive', 'auth.failure', 'high', 'Five failed sign-ins for bob from one address'),
+  fusionEvent(2, 'magnus', 'service.started', 'low', 'A new service started on node-2'),
+  fusionEvent(3, 'unifi_dns', 'dns.volume', 'medium', 'DNS queries above the usual rate'),
+];
+const FUSION_SOURCES = [
+  { source: 'hive', status: 'healthy', lastEventAt: T1, lastSuccessAt: T1, lastError: null },
+  { source: 'magnus', status: 'healthy', lastEventAt: T1, lastSuccessAt: T1, lastError: null },
+  { source: 'unifi_dns', status: 'error', lastEventAt: T0, lastSuccessAt: T0, lastError: 'collector unreachable' },
+];
+const FUSION_ENTITIES = [
+  { id: 'ent-1', type: 'user', canonical: 'user:bob@example.com', label: 'bob@example.com', lastSeenAt: T1 },
+  { id: 'ent-2', type: 'host', canonical: 'host:node-2.example.internal', label: 'node-2', lastSeenAt: T1 },
+];
+const FUSION_EVIDENCE = [{ id: 'evd-1', sourceLocator: 'hive://audit/evt-1', sha256: 'd'.repeat(64), preservedAt: T1, mediaType: 'application/json' }];
+
 // ---------------------------------------------------------------- route table
 // Each entry: [method, regexp on the request pathname (+search), body | (match, url, request) => body].
 // Returning { __status, body } sets a status. Unmatched /api/** requests get 404 {error:'not mocked'}.
@@ -147,7 +192,7 @@ export const ROUTES: Array<[string, RegExp, Answer]> = [
   ['GET', /^\/api\/emberpath\/runtime-settings$/, { data: [] }],
   ['GET', /^\/api\/emberpath\/docs\/index$/, { docs: [], providers: PROVIDERS.map((p) => ({ ...summary(p), baseUrl: p.baseUrl, enabled: p.enabled })) }],
   ['GET', /^\/api\/emberpath\/routing\/objective$/, { data: { config: { goal: 'balanced' } } }],
-  ['GET', /^\/api\/emberpath\/hive\/status$/, { generatedAt: T1, uiUrl: 'https://hive.example.com', apps: [] }],
+  ['GET', /^\/api\/emberpath\/hive\/status$/, { generatedAt: T1, uiUrl: 'https://hive.example.com', apps: HIVE_APPS }],
   ['GET', /^\/api\/emberpath\/hive\/actors$/, { data: [] }],
   ['GET', /^\/api\/emberpath\/hive\/incidents$/, { data: [] }],
   // Oathweave
@@ -179,6 +224,33 @@ export const ROUTES: Array<[string, RegExp, Answer]> = [
   // HiveMem
   ['GET', /^\/api\/memory\/profile$/, PROFILE],
   ['GET', /^\/api\/memory\/workspaces\?.*$/, WORKSPACES],
+  // Cindertrace
+  ['GET', /^\/api\/security\/security-fusion\/overview$/, fusion({ generatedAt: T1, openCases: FUSION_CASES, sources: FUSION_SOURCES, bySeverity: [{ severity: 'high', _count: { id: 1 } }, { severity: 'medium', _count: { id: 1 } }, { severity: 'low', _count: { id: 1 } }] })],
+  ['GET', /^\/api\/security\/security-fusion\/lab$/, fusion({ enabled: false, canAdmin: true, runs: [] })],
+  ['GET', /^\/api\/security\/security-fusion\/cases$/, fusion(FUSION_CASES)],
+  ['GET', /^\/api\/security\/security-fusion\/cases\/case-1$/, fusion({
+    case: FUSION_CASES[0], events: FUSION_EVENTS.slice(0, 1), entities: FUSION_ENTITIES, evidence: FUSION_EVIDENCE,
+    investigations: [], actions: [], labRunId: null, responseAvailable: false, canApprove: false, approvalMode: 'console',
+  })],
+  ['GET', /^\/api\/security\/security-fusion\/events\?limit=100$/, fusion(FUSION_EVENTS)],
+  ['GET', /^\/api\/security\/security-fusion\/entities$/, fusion(FUSION_ENTITIES)],
+  ['GET', /^\/api\/security\/security-fusion\/sources$/, fusion(FUSION_SOURCES)],
+  ['GET', /^\/api\/security\/security-fusion\/source-registry$/, fusion([])],
+  ['GET', /^\/api\/security\/security-fusion\/evidence$/, fusion(FUSION_EVIDENCE)],
+  ['GET', /^\/api\/security\/security-fusion\/policies$/, fusion({
+    eventRetentionDays: 90, preservedEvidenceDays: 365, caseArchiveDays: 365, archiveGraceDays: 30, deletionReceiptDays: 2555,
+    perCaseCeilings: { events: 1000, entities: 250, relationships: 50, preservedEvidence: 100, preservedEvidenceBytes: 8388608 },
+    approvalTtlMinutes: 10, allowedActions: ['service restart', 'host isolation'], deniedActions: ['credential rotation'],
+    isolation: { defaultMinutes: 15, maximumMinutes: 30, defaultPolicy: 'deny' },
+  })],
+  ['GET', /^\/api\/security\/security-fusion\/audit\?.*$/, fusion({
+    verification: { state: 'verified', legacyEntries: 0, totalEntries: 2 },
+    events: [
+      { id: 'sa-1', timestamp: T1, action: 'case.investigation.save', actorId: 'alice', targetId: 'case-1', verificationState: 'verified' },
+      { id: 'sa-2', timestamp: T0, action: 'evidence.preserve', actorId: 'alice', targetId: 'evd-1', verificationState: 'verified' },
+    ],
+    total: 2,
+  })],
 ];
 
 

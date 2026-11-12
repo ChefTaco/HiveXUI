@@ -1,7 +1,8 @@
 import { ScanSearch } from "lucide-react";
 import { cn } from "@lib/cn";
 import { Badge, EmptyState as SharedEmptyState, Meter, PageHeader, Panel, StatusDot, TableFrame, type Tone } from "@ui";
-import Link from "@security/navigation";
+import { RouteLink } from "../../../../components/route-link";
+import { linkTo } from "../../../../lib/routes";
 import { productInstalled } from "@lib/runtime";
 import { mergeSourceAliases, severityTone, sourceLabel, sourceRelevant } from "@security/lib/security-fusion";
 import type { FusionCase, FusionCollector, FusionEvent, FusionSource } from "@security/lib/security-fusion";
@@ -41,10 +42,9 @@ export function CaseTable({ cases }: { cases: FusionCase[] }): React.ReactElemen
   return (
     <Panel as="div" padding="none" className="gap-0 overflow-hidden">
       {cases.map((item) => (
-        <Link
+        <RouteLink
           key={item.id}
-          href={`/security-fusion/cases/${item.id}`}
-          prefetch={false}
+          href={linkTo("cindertrace", "case", { caseId: item.id })}
           className={cn(
             "grid items-center gap-3 border-b border-l-[3px] border-b-border p-4 text-text transition-colors last:border-b-0 hover:bg-surface-hover md:grid-cols-[6.5rem_1fr_11rem_7rem]",
             SEVERITY_RAIL[item.severity],
@@ -62,7 +62,7 @@ export function CaseTable({ cases }: { cases: FusionCase[] }): React.ReactElemen
             valueLabel={`${Math.round(item.confidence * 100)}% conf.`}
           />
           <span className="text-sm text-text-muted md:text-right">{item.status}</span>
-        </Link>
+        </RouteLink>
       ))}
     </Panel>
   );

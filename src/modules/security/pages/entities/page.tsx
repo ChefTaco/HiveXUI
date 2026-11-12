@@ -4,12 +4,11 @@ import {
   FusionHeader,
 } from "@security/components/security-fusion/fusion-ui";
 import { fusionFetch, type FusionEntity } from "@security/lib/security-fusion";
+import { SecurityPage, useSecurityData } from "@security/lib/page-data";
 
-export const dynamic = "force-dynamic";
-
-export default async function EntitiesPage(): Promise<React.ReactElement> {
-  const entities = await fusionFetch<FusionEntity[]>("entities");
-  return (
+export default function EntitiesPage(): React.ReactElement {
+  const loaded = useSecurityData(() => fusionFetch<FusionEntity[]>("entities"), "entities");
+  return <SecurityPage data={loaded}>{(entities) => (
     <div className="page-stack">
       <FusionHeader
         eyebrow="Identity graph"
@@ -30,5 +29,5 @@ export default async function EntitiesPage(): Promise<React.ReactElement> {
         </div>
       )}
     </div>
-  );
+  )}</SecurityPage>;
 }
