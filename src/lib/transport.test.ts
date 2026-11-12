@@ -176,6 +176,11 @@ describe('step-up read recovery',()=>{
   const request=vi.fn<typeof fetch>().mockImplementation(async()=>Response.json({error:'STEP_UP_REQUIRED'},{status:403}));
   const response=await createApiFetch(request)('/api/client-keys');expect(response.status).toBe(403);expect(await response.json()).toEqual({error:'STEP_UP_REQUIRED'});expect(request).toHaveBeenCalledTimes(2);expect(verify).toHaveBeenCalledOnce();
  });
+ it('never opens verification for a quiet read: the refusal comes back as it is',async()=>{
+  const verify=vi.fn(async()=>{});setStepUpProvider(verify);
+  const request=vi.fn<typeof fetch>().mockImplementation(async()=>Response.json({error:'STEP_UP_REQUIRED'},{status:403}));
+  const response=await createApiFetch(request,{stepUp:false})('/api/client-keys');expect(response.status).toBe(403);expect(request).toHaveBeenCalledOnce();expect(verify).not.toHaveBeenCalled();
+ });
  it('does not repeat mutations, approval calls or failed/cancelled verification',async()=>{
   const request=vi.fn<typeof fetch>().mockImplementation(async()=>Response.json({error:'STEP_UP_REQUIRED'},{status:403}));
   setStepUpProvider(async()=>{});

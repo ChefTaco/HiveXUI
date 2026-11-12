@@ -31,9 +31,9 @@ import {
   visibleNavGroups,
   type ViewKey,
 } from './lib/navigation';
-import { ROUTES, routeFor, underPrefix } from './lib/routes';
+import { navigateTo, ROUTES, routeFor, underPrefix } from './lib/routes';
 import { type MagnusNavContext } from './modules/magnus/nav';
-import { openStudio } from './modules/studio/paths';
+import { isStudioPath, openStudio } from './modules/studio/paths';
 import {
   browserIdentity,
   productEnabled,
@@ -571,6 +571,18 @@ function Shell({
     }
   }
 
+  /** Follows an address from the route table, such as a search result. */
+  function openAddress(href: string) {
+    setNavOpen(false);
+    if (isStudioPath(href.split(/[?#]/, 1)[0]!)) {
+      setPaletteOpen(false);
+      openStudio(href);
+      return;
+    }
+    navigateTo(href);
+    requestAnimationFrame(() => document.querySelector<HTMLElement>('.topbar .title')?.focus());
+  }
+
   function navigate(requested: string, path?: string) {
     const target = viewAvailable(requested, productInstalled) ? routeFor(requested)! : routeFor('hive')!;
     setNavOpen(false);
@@ -755,7 +767,7 @@ function Shell({
       </div>
       {paletteOpen ? (
         <Suspense fallback={null}>
-          <CommandPalette screens={screens} onNavigate={navigate} onClose={() => setPaletteOpen(false)} />
+          <CommandPalette screens={screens} user={user} onNavigate={navigate} onOpen={openAddress} onClose={() => setPaletteOpen(false)} />
         </Suspense>
       ) : null}
     </>
