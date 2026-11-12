@@ -3,12 +3,11 @@ import {
   FusionHeader,
 } from "@security/components/security-fusion/fusion-ui";
 import { fusionFetch, type FusionCase } from "@security/lib/security-fusion";
+import { SecurityPage, useSecurityData } from "@security/lib/page-data";
 
-export const dynamic = "force-dynamic";
-
-export default async function CasesPage(): Promise<React.ReactElement> {
-  const cases = await fusionFetch<FusionCase[]>("cases");
-  return (
+export default function CasesPage(): React.ReactElement {
+  const loaded = useSecurityData(() => fusionFetch<FusionCase[]>("cases"), "cases");
+  return <SecurityPage data={loaded}>{(cases) => (
     <div className="page-stack">
       <FusionHeader
         eyebrow="Correlated work queue"
@@ -17,5 +16,5 @@ export default async function CasesPage(): Promise<React.ReactElement> {
       />
       <CaseTable cases={cases ?? []} />
     </div>
-  );
+  )}</SecurityPage>;
 }

@@ -1,13 +1,13 @@
-'use client';
 import { useState, type FormEvent } from 'react';
-import { useRouter } from '@security/navigation';
+import { linkTo, navigateTo } from '../../../../lib/routes';
+import { useSecurityRefresh } from '@security/lib/page-data';
 import { labAssessmentSchema, type LabAssessment, type LabComparison, type LabRun } from '@security/contracts/index';
 import { Meter, Panel, TableFrame, Button } from '@ui';
 import { labPost, labButton } from './lab-home';
 
 const signed = (value: number) => `${value > 0 ? '+' : ''}${value}`;
 export function LabCase({run, comparison}: {run: LabRun; comparison: LabComparison | null}) {
-  const router = useRouter();
+  const refresh = useSecurityRefresh();
   const last = run.checkpoints.at(-1)?.assessment;
   const [summary, setSummary] = useState(''), [hypotheses, setHypotheses] = useState(''), [checks, setChecks] = useState('');
   const [confidence, setConfidence] = useState(last?.compromiseConfidence ?? 50), [rationale, setRationale] = useState('');
@@ -17,7 +17,7 @@ export function LabCase({run, comparison}: {run: LabRun; comparison: LabComparis
   const [reviewed, setReviewed] = useState<Record<string, boolean>>({});
   async function action(fn: () => Promise<unknown>, success: string) {
     setBusy(true); setMessage('');
-    try { await fn(); setMessage(success); router.refresh(); }
+    try { await fn(); setMessage(success); refresh(); }
     catch (error) { setMessage(error instanceof Error ? error.message : 'Request failed'); }
     finally { setBusy(false); }
   }
@@ -64,7 +64,7 @@ export function LabCase({run, comparison}: {run: LabRun; comparison: LabComparis
     {run.simulations.length > 0 && <Panel title="Simulated containment review" tone="warning">{run.simulations.map(sim => <article key={sim.id} className="stack-item block space-y-3 text-sm"><p>Revision {sim.plan.revision} · {sim.status.replaceAll('_', ' ')}</p><p>{sim.plan.containment.kind.replaceAll('_', ' ')} · {run.targets.find(x => x.id === sim.plan.containment.targetId)?.label ?? sim.plan.containment.targetId}</p><p>{sim.plan.containment.rationale}</p><details><summary>Exact simulated plan</summary><pre className="code-block mt-2">{JSON.stringify(sim.plan, null, 2)}{'\n'}SHA-256 {sim.planSha256}</pre></details>{sim.status === 'pending' && (run.canAdmin ? <><label className="check-field"><input type="checkbox" checked={reviewed[sim.id] ?? false} onChange={e => setReviewed({...reviewed, [sim.id]: e.target.checked})} />I reviewed the exact target, effect, evidence and expiry. This decision is simulated.</label><div className="inline-actions">{(['approve', 'reject'] as const).map(decision => <button key={decision} type="button" className={decision === 'approve' ? labButton : 'btn'} disabled={busy || !reviewed[sim.id]} onClick={() => void action(() => labPost(`lab/runs/${run.id}/simulations/${sim.id}/decision`, {decision, confirmed: true, planSha256: sim.planSha256}), 'Simulated decision recorded. No action executed.')}>{decision === 'approve' ? 'Approve simulation' : 'Reject simulation'}</button>)}</div></> : <p className="text-warning">An administrator must review this simulated request.</p>)}</article>)}</Panel>}
     {run.status === 'active' && <Panel><p className="text-text-muted">{savedForStage ? 'Current evidence has a saved revision. You can revise again or continue.' : 'Save a revision for the current evidence to continue.'}</p><button className={`${labButton} justify-self-start`} disabled={busy || !savedForStage} onClick={() => void action(() => labPost(`lab/runs/${run.id}/${run.stage === 3 ? 'complete' : 'advance'}`, {stage: run.stage, evidenceSha256: run.evidenceSha256}), run.stage === 3 ? 'Investigation complete.' : 'Next evidence revealed.')}>{run.stage === 3 ? 'Complete and compare' : 'Reveal next evidence'}</button></Panel>}
     {comparison && <Panel title={`Revision comparison · rubric v${comparison.rubricVersion}`}><p className="text-text-muted">Each revision is assessed against evidence available at the time. Freeform reasoning and confidence percentages are not graded.</p><p className="text-sm text-text-muted sm:hidden">Scroll across to compare all columns.</p><TableFrame label="Scrollable revision comparison"><table><caption className="sr-only">Unsupported claims and unnecessary containment across revisions</caption><thead><tr>{['Revision / stage', 'Asserted', 'Unsupported', 'Supported coverage', 'Unnecessary containment'].map(label => <th key={label}>{label}</th>)}</tr></thead><tbody>{comparison.checkpoints.map(row => <tr key={row.revision}><td>{row.revision} / {row.stage}</td><td>{row.evaluation!.assertedCount}</td><td>{row.evaluation!.unsupportedClaims.length} ({signed(comparison.deltas.find(x => x.revision === row.revision)!.unsupportedClaims)})</td><td>{row.evaluation!.coverage.supported}/{row.evaluation!.coverage.available}</td><td>{row.evaluation!.containment.unnecessary ? 'Yes' : 'No'}</td></tr>)}</tbody></table></TableFrame>{comparison.checkpoints.map(row => <details key={row.revision}><summary>Revision {row.revision}: assessment reasons</summary><div className="mt-2 space-y-2 text-sm text-text-muted"><p>{row.evaluation!.tentativeCount} tentative hypotheses · {row.evaluation!.retractedCount} retractions</p>{row.evaluation!.unsupportedClaims.map(claim => <p key={claim.claimId}>{run.claims.find(x => x.id === claim.claimId)?.label}: {claim.reason}</p>)}<p>{row.evaluation!.containment.reason}</p></div></details>)}<ul className="list-disc space-y-2 pl-4 text-sm text-text-muted">{comparison.teachingNotes.map(note => <li key={note}>{note}</li>)}</ul></Panel>}
-    {run.canAdmin && <Button className="justify-self-start" disabled={busy} onClick={() => void action(async () => {const next = await labPost(`lab/runs/${run.id}/restart`); router.push(`/security-fusion/cases/${next.caseId}`);}, 'New investigation started.')}>Start fresh run · retain this history</Button>}
+    {run.canAdmin && <Button className="justify-self-start" disabled={busy} onClick={() => void action(async () => {const next = await labPost(`lab/runs/${run.id}/restart`); navigateTo(linkTo('cindertrace', 'case', { caseId: String(next.caseId) }));}, 'New investigation started.')}>Start fresh run · retain this history</Button>}
     {message && <p role="status" aria-live="polite" className="info-banner">{message}</p>}
   </section>;
 }

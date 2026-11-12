@@ -1,6 +1,8 @@
 import { Gauge } from "../../../components/gauge";
 import { Radar, radarRandom, type RadarBlip } from "../../../components/radar";
-import Link from "@security/navigation";
+import { RouteLink } from "../../../components/route-link";
+import { linkTo } from "../../../lib/routes";
+import { SecurityPage, useSecurityData } from "@security/lib/page-data";
 import {
   CaseTable,
   FusionHeader,
@@ -15,8 +17,6 @@ import {
 } from "@security/lib/security-fusion";
 import { buttonClass, Panel, StatCard, StatusDot } from "@ui";
 
-export const dynamic = "force-dynamic";
-
 interface Overview {
   generatedAt: string;
   openCases: FusionCase[];
@@ -24,11 +24,12 @@ interface Overview {
   bySeverity: Array<{ severity: string; _count: { id: number } }>;
 }
 
-export default async function SecurityFusionOverview(): Promise<React.ReactElement> {
-  const [data, lab] = await Promise.all([
-    fusionFetch<Overview>("overview"),
-    labEnabled(),
-  ]);
+export default function SecurityFusionOverview(): React.ReactElement {
+  const loaded = useSecurityData(() => Promise.all([fusionFetch<Overview>("overview"), labEnabled()]), "overview");
+  return <SecurityPage data={loaded}>{([data, lab]) => <OverviewView data={data} lab={lab} />}</SecurityPage>;
+}
+
+function OverviewView({ data, lab }: { data: Overview; lab: boolean }): React.ReactElement {
   const counts = Object.fromEntries(
     (data?.bySeverity ?? []).map((row) => [row.severity, row._count.id]),
   );
@@ -54,7 +55,7 @@ export default async function SecurityFusionOverview(): Promise<React.ReactEleme
       {lab ? (
         <Panel as="div" eyebrow="Disposable investigation lab" title="Practice on evolving evidence">
           <p className="text-sm">Follow evolving evidence, revisit your hypotheses and review how your confidence changed.</p>
-          <Link className={buttonClass({ className: 'w-fit' })} href="/security-fusion/lab">Start or resume investigation</Link>
+          <RouteLink className={buttonClass({ className: 'w-fit' })} href={linkTo("cindertrace", "lab")}>Start or resume investigation</RouteLink>
         </Panel>
       ) : null}
       <Panel as="div" className="grid-bg" aria-label="Security posture">

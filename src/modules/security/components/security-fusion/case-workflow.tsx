@@ -1,15 +1,14 @@
 import { securityPost } from '@security/lib/security-api';
-'use client';
 import {useState} from 'react';
 import { Panel, Button } from '@ui';
-import {useRouter} from '@security/navigation';
+import { useSecurityRefresh } from '@security/lib/page-data';
 export function CaseWorkflow({caseId,eventId,preserveOnly=false}:{caseId:string;eventId?:string|undefined;preserveOnly?:boolean}) {
- const router=useRouter();const [summary,setSummary]=useState('');const [message,setMessage]=useState('');const [busy,setBusy]=useState(false);
+ const refresh=useSecurityRefresh();const [summary,setSummary]=useState('');const [message,setMessage]=useState('');const [busy,setBusy]=useState(false);
  async function send(path:string,body?:unknown){
   setBusy(true);setMessage('');
   try {
    await securityPost(`security-fusion/cases/${encodeURIComponent(caseId)}/${path}`,body);
-   setMessage(body?'Investigation draft saved.':'Evidence preserved and hashed.');if(body)setSummary('');router.refresh();
+   setMessage(body?'Investigation draft saved.':'Evidence preserved and hashed.');if(body)setSummary('');refresh();
   }catch(error){setMessage(error instanceof Error?error.message:'Request failed');}finally{setBusy(false);}
  }
  return <Panel title={preserveOnly ? "Evidence preservation" : "Investigation draft"}>

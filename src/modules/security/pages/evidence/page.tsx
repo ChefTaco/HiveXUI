@@ -4,8 +4,7 @@ import {
   FusionHeader,
 } from "@security/components/security-fusion/fusion-ui";
 import { fusionFetch } from "@security/lib/security-fusion";
-
-export const dynamic = "force-dynamic";
+import { SecurityPage, useSecurityData } from "@security/lib/page-data";
 
 interface Evidence {
   id: string;
@@ -14,9 +13,9 @@ interface Evidence {
   preservedAt: string;
   mediaType: string;
 }
-export default async function EvidencePage(): Promise<React.ReactElement> {
-  const evidence = await fusionFetch<Evidence[]>("evidence");
-  return (
+export default function EvidencePage(): React.ReactElement {
+  const loaded = useSecurityData(() => fusionFetch<Evidence[]>("evidence"), "evidence");
+  return <SecurityPage data={loaded}>{(evidence) => (
     <div className="page-stack">
       <FusionHeader
         eyebrow="Chain of custody"
@@ -42,5 +41,5 @@ export default async function EvidencePage(): Promise<React.ReactElement> {
         </div>
       )}
     </div>
-  );
+  )}</SecurityPage>;
 }

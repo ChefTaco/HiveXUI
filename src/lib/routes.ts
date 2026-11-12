@@ -117,16 +117,16 @@ const emberpath = (id: string, title: string, icon: NavIcon, permission: string,
 
 /** Cindertrace's pages. Their addresses are under /security-fusion. */
 export const CINDERTRACE_PAGES = [
-  { id: 'overview', path: '', title: 'Cindertrace', nav: { label: 'Security overview', icon: 'ScanSearch' } },
-  { id: 'cases', path: 'cases', title: 'Cases', nav: { label: 'Cases', icon: 'ScanSearch' } },
-  { id: 'case', path: 'cases/:caseId', title: 'Detail', parent: 'cases' },
-  { id: 'events', path: 'events', title: 'Events', nav: { label: 'Events', icon: 'Activity' } },
-  { id: 'entities', path: 'entities', title: 'Entities', nav: { label: 'Entities', icon: 'Key' } },
-  { id: 'sources', path: 'sources', title: 'Sources', nav: { label: 'Sources', icon: 'Server' } },
-  { id: 'evidence', path: 'evidence', title: 'Evidence', nav: { label: 'Evidence', icon: 'FileText' } },
-  { id: 'policies', path: 'policies', title: 'Policies', nav: { label: 'Policies', icon: 'Scroll' } },
-  { id: 'audit', path: 'audit', title: 'Security audit', nav: { label: 'Security audit', icon: 'Shield' } },
-  { id: 'lab', path: 'lab', title: 'Lab', parent: 'overview' },
+  { id: 'overview', path: '', title: 'Cindertrace', nav: { label: 'Security overview', icon: 'ScanSearch' }, load: () => import('../modules/security/pages/page') },
+  { id: 'cases', path: 'cases', title: 'Cases', nav: { label: 'Cases', icon: 'ScanSearch' }, load: () => import('../modules/security/pages/cases/page') },
+  { id: 'case', path: 'cases/:caseId', title: 'Detail', parent: 'cases', load: () => import('../modules/security/pages/cases/[caseId]/page') },
+  { id: 'events', path: 'events', title: 'Events', nav: { label: 'Events', icon: 'Activity' }, load: () => import('../modules/security/pages/events/page') },
+  { id: 'entities', path: 'entities', title: 'Entities', nav: { label: 'Entities', icon: 'Key' }, load: () => import('../modules/security/pages/entities/page') },
+  { id: 'sources', path: 'sources', title: 'Sources', nav: { label: 'Sources', icon: 'Server' }, load: () => import('../modules/security/pages/sources/page') },
+  { id: 'evidence', path: 'evidence', title: 'Evidence', nav: { label: 'Evidence', icon: 'FileText' }, load: () => import('../modules/security/pages/evidence/page') },
+  { id: 'policies', path: 'policies', title: 'Policies', nav: { label: 'Policies', icon: 'Scroll' }, load: () => import('../modules/security/pages/policies/page') },
+  { id: 'audit', path: 'audit', title: 'Security audit', nav: { label: 'Security audit', icon: 'Shield' }, load: () => import('../modules/security/pages/audit/page') },
+  { id: 'lab', path: 'lab', title: 'Lab', parent: 'overview', load: () => import('../modules/security/pages/lab/page') },
 ] as const satisfies readonly SubRoute[];
 export const SECURITY_PREFIX = '/security-fusion';
 

@@ -1,35 +1,50 @@
+import type { FormEvent } from "react";
 import { securityFetch } from "@security/lib/security-api";
 import { FusionHeader } from "@security/components/security-fusion/fusion-ui";
+import { SecurityPage, useSecurityData } from "@security/lib/page-data";
+import { RouteLink } from "../../../../components/route-link";
+import { linkTo, navigateTo, type SubRouteProps } from "../../../../lib/routes";
 import { buttonClass, Badge, Button, statusTone, TableFrame } from "@ui";
-export default async function AuditPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ date?: string; page?: string }>;
-}) {
-  const params = await searchParams;
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(params.date ?? "")
-    ? params.date!
-    : new Date().toISOString().slice(0, 10);
-  const page = Math.max(1, Math.min(100, Number(params.page) || 1));
+
+interface AuditDay {
+  verification: {
+    state: string;
+    legacyEntries: number;
+    totalEntries: number;
+  };
+  events: Array<{
+    id: string;
+    timestamp: string;
+    action: string;
+    actorId: string;
+    targetId: string;
+    verificationState: string;
+  }>;
+  total: number;
+}
+/** A day of the audit chain, or null when it is unavailable or access is denied. */
+async function loadDay(date: string, page: number): Promise<AuditDay | null> {
   try {
-    const { data } = await securityFetch<{
-      data: {
-        verification: {
-          state: string;
-          legacyEntries: number;
-          totalEntries: number;
-        };
-        events: Array<{
-          id: string;
-          timestamp: string;
-          action: string;
-          actorId: string;
-          targetId: string;
-          verificationState: string;
-        }>;
-        total: number;
-      };
-    }>(`security-fusion/audit?date=${date}&page=${page}`);
+    return (await securityFetch<{ data: AuditDay }>(`security-fusion/audit?date=${date}&page=${page}`)).data;
+  } catch {
+    return null;
+  }
+}
+const dayLink = (date: string, page: number) => linkTo("cindertrace", "audit", { date, page });
+
+export default function AuditPage({ search }: SubRouteProps) {
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(search.get("date") ?? "")
+    ? search.get("date")!
+    : new Date().toISOString().slice(0, 10);
+  const page = Math.max(1, Math.min(100, Number(search.get("page")) || 1));
+  const loaded = useSecurityData(() => loadDay(date, page), `${date}/${page}`);
+  function load(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const chosen = new FormData(event.currentTarget).get("date");
+    navigateTo(linkTo("cindertrace", "audit", typeof chosen === "string" && chosen ? { date: chosen } : {}));
+  }
+  return <SecurityPage data={loaded}>{(data) => {
+  if (!data)
     return (
       <div className="page-stack">
         <FusionHeader
@@ -37,7 +52,20 @@ export default async function AuditPage({
           title="Security audit"
           copy="Review security changes and verify the retained audit chain."
         />
-        <form className="flex flex-wrap items-end gap-3">
+        <p role="alert" className="error-banner">
+          Audit history is unavailable or access is denied. Integrity is
+          unverified.
+        </p>
+      </div>
+    );
+    return (
+      <div className="page-stack">
+        <FusionHeader
+          eyebrow="Decision and integrity trail"
+          title="Security audit"
+          copy="Review security changes and verify the retained audit chain."
+        />
+        <form className="flex flex-wrap items-end gap-3" onSubmit={load}>
           <label className="field">
             Audit date
             <input
@@ -93,26 +121,12 @@ export default async function AuditPage({
           </table>
         </TableFrame>
         {page > 1 && (
-          <a className={buttonClass()} href={`?date=${date}&page=${page - 1}`}>Newer records</a>
+          <RouteLink className={buttonClass()} href={dayLink(date, page - 1)}>Newer records</RouteLink>
         )}{" "}
         {page * 100 < data.total && page < 100 && (
-          <a className={buttonClass()} href={`?date=${date}&page=${page + 1}`}>Older records</a>
+          <RouteLink className={buttonClass()} href={dayLink(date, page + 1)}>Older records</RouteLink>
         )}
       </div>
     );
-  } catch {
-    return (
-      <div className="page-stack">
-        <FusionHeader
-          eyebrow="Decision and integrity trail"
-          title="Security audit"
-          copy="Review security changes and verify the retained audit chain."
-        />
-        <p role="alert" className="error-banner">
-          Audit history is unavailable or access is denied. Integrity is
-          unverified.
-        </p>
-      </div>
-    );
-  }
+  }}</SecurityPage>;
 }

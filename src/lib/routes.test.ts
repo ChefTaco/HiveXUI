@@ -12,6 +12,7 @@ import {
   type ViewKey,
 } from './navigation';
 import { CINDERTRACE_PAGES, linkTo, matchSubroute, ROUTES, routeFor, SECURITY_PREFIX, underPrefix } from './routes';
+import { checkRouteSegment } from '../modules/security/lib/route-segment';
 import { matchRoute } from '../modules/magnus/routes';
 
 const EVERYTHING: ProductCheck = () => true;
@@ -184,6 +185,23 @@ describe('linkTo', () => {
     expect(() => linkTo('cindertrace', 'nope' as never)).toThrow('Unknown');
     expect(() => linkTo('emberpath', 'iam-users' as never)).toThrow('Unknown');
     expect(() => linkTo('magnus', '/no-such-page')).toThrow('Unknown Magnus page');
+  });
+});
+
+describe('Cindertrace record addresses', () => {
+  it('decode a record id once and refuse one that could leave its path', () => {
+    expect(matchSubroute(SECURITY_PREFIX, CINDERTRACE_PAGES, '/security-fusion/cases/a%20b')?.params).toEqual({ caseId: 'a b' });
+    expect(matchSubroute(SECURITY_PREFIX, CINDERTRACE_PAGES, '/security-fusion/cases/%E0%A4')).toBeNull();
+    const id = matchSubroute(SECURITY_PREFIX, CINDERTRACE_PAGES, '/security-fusion/cases/..%2Fadmin')!.params.caseId!;
+    expect(() => checkRouteSegment(id)).toThrow('Invalid route segment');
+    for (const bad of ['', '.', '..', 'a\\b', 'a\0b']) expect(() => checkRouteSegment(bad)).toThrow('Invalid route segment');
+    expect(checkRouteSegment('case-1')).toBe('case-1');
+  });
+
+  it('prefer a literal page over a record', () => {
+    expect(routeFor('security')).toBeDefined();
+    expect(matchSubroute(SECURITY_PREFIX, CINDERTRACE_PAGES, '/security-fusion/cases')?.page.id).toBe('cases');
+    expect(matchSubroute(SECURITY_PREFIX, CINDERTRACE_PAGES, '/security-fusion/cases/x/y')).toBeNull();
   });
 });
 

@@ -1,6 +1,5 @@
-/** Next route parameters may retain URL escapes; normalize exactly once at ingress. */
-export function decodeRouteSegment(segment: string): string {
-  const decoded = decodeURIComponent(segment);
+/** A decoded path parameter that names one record: no separators, dot segments or NUL. */
+export function checkRouteSegment(decoded: string): string {
   if (!decoded || decoded === '.' || decoded === '..' || /[\/\\\0]/.test(decoded)) throw new Error('Invalid route segment');
   return decoded;
 }

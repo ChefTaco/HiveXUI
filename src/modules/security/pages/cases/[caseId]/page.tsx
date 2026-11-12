@@ -1,5 +1,5 @@
 import { Badge, Panel } from "@ui";
-import { decodeRouteSegment } from "@security/lib/route-segment";
+import { checkRouteSegment } from "@security/lib/route-segment";
 import { LabCase } from "@security/components/security-fusion/lab-case";
 import type { LabRun, LabComparison } from "@security/contracts/index";
 import {CaseWorkflow} from "@security/components/security-fusion/case-workflow";
@@ -13,7 +13,8 @@ import {
   type FusionEntity,
   type FusionEvent,
 } from "@security/lib/security-fusion";
-import { notFound } from "@security/navigation";
+import { SecurityPage, SecurityRecordUnavailable, useSecurityData } from "@security/lib/page-data";
+import type { SubRouteProps } from "../../../../../lib/routes";
 import { ContainmentPanel } from "@security/components/security-fusion/containment-panel";
 
 interface CaseDetail {
@@ -46,18 +47,25 @@ interface CaseDetail {
   }>;
 }
 
-export default async function CasePage({
-  params,
-}: {
-  params: Promise<{ caseId: string }>;
-}): Promise<React.ReactElement> {
-  const caseId = decodeRouteSegment((await params).caseId);
+async function loadCase(id: string): Promise<{ detail: CaseDetail; lab: LabRun | null; comparison: LabComparison | null }> {
+  const caseId = checkRouteSegment(id);
   const detail = await fusionFetch<CaseDetail>(
     `cases/${encodeURIComponent(caseId)}`,
   );
-  if (!detail) notFound();
+  if (!detail) throw new SecurityRecordUnavailable();
   const lab = detail.labRunId ? await fusionFetch<LabRun>(`lab/runs/${encodeURIComponent(detail.labRunId)}`) : null;
   const comparison = lab?.status === "completed" ? await fusionFetch<LabComparison>(`lab/runs/${encodeURIComponent(lab.id)}/comparison`) : null;
+  return { detail, lab, comparison };
+}
+
+export default function CasePage({ params }: SubRouteProps): React.ReactElement {
+  // The route matcher has decoded the segment once.
+  const id = params.caseId ?? "";
+  const loaded = useSecurityData(() => loadCase(id), id);
+  return <SecurityPage data={loaded}>{(data) => <CaseView {...data} />}</SecurityPage>;
+}
+
+function CaseView({ detail, lab, comparison }: { detail: CaseDetail; lab: LabRun | null; comparison: LabComparison | null }): React.ReactElement {
   return (
     <div className="page-stack">
       <FusionHeader
