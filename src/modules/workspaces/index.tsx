@@ -17,6 +17,8 @@ import {
   TextInput,
   Toggle,
   PageHeader,
+  EmptyState,
+  LoadingRows,
 } from '../../components/ui';
 
 export default function WorkspacesModule({
@@ -30,7 +32,8 @@ export default function WorkspacesModule({
     [includeArchived, setIncludeArchived] = useState(false);
   const [error, setError] = useState(''),
     [notice, setNotice] = useState(''),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [loaded, setLoaded] = useState(false);
   const [newId, setNewId] = useState(''),
     [newTitle, setNewTitle] = useState('');
   const [title, setTitle] = useState(''),
@@ -102,11 +105,13 @@ export default function WorkspacesModule({
     }
   }
   useEffect(() => {
-    void refresh().catch((error) =>
-      setError(
-        error instanceof Error ? error.message : 'Workspace list unavailable',
-      ),
-    );
+    void refresh()
+      .catch((error) =>
+        setError(
+          error instanceof Error ? error.message : 'Workspace list unavailable',
+        ),
+      )
+      .finally(() => setLoaded(true));
     return () => {
       listGeneration.current++;
     };
@@ -177,8 +182,18 @@ export default function WorkspacesModule({
                 </button>
               ))}
             </div>
+          ) : loaded ? (
+            <EmptyState
+              compact
+              title="No workspaces"
+              message={
+                includeArchived
+                  ? 'No permitted workspaces returned.'
+                  : 'No permitted workspaces returned. Archived workspaces are hidden.'
+              }
+            />
           ) : (
-            <p>No permitted workspaces returned.</p>
+            <LoadingRows rows={3} />
           )}
           <div className="inline-actions">
             <Button

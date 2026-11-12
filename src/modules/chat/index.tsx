@@ -74,7 +74,7 @@ import {
   type BotIndicator,
 } from "./conversation-state";
 import "./chat.css";
-import { Button, Badge, useConfirm } from "@ui";
+import { Button, Badge, EmptyState, useConfirm } from "@ui";
 
 const standardEmoji: Record<string, string> = {
   thumbsup: "👍",
@@ -86,10 +86,11 @@ const standardEmoji: Record<string, string> = {
 export default function ChatModule() {
   if (!productEnabled("chattermost"))
     return (
-      <section className="panel">
-        <h2>ChatterMost is not configured</h2>
-        <p>Connect the chat service to open channels and conversations.</p>
-      </section>
+      <EmptyState
+        framed
+        title="ChatterMost is not configured"
+        message="Connect the chat service to open channels and conversations."
+      />
     );
   return <ConnectedChat />;
 }

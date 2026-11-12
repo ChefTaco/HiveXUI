@@ -6,7 +6,10 @@ import { registerPasskey } from '../../lib/passkeys';
 import {
   Button,
   ConfirmDialog,
+  EmptyState,
   Field,
+  LoadingRows,
+  PageHeader,
   Panel,
   TextInput,
 } from '../../components/ui';
@@ -52,7 +55,8 @@ export default function AccountModule() {
     >([]);
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
-    [notice, setNotice] = useState('');
+    [notice, setNotice] = useState(''),
+    [loaded, setLoaded] = useState(false);
   const [setup, setSetup] = useState<MfaSetupResponse | null>(null),
     [codes, setCodes] = useState<string[]>([]);
   const [name, setName] = useState(''),
@@ -73,11 +77,13 @@ export default function AccountModule() {
   }
   useEffect(() => {
     if (productEnabled('oathweave'))
-      void refresh().catch((error) =>
-        setError(
-          error instanceof Error ? error.message : 'Identity unavailable',
-        ),
-      );
+      void refresh()
+        .catch((error) =>
+          setError(
+            error instanceof Error ? error.message : 'Identity unavailable',
+          ),
+        )
+        .finally(() => setLoaded(true));
   }, []);
   async function action(operation: () => Promise<void>) {
     setBusy(true);
@@ -96,12 +102,18 @@ export default function AccountModule() {
   }
   if (!productEnabled('oathweave'))
     return (
-      <Panel title="Account security">
-        <p>Oathweave is not configured for this console.</p>
-      </Panel>
+      <EmptyState
+        framed
+        title="Oathweave is not configured"
+        message="Account security needs Oathweave sign-in for this installation."
+      />
     );
   return (
     <div className="page-stack">
+      <PageHeader
+        title="Account security"
+        description="Passkeys, authenticator app and recovery codes for your own sign-in."
+      />
       {error && (
         <p role="alert" className="error-banner">
           {error}
@@ -109,13 +121,17 @@ export default function AccountModule() {
       )}
       {notice && <p role="status">{notice}</p>}
       <Panel title="Your authentication methods">
-        <p>
-          {status?.enabled
-            ? 'Multi-factor authentication is enabled.'
-            : 'Multi-factor authentication is not enabled.'}{' '}
-          Recovery codes remaining:{' '}
-          {status?.recoveryCodesRemaining ?? 'Unavailable'}.
-        </p>
+        {status || loaded ? (
+          <p>
+            {status?.enabled
+              ? 'Multi-factor authentication is enabled.'
+              : 'Multi-factor authentication is not enabled.'}{' '}
+            Recovery codes remaining:{' '}
+            {status?.recoveryCodesRemaining ?? 'Unavailable'}.
+          </p>
+        ) : (
+          <LoadingRows rows={2} />
+        )}
       </Panel>
       <Panel title="Passkeys">
         <p>
@@ -143,6 +159,13 @@ export default function AccountModule() {
         >
           Register passkey
         </Button>
+        {loaded && !credentials.length ? (
+          <EmptyState
+            compact
+            title="No passkeys registered"
+            message="Register a passkey above to sign in without an authenticator code."
+          />
+        ) : null}
         <ul>
           {credentials.map((credential) => (
             <li key={credential.id}>
