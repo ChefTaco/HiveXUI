@@ -90,6 +90,9 @@ export const runtimeSchema = z
 let identity: ReturnType<typeof createBrowserAuth> | undefined;
 const enabled = new Set<Product>();
 let enrollmentInstallation: string | undefined;
+let identityClients: readonly string[] = [];
+/** The Oathweave public clients HiveXUI signs in with, one per configured product. Empty without suite sign-in. */
+export const browserClientIds = (): readonly string[] => identityClients;
 export const enrollmentInstallationId = () => enrollmentInstallation;
 export function selectEnrollmentInstallation(value: string): void {
   if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(value)) throw new Error('Select an explicit installation identifier');
@@ -130,6 +133,7 @@ export async function initializeRuntime(): Promise<void> {
       enabled.add(name as Product);
     }
   if (config.identity) {
+    identityClients = [...new Set(Object.values(config.identity.clients).filter((id): id is string => !!id))].sort();
     identity = createBrowserAuth(config.identity);
     setAccessProvider(identity.ensure);
     setStepUpProvider(identity.stepUp);

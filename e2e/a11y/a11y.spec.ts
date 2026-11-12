@@ -16,6 +16,7 @@ const PAGES = [
   { name: 'HiveMem workspaces', path: '/?page=workspaces' },
   { name: 'Installation overview', path: '/' },
   { name: 'Inbox', path: '/?page=inbox' },
+  { name: 'Setup checklist', path: '/?page=setup' },
   { name: 'Cindertrace overview', path: '/security-fusion' },
   { name: 'Cindertrace cases', path: '/security-fusion/cases' },
   { name: 'Cindertrace case', path: '/security-fusion/cases/case-1' },
@@ -122,4 +123,33 @@ test('the command palette with record results has no serious or critical accessi
   await results.getByRole('option', { name: /New service listening on a node/ }).click();
   await expect(palette).toBeHidden();
   await expect(page).toHaveURL(/\/security-fusion\/cases\/case-3$/);
+});
+
+test('the setup checklist and its header nudge show what is pending, and pass axe', async ({ page }) => {
+  await page.clock.setFixedTime(FIXED_NOW);
+  await installMocks(page);
+  await page.goto('/?page=setup', { waitUntil: 'networkidle' });
+  await expect(page.getByRole('heading', { level: 2, name: 'Setup' })).toBeVisible();
+  const nudge = page.getByRole('button', { name: /^Setup\s*4\s*steps pending$/ });
+  await expect(nudge).toBeVisible();
+  const steps = page.getByRole('list', { name: 'Setup steps' }).getByRole('article');
+  await expect(steps).toHaveCount(6);
+  const admin = steps.filter({ hasText: 'Create your own administrator account' });
+  await expect(admin.locator('.badge')).toHaveText('Looks done');
+  await expect(admin).toContainText('Looks done — run ./hive.sh setup done first-admin to record it.');
+  await expect(steps.filter({ hasText: 'Install the Magnus agent' }).getByText('Not done yet: Magnus has no enrolled node yet.')).toBeVisible();
+  await expect(steps.filter({ hasText: 'Add the HiveXUI browser clients' }).getByText(/^Couldn't check:/)).toBeVisible();
+  await expect(steps.filter({ hasText: 'A step from a newer controller' }).getByText('Pending', { exact: true })).toBeVisible();
+  await expect(page.getByText('Docs: deployment/FULL.md#installing-the-agent')).toBeVisible();
+  await page.waitForTimeout(300);
+  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  expect(results.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical').map((violation) => violation.id)).toEqual([]);
+  // The nudge stays in the header on every page, and leads back to the checklist.
+  const products = page.getByRole('navigation', { name: 'Products' });
+  await products.getByRole('button', { name: 'Hive', exact: true }).click();
+  await products.getByRole('button', { name: 'Inbox', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 2, name: 'Inbox' })).toBeVisible();
+  await nudge.click();
+  await expect(page).toHaveURL(/\?page=setup$/);
+  await expect(page.getByRole('heading', { level: 2, name: 'Setup' })).toBeVisible();
 });

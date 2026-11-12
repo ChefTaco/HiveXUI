@@ -2516,6 +2516,14 @@ td .badge {
     border: 0;
     background: none;
   }
+  /* The setup nudge keeps its words on a phone: its count is what it is for. */
+  .topbar-search.setup-nudge {
+    width: auto;
+    border: 1px solid color-mix(in srgb, var(--warning) 55%, var(--border-strong));
+  }
+  .topbar-search.setup-nudge span {
+    display: inline;
+  }
   .topbar {
     gap: var(--space-2);
     padding: var(--space-2) var(--space-3);
@@ -2802,4 +2810,68 @@ td .badge {
 .panel[data-linked-recommendation='true'] {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent), 0 0 24px var(--glow-accent);
+}
+
+/* ===== SETUP CHECKLIST ===== */
+.setup-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.setup-list .panel-actions {
+  flex: none;
+}
+.setup-list .badge {
+  white-space: nowrap;
+}
+.setup-command {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+.setup-command .code-block {
+  margin: 0;
+}
+.setup-copy-failed {
+  grid-column: 1 / -1;
+  color: var(--warning);
+  font-size: var(--text-sm);
+}
+.setup-docs,
+.setup-probe {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.setup-docs code,
+.setup-probe code {
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+.setup-probe--done {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--info) 40%, var(--border));
+  border-radius: var(--radius-chip);
+  background: var(--info-soft);
+}
+.setup-probe--done strong {
+  color: var(--text-strong);
+}
+.setup-nudge {
+  border-color: color-mix(in srgb, var(--warning) 55%, var(--border-strong));
+  color: var(--text);
+}
+.setup-nudge__count {
+  min-width: 1rem;
+  padding: 0 0.25rem;
+  border-radius: var(--radius-pill);
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-weight: 700;
+  text-align: center;
 }

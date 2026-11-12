@@ -41,7 +41,7 @@ describe('the route table', () => {
       [
         'account', 'actors', 'agents', 'audit', 'chat', 'docs', 'embermend', 'hive', 'iam-audit', 'iam-clients', 'iam-overview', 'iam-roles',
         'iam-security', 'iam-service-accounts', 'iam-sessions', 'iam-system-users', 'iam-users', 'inbox', 'incidents', 'keys', 'magnus',
-        'memories', 'providers', 'routers', 'routing', 'security', 'settings', 'skills', 'studio', 'testing', 'traces', 'workspaces',
+        'memories', 'providers', 'routers', 'routing', 'security', 'settings', 'setup', 'skills', 'studio', 'testing', 'traces', 'workspaces',
       ].sort(),
     );
   });
@@ -53,7 +53,7 @@ describe('the route table', () => {
       'iam-clients': 'IAM Clients', 'iam-sessions': 'IAM Sessions', 'iam-system-users': 'IAM System Users', 'iam-security': 'IAM Security',
       'iam-audit': 'Identity audit', memories: 'Memories', workspaces: 'Workspaces', skills: 'Skills and assignments', actors: 'Actors',
       routers: 'Routers', providers: 'Providers', routing: 'Routing', testing: 'Testing', traces: 'Traces', incidents: 'Hive incidents',
-      keys: 'API Keys', audit: 'Routing audit', docs: 'API Docs', settings: 'Settings', agents: 'Agent 360', inbox: 'Inbox',
+      keys: 'API Keys', audit: 'Routing audit', docs: 'API Docs', settings: 'Settings', agents: 'Agent 360', inbox: 'Inbox', setup: 'Setup',
     });
     expect(titleFor('agents', '/agents/node-1~lead')).toBe('Agent 360');
     expect(titleFor('magnus', '/nodes/abc')).toBe('Node');
@@ -229,6 +229,15 @@ describe('the Agent 360 entry', () => {
   it('has no sidebar entry: other pages link to it', () => {
     const products = navProducts(visibleNavGroups(EVERYTHING, { role: 'ADMIN', hermes: true }));
     expect(products.flatMap((product) => product.sections.flatMap((section) => section.items)).some((item) => item.key === 'agents')).toBe(false);
+  });
+});
+
+describe('the Setup page', () => {
+  it('lives at /?page=setup with no sidebar entry: the header nudge opens it', () => {
+    expect(land('/?page=setup').screen).toBe('setup');
+    expect(linkTo('hive', 'setup')).toBe('/?page=setup');
+    const products = navProducts(visibleNavGroups(EVERYTHING, { role: 'ADMIN', hermes: true }));
+    expect(products.flatMap((product) => product.sections.flatMap((section) => section.items)).some((item) => item.key === 'setup')).toBe(false);
   });
 });
 

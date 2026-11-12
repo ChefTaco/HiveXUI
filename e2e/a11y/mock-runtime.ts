@@ -292,6 +292,26 @@ const registryProduct = (id: string, displayName: string) => ({
   links: { repository: null, documentation: null, license: null, licenseSpdx: null },
   consoleSection: id, required: false, installed: true, dependencies: [],
 });
+// The installation record, with a setup checklist: three probes HiveXUI runs (no Magnus node has an
+// agent; the legacy runtime has no Oathweave clients to look for; alice is an administrator besides
+// the oldest account), settled items, and an item from a newer controller shown generically.
+const setupItem = (id: string, title: string, status: string, command: string, docs: string, extra: Record<string, string> = {}) => ({ id, title, status, command, docs, ...extra });
+const INSTALLATION = {
+  schema: 1,
+  id: 'example-lab',
+  products: ['hive-registry', ...Object.keys(RUNTIME.products)],
+  setup: {
+    updatedAt: T1,
+    items: [
+      setupItem('magnus-agent-enrolled', 'Install the Magnus agent on the Magnus host', 'pending', './hive.sh magnus-agent install', 'deployment/FULL.md#installing-the-agent', { product: 'magnus', check: 'magnus.agent' }),
+      setupItem('oathweave-console-clients', 'Add the HiveXUI browser clients to Oathweave', 'pending', './hive.sh console-clients add', 'deployment/QUICKSTART.md#8-upgrade', { product: 'oathweave', check: 'oathweave.console-client' }),
+      setupItem('ardent-packages-updated', 'Update the Ardent packages in HiveXUI (Magnus > Ardent > Installations)', 'done', './hive.sh setup done ardent-packages-updated', 'deployment/QUICKSTART.md#8-upgrade', { product: 'magnus' }),
+      setupItem('certificate-renewal', 'Schedule the HTTPS certificate renewal', 'skipped', 'sudo ./scripts/console-certificate.sh schedule --config FILE', 'deployment/QUICKSTART.md#9-keep-the-certificate-current', { product: 'ingress' }),
+      setupItem('first-admin', 'Create your own administrator account and stop using the initial operator', 'pending', './hive.sh setup done first-admin', 'deployment/QUICKSTART.md#6-sign-in', { product: 'oathweave', check: 'iam.first-admin' }),
+      setupItem('some-future-step', 'A step from a newer controller', 'pending', './hive.sh setup done some-future-step', 'deployment/FULL.md#setup-checklist', { check: 'future.probe' }),
+    ],
+  },
+};
 // Feed paths as the Registry announces them, relative to each browser prefix after the ingress mapping.
 const FEEDS: Record<string, [string, string]> = {
   magnus: ['Magnus', '/hive/events'],
@@ -398,6 +418,7 @@ export const ROUTES: Array<[string, RegExp, Answer]> = [
   ['GET', /^\/api\/skills\/admin\/targets\?nodeId=node-1$/, AGENT_TARGETS],
   ['GET', /^\/api\/skills\/admin\/targets\?nodeId=%21$/, refused({ error: 'Invalid target filter' })],
   // Hive Registry and the inbox's feeds
+  ['GET', /^\/api\/registry\/v1\/installation$/, INSTALLATION],
   ['GET', /^\/api\/registry\/v1\/products\?installed=true$/, { schema: 1, products: Object.entries(FEEDS).map(([id, [name]]) => registryProduct(id, name)) }],
   ['GET', /^\/api\/registry\/v1\/products\/([a-z]+)\/connection$/, (match: RegExpMatchArray) => ({
     id: match[1], consolePath: null, browserPrefix: `/api/${match[1]}`, nativeApis: {}, documentation: null,
