@@ -1,6 +1,6 @@
 {
   "name": "@hivemagnus/hivexui",
-  "version": "0.2.5",
+  "version": "0.2.8",
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
@@ -8,7 +8,7 @@
     "dev": "vite --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
     "build": "npm run typecheck && vite build",
-    "test": "vitest run",
+    "test": "bash scripts/ci-apt-setup.test.sh && vitest run",
     "e2e": "playwright test",
     "e2e:stack": "node e2e/stack/stack.mjs",
     "scan:secrets": "bash scripts/scan-secrets.sh",

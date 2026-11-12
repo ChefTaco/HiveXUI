@@ -1,14 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Play, ShieldCheck, TerminalSquare, Zap } from 'lucide-react';
 import { commandDetailResponseSchema, commandDispatchedResponseSchema, commandDryRunResponseSchema } from '@contracts/magnus/browser';
 import { Badge, Button, Field, PageHeader, statusTone, TextArea, TextInput } from '@ui';
 import { cn } from '@lib/cn';
 import { idempotencyKey, magnus, segment } from '../../../api/client';
-import { errorMessage, MagnusApiError } from '../../../api/errors';
+import { errorMessage } from '../../../api/errors';
 import { FxPanel, PageItem } from '../../../effects';
 import { ActionConfirm } from '../../../ui/action-confirm';
 import { NodeMultiSelect } from './node-multi-select';
-import { destructiveWarning, executeMessage, nodeCount, QUICK_ACTIONS, resultText } from './quick-actions';
+import { destructiveWarning, executeMessage, nodeCount, QUICK_ACTIONS } from './quick-actions';
+import { commandOutput, watchCommandResults, type CommandObservation } from './command-results';
 
 type Dispatched = { id: string; nodeId: string; status: string };
 type Preview = { id: string; name: string; status: string; stale: boolean; allowed: boolean };
@@ -27,16 +28,33 @@ export default function CommandsPage() {
   const [results, setResults] = useState<Dispatched[]>([]);
   const [running, setRunning] = useState(false);
   const [output, setOutput] = useState<string | null>(null);
+  const [selectedResultId, setSelectedResultId] = useState<string | null>(null);
+  const [observations, setObservations] = useState<Record<string, CommandObservation>>({});
+  const [resultErrors, setResultErrors] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<Preview[] | null>(null);
   // What the operator is asked about is what runs, whatever else changes behind the dialog.
   const [confirming, setConfirming] = useState<{ command: string; nodeIds: string[]; timeoutSeconds: number } | null>(null);
   const ready = command.trim() !== '' && nodeIds.length > 0 && Number.isInteger(timeoutSeconds) && timeoutSeconds >= 1 && timeoutSeconds <= 3600;
+  const commandIds = results.map(result => result.id).join(',');
+  useEffect(() => watchCommandResults(commandIds ? commandIds.split(',') : [],
+    async id => (await magnus.get(`/commands/${segment(id)}`, commandDetailResponseSchema)).data,
+    observed => {
+      setObservations(current => ({ ...current, [observed.id]: observed }));
+      setResults(current => current.map(row => row.id === observed.id ? { ...row, status: observed.status } : row));
+      setResultErrors(current => { const next = { ...current }; delete next[observed.id]; return next; });
+    },
+    id => setResultErrors(current => ({ ...current, [id]: 'Result refresh failed; retrying…' })),
+  ), [commandIds]);
+  const visibleOutput = selectedResultId
+    ? [commandOutput(observations[selectedResultId]), resultErrors[selectedResultId]].filter(Boolean).join('\n\n')
+    : output;
 
   /** Every click is a new key, in the body and the header as before. A request is sent once and never repeated. */
   async function dispatch(target: { command: string; nodeIds: string[]; timeoutSeconds: number }) {
     setConfirming(null);
     setRunning(true);
     setOutput(null);
+    setSelectedResultId(null);
     try {
       const key = idempotencyKey();
       const { data } = await magnus.post('/commands', commandDispatchedResponseSchema, {
@@ -44,6 +62,8 @@ export default function CommandsPage() {
         idempotencyKey: key,
       });
       setResults(data.commands);
+      setObservations({});
+      setResultErrors({});
       if (data.commands.length === 0) setOutput('No command was queued: none of the selected nodes is online.');
     } catch (error) {
       setOutput(errorMessage(error, 'Dispatch failed'));
@@ -57,6 +77,7 @@ export default function CommandsPage() {
     setRunning(true);
     setPreview(null);
     setOutput(null);
+    setSelectedResultId(null);
     try {
       const key = idempotencyKey();
       const { data } = await magnus.post('/commands', commandDryRunResponseSchema, {
@@ -68,16 +89,6 @@ export default function CommandsPage() {
       setOutput(errorMessage(error, 'Dry run failed'));
     } finally {
       setRunning(false);
-    }
-  }
-
-  async function fetchResult(commandId: string) {
-    try {
-      const { data } = await magnus.get(`/commands/${segment(commandId)}`, commandDetailResponseSchema);
-      setResults((current) => current.map((row) => row.id === data.id ? { ...row, status: data.status } : row));
-      setOutput(data.result ? resultText(data.result) : `Result not yet available (${data.status})`);
-    } catch (error) {
-      setOutput(error instanceof MagnusApiError && error.notFound ? 'Result not yet available' : errorMessage(error));
     }
   }
 
@@ -95,7 +106,7 @@ export default function CommandsPage() {
                 type="button"
                 title={action.description}
                 aria-pressed={command === action.command}
-                onClick={() => setCommand(action.command)}
+                onClick={() => { setCommand(action.command); if (action.timeoutSeconds !== undefined) setTimeoutSeconds(String(action.timeoutSeconds)); }}
                 className={cn('glow-hover inline-flex items-center gap-1.5 rounded-control border border-border bg-surface-raised px-3 py-1.5 text-sm text-text-muted transition-colors duration-[var(--duration-base)] hover:border-accent hover:text-accent', ACTION_CLASS[action.variant ?? 'default'], command === action.command && 'glow-accent border-accent')}
               >
                 {action.icon}
@@ -115,6 +126,8 @@ export default function CommandsPage() {
             <Field label="Timeout (seconds)" hint="A finite execution budget, from 1 to 3600 seconds.">
               <TextInput type="number" min={1} max={3600} step={1} value={timeout} onChange={setTimeoutSeconds} />
             </Field>
+            {command.trim() === '/usr/bin/uptime' && timeoutSeconds !== 60 ? <p className="m-0 text-sm text-warning">Use 60 seconds for this diagnostic’s automatic completion check. A custom budget requires outcome review.</p> : null}
+            <p className="m-0 text-sm text-text-muted">Commands can start work that outlives them. An operator may need to verify the outcome before this node accepts more work.</p>
             <div className="flex flex-wrap gap-2">
               <Button icon={<ShieldCheck className="size-4" />} loading={running} disabled={!ready} onClick={() => void dryRun()}>Dry run</Button>
               <Button variant="primary" icon={<Play className="size-4" />} loading={running} disabled={!ready} onClick={() => setConfirming({ command, nodeIds, timeoutSeconds })}>
@@ -154,18 +167,19 @@ export default function CommandsPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge tone={statusTone(result.status)}>{result.status}</Badge>
-                    <Button variant="ghost" size="sm" onClick={() => void fetchResult(result.id)}>View result</Button>
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedResultId(result.id)}>View result</Button>
                   </div>
+                  {resultErrors[result.id] ? <p role="status" className="m-0 w-full text-sm text-warning">{resultErrors[result.id]}</p> : null}
                 </li>
               ))}
             </ul>
           </FxPanel>
         </PageItem>
       ) : null}
-      {output ? (
+      {visibleOutput ? (
         <PageItem>
           <FxPanel title="Output" interactive={false}>
-            <pre className="code-block m-0" role="status">{output}</pre>
+            <pre className="code-block m-0" role="status">{visibleOutput}</pre>
           </FxPanel>
         </PageItem>
       ) : null}

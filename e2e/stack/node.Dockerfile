@@ -3,7 +3,7 @@
 # unprivileged `ardent` account whose systemd user manager runs the Ardent gateways the
 # agent creates. The container needs CAP_SYS_ADMIN in a private cgroup namespace so systemd
 # can manage its own cgroup subtree; it never touches the host's.
-ARG NODE_IMAGE=node:24.22.1-bookworm-slim@sha256:be8204d4bd327363357f532187b752ff62759c31bedf98e9e18fc08c9cbd605c
+ARG NODE_IMAGE=node:24.22.3-bookworm-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54
 
 FROM ${NODE_IMAGE} AS builder
 WORKDIR /opt/magnus-build

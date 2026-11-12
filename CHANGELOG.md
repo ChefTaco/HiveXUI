@@ -8,6 +8,21 @@
 
 - Show independent source and runtime remediation outcomes, preserve unknown exposure and mitigation, and require every applicable recorded dimension before claiming verified security.
 
+## [0.2.8] - 2026-11-11
+
+- Build on patched Node.js 24.22.3 for upstream TLS and HTTP/2 security fixes.
+
+## 0.2.7 - 2026-11-11
+
+- Observe dispatched command statuses and selected output until their terminal result, retrying reads without redispatching work and stopping when the view closes.
+- Use the registered uptime diagnostic and its 60-second budget in the quick action; explain custom-budget outcome review before dispatch.
+- Explain that Ardent profiles must be stopped before a package update and started after verification.
+
+## 0.2.6 - 2026-11-10
+
+- Require Alpine libxslt 1.1.43-r4 or newer, including fixes for CVE-2026-9947 and CVE-2026-87636.
+- Execute and scan each native image before publication, including unfixed HIGH/CRITICAL findings, retain raw reports and verify the published runtime matches the scanned candidate.
+
 ## 0.2.5 - 2026-11-10
 
 - Command results refresh the displayed status from the same server response, including pending, failed and timed-out commands.
