@@ -5,6 +5,7 @@ import { parseProfileRef, profileHref } from '../magnus/pages/agents/ardent/logi
 import type { StudioConnection } from './api/client';
 import './projects/projects.css';
 import { AgentStudio } from './agents/page';
+import { AgentPageLink } from '../agents/link';
 import { StudioLink } from './link';
 import { ProjectReview } from './review/page';
 import { CreateProject } from './projects/create';
@@ -93,10 +94,18 @@ function header(match: StudioMatch): { description: string; actions?: ReactNode 
         ...(ref
           ? {
               actions: (
-                <StudioLink href={'/fleet' + profileHref(ref.nodeId, ref.profileId)} className={buttonClass({ className: 'no-underline' })}>
-                  Fleet details
-                  <ArrowUpRight className="btn-ico" aria-hidden="true" />
-                </StudioLink>
+                <>
+                  <AgentPageLink agentRef={`${ref.nodeId}~${ref.profileId}`} render={(href) => (
+                    <StudioLink href={href} className={buttonClass({ className: 'no-underline' })}>
+                      Agent 360
+                      <ArrowUpRight className="btn-ico" aria-hidden="true" />
+                    </StudioLink>
+                  )} />
+                  <StudioLink href={'/fleet' + profileHref(ref.nodeId, ref.profileId)} className={buttonClass({ className: 'no-underline' })}>
+                    Fleet details
+                    <ArrowUpRight className="btn-ico" aria-hidden="true" />
+                  </StudioLink>
+                </>
               ),
             }
           : {}),

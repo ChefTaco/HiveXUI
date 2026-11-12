@@ -11,6 +11,7 @@ import { adminApi, ApiError } from '../lib/api';
 import { can } from '../lib/permissions';
 import type { AdminUser, MemoryConsoleData } from '../lib/types';
 import { formatTime, relativeTime } from '../lib/format';
+import { isActorId } from '../modules/agents/paths';
 
 function text(value: unknown, fallback = 'unknown'): string {
   return typeof value === 'string' && value.trim() ? value : fallback;
@@ -53,6 +54,12 @@ function memoryId(memory: Record<string, unknown>): string {
 }
 
 /** The Memories screen: with suite sign-in, the dashboard waits for this identity's HiveMem profile. */
+/** The `agent` query value when it is a HiveMem actor ID. */
+export function agentFromAddress(search: string): string {
+  const value = new URLSearchParams(search).get('agent') ?? '';
+  return isActorId(value) ? value : '';
+}
+
 export function MemoriesScreen({ currentUser }: { currentUser: AdminUser | null }) {
   return browserIdentity() ? <MemoryAccess>{(profile) => <MemoryDashboardPage currentUser={currentUser} profile={profile} />}</MemoryAccess> : <MemoryDashboardPage currentUser={currentUser} />;
 }
@@ -71,6 +78,8 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
   const [createWorkspace, setCreateWorkspace] = useState(() => { const id = new URLSearchParams(location.search).get('workspace'); return id && id !== '*' ? id : 'default'; });
   const [panelIssues, setPanelIssues] = useState<string[]>([]);
   const [workspaceId, setWorkspaceId] = useState(() => new URLSearchParams(location.search).get('workspace') ?? '*');
+  // ?agent=<actorId> keeps one agent's memories, as Agent 360 links here. Anything else is ignored.
+  const [agentId, setAgentId] = useState(() => agentFromAddress(location.search));
   const [searched, setSearched] = useState(false);
   const [results, setResults] = useState<Array<Record<string, unknown>>>([]);
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
@@ -122,9 +131,13 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
 
   async function runSearch(nextOffset = 0) {
     const generation = ++searchGeneration.current;
-    const url = new URL(location.href); url.searchParams.set('q', query); url.searchParams.set('workspace', workspaceId); history.replaceState(null, '', url);
+    const agent = agentId.trim();
+    if (agent && !isActorId(agent)) { setError('An agent is a HiveMem actor ID: 2 to 32 lowercase letters, digits, hyphens or underscores.'); return; }
+    const url = new URL(location.href); url.searchParams.set('q', query); url.searchParams.set('workspace', workspaceId);
+    if (agent) url.searchParams.set('agent', agent); else url.searchParams.delete('agent');
+    history.replaceState(null, '', url);
     setOffset(nextOffset);
-    const response = await run('search', () => adminApi.searchMemory({ query: query.trim(), workspaceId, limit: 25, offset: nextOffset }), () => generation === searchGeneration.current);
+    const response = await run('search', () => adminApi.searchMemory({ query: query.trim(), workspaceId, ...(agent ? { agentId: agent } : {}), limit: 25, offset: nextOffset }), () => generation === searchGeneration.current);
     if (response && generation === searchGeneration.current) {
       setSearched(true);
       setResults(recordsFrom(response, ['results', 'memories', 'items']).map((entry) => entry.memory ? record(entry.memory) : entry));
@@ -211,7 +224,7 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
   useEffect(() => {
     void refresh();
     const params = new URLSearchParams(location.search);
-    if (params.has('q') || params.has('workspace')) void runSearch();
+    if (params.has('q') || params.has('workspace') || agentId) void runSearch();
   }, []);
 
   const stats = record(data?.stats);
@@ -272,6 +285,9 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
             </Field>
             <Field label="Workspace">
               <TextInput value={workspaceId} onChange={setWorkspaceId} placeholder="default or *" />
+            </Field>
+            <Field label="Agent" hint="A HiveMem actor ID. Empty searches every agent you may read.">
+              <TextInput value={agentId} onChange={setAgentId} placeholder="any agent" />
             </Field>
           </div>
           <div className="inline-actions">

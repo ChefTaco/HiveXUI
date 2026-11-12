@@ -172,8 +172,49 @@ const FUSION_SOURCES = [
 const FUSION_ENTITIES = [
   { id: 'ent-1', type: 'user', canonical: 'user:bob@example.com', label: 'bob@example.com', lastSeenAt: T1 },
   { id: 'ent-2', type: 'host', canonical: 'host:node-2.example.internal', label: 'node-2', lastSeenAt: T1 },
+  { id: 'ent-3', type: 'agent', canonical: 'actor:ardent-lead', label: 'lead', lastSeenAt: T1,
+    aliasesJson: JSON.stringify(['actor:ardent-lead', 'magnus-node:node-1', 'agent-ref:node-1~lead']) },
 ];
 const FUSION_EVIDENCE = [{ id: 'evd-1', sourceLocator: 'hive://audit/evt-1', sha256: 'd'.repeat(64), preservedAt: T1, mediaType: 'application/json' }];
+
+// Agent 360 for the agent node-1~lead: Magnus names it, every other product answers about it.
+const AGENT_REF = 'node-1~lead';
+const ACTOR = 'ardent-lead';
+const AGENT_IDENTITY = { agentRef: AGENT_REF, nodeId: 'node-1', profile: 'lead', runtime: 'ardent', actorId: ACTOR, workspaceId: 'ardent-agents', oathweaveSubject: null, emberpathClientKeyId: null };
+const AGENT_NODE = {
+  id: 'node-1', name: 'node-1', hostname: 'node-1.example.internal', ipAddress: '192.0.2.10', port: 4000, status: 'ONLINE', os: 'linux', arch: 'x64',
+  tags: '[]', metadata: '{}', roleId: null, lastHeartbeatAt: T1, createdAt: T0, updatedAt: T1,
+  agent: { id: 'ag-1', nodeId: 'node-1', version: '2.0.0', status: 'RUNNING', pid: 4242, startedAt: T0, lastCheckIn: T1, capabilities: '{}' }, role: null, upgradeReadiness: null,
+};
+const ARDENT_INSTALLATION = {
+  nodeId: 'node-1', nodeName: 'node-1', hostname: 'node-1.example.internal', reachable: true, error: null, installed: true, version: '2.2.0', owner: 'ardent', checkedAt: T1,
+  profiles: [{ id: 'lead', name: 'lead', backend: 'llamacpp', apiPort: 9910, running: true, a2aEnabled: true, channels: { web: true, chat: false }, error: null }],
+};
+const agentMemory = (i: number, content: string, type: string) => ({
+  agent_id: ACTOR, confidence: 0.9, confidence_provenance: [], content, corroborated_by: [], created_at: new Date(NOW_MS - i * 3600_000).toISOString(), deleted_at: null,
+  effective_confidence: null, endorsed_by: [], endorsements: 0, expires_at: null, id: `mem-${i}`, importance: 0.5, metadata: {}, observed_at: null, opposed_by: [],
+  redaction_policy: 'none', relationships: [], retention_class: 'standard', sanitization_warnings: null, scope: 'private', sensitivity: 'internal', session_id: null,
+  source: 'conversation', superseded_at: null, superseded_by: null, supersedes: null, tags: [], type, updated_at: T1, valid_from: null, valid_to: null, workspace_id: 'ardent-agents',
+});
+const AGENT_MEMORIES = [
+  agentMemory(1, 'The archive project prefers short, cited summaries.', 'semantic'),
+  agentMemory(2, 'Deploys to node-2 need the maintenance window.', 'procedural'),
+  agentMemory(3, 'Reviewed the draft chapter with the team.', 'episodic'),
+];
+const studioProject = (n: number, name: string, bound: number, review: number) => ({
+  id: `prj_01HZX3K6Q1V8R2M4N6P8T0W00${n}`, name, audience: null, constraints: [], tags: [], status: 'active', created_by: 'alice',
+  hivemem: { workspace_id: `studio-${n}`, state: 'ready', error: null }, chattermost_channel_id: null, last_area: 'room', created_at: T0, updated_at: T1, archived_at: null,
+  brief_excerpt: '', file_count: 2, link_count: 0, deliverable_count: 1, team: { revision: 2, role_count: 3, bound_count: bound },
+  open_questions: 0, review_pending: review, active_tasks: 1, last_activity: { type: 'message', at: T1, text: 'Draft posted' },
+});
+const AGENT_PROJECTS = [studioProject(1, 'Sunken Archive', 3, 1), studioProject(2, 'Market scan', 2, 0)];
+const AGENT_CASES = [FUSION_CASES[0]];
+const AGENT_TRACES = [trace(11, true), trace(12, true), trace(13, false)].map((item) => ({ ...item, actorId: ACTOR }));
+const AGENT_TARGETS = [
+  { name: 'node-1-lead', host: 'node-1.example.internal', username: 'deploy', enabled: true, magnusNodeId: 'node-1', agentRefs: [AGENT_REF] },
+  { name: 'node-1-shared', host: 'node-1.example.internal', username: 'deploy', enabled: false, magnusNodeId: 'node-1', agentRefs: [] },
+];
+const refused = (body: unknown) => ({ __status: 400, body });
 
 // ---------------------------------------------------------------- route table
 // Each entry: [method, regexp on the request pathname (+search), body | (match, url, request) => body].
@@ -282,6 +323,24 @@ export const ROUTES: Array<[string, RegExp, Answer]> = [
   ['GET', /^\/api\/magnus\/nodes\/system-updates\/summary$/, magnusOk({ total: 0, reporting: 0, enabled: 0, actionNeeded: 0, rebootRequired: 0, nodes: [] })],
   ['GET', /^\/api\/magnus\/nodes\/tailscale\/summary$/, magnusOk({ total: 0, reporting: 0, expiryEnabled: 0, expiringSoon: 0, expired: 0, warningDays: 14, nodes: [] })],
   ['GET', /^\/api\/magnus\/agents\/upgrade\/eligibility$/, magnusOk(UPGRADE_ELIGIBILITY)],
+  ['GET', /^\/api\/magnus\/agents\/node-1~lead\/identity$/, magnusOk(AGENT_IDENTITY)],
+  ['GET', /^\/api\/magnus\/nodes\/node-1$/, magnusOk(AGENT_NODE)],
+  ['GET', /^\/api\/magnus\/ardent\/installations\/node-1$/, magnusOk(ARDENT_INSTALLATION)],
+  ['GET', /^\/api\/magnus\/ardent\/installations\/node-1\/profiles\/lead\/skills$/, magnusOk({ skills: [
+    { name: 'summarize', description: 'Condense long documents.', hash: 'a'.repeat(12), enabled: true },
+    { name: 'translate', description: 'Translate text between languages.', hash: 'b'.repeat(12), enabled: false },
+  ] })],
+  // Agent 360's filtered reads. Each product refuses a malformed filter, which is how the page knows
+  // the release honours it.
+  ['GET', /^\/api\/memory\/memories\/browse\?agent_id=ardent-lead&/, { limit: 25, memories: AGENT_MEMORIES, next_cursor: null, offset: 0, results: AGENT_MEMORIES, total: AGENT_MEMORIES.length }],
+  ['GET', /^\/api\/memory\/stats\?agent_id=ardent-lead$/, { agents: 1, conclusions: 4, episodes: 12, memories: 128, messages: 340, queue_jobs: 0, sessions: 9, webhook_deliveries: 0, webhooks: 0, workspaces: 2 }],
+  ['GET', /^\/api\/ardentstudio\/v1\/projects\?status=all&agentRef=node-1(?:~|%7E)lead$/, { projects: AGENT_PROJECTS }],
+  ['GET', /^\/api\/ardentstudio\/v1\/projects\?status=all&agentRef=not-an-agent-ref$/, refused({ error: { code: 'VALIDATION_ERROR', message: 'Invalid agentRef' } })],
+  ['GET', /^\/api\/security\/security-fusion\/cases\?entityType=agent&entity=actor%3Aardent-lead$/, fusion(AGENT_CASES)],
+  ['GET', /^\/api\/security\/security-fusion\/cases\?entityType=agent&entity=not-an-agent$/, refused({ success: false, error: { code: 'INVALID_ENTITY_FILTER', message: 'Invalid filter' } })],
+  ['GET', /^\/api\/emberpath\/traces\?actorId=ardent-lead&limit=50$/, { data: AGENT_TRACES, nextCursor: null }],
+  ['GET', /^\/api\/skills\/admin\/targets\?nodeId=node-1$/, AGENT_TARGETS],
+  ['GET', /^\/api\/skills\/admin\/targets\?nodeId=%21$/, refused({ error: 'Invalid target filter' })],
   // Cindertrace
   ['GET', /^\/api\/security\/security-fusion\/overview$/, fusion({ generatedAt: T1, openCases: FUSION_CASES, sources: FUSION_SOURCES, bySeverity: [{ severity: 'high', _count: { id: 1 } }, { severity: 'medium', _count: { id: 1 } }, { severity: 'low', _count: { id: 1 } }] })],
   ['GET', /^\/api\/security\/security-fusion\/lab$/, fusion({ enabled: false, canAdmin: true, runs: [] })],

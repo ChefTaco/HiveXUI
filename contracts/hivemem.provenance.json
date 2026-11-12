@@ -2,10 +2,10 @@
   "schema": 1,
   "product": "hivemem",
   "contractVersion": 1,
-  "productVersion": "1.0.0",
+  "productVersion": "1.5.0",
   "repository": "https://github.com/ChefTaco/HiveMem",
-  "revision": "4d81a2e2bdf58a516b6d8453532ef54753703366",
+  "revision": "13281b0a0019484d2b639320207612c06ec8b26f",
   "source": "docs/openapi.json",
-  "sha256": "b1082ff043bbb5ede0558cd9138a9a31db55bfd8330124960e8afa8ee6c7492e",
+  "sha256": "5ce9a8b6c0ed61abe2aaebaf50a06d082d8ace3ffaff4f02d7c09cbd8bd7a03a",
   "license": "Apache-2.0"
 }

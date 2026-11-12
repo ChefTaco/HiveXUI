@@ -11,7 +11,8 @@ import {
   type ProductCheck,
   type ViewKey,
 } from './navigation';
-import { CINDERTRACE_PAGES, linkTo, matchSubroute, ROUTES, routeFor, SECURITY_PREFIX, underPrefix } from './routes';
+import { AGENT_PAGES, CINDERTRACE_PAGES, linkTo, matchSubroute, ROUTES, routeFor, SECURITY_PREFIX, underPrefix } from './routes';
+import { AGENTS_PREFIX, parseAgentRef } from '../modules/agents/paths';
 import { checkRouteSegment } from '../modules/security/lib/route-segment';
 import { matchRoute } from '../modules/magnus/routes';
 
@@ -29,6 +30,7 @@ function land(href: string, installed: ProductCheck = EVERYTHING) {
   const page =
     view === 'security' ? matchSubroute(SECURITY_PREFIX, CINDERTRACE_PAGES, where.path)?.page.id
     : view === 'magnus' ? matchRoute(where.path)?.route.path
+    : view === 'agents' ? matchSubroute(AGENTS_PREFIX, AGENT_PAGES, where.path.replace(/\/+$/, ''))?.page.id
     : undefined;
   return { screen: page === undefined ? view : `${view}:${page}`, url };
 }
@@ -37,7 +39,7 @@ describe('the route table', () => {
   it('keeps every view key the shell has always had', () => {
     expect(ROUTES.map((route) => route.id).sort()).toEqual(
       [
-        'account', 'actors', 'audit', 'chat', 'docs', 'embermend', 'hive', 'iam-audit', 'iam-clients', 'iam-overview', 'iam-roles',
+        'account', 'actors', 'agents', 'audit', 'chat', 'docs', 'embermend', 'hive', 'iam-audit', 'iam-clients', 'iam-overview', 'iam-roles',
         'iam-security', 'iam-service-accounts', 'iam-sessions', 'iam-system-users', 'iam-users', 'incidents', 'keys', 'magnus',
         'memories', 'providers', 'routers', 'routing', 'security', 'settings', 'skills', 'studio', 'testing', 'traces', 'workspaces',
       ].sort(),
@@ -51,8 +53,9 @@ describe('the route table', () => {
       'iam-clients': 'IAM Clients', 'iam-sessions': 'IAM Sessions', 'iam-system-users': 'IAM System Users', 'iam-security': 'IAM Security',
       'iam-audit': 'Identity audit', memories: 'Memories', workspaces: 'Workspaces', skills: 'Skills and assignments', actors: 'Actors',
       routers: 'Routers', providers: 'Providers', routing: 'Routing', testing: 'Testing', traces: 'Traces', incidents: 'Hive incidents',
-      keys: 'API Keys', audit: 'Routing audit', docs: 'API Docs', settings: 'Settings',
+      keys: 'API Keys', audit: 'Routing audit', docs: 'API Docs', settings: 'Settings', agents: 'Agent 360',
     });
+    expect(titleFor('agents', '/agents/node-1~lead')).toBe('Agent 360');
     expect(titleFor('magnus', '/nodes/abc')).toBe('Node');
     expect(titleFor('magnus', '/no-such-page')).toBe('Magnus');
     expect(titleFor('security', '/security-fusion/cases')).toBe('Cases');
@@ -128,6 +131,14 @@ describe('existing addresses open the same screens', () => {
     ['/fleetwood', 'hive', null],
     ['/security-fusionette', 'hive', null],
     ['/studios', 'hive', null],
+    // Agent 360: one agent under /agents, its own query included.
+    ['/agents/node-1~lead', 'agents:agent', null],
+    ['/agents/node-1~lead/', 'agents:agent', null],
+    ['/agents/node-1~lead?tab=cases', 'agents:agent', null],
+    ['/agents/node-1~lead?page=traces', 'agents:agent', null],
+    ['/agents/node.a_b-c~lead.2', 'agents:agent', null],
+    ['/agents', 'agents', null],
+    ['/agentsmith', 'hive', null],
   ];
   it.each(PINNED)('%s opens %s', (href, screen, url) => {
     expect(land(href)).toEqual({ screen, url });
@@ -135,8 +146,13 @@ describe('existing addresses open the same screens', () => {
 
   it('drops an address whose product is not installed', () => {
     const identity: ProductCheck = (product) => product === 'oathweave';
-    for (const href of ['/fleet/nodes', '/security-fusion/cases/abc', '/studio/gallery', '/?page=memories', '/?page=magnus'])
+    for (const href of ['/fleet/nodes', '/security-fusion/cases/abc', '/studio/gallery', '/?page=memories', '/?page=magnus', '/agents/node-1~lead'])
       expect(land(href, identity)).toEqual({ screen: 'hive', url: '/' });
+  });
+
+  it('opens Agent 360 with any one of the products it reads', () => {
+    for (const product of ['magnus', 'hivemem', 'ardentstudio', 'cindertrace', 'emberpath', 'hiveskills'] as const)
+      expect(land('/agents/node-1~lead', (installed) => installed === product).screen, product).toBe('agents:agent');
   });
 });
 
@@ -167,6 +183,8 @@ describe('linkTo', () => {
     expect(linkTo('magnus', '/')).toBe('/fleet');
     expect(linkTo('magnus', '/nodes/:nodeId', { nodeId: 'n1' })).toBe('/fleet/nodes/n1');
     expect(linkTo('ardentstudio', 'gallery')).toBe('/studio/gallery');
+    expect(linkTo('agents', 'agent', { agentRef: 'node-1~lead' })).toBe('/agents/node-1~lead');
+    expect(linkTo('agents', 'agent', { agentRef: 'node-1~lead', tab: 'cases' })).toBe('/agents/node-1~lead?tab=cases');
   });
 
   it('opens the screen it names', () => {
@@ -176,6 +194,7 @@ describe('linkTo', () => {
       expect(land(href).screen, href).toBe(`security:${page.id}`);
     }
     expect(land(linkTo('magnus', '/nodes/:nodeId', { nodeId: 'n1' })).screen).toBe('magnus:/nodes/:nodeId');
+    expect(land(linkTo('agents', 'agent', { agentRef: 'node-1~lead' })).screen).toBe('agents:agent');
     for (const route of ROUTES.filter((entry) => !('prefix' in entry)))
       expect(land(linkTo(route.product as never, route.id as never)).screen).toBe(route.id);
   });
@@ -185,6 +204,31 @@ describe('linkTo', () => {
     expect(() => linkTo('cindertrace', 'nope' as never)).toThrow('Unknown');
     expect(() => linkTo('emberpath', 'iam-users' as never)).toThrow('Unknown');
     expect(() => linkTo('magnus', '/no-such-page')).toThrow('Unknown Magnus page');
+    expect(() => linkTo('agents', 'agent')).toThrow('agentRef');
+    expect(() => linkTo('hive', 'agents' as never)).toThrow('Unknown');
+  });
+});
+
+describe('Agent 360 addresses', () => {
+  it('carry one agent reference, decoded once', () => {
+    const match = matchSubroute(AGENTS_PREFIX, AGENT_PAGES, '/agents/node-1~lead');
+    expect(match?.page.id).toBe('agent');
+    expect(parseAgentRef(match?.params.agentRef)).toEqual({ agentRef: 'node-1~lead', nodeId: 'node-1', profile: 'lead' });
+    expect(matchSubroute(AGENTS_PREFIX, AGENT_PAGES, '/agents/node-1%7Elead')?.params.agentRef).toBe('node-1~lead');
+    expect(matchSubroute(AGENTS_PREFIX, AGENT_PAGES, '/agents/a~b/c')).toBeNull();
+  });
+
+  it('refuse a reference Magnus would refuse', () => {
+    for (const bad of ['', 'node-1', 'node-1~', '~lead', 'a~b~c', 'node 1~lead', 'node/1~lead', '..~lead'.replace('..', '.%2F'), `${'n'.repeat(129)}~lead`])
+      expect(parseAgentRef(bad), bad).toBeNull();
+    expect(parseAgentRef('..~lead')).toEqual({ agentRef: '..~lead', nodeId: '..', profile: 'lead' });
+  });
+});
+
+describe('the Agent 360 entry', () => {
+  it('has no sidebar entry: other pages link to it', () => {
+    const products = navProducts(visibleNavGroups(EVERYTHING, { role: 'ADMIN', hermes: true }));
+    expect(products.flatMap((product) => product.sections.flatMap((section) => section.items)).some((item) => item.key === 'agents')).toBe(false);
   });
 });
 

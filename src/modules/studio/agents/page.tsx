@@ -9,6 +9,7 @@ import { parseProfileRef, profileHref } from '../../magnus/pages/agents/ardent/l
 import { memoryStatusSchema, type ArdentHiveMemCredentialField, type MemoryStatus } from '../../magnus/pages/agents/ardent/schemas';
 import type { ProfileRef } from '../../magnus/pages/agents/ardent/profile/editors';
 import { listAgents, type Agent, type Snapshot } from '../api/endpoints';
+import { AgentPageLink } from '../../agents/link';
 import { setStudioQuery, StudioLink, useStudioSearch } from '../link';
 import { ProjectFrame } from '../projects/project-page';
 import { PortraitBadge } from '../room/scene';
@@ -170,6 +171,12 @@ function AgentHeader({ context, credential, loading, magnusDown }: { context: Ag
           {magnusDown ? <p className="m-0 text-sm text-warning" role="status">{magnusDown}</p> : null}
         </div>
         <div className="agent-head__actions">
+          <AgentPageLink agentRef={agentRef} render={(href) => (
+            <StudioLink href={href} className={buttonClass({ size: 'sm', className: 'no-underline' })}>
+              Agent 360
+              <ArrowUpRight className="btn-ico" aria-hidden="true" />
+            </StudioLink>
+          )} />
           <StudioLink href={'/fleet' + profileHref(nodeId, profileId)} className={buttonClass({ size: 'sm', className: 'no-underline' })}>
             Fleet details
             <ArrowUpRight className="btn-ico" aria-hidden="true" />

@@ -16,6 +16,9 @@ import {
 import { SecurityPage, SecurityRecordUnavailable, useSecurityData } from "@security/lib/page-data";
 import type { SubRouteProps } from "../../../../../lib/routes";
 import { ContainmentPanel } from "@security/components/security-fusion/containment-panel";
+import { securityCallWithBody } from "@security/lib/security-api";
+import { agentRefOf, caseEntityAliases } from "@security/lib/agent-entities";
+import { AgentPageLink } from "../../../../agents/link";
 
 interface CaseDetail {
   labRunId: string | null;
@@ -47,15 +50,17 @@ interface CaseDetail {
   }>;
 }
 
-async function loadCase(id: string): Promise<{ detail: CaseDetail; lab: LabRun | null; comparison: LabComparison | null }> {
+async function loadCase(id: string): Promise<{ detail: CaseDetail; aliases: Map<string, string[]>; lab: LabRun | null; comparison: LabComparison | null }> {
   const caseId = checkRouteSegment(id);
-  const detail = await fusionFetch<CaseDetail>(
-    `cases/${encodeURIComponent(caseId)}`,
+  const answer = await securityCallWithBody<{ data: CaseDetail }>(
+    `security-fusion/cases/${encodeURIComponent(caseId)}`,
   );
+  const detail = answer.value.data;
   if (!detail) throw new SecurityRecordUnavailable();
+  const aliases = caseEntityAliases(answer.body);
   const lab = detail.labRunId ? await fusionFetch<LabRun>(`lab/runs/${encodeURIComponent(detail.labRunId)}`) : null;
   const comparison = lab?.status === "completed" ? await fusionFetch<LabComparison>(`lab/runs/${encodeURIComponent(lab.id)}/comparison`) : null;
-  return { detail, lab, comparison };
+  return { detail, aliases, lab, comparison };
 }
 
 export default function CasePage({ params }: SubRouteProps): React.ReactElement {
@@ -65,7 +70,7 @@ export default function CasePage({ params }: SubRouteProps): React.ReactElement 
   return <SecurityPage data={loaded}>{(data) => <CaseView {...data} />}</SecurityPage>;
 }
 
-function CaseView({ detail, lab, comparison }: { detail: CaseDetail; lab: LabRun | null; comparison: LabComparison | null }): React.ReactElement {
+function CaseView({ detail, aliases, lab, comparison }: { detail: CaseDetail; aliases: Map<string, string[]>; lab: LabRun | null; comparison: LabComparison | null }): React.ReactElement {
   return (
     <div className="page-stack">
       <FusionHeader
@@ -104,6 +109,7 @@ function CaseView({ detail, lab, comparison }: { detail: CaseDetail; lab: LabRun
               <p key={entity.id} className="flex flex-wrap items-center gap-2 text-sm text-text">
                 <Badge>{entity.type}</Badge>
                 {entity.label}
+                {entity.type === "agent" ? <AgentPageLink agentRef={agentRefOf(entity.canonical, aliases.get(entity.id) ?? [])} /> : null}
               </p>
             ))}
             </div>
