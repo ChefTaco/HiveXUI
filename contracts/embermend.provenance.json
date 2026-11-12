@@ -3,13 +3,13 @@
   "product": "embermend-browser",
   "version": "0.1.0",
   "repository": "https://github.com/ChefTaco/Embermend",
-  "revision": "4814908341c6a74061d31e2fba09b8c1ecfa49e2",
+  "revision": "75736a426f95826ca67cf1151b97e38ed7175fc5",
   "files": [
     {
       "path": "embermend.generated.ts",
       "source": "packages/contracts/src/index.ts",
-      "sourceSha256": "221e4372c31cbb4b8f12f7a3b6b825e724613a172bd27197e46de082843844a9",
-      "sha256": "2aff294be499044df158595bea08235db5e5bca28d1f19b541b6d9c7f74a2b80"
+      "sourceSha256": "3957b31792fd8325a57083c6d5be53f52439d0588c2e52695dfafa4780835722",
+      "sha256": "66bbb95c5aedd6aab37877f133077f5c3268de60cd66ebe10f0da13c7e972036"
     }
   ]
 }
