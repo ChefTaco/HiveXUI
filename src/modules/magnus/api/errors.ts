@@ -1,14 +1,17 @@
+import { HiveApiError, HiveContractError, type HiveApiErrorMeta } from '../../../lib/api-error';
+
 /** A non-success answer from the Magnus API. `message` is written for the operator. */
-export class MagnusApiError extends Error {
+export class MagnusApiError extends HiveApiError {
+  override name = 'MagnusApiError';
   constructor(
-    readonly status: number,
+    status: number,
     message: string,
-    readonly code?: string,
+    code?: string,
     /** From a 429's Retry-After: how long to wait before asking again. */
-    readonly retryAfterMs?: number,
+    retryAfterMs?: number,
+    meta: HiveApiErrorMeta = {},
   ) {
-    super(message);
-    this.name = 'MagnusApiError';
+    super(status, message, { ...meta, code, retryAfterMs: retryAfterMs ?? meta.retryAfterMs });
   }
   /** Identity was verified, but a mutation is never replayed. The operator submits it again. */
   get retryAfterStepUp(): boolean {
@@ -23,14 +26,14 @@ export class MagnusApiError extends Error {
 }
 
 /** A 2xx answer that does not match the released contract. Nothing from it is shown. */
-export class MagnusContractError extends Error {
+export class MagnusContractError extends HiveContractError {
+  override name = 'MagnusContractError';
   constructor(
     readonly path: string,
     /** The method changes state, so the change was applied even though the answer was unreadable. */
-    readonly applied: boolean,
+    applied: boolean,
   ) {
-    super(applied ? 'The change was applied, but its result could not be read. Refresh to confirm.' : 'The Magnus API answered in an unexpected format.');
-    this.name = 'MagnusContractError';
+    super(applied ? 'The change was applied, but its result could not be read. Refresh to confirm.' : 'The Magnus API answered in an unexpected format.', applied);
   }
 }
 

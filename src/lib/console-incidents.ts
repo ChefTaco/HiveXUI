@@ -3,6 +3,7 @@ import { adminMeSchema, modelConsoleSchemas } from '../../contracts/emberpath-mo
 import { BrowserResourceUserResponseSchema, IamAuditResponseSchema } from '../../contracts/oathweave-browser.generated';
 import { MemoryProfileSchema, MemoryQueueStatusSchema } from '../../contracts/hivemem.generated';
 import { apiFetch, type Product } from './transport';
+import { hiveApiError } from './api-error';
 import { productEnabled } from './runtime';
 import { can } from './permissions';
 import { memoryCan } from './memory-access';
@@ -38,7 +39,7 @@ export async function readConsoleIncidents(
 ): Promise<{ data: HiveIncident[]; issues: string[] }> {
   async function get<T>(path: string, schema: z.ZodType<T>): Promise<T> {
     const response = await send(path);
-    if (!response.ok) throw Error(`Read unavailable (${response.status})`);
+    if (!response.ok) throw await hiveApiError(response, { trustMessage: false, fallback: (status) => `Read unavailable (${status})` });
     return schema.parse(await response.json());
   }
   const sources: Array<{ product: Product; read: () => Promise<HiveIncidentEvent[]> }> = [

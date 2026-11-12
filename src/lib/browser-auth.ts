@@ -1,5 +1,6 @@
 import { createRemoteJWKSet, customFetch, jwtVerify } from 'jose';
 import { clearAccess, refreshResourceAccess, rememberAccess, type Product } from './transport';
+import { apiFailureFromBody, createRequestId, failureMeta, HiveApiError, rememberSentRequestId, REQUEST_ID_HEADER } from './api-error';
 import type { AdminUser } from './types';
 import { z } from 'zod';
 import { authorizationRedirect, validatePortalAuthorization, type PortalAuthorizationRequest } from './authorization-portal';
@@ -23,14 +24,16 @@ import {
   IamSuccessResponseSchema, BrowserMessageResponseSchema, BrowserOkResponseSchema, BrowserConsentDetailsSchema, BrowserAuthorizationResponseSchema, BrowserTokenResponseSchema, BrowserSessionResponseSchema, BrowserLoginResponseSchema,
 } from '../../contracts/oathweave-browser.generated';
 
-class IdentityApiError extends Error {
+/** A refusal from Oathweave's browser API. `data` is its body, which consent prompts read. */
+class IdentityApiError extends HiveApiError {
+  override name = 'IdentityApiError';
   constructor(
-    readonly status: number,
+    status: number,
     readonly data: Record<string, unknown>,
+    response?: Response,
   ) {
-    super(
-      typeof data.message === 'string' ? data.message : 'Sign in to continue',
-    );
+    const failure = apiFailureFromBody(status, data, { fallback: 'Sign in to continue', response });
+    super(status, failure.message, { ...failureMeta(failure), code: failure.code });
   }
 }
 const consentDetails = BrowserConsentDetailsSchema;
@@ -104,6 +107,7 @@ export function createBrowserAuth(
       } as Record<string, z.ZodType>
     )[path];
     if (body && schema) body = schema.parse(body) as object;
+    const requestId = createRequestId();
     const response = await request(config.apiPrefix + path, {
       method: body ? 'POST' : 'GET',
       credentials: 'include',
@@ -111,9 +115,11 @@ export function createBrowserAuth(
       headers: {
         'Content-Type': 'application/json',
         'X-Oathweave-Browser': 'true',
+        [REQUEST_ID_HEADER]: requestId,
       },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
+    rememberSentRequestId(response, requestId);
     const result: unknown = await response.json();
     if (!result || typeof result !== 'object' || Array.isArray(result))
       throw new Error('Invalid identity response');
@@ -129,6 +135,7 @@ export function createBrowserAuth(
       throw new IdentityApiError(
         response.status,
         result as Record<string, unknown>,
+        response,
       );
     return result as Record<string, unknown>;
   }

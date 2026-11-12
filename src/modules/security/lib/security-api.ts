@@ -1,4 +1,5 @@
 import { apiFetch } from '../../../lib/transport';
+import { hiveApiError } from '../../../lib/api-error';
 import { securityBrowserRoute,securityBrowserResponseSchema } from '../../../../contracts/cindertrace/browser';
 export async function securityRequest(path:string,init:RequestInit={}) {
   securityBrowserRoute(path,init.method??'GET');
@@ -12,15 +13,8 @@ export async function securityCall<T>(path:string,init:RequestInit={}):Promise<T
   }
   const response=await securityRequest(path,init);
   if(!response.ok) {
-    if(method!=='GET') {
-      const payload:unknown=await response.json().catch(()=>null);
-      if(payload && typeof payload==='object' && 'error' in payload) {
-        const error=payload.error;
-        if(typeof error==='string')throw new Error(error);
-        if(error && typeof error==='object' && 'message' in error && typeof error.message==='string')throw new Error(error.message);
-      }
-    }
-    throw new Error(response.status===403?'Your account cannot access this security record':'Security request could not be completed');
+    // Cindertrace's own text is shown for a refused change; a failed read keeps the generic message.
+    throw await hiveApiError(response,{trustMessage:method!=='GET',fallback:status=>status===403?'Your account cannot access this security record':'Security request could not be completed'});
   }
   const parsed=securityBrowserResponseSchema(path,method).safeParse(await response.json());
   if(!parsed.success)throw new Error('Security returned an unsupported response; check the product release before retrying.');

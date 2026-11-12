@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { apiFetch } from '../../lib/transport';
+import { hiveApiError } from '../../lib/api-error';
 import {
   SkillSchema,
   ReleaseSchema,
@@ -40,17 +41,8 @@ export function createSkillsApi(send: typeof apiFetch = apiFetch) {
           }
         : {}),
     });
-    if (!response.ok) {
-      const error: unknown = await response.json().catch(() => null);
-      throw new Error(
-        error &&
-          typeof error === 'object' &&
-          'error' in error &&
-          typeof error.error === 'string'
-          ? error.error
-          : 'The registry could not complete this request',
-      );
-    }
+    if (!response.ok)
+      throw await hiveApiError(response, { fallback: 'The registry could not complete this request' });
     return schema.parse(response.status === 204 ? null : await response.json());
   }
   return {

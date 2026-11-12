@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Read every product's error answers, including the suite error envelope, through `@hivemagnus/hive-common/errors`, so failures show a consistent message and keep the product's code, details and request ID.
+- Send an `x-request-id` with every API request and keep the answer's request ID on the error, so a failure can be quoted and traced.
+- Accept ingress product names (`/api/oathweave/...`) as API paths beside the older logical aliases, which remain for legacy recovery runtimes without product prefixes.
+
 ## [0.3.0] - 2026-11-12
 
 - Add concise Embermend recommendations, scoped decisions, pause controls, evidence links and durable outcomes through the existing suite identity.

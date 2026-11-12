@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { apiFetch } from './transport';
+import { hiveApiError } from './api-error';
 import {
   MemoryProfileSchema,
   WorkspaceSchema,
@@ -27,18 +28,10 @@ export async function memoryRequest(
         }
       : {}),
   });
-  if (response.status === 204) return null;
-  const result: unknown = await response.json();
   if (!response.ok)
-    throw new Error(
-      result &&
-        typeof result === 'object' &&
-        'detail' in result &&
-        typeof result.detail === 'string'
-        ? result.detail
-        : `HiveMem request failed (${response.status})`,
-    );
-  return result;
+    throw await hiveApiError(response, { fallback: (status) => `HiveMem request failed (${status})` });
+  if (response.status === 204) return null;
+  return (await response.json()) as unknown;
 }
 export const memoryApi = {
   profile: async () =>

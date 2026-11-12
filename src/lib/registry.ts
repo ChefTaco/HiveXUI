@@ -8,6 +8,7 @@ import {
   type RegistryProduct,
 } from '@contracts/hive-registry/browser';
 import type { Product } from './transport';
+import { createRequestId, failureMeta, HiveApiError, readApiFailure, REQUEST_ID_HEADER, type HiveApiErrorMeta } from './api-error';
 
 /**
  * The Hive Registry: what this installation actually runs. runtime.json stays the bootstrap, with
@@ -29,9 +30,15 @@ export type RegistryState =
   /** `empty`: it answered, but listed nothing this console is configured for. */
   | { status: 'unavailable'; reason: 'unreachable' | 'malformed' | 'empty' };
 
-class RegistryError extends Error {
-  constructor(readonly reason: 'unreachable' | 'malformed') {
-    super('The Hive Registry could not be read');
+/** Why a Registry read failed decides what the overview says, so the reason is kept. */
+class RegistryError extends HiveApiError {
+  override name = 'RegistryError';
+  constructor(
+    readonly reason: 'unreachable' | 'malformed',
+    status = reason === 'unreachable' ? 503 : 502,
+    meta: HiveApiErrorMeta & { code?: string | undefined } = {},
+  ) {
+    super(status, 'The Hive Registry could not be read', meta);
   }
 }
 
@@ -42,13 +49,16 @@ async function read<T>(path: string, schema: z.ZodType<T>): Promise<T> {
       cache: 'no-store',
       credentials: 'omit',
       redirect: 'error',
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', [REQUEST_ID_HEADER]: createRequestId() },
       signal: AbortSignal.timeout(READ_TIMEOUT_MS),
     });
   } catch {
     throw new RegistryError('unreachable');
   }
-  if (!response.ok) throw new RegistryError('unreachable');
+  if (!response.ok) {
+    const failure = await readApiFailure(response);
+    throw new RegistryError('unreachable', failure.status, { ...failureMeta(failure), code: failure.code });
+  }
   const body: unknown = await response.json().catch(() => {
     throw new RegistryError('malformed');
   });
