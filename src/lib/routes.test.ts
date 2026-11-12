@@ -219,7 +219,7 @@ describe('Agent 360 addresses', () => {
   });
 
   it('refuse a reference Magnus would refuse', () => {
-    for (const bad of ['', 'node-1', 'node-1~', '~lead', 'a~b~c', 'node 1~lead', 'node/1~lead', '..~lead'.replace('..', '.%2F'), `${'n'.repeat(129)}~lead`])
+    for (const bad of ['', 'node-1', 'node-1~', '~lead', 'a~b~c', 'node 1~lead', 'node/1~lead', '.%2F~lead', `${'n'.repeat(129)}~lead`])
       expect(parseAgentRef(bad), bad).toBeNull();
     expect(parseAgentRef('..~lead')).toEqual({ agentRef: '..~lead', nodeId: '..', profile: 'lead' });
   });
