@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MagnusApiError } from '../../../api/errors';
-import { failureBudget, nodeDetail, readinessTitle, remedyText, retryCount, runHeadline, targetDescription, upgradeErrorMessage, type UpgradeEligibility, type UpgradeRun } from './agent-upgrade-view';
+import { failureBudget, majorUpgradeCount, nodeDetail, readinessTitle, remedyText, retryCount, runHeadline, targetDescription, upgradeErrorMessage, type UpgradeEligibility, type UpgradeRun } from './agent-upgrade-view';
 
 const runNode = (state: UpgradeRun['nodes'][number]['state'], extra: Partial<UpgradeRun['nodes'][number]> = {}): UpgradeRun['nodes'][number] => ({ nodeId: state, name: state, from: '1.0.0', state, requestId: 'r', detail: null, ...extra });
 const run = (extra: Partial<UpgradeRun>): UpgradeRun => ({ id: 'r', version: '1.1.0', integrity: 'sha512-x', actorId: 'a', status: 'partial', startedAt: '2026-11-05T10:00:00Z', finishedAt: null, concurrency: 1, message: null, nodes: [], ...extra });
@@ -46,5 +46,14 @@ describe('the upgrade drawer text', () => {
   it('sends a failure budget only when it is a small positive number', () => {
     expect(failureBudget('3')).toEqual({ maxFailures: 3 });
     for (const text of ['', '0', '-1', '1000', 'x']) expect(failureBudget(text)).toEqual({});
+  });
+});
+
+describe('major versions', () => {
+  it('counts the agents only a manual upgrade can move', () => {
+    const candidate = (nodeId: string, code: string | null) => ({ nodeId, name: nodeId, version: '1.0.0', eligible: code === null, reason: code, code, upgrade: null, layout: null });
+    const base: UpgradeEligibility = { version: '2.0.0', serverVersion: '2.0.0', upgradesEnabled: true, disabledReason: null, prerelease: false, release: { verified: true, integrity: 'x', reason: null }, nodes: [candidate('a', 'MAJOR_VERSION'), candidate('b', 'OFFLINE'), candidate('c', null)], latestRun: null };
+    expect(majorUpgradeCount(base)).toBe(1);
+    expect(majorUpgradeCount(null)).toBe(0);
   });
 });

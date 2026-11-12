@@ -7,6 +7,7 @@ export const fleetRoutes: readonly MagnusRoute[] = [
   { path: '/nodes', title: 'Nodes', load: () => import('../pages/fleet/nodes/page') },
   { path: '/application-operations', title: 'Application Operations', load: () => import('../pages/fleet/application-operations/page') },
   { path: '/fleet-readiness', title: 'Fleet Readiness', load: () => import('../pages/fleet/readiness/page') },
+  { path: '/fleet-timeline', title: 'Fleet Timeline', load: () => import('../pages/fleet/fleet-timeline/page') },
   { path: '/anomalies', title: 'Anomalies', load: () => import('../pages/fleet/anomalies/page') },
   { path: '/anomalies/:anomalyId', title: 'Anomaly Analysis', load: () => import('../pages/fleet/anomalies/detail/page') },
   { path: '/anomalies/remediation', title: 'Auto-Remediation', load: () => import('../pages/fleet/anomalies/remediation/page') },

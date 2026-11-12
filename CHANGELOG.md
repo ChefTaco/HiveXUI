@@ -5,6 +5,8 @@
 - Read every product's error answers, including the suite error envelope, through `@hivemagnus/hive-common/errors`, so failures show a consistent message and keep the product's code, details and request ID.
 - Send an `x-request-id` with every API request and keep the answer's request ID on the error, so a failure can be quoted and traced.
 - Accept ingress product names (`/api/oathweave/...`) as API paths beside the older logical aliases, which remain for legacy recovery runtimes without product prefixes.
+- Give the Magnus fleet timeline and data retention their own pages again (`/fleet/fleet-timeline`, `/fleet/retention`) with sidebar entries, sharing their panels with Fleet readiness. The timeline links an event only to a page the operator's role and the Hermes setting allow, and retention lists the tables nothing purges.
+- Bring the agent upgrade drawer up to date with the old dashboard: how many agents are ready, a notice for agents on another major version, an explanation when none can be upgraded, and the previous rollout folded away. Unavailable agents keep readable reasons instead of being dimmed.
 
 ## [0.3.0] - 2026-11-12
 
