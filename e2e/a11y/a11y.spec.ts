@@ -24,6 +24,8 @@ const PAGES = [
   { name: 'Cindertrace evidence', path: '/security-fusion/evidence' },
   { name: 'Cindertrace policies', path: '/security-fusion/policies' },
   { name: 'Cindertrace security audit', path: '/security-fusion/audit?date=2026-11-10' },
+  { name: 'Magnus fleet timeline', path: '/fleet/fleet-timeline' },
+  { name: 'Magnus retention', path: '/fleet/retention' },
 ];
 
 for (const { name, path } of PAGES)
@@ -53,4 +55,16 @@ test('the shared confirmation dialog has no serious or critical accessibility vi
   expect(results.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical').map((violation) => violation.id)).toEqual([]);
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
+});
+
+test('the Magnus agent upgrade drawer has no serious or critical accessibility violations', async ({ page }) => {
+  await page.clock.setFixedTime(FIXED_NOW);
+  await installMocks(page);
+  await page.goto('/fleet/nodes?upgrade=agents', { waitUntil: 'networkidle' });
+  const drawer = page.getByRole('dialog', { name: 'Upgrade agents' });
+  await expect(drawer).toBeVisible();
+  await expect(drawer.getByText('1 agent requires a manual major-version upgrade')).toBeVisible();
+  await page.waitForTimeout(500);
+  const results = await new AxeBuilder({ page }).include('[role="dialog"]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  expect(results.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical').map((violation) => violation.id)).toEqual([]);
 });

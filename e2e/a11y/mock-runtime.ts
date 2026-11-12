@@ -26,6 +26,7 @@ const RUNTIME = {
     chattermost: '/api/chat',
     cindertrace: '/api/security',
     embermend: '/api/embermend',
+    magnus: '/api/magnus',
   },
 };
 
@@ -177,6 +178,54 @@ const FUSION_EVIDENCE = [{ id: 'evd-1', sourceLocator: 'hive://audit/evt-1', sha
 // ---------------------------------------------------------------- route table
 // Each entry: [method, regexp on the request pathname (+search), body | (match, url, request) => body].
 // Returning { __status, body } sets a status. Unmatched /api/** requests get 404 {error:'not mocked'}.
+// Magnus (logical paths under /api/magnus, relative to its /api/v1)
+const magnusOk = (data: unknown) => ({ success: true, data });
+const MAGNUS_SESSION = { userId: 'usr_admin', role: 'ADMIN', capabilities: { hermes: true, terminal: false, agentVersion: '2.0.0', magnusVersion: '2.0.0', securityConsoleUrl: null } };
+const timelineItem = (type: string, severity: string, title: string, minutesAgo: number, href: string, node: string | null = null) => ({
+  type, severity, title, node, timestamp: new Date(NOW_MS - minutesAgo * 60_000).toISOString(), href,
+});
+const TIMELINE = [
+  timelineItem('command', 'error', 'df -h FAILED', 4, '/commands?commandId=cmd-1', 'node-1'),
+  timelineItem('deploy', 'info', 'role-apply COMPLETED', 18, '/governor/operations'),
+  timelineItem('hermes', 'info', 'profile-sync COMPLETED', 25, '/orchestra/installations', 'node-2'),
+  timelineItem('log', 'warn', 'Disk usage above 85% on /var', 40, '/logs', 'node-3'),
+  timelineItem('audit', 'info', 'node.update', 65, '/audit'),
+  timelineItem('notification', 'warning', 'Agent upgrade blocked on node-3', 90, '/notifications', 'node-3'),
+  timelineItem('command', 'info', 'uptime COMPLETED', 120, '/commands?commandId=cmd-2', 'node-2'),
+];
+const retentionTable = (name: string, count: number, oldestAt: string | null, policy: string, cutoffs?: Record<string, string>) => ({ name, count, oldestAt, policy, ...(cutoffs ? { cutoffs } : {}) });
+const RETENTION = {
+  generatedAt: T1,
+  policyStatus: { status: 'pass', message: 'Retention jobs are configured for every table with an automatic policy.' },
+  tables: [
+    retentionTable('HealthSnapshot', 182_400, T0, '24h full; 5m anomaly/extrema samples for 30d', { fullFidelityAfter: '2026-11-09T14:30:00.000Z', expiresBefore: '2026-10-11T14:30:00.000Z' }),
+    retentionTable('LogEntry', 48_210, T0, '30 days'),
+    retentionTable('Notification', 312, T0, 'read 14d; maximum 90d', { readBefore: '2026-10-27T14:30:00.000Z', expiresBefore: '2026-08-12T14:30:00.000Z' }),
+    retentionTable('RemoteCommand', 1_204, null, 'manual review'),
+    retentionTable('DeployJob', 87, null, 'manual review'),
+  ],
+};
+const upgradeCandidate = (nodeId: string, version: string, eligible: boolean, code: string | null, reason: string | null) => ({
+  nodeId, name: nodeId, version, eligible, reason, code, upgrade: null, layout: 'versioned', managed: true, preflight: null,
+});
+const UPGRADE_ELIGIBILITY = {
+  version: '2.0.1', serverVersion: '2.0.1', upgradesEnabled: true, disabledReason: null, prerelease: false,
+  release: { verified: true, integrity: 'sha512-example', reason: null },
+  nodes: [
+    upgradeCandidate('node-1', '2.0.0', true, null, null),
+    upgradeCandidate('node-2', '2.0.0', true, null, null),
+    upgradeCandidate('node-3', '1.4.2', false, 'MAJOR_VERSION', 'Agent 1.4.2 is on another major version; upgrade it by hand'),
+  ],
+  latestRun: {
+    id: 'run-1', version: '2.0.0', integrity: 'sha512-example', actorId: 'usr_admin', status: 'succeeded', startedAt: T0, finishedAt: T0, concurrency: 1, message: null,
+    canaryNodeId: 'node-1',
+    nodes: [
+      { nodeId: 'node-1', name: 'node-1', from: '1.9.0', state: 'confirmed', requestId: 'req-1', detail: null },
+      { nodeId: 'node-2', name: 'node-2', from: '1.9.0', state: 'confirmed', requestId: 'req-2', detail: null },
+    ],
+  },
+};
+
 export const ROUTES: Array<[string, RegExp, Answer]> = [
   // Emberpath (legacy console API; also serves /api/auth/me and /api/hive/* in legacy mode)
   ['GET', /^\/api\/emberpath\/auth\/me$/, { user: ADMIN }],
@@ -224,6 +273,15 @@ export const ROUTES: Array<[string, RegExp, Answer]> = [
   // HiveMem
   ['GET', /^\/api\/memory\/profile$/, PROFILE],
   ['GET', /^\/api\/memory\/workspaces\?.*$/, WORKSPACES],
+  // Magnus
+  ['GET', /^\/api\/magnus\/console\/session$/, magnusOk(MAGNUS_SESSION)],
+  ['GET', /^\/api\/magnus\/notifications\/unread-count$/, magnusOk({ count: 2 })],
+  ['GET', /^\/api\/magnus\/ops\/timeline\?limit=120$/, magnusOk(TIMELINE)],
+  ['GET', /^\/api\/magnus\/ops\/retention$/, magnusOk(RETENTION)],
+  ['GET', /^\/api\/magnus\/nodes\?page=1&pageSize=\d+$/, { success: true, data: [], meta: { total: 0, page: 1, pageSize: 100, hasMore: false } }],
+  ['GET', /^\/api\/magnus\/nodes\/system-updates\/summary$/, magnusOk({ total: 0, reporting: 0, enabled: 0, actionNeeded: 0, rebootRequired: 0, nodes: [] })],
+  ['GET', /^\/api\/magnus\/nodes\/tailscale\/summary$/, magnusOk({ total: 0, reporting: 0, expiryEnabled: 0, expiringSoon: 0, expired: 0, warningDays: 14, nodes: [] })],
+  ['GET', /^\/api\/magnus\/agents\/upgrade\/eligibility$/, magnusOk(UPGRADE_ELIGIBILITY)],
   // Cindertrace
   ['GET', /^\/api\/security\/security-fusion\/overview$/, fusion({ generatedAt: T1, openCases: FUSION_CASES, sources: FUSION_SOURCES, bySeverity: [{ severity: 'high', _count: { id: 1 } }, { severity: 'medium', _count: { id: 1 } }, { severity: 'low', _count: { id: 1 } }] })],
   ['GET', /^\/api\/security\/security-fusion\/lab$/, fusion({ enabled: false, canAdmin: true, runs: [] })],

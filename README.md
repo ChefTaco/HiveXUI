@@ -37,8 +37,8 @@ never shows a lab. The section adds a Lab tab only when the connected Cindertrac
 enabled, which an Oathweave-connected Cindertrace does not.
 
 `src/modules/magnus/PORTING.md` lists what the Magnus module leaves out on purpose, such as its own
-sign-in, federation across control nodes and the embedded Hermes dashboard. The old Magnus pages
-`/fleet-timeline`, `/retention` and `/hermes-security` have no equivalent here yet.
+sign-in, federation across control nodes and the embedded Hermes dashboard. Every other page of the old
+Magnus dashboard has an equivalent here.
 
 Native frontends and clients stay available until each module passes acceptance. Synthetic browser
 renders do not establish backend authorization or workflow parity. See the

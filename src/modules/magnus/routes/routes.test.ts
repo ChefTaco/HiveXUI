@@ -69,8 +69,8 @@ describe('the sidebar data', () => {
     expect(activeMagnusNavPath('/anomalies/abc')).toBe('/anomalies');
     expect(activeMagnusNavPath('/nodesque')).toBeNull();
   });
-  it('removes what the owner removed: terminal, federation, control nodes, the login page and Cindertrace', () => {
+  it('removes what the owner removed: terminal, federation, control nodes, the login page, Cindertrace and the Hermes proxy report', () => {
     const paths = MAGNUS_NAV.flatMap((section) => section.items.map((item) => item.path));
-    for (const path of ['/login', '/security-fusion', '/orchestra/web-gateway', '/terminal', '/federation']) expect(paths).not.toContain(path);
+    for (const path of ['/login', '/security-fusion', '/orchestra/web-gateway', '/hermes-security', '/terminal', '/federation']) expect(paths).not.toContain(path);
   });
 });
