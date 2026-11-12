@@ -174,7 +174,7 @@ Effects of the old console not used by a page yet, and who has them:
 | Sidebar hover sheen and spring indicator, breadcrumb cursor | In the shell. |
 | Toast slide-in and progress bar | `src/components/toast`. |
 | Command palette | `src/components/command-palette`, for screens across every product. The old console's search of nodes, skills and installations is not ported. |
-| Notification bell | `modules/magnus/shell/notification-bell`. |
+| Notification bell | Replaced by the suite inbox, `src/modules/inbox`, which merges every product's event feed. Magnus's own read flags still apply to its events. |
 | `text-glow`, `glow-pulse`, `scanline-scroll`, `neon-border`, `accent-glow` | Defined in the old CSS, used by nothing there. |
 
 Rules for anything you add to a page:

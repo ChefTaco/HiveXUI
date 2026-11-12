@@ -128,4 +128,18 @@ describe('Embermend recommendation decisions', () => {
     await clearView(); const disputed = risk('verified-fixed', 'verified-resolved'); findingRows = [{ ...disputed, finding: { ...disputed.finding, validity: 'disputed' } }]; await ready(); expect(document.body.textContent).toContain('review required'); expect(document.body.textContent).not.toContain('verified for recorded scope');
   });
 
+  it('brings the plan or campaign an inbox link names into view', async () => {
+    for (const query of ['?page=embermend&plan=fixture-plan', '?page=embermend&campaign=fixture-campaign']) {
+      history.replaceState(null, '', '/' + query);
+      await ready();
+      const linked = document.querySelector('[data-linked-recommendation="true"]');
+      expect(linked?.textContent).toContain(row.plan.objective);
+      expect(document.activeElement).toBe(linked);
+      await clearView();
+    }
+    history.replaceState(null, '', '/?page=embermend&plan=another-plan');
+    await ready();
+    expect(document.querySelector('[data-linked-recommendation]')).toBeNull();
+    history.replaceState(null, '', '/');
+  });
 });

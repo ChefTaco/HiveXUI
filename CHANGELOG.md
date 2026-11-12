@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+- Add the suite inbox: one list of notable events from every installed product that announces a HiveEvent v1 feed (`events.v1`) in the Hive Registry, read through each product's browser prefix with the shared transport. Events are validated with `@hivemagnus/hive-common/contracts`, deduplicated by ID and shown newest first; an invalid event is dropped without losing the rest of its page. It replaces the Magnus-only notification bell: the header bell shows the unread count and the newest events in a drawer, and the Inbox page (`/?page=inbox`) filters by product, severity and read state.
+- Keep a last-seen position per person and product in local storage; "Mark all read" advances it. Magnus events also follow Magnus's own read flags, matched by the notification ID in `sourceRef`, and "Mark all read" marks them read in Magnus. With storage blocked, marks last until the page reloads.
+- Poll every 60 seconds while the tab is visible. Each product has 5 seconds; one that fails or times out shows a "Couldn't reach" row and never holds up the others.
+- Link an event only to a page the route table knows and this installation shows; any other path is shown as text.
+- Open the Embermend recommendation named by `?plan=<id>` or `?campaign=<id>`, the addresses Embermend's events link to.
+- Read the optional `capabilities` object on Hive Registry products and connections, a local extension of the pinned Registry contract until the Registry release publishes it.
+- Require `@hivemagnus/hive-common` 0.4.0.
+
 ## [0.5.0] - 2026-11-12
 
 - Add Agent 360 at `/agents/<magnusNodeId>~<profile>`: one page for one agent, with a tab per product. Overview shows the agent's identity from Magnus (`GET /api/v1/agents/:agentRef/identity`) with its node and profile; Memories, Projects, Cases, Traffic and Skills list what HiveMem, Ardent Project Studio, Cindertrace, Emberpath and HiveSkills hold for it. Each tab says when its product is not installed, when the agent has no HiveMem actor to match by, when the product release cannot filter by agent, and when the product refuses this account; a release that ignores the filter is detected and its unfiltered answer is never shown as this agent's. Every tab is filled with Magnus 2.7.0, HiveMem 1.5.0, Ardent Project Studio 0.3.0, Cindertrace 0.4.0, Emberpath 2.2.0 and HiveSkills 1.5.0 or later.

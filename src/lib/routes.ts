@@ -156,6 +156,10 @@ export const ROUTES = [
   { id: 'incidents', product: 'hive', title: 'Hive incidents', group: 'Hive', icon: 'Alert', gate: { any: ['emberpath', 'oathweave', 'hivemem'] },
     access: { product: 'emberpath', permission: 'router:admin:read' }, shellStatus: true,
     component: screen(() => import('../pages/incidents'), (module) => module.IncidentsPage) },
+  // Notable events from every installed product that serves a HiveEvent feed, merged in one list.
+  // The header bell opens the same list in a drawer.
+  { id: 'inbox', product: 'hive', title: 'Inbox', group: 'Hive', icon: 'Bell',
+    component: screen(() => import('../modules/inbox'), (module) => module.default), loading: 'Loading the inbox…' },
   { id: 'magnus', product: 'magnus', title: 'Magnus', group: 'Magnus', icon: 'Radar', gate: { all: ['magnus'] },
     prefix: { path: FLEET_PREFIX, ownsQuery: true }, pageMovesToPrefix: true,
     navFor: (context) => (context ? visibleMagnusNav(context) : MAGNUS_NAV).flatMap((section) => section.items.map((item) => ({ label: item.label, icon: item.icon, path: item.path, section: section.label }))),

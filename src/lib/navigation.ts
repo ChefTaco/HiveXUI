@@ -1,6 +1,8 @@
 // What the shell derives from the route table (./routes): sidebar sections, the active entry, the
 // breadcrumb, palette screens and the opening view for an address. Pure data and no React.
 import type { MagnusNavContext } from '../modules/magnus/nav';
+import { toConsolePath } from '../modules/magnus/paths';
+import { hasRoute } from '../modules/magnus/routes';
 import {
   gateOpen,
   matchSubroute,
@@ -298,4 +300,44 @@ export function resolveDeepLink(
   for (const route of under)
     if (!route.prefix.ownsQuery && viewAvailable(route.id, installed)) return { view: route.id, url: null };
   return { view: 'hive', url: page !== null || under.length > 0 ? '/' : null };
+}
+
+const LINK_BASE = 'http://hivexui.invalid';
+/**
+ * The address to follow for a path that came from data, such as a HiveEvent's `link.path`, or null
+ * when the route table does not know it or this installation does not show it. Show a null one as
+ * text: only pages the table names are links.
+ */
+export function knownAddress(href: unknown, installed: ProductCheck): string | null {
+  if (typeof href !== 'string' || href.length > 1024 || !href.startsWith('/') || href.startsWith('//') || /[\\\s\u0000-\u001f]/.test(href)) return null;
+  const raw = href.split(/[?#]/, 1)[0]!;
+  for (const segment of raw.split('/')) {
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(segment);
+    } catch {
+      return null;
+    }
+    if (decoded === '.' || decoded === '..' || /[\\/]/.test(decoded)) return null;
+  }
+  let url: URL;
+  try {
+    url = new URL(href, LINK_BASE);
+  } catch {
+    return null;
+  }
+  if (url.origin !== LINK_BASE) return null;
+  const pathname = url.pathname.replace(/\/+$/, '') || '/';
+  const address = pathname + url.search;
+  for (const route of ROUTES) {
+    if (!('prefix' in route) || !underPrefix(pathname, route.prefix.path)) continue;
+    if (!viewAvailable(route.id, installed)) return null;
+    if (route.id === 'magnus') return hasRoute(toConsolePath(pathname)) ? address : null;
+    if ('subroutes' in route) return matchSubroute(route.prefix.path, route.subroutes as readonly SubRoute[], pathname) ? address : null;
+    return null;
+  }
+  if (pathname !== '/') return null;
+  const page = url.searchParams.get('page');
+  if (page === null) return address;
+  return viewAvailable(page, installed) && !routeFor(page)!.prefix ? address : null;
 }
