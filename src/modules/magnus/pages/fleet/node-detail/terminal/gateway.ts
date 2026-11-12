@@ -3,6 +3,7 @@
 // does: the operator is asked, and nothing is replayed. Nothing here logs a request or a response,
 // because both hold what a person typed or what a node printed.
 import { z } from 'zod';
+import { failureMeta, readApiFailure, type HiveApiErrorMeta } from '../../../../../../lib/api-error';
 import { createApiFetch } from '../../../../../../lib/transport';
 import { apiPath, handleUnauthorized } from '../../../../api/client';
 import { MagnusApiError, MagnusContractError } from '../../../../api/errors';
@@ -37,9 +38,9 @@ const refusalSchema = z.object({ error: z.string().optional(), message: z.string
 
 /** A refusal: its code decides what the panel says, and the code from RESOURCE_ADMISSION_REFUSED is kept. */
 export class TerminalRefusal extends MagnusApiError {
-  constructor(status: number, message: string, code: string | undefined, readonly reason: string | undefined) {
-    super(status, message, code);
-    this.name = 'TerminalRefusal';
+  override name = 'TerminalRefusal';
+  constructor(status: number, message: string, code: string | undefined, readonly reason: string | undefined, meta: HiveApiErrorMeta = {}) {
+    super(status, message, code, undefined, meta);
   }
 }
 
@@ -60,9 +61,10 @@ export function createTerminalGateway(request: typeof fetch = (input, init) => f
 
   async function refusal(response: Response): Promise<TerminalRefusal> {
     if (response.status === 401) void handleUnauthorized();
-    const parsed = refusalSchema.safeParse(await response.clone().json().catch(() => null));
+    const failure = await readApiFailure(response, { fallback: 'The fleet gateway refused this request.' });
+    const parsed = refusalSchema.safeParse(failure.body);
     const body = parsed.success ? parsed.data : {};
-    return new TerminalRefusal(response.status, body.message ?? 'The fleet gateway refused this request.', body.error, body.reason);
+    return new TerminalRefusal(response.status, body.message ?? 'The fleet gateway refused this request.', body.error, body.reason, failureMeta(failure));
   }
 
   async function post<S extends z.ZodType>(verb: string, schema: S, body: unknown, options: { timeoutMs?: number; keepalive?: boolean } = {}): Promise<z.output<S>> {

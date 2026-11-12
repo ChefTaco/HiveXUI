@@ -3,6 +3,7 @@
 // once after verification, a mutation never does. The only retry here is a read under /ardent/ refused
 // with 429: it waits out Retry-After once (see readCooldown).
 import { z } from 'zod';
+import { readApiFailure, failureMeta, type ApiFailure } from '../../../lib/api-error';
 import { apiFetch } from '../../../lib/transport';
 import { browserIdentity } from '../../../lib/runtime';
 import { agentDisabledMessage, MagnusApiError, MagnusContractError } from './errors';
@@ -54,25 +55,26 @@ export async function handleUnauthorized(): Promise<void> {
   }
 }
 
+/** The operator's message for a refusal whose answer has none. */
+export const magnusFallback = (status: number): string =>
+  status === 401 ? 'Sign in again to continue' : status === 403 ? 'Your Magnus role does not allow this' : status === 429 ? 'Too many requests. Wait a moment and try again.' : status >= 500 ? 'The Magnus API could not complete this request' : 'The request was rejected';
+
+/** The error for a failed Magnus answer whose body has been read: `{success:false,error:{code,message}}` or any older shape. */
+export function magnusFailure(failure: ApiFailure): MagnusApiError {
+  const meta = failureMeta(failure);
+  const disabled = agentDisabledMessage(failure.body);
+  if (disabled) return new MagnusApiError(failure.status, disabled, 'AGENT_NOT_PRIVILEGED', undefined, meta);
+  return new MagnusApiError(failure.status, failure.message, failure.code, undefined, meta);
+}
+
 async function failure(response: Response): Promise<MagnusApiError> {
   if (response.status === 401) void handleUnauthorized();
-  const body: unknown = await response.clone().json().catch(() => null);
-  const disabled = agentDisabledMessage(body);
-  if (disabled) return new MagnusApiError(response.status, disabled, 'AGENT_NOT_PRIVILEGED');
-  const shape = z.object({
-    message: z.string().optional(),
-    error: z.union([z.string(), z.object({ code: z.string().optional(), message: z.string().optional() })]).optional(),
-  }).safeParse(body);
-  const parsed = shape.success ? shape.data : {};
-  const inner = typeof parsed.error === 'object' ? parsed.error : undefined;
-  const code = inner?.code ?? (typeof parsed.error === 'string' ? parsed.error : undefined);
-  const text = inner?.message ?? parsed.message ?? (typeof parsed.error === 'string' && !/^[A-Z_]+$/.test(parsed.error) ? parsed.error : undefined);
-  if (response.status === 429) {
+  const read = await readApiFailure(response, { fallback: magnusFallback });
+  if (response.status === 429 && !agentDisabledMessage(read.body)) {
     const wait = retryAfterMs(response.headers.get('retry-after'));
-    return new MagnusApiError(429, `Too many requests. Try again in ${Math.ceil(wait / 1000)} seconds.`, code, wait);
+    return new MagnusApiError(429, `Too many requests. Try again in ${Math.ceil(wait / 1000)} seconds.`, read.code, wait, failureMeta(read));
   }
-  const fallback = response.status === 401 ? 'Sign in again to continue' : response.status === 403 ? 'Your Magnus role does not allow this' : response.status >= 500 ? 'The Magnus API could not complete this request' : 'The request was rejected';
-  return new MagnusApiError(response.status, text ?? fallback, code);
+  return magnusFailure(read);
 }
 
 async function send(method: string, path: string, options: WriteOptions): Promise<Response> {

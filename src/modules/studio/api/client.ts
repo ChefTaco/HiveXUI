@@ -5,10 +5,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import {
   ARDENT_STUDIO_API_PREFIX,
-  errorResponseSchema,
   IDEMPOTENCY_HEADER,
   readyResponseSchema,
 } from '@contracts/ardentstudio.generated';
+import { failureMeta, HiveApiError, HiveContractError, readApiFailure, type HiveApiErrorMeta } from '../../../lib/api-error';
 import { apiFetch } from '../../../lib/transport';
 import { handleUnauthorized, randomId } from '../../magnus/api/client';
 
@@ -87,16 +87,17 @@ export function useStudioConnection(probe: typeof probeStudio = probeStudio): { 
 }
 
 /** A non-success answer from the Studio service. `message` is written for the operator. */
-export class StudioApiError extends Error {
+export class StudioApiError extends HiveApiError {
+  override name = 'StudioApiError';
   constructor(
-    readonly status: number,
+    status: number,
     message: string,
-    readonly code?: string,
+    code?: string,
     /** The service's `error.details`, such as the active tasks that block an archive. */
-    readonly details?: unknown,
+    details?: unknown,
+    meta: HiveApiErrorMeta = {},
   ) {
-    super(message);
-    this.name = 'StudioApiError';
+    super(status, message, { ...meta, code, details: details ?? meta.details });
   }
   get notFound(): boolean {
     return this.status === 404;
@@ -107,10 +108,10 @@ export class StudioApiError extends Error {
 }
 
 /** A 2xx answer that does not match the vendored contract. Nothing from it is shown. */
-export class StudioContractError extends Error {
-  constructor(readonly applied: boolean) {
-    super(applied ? 'The change was applied, but its result could not be read. Refresh to confirm.' : 'The Studio service answered in an unexpected format.');
-    this.name = 'StudioContractError';
+export class StudioContractError extends HiveContractError {
+  override name = 'StudioContractError';
+  constructor(applied: boolean) {
+    super(applied ? 'The change was applied, but its result could not be read. Refresh to confirm.' : 'The Studio service answered in an unexpected format.', applied);
   }
 }
 
@@ -139,13 +140,14 @@ const FALLBACK: Record<number, string> = {
   429: 'Too many requests. Wait a moment and try again.',
 };
 
-/** The error for a non-success answer, read from its body. */
+const studioFallback = (status: number): string =>
+  FALLBACK[status] ?? (status >= 500 ? 'The Studio service could not complete this request' : 'The request was rejected');
+
+/** The error for a non-success answer, read from its body (the suite envelope, or any older shape). */
 export async function studioFailure(response: Response): Promise<StudioApiError> {
   if (response.status === 401) void handleUnauthorized();
-  const parsed = errorResponseSchema.safeParse(await response.json().catch(() => null));
-  const error = parsed.success ? parsed.data.error : undefined;
-  const message = error?.message ?? FALLBACK[response.status] ?? (response.status >= 500 ? 'The Studio service could not complete this request' : 'The request was rejected');
-  return new StudioApiError(response.status, message, error?.code, error?.details);
+  const failure = await readApiFailure(response, { fallback: studioFallback });
+  return new StudioApiError(failure.status, failure.message, failure.code, failure.details, failureMeta(failure));
 }
 
 export interface RequestOptions {

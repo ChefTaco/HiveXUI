@@ -4,6 +4,7 @@ import {
   ardentAgentOperationResponseSchema,
   type ardentAgentDeployRequestSchema,
 } from '@contracts/magnus/browser';
+import { responseRequestId } from '../../../../../lib/api-error';
 import { apiFetch } from '../../../../../lib/transport';
 import { apiPath, magnus, segment } from '../../../api/client';
 import { MagnusApiError } from '../../../api/errors';
@@ -67,7 +68,7 @@ export function saveBlob(blob: Blob, name: string): void {
 /** Artifacts are bytes, so this is the one read that does not go through a JSON schema. */
 export async function fetchArtifact(nodeId: string, profileId: string, artifactId: string, expectedBytes: number): Promise<Blob> {
   const response = await apiFetch(apiPath(`${base(nodeId, profileId)}/artifacts/${segment(artifactId)}`));
-  if (!response.ok || response.headers.get('content-type') !== 'application/octet-stream') throw new MagnusApiError(response.status, `The artifact could not be downloaded (HTTP ${response.status})`);
+  if (!response.ok || response.headers.get('content-type') !== 'application/octet-stream') throw new MagnusApiError(response.status, `The artifact could not be downloaded (HTTP ${response.status})`, undefined, undefined, { requestId: responseRequestId(response) });
   const bytes = await response.blob();
   if (bytes.size !== expectedBytes) throw new Error('The artifact differs in size from the task record');
   return bytes;
