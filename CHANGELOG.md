@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Show retained versus settled execution ownership, provide scoped operator observation of original jobs, and require recovery authority before starting recovery plans. Observation reads the original operation and never repeats dispatch.
+
 - Show independent source and runtime remediation outcomes, preserve unknown exposure and mitigation, and require every applicable recorded dimension before claiming verified security.
 
 ## 0.2.5 - 2026-11-10

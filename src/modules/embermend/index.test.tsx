@@ -14,8 +14,10 @@ let view: Mounted | undefined;
 let row = recommendation(); let kind: 'operator' | 'coordinator' = 'operator'; let failDecision = false;
 let mutations: { path: string; body: unknown }[] = [];
 let findingRows: unknown[] = [];
+let accessPermissions: string[] = [];
 beforeEach(() => {
   stubBrowser(); findingRows = []; row = recommendation(); kind = 'operator'; mutations = []; failDecision = false;
+  accessPermissions = ['read', 'evidence', 'approve', 'execute'];
   api.mockImplementation(async (path, init) => {
     if (init?.method === 'POST') {
       mutations.push({ path, body: typeof init.body === 'string' ? JSON.parse(init.body) : null });
@@ -24,7 +26,8 @@ beforeEach(() => {
     }
     if (path.endsWith('/recommendations')) return Response.json([row]);
     if (path.endsWith('/findings')) return Response.json(findingRows);
-    if (path.endsWith('/access')) return Response.json({ actorId: 'fixture-operator', kind, permissions: ['read', 'approve', 'execute'], scope });
+    if (path.endsWith('/access')) return Response.json({ actorId: 'fixture-operator', kind, permissions: accessPermissions, scope });
+    if (path.endsWith('/jobs/fixture-job')) return Response.json({ id: 'fixture-job', kind: 'reconciliation', status: 'completed', progress: 1, deadline: row.plan.expiresAt, cancelRequested: false, result: { originalJobId: 'fixture-held-job' }, error: null });
     return Response.json({ error: 'NOT_FOUND' }, { status: 404 });
   });
 });
@@ -32,6 +35,26 @@ afterEach(async () => { await clearView(); api.mockReset(); });
 async function clearView() { await view?.unmount(); view = undefined; }
 async function ready() { view = await mount(<EmbermendModule />); for (let i = 0; i < 20 && !document.body.textContent?.includes(row.plan.objective); i++) await settle(10); }
 describe('Embermend recommendation decisions', () => {
+  it('observes an original held job only under operator recovery authority without repeating dispatch', async () => {
+    accessPermissions.push('recover'); row.status = 'authorized';
+    row.jobs = [{ id: 'fixture-held-job', kind: 'campaign', status: 'unknown', progress: 0, deadline: row.plan.expiresAt, cancelRequested: false, result: null, error: 'ORIGINAL_OUTCOME_UNKNOWN' }];
+    await ready(); const read = button('Read retained outcome fixture-'); if (!read) throw new Error('Missing original observation control'); await click(read); await settle(20);
+    expect(mutations).toEqual([{ path: '/api/embermend/api/v1/jobs/fixture-held-job/reconcile', body: {} }]);
+    expect(document.body.textContent).toContain('Observation: completed'); expect(button('Start authorized work')).toBeUndefined();
+  });
+  it('does not offer recovery observation to an ordinary executor or coordinator', async () => {
+    row.jobs = [{ id: 'fixture-held-job', kind: 'campaign', status: 'unknown', progress: 0, deadline: row.plan.expiresAt, cancelRequested: false, result: null, error: null }];
+    await ready(); expect(button('Read retained outcome fixture-')).toBeUndefined(); await clearView();
+    accessPermissions.push('recover'); kind = 'coordinator'; await ready(); expect(button('Read retained outcome fixture-')).toBeUndefined(); expect(mutations).toHaveLength(0);
+  });
+  it('distinguishes settled ownership from an unknown original outcome and separate security verification', async () => {
+    row.executions = [{ id: 'fixture-original', actionId: 'fixture-action', targetId: 'fixture-node', state: 'unknown', receipt: { operationId: 'fixture-original', requestDigest: hash, targetId: 'fixture-node', state: 'unknown', ownershipReleased: true, observedAt: '2026-11-10T00:00:00Z', evidenceIds: [], result: { originalOutcome: 'unknown', ownershipSettled: true } } }];
+    await ready(); expect(document.body.textContent).toContain('Ownership: settled'); expect(document.body.textContent).toContain('The original outcome remains unknown'); expect(document.body.textContent).toContain('verification outstanding'); expect(mutations).toHaveLength(0);
+  });
+  it('requires recovery permission before offering to start a recovery plan', async () => {
+    row.status = 'authorized'; const action = row.plan.actions[0]; if (!action) throw new Error('Missing fixture action'); action.class = 'recovery'; action.version = 'execution-settle.v1';
+    await ready(); expect(button('Start authorized work')).toBeUndefined(); await clearView(); accessPermissions.push('recover'); await ready(); expect(button('Start authorized work')).toBeDefined();
+  });
   it('retains a held job after refresh and never offers to repeat its dispatch', async () => {
     row.status = 'authorized';
     row.jobs = [{ id: 'fixture-held-job', kind: 'campaign', status: 'unknown', progress: 0, cancelRequested: false, deadline: row.plan.expiresAt, error: 'TARGET_NOT_ELIGIBLE', result: null }];
