@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { act, useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { button, click, mount, stubBrowser, type, type Mounted } from '../modules/magnus/test-dom';
-import { DataTable, FilterBar, LoadingRows, Menu, Pagination, ResourceError, TabPanel, Tabs, useCursorPagination, type DataTableColumn } from './ui';
+import { button, click, dialog, mount, stubBrowser, type, type Mounted } from '../modules/magnus/test-dom';
+import { DataTable, FilterBar, LoadingRows, Menu, Pagination, ResourceError, TabPanel, Tabs, useConfirm, useCursorPagination, type DataTableColumn } from './ui';
 
 let view: Mounted | undefined;
 beforeEach(() => stubBrowser());
@@ -253,5 +253,40 @@ describe('Menu', () => {
       document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
     });
     expect(document.querySelector('[role="menu"]')).toBeNull();
+  });
+});
+
+function ConfirmProbe({ onDelete }: { onDelete: () => void }) {
+  const [confirmAction, confirmDialog] = useConfirm();
+  return (
+    <>
+      {confirmDialog}
+      <button type="button" className="btn" onClick={async () => { if (await confirmAction({ title: 'Delete memory', message: 'Delete this memory?', confirmLabel: 'Delete' })) onDelete(); }}>Delete memory</button>
+    </>
+  );
+}
+
+describe('useConfirm', () => {
+  it('asks in a dialog and runs the action only on confirm', async () => {
+    const onDelete = vi.fn();
+    view = await mount(<ConfirmProbe onDelete={onDelete} />);
+    await click(button('Delete memory'));
+    expect(dialog()!.textContent).toContain('Delete this memory?');
+    await click(button('Cancel', dialog()!));
+    expect(dialog()).toBeNull();
+    expect(onDelete).not.toHaveBeenCalled();
+    await click(button('Delete memory'));
+    await click(button('Delete', dialog()!));
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(dialog()).toBeNull();
+  });
+
+  it('cancels on Escape', async () => {
+    const onDelete = vi.fn();
+    view = await mount(<ConfirmProbe onDelete={onDelete} />);
+    await click(button('Delete memory'));
+    await key(dialog(), 'Escape');
+    expect(dialog()).toBeNull();
+    expect(onDelete).not.toHaveBeenCalled();
   });
 });

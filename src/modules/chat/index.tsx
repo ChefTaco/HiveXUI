@@ -74,7 +74,7 @@ import {
   type BotIndicator,
 } from "./conversation-state";
 import "./chat.css";
-import { Button, Badge } from "@ui";
+import { Button, Badge, useConfirm } from "@ui";
 
 const standardEmoji: Record<string, string> = {
   thumbsup: "👍",
@@ -95,6 +95,7 @@ export default function ChatModule() {
 }
 function ConnectedChat() {
   const initial = useRef(readChatLocation(location.search));
+  const [confirmAction, confirmDialog] = useConfirm();
   const [me, setMe] = useState<MattermostUser | null>(null);
   const [teams, setTeams] = useState<MattermostTeam[]>([]);
   const [team, setTeam] = useState(initial.current.team);
@@ -635,7 +636,14 @@ function ConnectedChat() {
     }
   }
   async function remove(post: MattermostPost) {
-    if (!confirm("Delete this message?")) return;
+    if (
+      !(await confirmAction({
+        title: "Delete message",
+        message: "Delete this message? This cannot be undone.",
+        confirmLabel: "Delete",
+      }))
+    )
+      return;
     try {
       await chat(`/posts/${safeId(post.id)}`, { method: "DELETE" });
       await refresh();
@@ -798,6 +806,7 @@ function ConnectedChat() {
   };
   return (
     <section className="chat-module">
+      {confirmDialog}
       <aside className="chat-rail">
         <h2>ChatterMost</h2>
         <label className="field">

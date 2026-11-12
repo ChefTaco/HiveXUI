@@ -551,6 +551,45 @@ export function ConfirmDialog({
   );
 }
 
+/** What `useConfirm` asks. `tone` defaults to `danger`; use `primary` for a step that destroys nothing. */
+export interface ConfirmRequest {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  tone?: 'danger' | 'warning' | 'primary';
+}
+
+/**
+ * Ask for confirmation in a `ConfirmDialog` instead of the browser's `confirm()`. Render the returned
+ * dialog once in the component; `await ask({...})` resolves true on confirm and false on cancel.
+ */
+export function useConfirm(): [(request: ConfirmRequest) => Promise<boolean>, ReactNode] {
+  const [pending, setPending] = useState<(ConfirmRequest & { resolve: (confirmed: boolean) => void }) | null>(null);
+  const pendingRef = useRef(pending);
+  pendingRef.current = pending;
+  const ask = useCallback((request: ConfirmRequest) => new Promise<boolean>((resolve) => {
+    pendingRef.current?.resolve(false);
+    setPending({ ...request, resolve });
+  }), []);
+  useEffect(() => () => pendingRef.current?.resolve(false), []);
+  const settle = (confirmed: boolean) => {
+    pendingRef.current?.resolve(confirmed);
+    setPending(null);
+  };
+  const dialog = (
+    <ConfirmDialog
+      open={pending !== null}
+      title={pending?.title ?? ''}
+      message={pending?.message ?? ''}
+      confirmLabel={pending?.confirmLabel ?? 'Confirm'}
+      tone={pending?.tone ?? 'danger'}
+      onConfirm={() => settle(true)}
+      onCancel={() => settle(false)}
+    />
+  );
+  return [ask, dialog];
+}
+
 /* ===== Copy field ===== */
 export function CopyField({ value, label }: { value: string; label?: string }) {
   const [copied, setCopied] = useState(false);

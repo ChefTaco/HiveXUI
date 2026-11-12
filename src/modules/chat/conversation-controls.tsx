@@ -9,7 +9,7 @@ import type {
   MattermostFileInfo,
 } from "../../../contracts/chattermost.generated";
 import { chat, chatResource, json, safeId } from "./api";
-import { Button } from "@ui";
+import { Button, useConfirm } from "@ui";
 
 const message = (reason: unknown) =>
   reason instanceof Error ? reason.message : "Chat request failed";
@@ -295,6 +295,7 @@ export function ChannelTools({
   deleted: () => void;
   openPost: (post: MattermostPost) => void;
 }) {
+  const [confirmAction, confirmDialog] = useConfirm();
   const [members, setMembers] = useState<MattermostChannelMember[]>([]),
     [pins, setPins] = useState<MattermostPost[]>([]);
   const [policy, setPolicy] = useState<JsonRecord | null>(null),
@@ -353,6 +354,7 @@ export function ChannelTools({
   return (
     <details className="chat-tools">
       <summary>Channel details, members and pinned messages</summary>
+      {confirmDialog}
       <p>
         {channel.header || "No header"} · {channel.purpose || "No purpose"}
       </p>
@@ -370,13 +372,17 @@ export function ChannelTools({
             {(canManage || value.user_id === me.id) && (
               <Button
                 disabled={busy}
-                onClick={() => {
+                onClick={async () => {
+                  const leaving = value.user_id === me.id;
                   if (
-                    !confirm(
-                      value.user_id === me.id
+                    !(await confirmAction({
+                      title: leaving ? "Leave channel" : "Remove member",
+                      message: leaving
                         ? "Leave this channel?"
                         : "Remove this member from the channel?",
-                    )
+                      confirmLabel: leaving ? "Leave" : "Remove",
+                      tone: leaving ? "warning" : "danger",
+                    }))
                   )
                     return;
                   void run(async () => {
@@ -570,8 +576,14 @@ export function ChannelTools({
       {canManage && (
         <Button
           disabled={busy}
-          onClick={() => {
-            if (confirm("Delete this channel?"))
+          onClick={async () => {
+            if (
+              await confirmAction({
+                title: "Delete channel",
+                message: "Delete this channel?",
+                confirmLabel: "Delete",
+              })
+            )
               void run(async () => {
                 await chat(base, { method: "DELETE" });
                 deleted();

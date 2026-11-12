@@ -1,6 +1,6 @@
 import { apiFetch } from '../lib/transport';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Badge, Button, Drawer, EmptyState, Field, JsonBlock, Panel, Select, StatCard, TextArea, TextInput, type Tone, PageHeader } from '../components/ui';
+import { Badge, Button, Drawer, EmptyState, Field, JsonBlock, Panel, Select, StatCard, TextArea, TextInput, type Tone, PageHeader, useConfirm } from '../components/ui';
 import { useToast } from '../components/toast';
 import { Icon } from '../components/icons';
 import { useStore } from '../lib/store';
@@ -84,6 +84,7 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
     history.replaceState(null, '', url);
   }
   const [busy, setBusy] = useState<string | null>(null);
+  const [confirmAction, confirmDialog] = useConfirm();
   const [actionResult, setActionResult] = useState<HiveActorLifecycleResponse | null>(null);
   const [createForm, setCreateForm] = useState({
     agentId: '',
@@ -124,7 +125,7 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
   }
 
   async function runLifecycle(action: 'disable' | 'rotate', actor: HiveActor) {
-    if (action === 'disable' && !window.confirm(`Disable ${actor.label} across linked Hive services?`)) return;
+    if (action === 'disable' && !(await confirmAction({ title: 'Disable actor', message: `Disable ${actor.label} across linked Hive services?`, confirmLabel: 'Disable' }))) return;
     setBusy(`${action}-${actor.id}`);
     try {
       const storageKey = operationStorage(actor.id, action);
@@ -162,7 +163,7 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
 
   async function containLatest() {
     if (!actionResult || typeof actionResult.actorId !== 'string') return;
-    if (!window.confirm('Disable all linked resources for this partial actor? Records and content are retained.')) return;
+    if (!(await confirmAction({ title: 'Contain partial actor', message: 'Disable all linked resources for this partial actor? Records and content are retained.', confirmLabel: 'Disable' }))) return;
     const operationId = actionResult.action === 'disable' && typeof actionResult.operationId === 'string' ? actionResult.operationId : crypto.randomUUID();
     const storageKey = operationStorage(actionResult.actorId, 'disable');
     sessionStorage.setItem(storageKey, operationId);
@@ -208,6 +209,7 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
 
   return (
     <>
+      {confirmDialog}
       <PageHeader
         title={suite ? 'Identity enrollment' : 'Hive Actors'}
         description={suite ? 'Oathweave coordinates explicitly linked technical identities. Each product owns its credentials and permissions.' : 'Users, service accounts, host identities, Router keys, and Memory agents in one inventory.'}

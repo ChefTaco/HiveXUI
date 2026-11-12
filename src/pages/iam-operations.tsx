@@ -35,6 +35,7 @@ import {
   TextInput,
   Toggle,
   PageHeader,
+  useConfirm,
 } from '../components/ui';
 import { Icon } from '../components/icons';
 import { formatTime, relativeTime } from '../lib/format';
@@ -146,6 +147,7 @@ export function IamOperationsPage({
   currentUser: AdminUser | null;
 }) {
   const [users, setUsers] = useState<IamUser[]>([]);
+  const [confirmAction, confirmDialog] = useConfirm();
   const [roles, setRoles] = useState<IamRole[]>([]);
   const [serviceAccounts, setServiceAccounts] = useState<IamServiceAccount[]>(
     [],
@@ -388,6 +390,7 @@ export function IamOperationsPage({
 
   return (
     <>
+      {confirmDialog}
       <PageHeader
         title={SECTION_LABELS[section]}
         description="Identity, access, service credentials, sessions, and audit controls."
@@ -811,13 +814,15 @@ export function IamOperationsPage({
                       size="sm"
                       variant="danger"
                       disabled={!canDeleteUsers}
-                      onClick={() =>
-                        window.confirm(`Delete ${user.username}?`) &&
-                        void run(
-                          () => adminApi.deleteIamUser(user.id),
-                          'User deleted',
+                      onClick={async () => {
+                        if (
+                          await confirmAction({ title: 'Delete user', message: `Delete ${user.username}?`, confirmLabel: 'Delete' })
                         )
-                      }
+                          void run(
+                            () => adminApi.deleteIamUser(user.id),
+                            'User deleted',
+                          );
+                      }}
                     >
                       Delete
                     </Button>
@@ -984,13 +989,15 @@ export function IamOperationsPage({
                     size="sm"
                     variant="danger"
                     disabled={role.isSystem || !canWriteRoles}
-                    onClick={() =>
-                      window.confirm(`Delete ${role.name}?`) &&
-                      void run(
-                        () => adminApi.deleteIamRole(role.id),
-                        'Role deleted',
+                    onClick={async () => {
+                      if (
+                        await confirmAction({ title: 'Delete role', message: `Delete ${role.name}?`, confirmLabel: 'Delete' })
                       )
-                    }
+                        void run(
+                          () => adminApi.deleteIamRole(role.id),
+                          'Role deleted',
+                        );
+                    }}
                   >
                     Delete
                   </Button>
@@ -1136,13 +1143,15 @@ export function IamOperationsPage({
                       size="sm"
                       variant="danger"
                       disabled={!canDeleteServiceAccounts}
-                      onClick={() =>
-                        window.confirm(`Delete ${account.name}?`) &&
-                        void run(
-                          () => adminApi.deleteIamServiceAccount(account.id),
-                          'Service account deleted',
+                      onClick={async () => {
+                        if (
+                          await confirmAction({ title: 'Delete service account', message: `Delete ${account.name}?`, confirmLabel: 'Delete' })
                         )
-                      }
+                          void run(
+                            () => adminApi.deleteIamServiceAccount(account.id),
+                            'Service account deleted',
+                          );
+                      }}
                     >
                       Delete
                     </Button>
@@ -1296,13 +1305,15 @@ export function IamOperationsPage({
                       size="sm"
                       variant="danger"
                       disabled={!canWriteClients}
-                      onClick={() =>
-                        window.confirm(`Delete ${client.name}?`) &&
-                        void run(
-                          () => adminApi.deleteIamClient(client.id),
-                          'Client deleted',
+                      onClick={async () => {
+                        if (
+                          await confirmAction({ title: 'Delete client', message: `Delete ${client.name}?`, confirmLabel: 'Delete' })
                         )
-                      }
+                          void run(
+                            () => adminApi.deleteIamClient(client.id),
+                            'Client deleted',
+                          );
+                      }}
                     >
                       Delete
                     </Button>
@@ -1341,13 +1352,15 @@ export function IamOperationsPage({
                   size="sm"
                   variant="danger"
                   disabled={!canRevokeSessions}
-                  onClick={() =>
-                    window.confirm('Revoke this session?') &&
-                    void run(
-                      () => adminApi.revokeIamSession(session.id),
-                      'Session revoked',
+                  onClick={async () => {
+                    if (
+                      await confirmAction({ title: 'Revoke session', message: 'Revoke this session?', confirmLabel: 'Revoke' })
                     )
-                  }
+                      void run(
+                        () => adminApi.revokeIamSession(session.id),
+                        'Session revoked',
+                      );
+                  }}
                 >
                   Revoke
                 </Button>
@@ -1469,13 +1482,15 @@ export function IamOperationsPage({
                       size="sm"
                       variant="danger"
                       disabled={!canDeleteUsers}
-                      onClick={() =>
-                        window.confirm(`Delete ${entry.linuxUsername}?`) &&
-                        void run(
-                          () => adminApi.deleteIamSystemUser(entry.id),
-                          'System user deleted',
+                      onClick={async () => {
+                        if (
+                          await confirmAction({ title: 'Delete system user', message: `Delete ${entry.linuxUsername}?`, confirmLabel: 'Delete' })
                         )
-                      }
+                          void run(
+                            () => adminApi.deleteIamSystemUser(entry.id),
+                            'System user deleted',
+                          );
+                      }}
                     >
                       Delete
                     </Button>
@@ -1599,13 +1614,15 @@ export function IamOperationsPage({
                       size="sm"
                       variant="danger"
                       disabled={!canRevokeSessions}
-                      onClick={() =>
-                        window.confirm('Revoke this risky session?') &&
-                        void run(
-                          () => adminApi.revokeIamSession(session.id),
-                          'Session revoked',
+                      onClick={async () => {
+                        if (
+                          await confirmAction({ title: 'Revoke risky session', message: 'Revoke this risky session?', confirmLabel: 'Revoke' })
                         )
-                      }
+                          void run(
+                            () => adminApi.revokeIamSession(session.id),
+                            'Session revoked',
+                          );
+                      }}
                     >
                       Revoke
                     </Button>
