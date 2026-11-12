@@ -713,7 +713,7 @@ function Shell({
                   <span aria-hidden="true">·</span>
                   {lastSync ? `Synced ${relativeTime(lastSync.toISOString())}` : 'Syncing…'}
                   <details>
-                    <summary aria-label="Panel freshness">Panels</summary>
+                    <summary>Panels<span className="sr-only"> freshness</span></summary>
                     <div className="status-pip__panel">
                       {Object.entries(resourceFreshness).map(([key, value]) => (
                         <p key={key}>
@@ -726,10 +726,10 @@ function Shell({
                   </details>
                 </span>
               ) : null}
-              <button type="button" className="topbar-search" onClick={() => setPaletteOpen(true)} aria-label="Search screens" aria-keyshortcuts="Control+K Meta+K" title="Search every screen">
+              <button type="button" className="topbar-search" onClick={() => setPaletteOpen(true)} aria-keyshortcuts="Control+K Meta+K" title="Search every screen">
                 <Icon.Search aria-hidden="true" />
-                <span>Search</span>
-                <kbd className="key">{/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl+K'}</kbd>
+                <span>Search<span className="sr-only"> screens</span></span>
+                <kbd className="key" aria-hidden="true">{/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl+K'}</kbd>
               </button>
               {showsShellRefresh(view) ? (
                 <button

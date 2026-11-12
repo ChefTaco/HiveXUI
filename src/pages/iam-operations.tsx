@@ -401,23 +401,21 @@ export function IamOperationsPage({
       />
 
       <div className="ops-toolbar">
-        <div
-          className="segmented-tabs"
-          role="tablist"
-          aria-label="IAM sections"
-        >
+        <nav className="segmented-tabs" aria-label="IAM sections">
           {Object.entries(SECTION_LABELS).map(([key, label]) => (
             <button
               key={key}
+              type="button"
               className={
                 section === key ? 'tab-button tab-button--active' : 'tab-button'
               }
+              aria-current={section === key ? 'page' : undefined}
               onClick={() => onNavigate?.(`iam-${key}`)}
             >
               {label.replace('IAM ', '')}
             </button>
           ))}
-        </div>
+        </nav>
         <Button
           variant="ghost"
           size="sm"

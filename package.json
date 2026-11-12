@@ -11,6 +11,7 @@
     "test": "bash scripts/ci-apt-setup.test.sh && vitest run",
     "e2e": "playwright test",
     "e2e:stack": "node e2e/stack/stack.mjs",
+    "e2e:a11y": "playwright test --config playwright.a11y.config.ts",
     "scan:secrets": "bash scripts/scan-secrets.sh",
     "check:private": "bash scripts/check-private-data.sh",
     "postbuild": "node scripts/collect-browser-licenses.mjs",
@@ -41,6 +42,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@playwright/test": "^1.56.1",
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "^24.10.1",

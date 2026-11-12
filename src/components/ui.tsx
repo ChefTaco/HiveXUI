@@ -435,10 +435,11 @@ export function JsonBlock({ value }: { value: unknown }) {
     return (
       <details className="json-collapsed">
         <summary>Show value ({Math.round(text.length / 1024)} KB)</summary>
-        <pre className="code-block">{text}</pre>
+        <pre className="code-block" tabIndex={0}>{text}</pre>
       </details>
     );
-  return <pre className="code-block">{text}</pre>;
+  // Focusable so a long value can be scrolled from the keyboard.
+  return <pre className="code-block" tabIndex={0}>{text}</pre>;
 }
 
 /* ===== Drawer ===== */
