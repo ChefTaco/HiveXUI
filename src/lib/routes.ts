@@ -137,6 +137,8 @@ export const SECURITY_PREFIX = '/security-fusion';
 export const STUDIO_PAGES = [
   { id: 'projects', path: '', title: 'Projects', nav: { label: 'Projects', icon: 'Workflow' } },
   { id: 'gallery', path: 'gallery', title: 'Gallery', nav: { label: 'Gallery', icon: 'Library' } },
+  // A project, which opens its last area. Reached from search and other products' links.
+  { id: 'project', path: 'p/:projectId', title: 'Project', parent: 'projects' },
 ] as const satisfies readonly SubRoute[];
 
 /** Agent 360: one agent across every product. Its pages are records only, reached from other pages. */

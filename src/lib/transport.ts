@@ -173,7 +173,11 @@ export function resolveApiPath(path: string): string {
   return (prefixes.get(product) ?? ROUTES[product].alias) + rest;
 }
 
-export function createApiFetch(request: typeof fetch) {
+/**
+ * `stepUp: false` never asks the person to verify again: a refusal that needs verification comes
+ * back as the 403 it is. For background reads, such as palette search, that must not open a prompt.
+ */
+export function createApiFetch(request: typeof fetch, options: { stepUp?: boolean } = {}) {
   async function send(path: string, init: RequestInit, allowStepUp: boolean): Promise<Response> {
     init.signal?.throwIfAborted();
     if (!path.startsWith('/api/') || /[\\#\r\n]/.test(path))
@@ -248,6 +252,9 @@ export function createApiFetch(request: typeof fetch) {
     }
     return response;
   }
-  return (path: string, init: RequestInit = {}): Promise<Response> => send(path, init, true);
+  const stepUp = options.stepUp ?? true;
+  return (path: string, init: RequestInit = {}): Promise<Response> => send(path, init, stepUp);
 }
 export const apiFetch = createApiFetch((input, init) => fetch(input, init));
+/** `apiFetch` for reads nobody asked for in so many words: it never opens a verification prompt. */
+export const quietApiFetch = createApiFetch((input, init) => fetch(input, init), { stepUp: false });

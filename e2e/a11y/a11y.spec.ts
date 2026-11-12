@@ -95,3 +95,31 @@ test('the inbox drawer has no serious or critical accessibility violations', asy
   await expect(drawer).toBeHidden();
   await expect(page).toHaveURL(/\/security-fusion\/cases\/case-1$/);
 });
+
+test('the command palette with record results has no serious or critical accessibility violations', async ({ page }) => {
+  await page.clock.setFixedTime(FIXED_NOW);
+  await installMocks(page);
+  await page.goto('/?page=providers', { waitUntil: 'networkidle' });
+  await expect(page.locator('main h2').first()).toBeVisible();
+  await page.keyboard.press('Control+k');
+  const palette = page.getByRole('dialog', { name: 'Search screens and records' });
+  await expect(palette).toBeVisible();
+  await expect(palette.getByRole('combobox', { name: 'Search screens and records' })).toBeFocused();
+  await page.keyboard.type('node');
+  // Screens answer at once; each product's records join as it answers.
+  const results = palette.getByRole('listbox', { name: 'Results' });
+  await expect(results.getByRole('group', { name: 'Screens' })).toBeVisible();
+  await expect(results.getByRole('group', { name: 'Magnus' }).getByRole('option', { name: /node-scout/ })).toBeVisible();
+  await expect(results.getByRole('group', { name: 'HiveMem' }).getByRole('option', { name: /Deploys to node-2/ })).toBeVisible();
+  await expect(results.getByRole('group', { name: 'Cindertrace' }).getByRole('option', { name: /New service listening on a node/ })).toBeVisible();
+  // Oathweave's client list is not served: a quiet note, not an error.
+  await expect(results.getByText("Couldn't search Oathweave")).toBeVisible();
+  await expect(palette.getByRole('status')).toHaveText(/^\d+ results$/);
+  await page.waitForTimeout(300);
+  const scan = await new AxeBuilder({ page }).include('[role="dialog"]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  expect(scan.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical').map((violation) => violation.id)).toEqual([]);
+  // A record opens through the route table: the Cindertrace case.
+  await results.getByRole('option', { name: /New service listening on a node/ }).click();
+  await expect(palette).toBeHidden();
+  await expect(page).toHaveURL(/\/security-fusion\/cases\/case-3$/);
+});

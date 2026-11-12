@@ -216,6 +216,24 @@ const AGENT_TARGETS = [
 ];
 const refused = (body: unknown) => ({ __status: 400, body });
 
+// Record search from the command palette (Ctrl+K). Oathweave's client list is left unmocked, so the
+// palette shows its quiet "couldn't search" note beside the products that answered.
+const HERMES_INSTALLATION = {
+  id: 'hi-1', nodeId: 'node-1', hostname: 'node-1.example.internal', sshPort: 22, displayName: null, installMode: 'system', hermesHome: '/srv/hermes', hermesBin: '/usr/bin/hermes',
+  version: '1.0.0', status: 'ready', gatewayStatus: 'running', dashboardHost: '127.0.0.1', dashboardPort: 9119, dashboardStatus: 'running', apiServerEnabled: false,
+  apiServerHost: '127.0.0.1', apiServerPort: null, lastDetectedAt: T1, lastSyncedAt: T1, metadata: {}, rawStatus: {}, configuration: null, createdAt: T0, updatedAt: T1,
+};
+const HERMES_PROFILES = [{
+  id: 'hp-1', installationId: 'hi-1', name: 'node-scout', description: 'Watches node health', profileHome: '/srv/hermes/profiles/node-scout', isDefault: false,
+  providerSummary: null, modelSummary: null, distribution: null, gatewayStatus: 'running', apiServerEnabled: false, apiServerHost: '127.0.0.1', apiServerPort: null,
+  apiServerKeyConfigured: false, capabilities: {}, envStatus: {}, metadata: {}, lastSyncedAt: T1, createdAt: T0, updatedAt: T1,
+}];
+const memorySearch = (request: Request) => {
+  const query = String((request.postDataJSON() as { query?: string }).query ?? '').toLowerCase();
+  return { collections_searched: ['semantic'], total_searched: AGENT_MEMORIES.length,
+    results: AGENT_MEMORIES.filter((memory) => memory.content.toLowerCase().includes(query)).map((memory) => ({ collection: 'semantic', is_own: false, memory, score: 0.8 })) };
+};
+
 // ---------------------------------------------------------------- route table
 // Each entry: [method, regexp on the request pathname (+search), body | (match, url, request) => body].
 // Returning { __status, body } sets a status. Unmatched /api/** requests get 404 {error:'not mocked'}.
@@ -353,6 +371,10 @@ export const ROUTES: Array<[string, RegExp, Answer]> = [
   ['GET', /^\/api\/magnus\/notifications\/unread-count$/, magnusOk({ count: 2 })],
   ['GET', /^\/api\/magnus\/ops\/timeline\?limit=120$/, magnusOk(TIMELINE)],
   ['GET', /^\/api\/magnus\/ops\/retention$/, magnusOk(RETENTION)],
+  ['GET', /^\/api\/magnus\/nodes\?page=1&pageSize=\d+&query=/, { success: true, data: [{ ...AGENT_NODE, health: null }], meta: { total: 1, page: 1, pageSize: 6, hasMore: false } }],
+  ['GET', /^\/api\/magnus\/orchestra\/installations$/, magnusOk([HERMES_INSTALLATION])],
+  ['GET', /^\/api\/magnus\/orchestra\/profiles$/, magnusOk(HERMES_PROFILES)],
+  ['POST', /^\/api\/memory\/memories\/search\?workspace_id=\*$/, (_match: RegExpMatchArray, _url: URL, request: Request) => memorySearch(request)],
   ['GET', /^\/api\/magnus\/nodes\?page=1&pageSize=\d+$/, { success: true, data: [], meta: { total: 0, page: 1, pageSize: 100, hasMore: false } }],
   ['GET', /^\/api\/magnus\/nodes\/system-updates\/summary$/, magnusOk({ total: 0, reporting: 0, enabled: 0, actionNeeded: 0, rebootRequired: 0, nodes: [] })],
   ['GET', /^\/api\/magnus\/nodes\/tailscale\/summary$/, magnusOk({ total: 0, reporting: 0, expiryEnabled: 0, expiringSoon: 0, expired: 0, warningDays: 14, nodes: [] })],
