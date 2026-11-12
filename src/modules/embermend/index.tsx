@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { z } from 'zod';
 import { recommendationSchema, findingSchema, occurrenceSchema, accessSchema, evidenceSchema, jobSchema, type Recommendation } from '@contracts/embermend.generated';
 import { embermendRequest } from './api';
-import { Panel, Button, Badge } from '../../components/ui';
+import { Panel, Button, Badge, PageHeader } from '../../components/ui';
 
 const findingsSchema = z.array(z.object({ finding: findingSchema, occurrences: z.array(occurrenceSchema) }));
 type FindingRow = z.infer<typeof findingsSchema>[number];
@@ -85,7 +85,12 @@ export default function EmbermendModule() {
     catch (error) { setError(error instanceof Error ? error.message : 'Evidence is unavailable for your current access.'); }
   }
   return <>
-    <div className="page-head"><div><p className="eyebrow">Embermend · continuous hardening</p><h2>Recommendations & outcomes</h2><p>Review proposed changes, follow authorized work, and inspect the evidence behind each outcome.</p></div><Button loading={busy} onClick={() => void refresh()}>Refresh</Button></div>
+    <PageHeader
+      eyebrow="Embermend · continuous hardening"
+      title="Recommendations & outcomes"
+      description="Review proposed changes, follow authorized work, and inspect the evidence behind each outcome."
+      actions={<Button loading={busy} onClick={() => void refresh()}>Refresh</Button>}
+    />
     {error ? <p role="alert" className="warning-banner">{error}</p> : null}
     {loaded && recommendations.length === 0 ? <Panel><h3>No recommendations yet</h3><p>Assign an assessment profile and an eligible Magnus target through your coordinator. Recommendations appear here when there is security work to review.</p></Panel> : null}
     <div className="space-y-4" aria-label="Security recommendations">{recommendations.map(row => {

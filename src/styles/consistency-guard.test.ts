@@ -10,9 +10,7 @@ import { describe, expect, it } from 'vitest';
 const SOURCE = fileURLToPath(new URL('..', import.meta.url));
 const walk = (dir: string): string[] => readdirSync(dir).flatMap((name) => (statSync(join(dir, name)).isDirectory() ? walk(join(dir, name)) : [join(dir, name)]));
 const relative = (file: string) => file.slice(SOURCE.length);
-// Embermend is migrated separately; remove this exclusion once its page uses PageHeader.
-const PENDING = ['modules/embermend/'];
-const sources = walk(SOURCE).filter((file) => /\.tsx?$/.test(file) && !/\.test\./.test(file) && !PENDING.some((dir) => relative(file).startsWith(dir)));
+const sources = walk(SOURCE).filter((file) => /\.tsx?$/.test(file) && !/\.test\./.test(file));
 const withoutComments = (code: string) => code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`\\])\/\/.*$/gm, '$1');
 
 function matching(pattern: RegExp, files = sources): string[] {
