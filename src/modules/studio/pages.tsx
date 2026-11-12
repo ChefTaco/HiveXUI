@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { ArrowUpRight, Compass, Library, Plus, ServerOff, ShieldAlert } from 'lucide-react';
-import { Button, EmptyState, PageHeader, Panel, LoadingRows } from '@ui';
+import { Button, EmptyState, PageHeader, Panel, LoadingRows, buttonClass } from '@ui';
 import { parseProfileRef, profileHref } from '../magnus/pages/agents/ardent/logic';
 import type { StudioConnection } from './api/client';
 import './projects/projects.css';
@@ -70,11 +70,11 @@ function header(match: StudioMatch): { description: string; actions?: ReactNode 
         description: 'Give a team of Ardent agents a shared project, watch them work together and review what they deliver.',
         actions: (
           <>
-            <StudioLink href={`${STUDIO_PREFIX}/gallery`} className="btn no-underline">
+            <StudioLink href={`${STUDIO_PREFIX}/gallery`} className={buttonClass({ className: 'no-underline' })}>
               <Library className="btn-ico" aria-hidden="true" />
               Gallery
             </StudioLink>
-            <StudioLink href={`${STUDIO_PREFIX}/new`} className="btn btn--primary no-underline">
+            <StudioLink href={`${STUDIO_PREFIX}/new`} className={buttonClass({ variant: 'primary', className: 'no-underline' })}>
               <Plus className="btn-ico" aria-hidden="true" />
               New project
             </StudioLink>
@@ -93,7 +93,7 @@ function header(match: StudioMatch): { description: string; actions?: ReactNode 
         ...(ref
           ? {
               actions: (
-                <StudioLink href={'/fleet' + profileHref(ref.nodeId, ref.profileId)} className="btn no-underline">
+                <StudioLink href={'/fleet' + profileHref(ref.nodeId, ref.profileId)} className={buttonClass({ className: 'no-underline' })}>
                   Fleet details
                   <ArrowUpRight className="btn-ico" aria-hidden="true" />
                 </StudioLink>
@@ -170,7 +170,7 @@ export function StudioNotFound() {
       title="Not found"
       message="This Studio page does not exist."
       action={
-        <StudioLink href={STUDIO_PREFIX} className="btn no-underline">
+        <StudioLink href={STUDIO_PREFIX} className={buttonClass({ className: 'no-underline' })}>
           Projects
         </StudioLink>
       }

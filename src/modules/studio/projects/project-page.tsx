@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { FolderX } from 'lucide-react';
-import { EmptyState, Panel, LoadingRows, ResourceError } from '@ui';
+import { EmptyState, Panel, LoadingRows, ResourceError, buttonClass } from '@ui';
 import { StudioLink } from '../link';
 import { goStudio, STUDIO_PREFIX } from '../paths';
 import { areaHref, projectHref } from '../routes';
@@ -28,7 +28,7 @@ export function ProjectFrame({ projectId, children }: { projectId: string; child
         title="Project not found"
         message="It may have been removed, or this address is mistyped."
         action={
-          <StudioLink href={STUDIO_PREFIX} className="btn no-underline">
+          <StudioLink href={STUDIO_PREFIX} className={buttonClass({ className: 'no-underline' })}>
             All projects
           </StudioLink>
         }

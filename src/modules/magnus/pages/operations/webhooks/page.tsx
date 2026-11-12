@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Play, Plus, Trash2, Webhook } from 'lucide-react';
-import { Badge, Button, ConfirmDialog, EmptyState, IconButton, PageHeader, Toggle, LoadingRows, ResourceError } from '@ui';
+import { Badge, Button, ConfirmDialog, EmptyState, IconButton, PageHeader, Toggle, LoadingRows, ResourceError, buttonClass } from '@ui';
 import { useToast } from '../../../../../components/toast';
 import { magnus, segment } from '../../../api/client';
 import { errorMessage } from '../../../api/errors';
@@ -63,7 +63,7 @@ export default function WebhooksPage() {
           eyebrow="Operations"
           icon={<Webhook className="size-5" />}
           description="Manage webhook endpoints for event notifications"
-          actions={<Link href="/webhooks/new" className="btn btn--primary btn--sm"><Plus className="size-4" />New webhook</Link>}
+          actions={<Link href="/webhooks/new" className={buttonClass({ variant: 'primary', size: 'sm' })}><Plus className="size-4" />New webhook</Link>}
         />
       </PageItem>
       {!list ? (

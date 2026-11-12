@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, OctagonAlert } from 'lucide-react';
-import { Badge, Button, ConfirmDialog, Drawer, EmptyState, Field, Panel, TextArea, TextInput, LoadingRows, ResourceError } from '@ui';
+import { Badge, Button, ConfirmDialog, Drawer, EmptyState, Field, Panel, TextArea, TextInput, LoadingRows, ResourceError, buttonClass } from '@ui';
 import { cn } from '@lib/cn';
 import { useToast } from '../../../components/toast';
 import { errorMessage } from '../../magnus/api/errors';
@@ -290,7 +290,7 @@ export function TemplateUpdate({
       onClose={onClose}
       footer={
         <>
-          <StudioLink href={galleryHref({ template: source.template_id })} className="btn btn--ghost no-underline">
+          <StudioLink href={galleryHref({ template: source.template_id })} className={buttonClass({ variant: 'ghost', className: 'no-underline' })}>
             View template
           </StudioLink>
           <Button variant="primary" disabled={!chosen.size} onClick={() => onApply(applyChanges(draft, changes, chosen), latest)}>

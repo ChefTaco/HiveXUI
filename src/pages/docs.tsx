@@ -176,12 +176,12 @@ export function DocsPage({
               <p className="runbook-action">{runbook.action}</p>
               <code>{runbook.command}</code>
               {onNavigate ? (
-                <button
-                  className="btn btn--ghost btn--sm"
+                <Button
+                  variant="ghost" size="sm"
                   onClick={() => onNavigate(runbook.target)}
                 >
                   Open
-                </button>
+                </Button>
               ) : null}
             </article>
           ))}

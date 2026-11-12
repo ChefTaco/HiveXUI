@@ -1,5 +1,5 @@
 import { Component, lazy, Suspense, useEffect, useMemo, type ComponentType, type ErrorInfo, type LazyExoticComponent, type ReactNode } from 'react';
-import { Button, EmptyState, Panel } from '@ui';
+import { Button, EmptyState, Panel, buttonClass } from '@ui';
 import { Compass, ShieldAlert } from 'lucide-react';
 import './effects/effects.css';
 import { browserIdentity, productEnabled } from '../../lib/runtime';
@@ -27,7 +27,7 @@ function Missing({ title, message, glitch = false }: { title: string; message: s
       icon={<Compass className="size-6" />}
       title={glitch ? <span className="fx-glitch inline-block">{title}</span> : title}
       message={message}
-      action={<Link href="/" className="btn">Fleet overview</Link>}
+      action={<Link href="/" className={buttonClass()}>Fleet overview</Link>}
     />
   );
 }

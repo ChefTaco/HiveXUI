@@ -1,4 +1,3 @@
-import { Panel, StatCard, StatusDot } from "@ui";
 import { Gauge } from "../../../components/gauge";
 import { Radar, radarRandom, type RadarBlip } from "../../../components/radar";
 import Link from "@security/navigation";
@@ -14,6 +13,7 @@ import {
   type FusionCase,
   type FusionSource,
 } from "@security/lib/security-fusion";
+import { buttonClass, Panel, StatCard, StatusDot } from "@ui";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +54,7 @@ export default async function SecurityFusionOverview(): Promise<React.ReactEleme
       {lab ? (
         <Panel as="div" eyebrow="Disposable investigation lab" title="Practice on evolving evidence">
           <p className="text-sm">Follow evolving evidence, revisit your hypotheses and review how your confidence changed.</p>
-          <Link className="btn w-fit" href="/security-fusion/lab">Start or resume investigation</Link>
+          <Link className={buttonClass({ className: 'w-fit' })} href="/security-fusion/lab">Start or resume investigation</Link>
         </Panel>
       ) : null}
       <Panel as="div" className="grid-bg" aria-label="Security posture">

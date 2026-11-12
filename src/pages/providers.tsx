@@ -23,6 +23,7 @@ import {
   TextArea,
   TextInput,
   Toggle,
+  buttonClass,
 } from '../components/ui';
 import { Icon } from '../components/icons';
 
@@ -402,7 +403,7 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
                   </Badge>
                 </div>
                 <CopyField value={codexFlow.userCode} label="Copy Codex code" />
-                <a className="btn btn--primary" href={codexFlow.verificationUrl} target="_blank" rel="noreferrer">
+                <a className={buttonClass({ variant: 'primary' })} href={codexFlow.verificationUrl} target="_blank" rel="noreferrer">
                   Open authorization link
                 </a>
                 <span className="field-hint">Expires {relativeTime(codexFlow.expiresAt)}. This modal checks automatically every {codexFlow.intervalSeconds}s.</span>

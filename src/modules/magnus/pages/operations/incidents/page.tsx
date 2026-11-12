@@ -1,6 +1,6 @@
 import { Activity, ExternalLink, Radar, RefreshCw, ShieldAlert } from 'lucide-react';
 import { dependencyHealthResponseSchema, incidentSummaryResponseSchema, timelineResponseSchema } from '@contracts/magnus/browser';
-import { Badge, Button, PageHeader, LoadingRows, ResourceError } from '@ui';
+import { Badge, Button, PageHeader, LoadingRows, ResourceError, buttonClass } from '@ui';
 import { formatTime } from '@lib/format';
 import { cn } from '@lib/cn';
 import { productEnabled } from '../../../../../lib/runtime';
@@ -42,7 +42,7 @@ export default function IncidentsPage() {
           description="A redacted operating picture. Suggested remediation remains a dry run until explicitly confirmed elsewhere."
           actions={
             <>
-              {productEnabled('cindertrace') ? <Link href="/security-fusion/cases" className="btn btn--sm"><ExternalLink className="size-4" />Correlated security cases</Link> : null}
+              {productEnabled('cindertrace') ? <Link href="/security-fusion/cases" className={buttonClass({ size: 'sm' })}><ExternalLink className="size-4" />Correlated security cases</Link> : null}
               <Button size="sm" icon={<RefreshCw className="size-4" />} loading={refreshing} onClick={refresh}>Refresh</Button>
             </>
           }

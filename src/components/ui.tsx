@@ -17,6 +17,18 @@ import { cn } from '../lib/cn';
 import { Icon } from './icons';
 
 /* ===== Button ===== */
+/**
+ * The classes of a `Button`, for an element that must stay a link, such as a router link that
+ * looks like a button. Use `Button` for anything that is a button.
+ */
+export function buttonClass({
+  variant = 'default',
+  size,
+  className,
+}: { variant?: 'default' | 'primary' | 'ghost' | 'danger' | 'warning' | undefined; size?: 'sm' | undefined; className?: string | undefined } = {}): string {
+  return cn('btn', variant !== 'default' && `btn--${variant}`, size === 'sm' && 'btn--sm', className);
+}
+
 export function Button({
   variant = 'default',
   size,
@@ -33,7 +45,7 @@ export function Button({
 } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   const { disabled, className, ...buttonProps } = rest;
   return (
-    <button className={cn('btn', variant !== 'default' && `btn--${variant}`, size === 'sm' && 'btn--sm', className)} disabled={loading || disabled} {...buttonProps}>
+    <button className={buttonClass({ variant, size, className })} disabled={loading || disabled} {...buttonProps}>
       {loading ? <span className="spinner" /> : icon}
       {children}
     </button>

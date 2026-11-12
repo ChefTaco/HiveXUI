@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowUpCircle, BookmarkPlus, CheckCircle2, LayoutGrid, Library, ListChecks, Play, Plus, Rows3, Sparkles, Upload, Workflow, X } from 'lucide-react';
-import { Badge, Button, ConfirmDialog, PageHeader, Panel, LoadingRows } from '@ui';
+import { Badge, Button, ConfirmDialog, PageHeader, Panel, LoadingRows, buttonClass, IconButton } from '@ui';
 import { cn } from '@lib/cn';
 import { useToast } from '../../../components/toast';
 import { useMagnusResource } from '../../magnus/api/use-resource';
@@ -265,7 +265,7 @@ function Designer({ state, store }: { state: NonNullable<ProjectState['snapshot'
         }
         actions={
           <>
-            <StudioLink href={galleryHref({ projectId })} className="btn no-underline">
+            <StudioLink href={galleryHref({ projectId })} className={buttonClass({ className: 'no-underline' })}>
               <Library className="btn-ico" aria-hidden="true" />
               Gallery
             </StudioLink>
@@ -287,7 +287,7 @@ function Designer({ state, store }: { state: NonNullable<ProjectState['snapshot'
                 Start in Room
               </Button>
             ) : (
-              <StudioLink href={projectHref(projectId, '/room')} className="btn btn--primary no-underline">
+              <StudioLink href={projectHref(projectId, '/room')} className={buttonClass({ variant: 'primary', className: 'no-underline' })}>
                 <Play className="btn-ico" aria-hidden="true" />
                 Start in Room
               </StudioLink>
@@ -303,9 +303,7 @@ function Designer({ state, store }: { state: NonNullable<ProjectState['snapshot'
       {welcome ? (
         <div className="info-banner studio-banner text-sm" role="status">
           <span>Bind each role, then Start in Room.</span>
-          <button type="button" className="btn btn--ghost btn--icon btn--sm" aria-label="Dismiss" onClick={() => { setWelcome(false); setStudioQuery({ start: null }); }}>
-            <X className="size-4" aria-hidden="true" />
-          </button>
+          <IconButton type="button" size="sm" label="Dismiss" icon={<X className="size-4" aria-hidden="true" />} onClick={() => { setWelcome(false); setStudioQuery({ start: null }); }} />
         </div>
       ) : null}
       {designer.save.state === 'failed' || designer.save.state === 'conflict' ? (
@@ -420,7 +418,7 @@ function Designer({ state, store }: { state: NonNullable<ProjectState['snapshot'
                   <Button variant="primary" icon={<Plus className="size-4" />} disabled={readOnly} onClick={add}>
                     Add a role
                   </Button>
-                  <StudioLink href={galleryHref({ projectId })} className="btn no-underline">
+                  <StudioLink href={galleryHref({ projectId })} className={buttonClass({ className: 'no-underline' })}>
                     Browse templates
                   </StudioLink>
                 </div>

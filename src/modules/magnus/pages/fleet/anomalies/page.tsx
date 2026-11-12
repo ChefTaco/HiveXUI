@@ -1,5 +1,5 @@
 import { AlertTriangle, ArrowRight, RefreshCw, ShieldAlert, ShieldCheck, Siren, Zap } from 'lucide-react';
-import { Badge, Button, EmptyState, PageHeader, LoadingRows, ResourceError } from '@ui';
+import { Badge, Button, EmptyState, PageHeader, LoadingRows, ResourceError, buttonClass } from '@ui';
 import { cn } from '@lib/cn';
 import { formatTime } from '@lib/format';
 import { magnus } from '../../../api/client';
@@ -37,7 +37,7 @@ export default function AnomaliesPage() {
           description="Fleet-wide anomaly feed with correlation drill-down."
           actions={
             <>
-              <Link href="/anomalies/remediation" className="btn btn--sm no-underline"><Zap className="size-4" />Auto-remediation</Link>
+              <Link href="/anomalies/remediation" className={buttonClass({ size: 'sm', className: 'no-underline' })}><Zap className="size-4" />Auto-remediation</Link>
               <Button size="sm" icon={<RefreshCw className="size-4" />} loading={summary.refreshing || list.refreshing} onClick={refresh}>Refresh</Button>
             </>
           }

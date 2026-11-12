@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Archive, ArchiveRestore, ChevronsUpDown, FolderOpen, Plus, Search } from 'lucide-react';
-import { Badge, Button, ConfirmDialog, Drawer, LoadingRows, ResourceError } from '@ui';
+import { Badge, Button, ConfirmDialog, Drawer, LoadingRows, ResourceError, buttonClass } from '@ui';
 import { errorMessage } from '../../magnus/api/errors';
 import { useMagnusResource } from '../../magnus/api/use-resource';
 import { idempotencyKey, StudioApiError } from '../api/client';
@@ -92,11 +92,11 @@ export function ProjectSwitcher({ projectId }: { projectId: string }) {
             <ResourceError error={projects.error} title="Projects could not be loaded" onRetry={() => void projects.refresh()} />
           )}
           <div className="studio-menu__foot">
-            <StudioLink href={STUDIO_PREFIX} className="btn btn--ghost btn--sm no-underline" onClick={() => setOpen(false)}>
+            <StudioLink href={STUDIO_PREFIX} className={buttonClass({ variant: 'ghost', size: 'sm', className: 'no-underline' })} onClick={() => setOpen(false)}>
               <FolderOpen className="btn-ico" aria-hidden="true" />
               All projects
             </StudioLink>
-            <StudioLink href={`${STUDIO_PREFIX}/new`} className="btn btn--sm no-underline" onClick={() => setOpen(false)}>
+            <StudioLink href={`${STUDIO_PREFIX}/new`} className={buttonClass({ size: 'sm', className: 'no-underline' })} onClick={() => setOpen(false)}>
               <Plus className="btn-ico" aria-hidden="true" />
               New project
             </StudioLink>

@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Bot, Plus, RefreshCw } from 'lucide-react';
-import { Button, EmptyState, Panel, LoadingRows, ResourceError } from '@ui';
+import { Button, EmptyState, Panel, LoadingRows, ResourceError, buttonClass } from '@ui';
 import { productInstalled } from '../../lib/runtime';
 import { useMagnusResource, type Resource } from '../magnus/api/use-resource';
 import { listProfiles } from '../magnus/pages/agents/ardent/api';
@@ -77,7 +77,7 @@ export function AgentGate({ agents, children }: { agents: ReturnType<typeof useA
                 New Agent
               </Button>
             ) : (
-              <StudioLink href={ARDENT_PROFILES_HREF} className="btn btn--primary no-underline">
+              <StudioLink href={ARDENT_PROFILES_HREF} className={buttonClass({ variant: 'primary', className: 'no-underline' })}>
                 Ardent profiles
               </StudioLink>
             )}

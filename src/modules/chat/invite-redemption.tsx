@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Button, CopyField, Field, TextInput } from "@ui";
 import { HiveSigil } from "../../components/icons";
 import { productEnabled } from "../../lib/runtime";
 import { chatServerAddress, readInviteCode, redeemInvite } from "./invite";
+import { buttonClass, Button, CopyField, Field, TextInput } from "@ui";
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -20,7 +20,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 const SignIn = () => (
-  <a className="btn btn--ghost" href="/">
+  <a className={buttonClass({ variant: 'ghost' })} href="/">
     Back to console sign-in
   </a>
 );

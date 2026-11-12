@@ -9,6 +9,7 @@ import {
 } from "../../../contracts/chattermost-admin.generated";
 import { adminAPI } from "./admin-api";
 import type { AdminControls } from "./admin";
+import { Button } from "@ui";
 const labels: Record<(typeof chatPrivacyKeys)[number], string> = {
   EnableTelemetry: "Telemetry",
   EnableDiagnostics: "Diagnostics",
@@ -71,7 +72,7 @@ export function SettingsAdministration({
               ))}
             </div>
             <div>
-              <button className="btn" disabled={busy}>Save privacy settings</button>
+              <Button disabled={busy}>Save privacy settings</Button>
             </div>
           </>
         ) : (
@@ -110,9 +111,9 @@ export function SettingsAdministration({
             </label>
           </div>
           <div>
-            <button className="btn" disabled={busy || !privacy?.EnableCustomEmoji}>
+            <Button disabled={busy || !privacy?.EnableCustomEmoji}>
               Add custom emoji
-            </button>
+            </Button>
           </div>
         </form>
         <ul className="chat-admin-list">
@@ -123,8 +124,7 @@ export function SettingsAdministration({
                 <span>
                   <span aria-hidden="true">{value.emoji}</span> :{value.name}:
                 </span>
-                <button
-                  className="btn"
+                <Button
                   disabled={busy}
                   onClick={() =>
                     confirm(
@@ -138,7 +138,7 @@ export function SettingsAdministration({
                   }
                 >
                   Remove emoji
-                </button>
+                </Button>
               </li>
             ))}
         </ul>
@@ -223,7 +223,7 @@ export function SupervisionAdministration({
               existing product policy.
             </p>
             <div>
-              <button className="btn" disabled={busy}>Save supervision policy</button>
+              <Button disabled={busy}>Save supervision policy</Button>
             </div>
           </>
         ) : (
@@ -233,13 +233,12 @@ export function SupervisionAdministration({
       <section className="chat-admin-block">
         <div className="chat-admin-actions">
           <h4>Review and history</h4>
-          <button
-            className="btn"
+          <Button
             disabled={busy}
             onClick={() => void perform(load, "Supervision history refreshed")}
           >
             Refresh history
-          </button>
+          </Button>
         </div>
         <ul className="chat-admin-list">
           {events.map((value) => (
@@ -260,8 +259,7 @@ export function SupervisionAdministration({
               ["submitted", "quarantined"].includes(value.state) ? (
                 <div className="chat-admin-actions">
                   {(["approved", "rejected"] as const).map((decision) => (
-                    <button
-                      className="btn"
+                    <Button
                       key={decision}
                       disabled={busy}
                       onClick={() =>
@@ -280,7 +278,7 @@ export function SupervisionAdministration({
                       {decision === "approved"
                         ? "Approve message"
                         : "Reject message"}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               ) : null}

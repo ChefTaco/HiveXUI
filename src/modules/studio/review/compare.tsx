@@ -1,6 +1,6 @@
 // Compare two revisions of one deliverable. Its own chunk: jsdiff and pdf.js load only here.
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { EmptyState, LoadingRows } from '@ui';
+import { EmptyState, LoadingRows, Button } from '@ui';
 import { cn } from '@lib/cn';
 import { errorMessage } from '../../magnus/api/errors';
 import type { Revision } from './api';
@@ -164,15 +164,15 @@ export function PdfCompare({ before, after, labels }: { before: Content; after: 
   return (
     <div className="review-compare" ref={frame}>
       <div className="review-compare__bar">
-        <button type="button" className="btn btn--sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+        <Button type="button" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
           Previous page
-        </button>
+        </Button>
         <span className="num text-sm" aria-live="polite">
           Page {page} of {pages}
         </span>
-        <button type="button" className="btn btn--sm" disabled={page >= pages} onClick={() => setPage(page + 1)}>
+        <Button type="button" size="sm" disabled={page >= pages} onClick={() => setPage(page + 1)}>
           Next page
-        </button>
+        </Button>
       </div>
       <div className="review-compare__pair">
         {([left.doc, right.doc] as const).map((doc, index) => (

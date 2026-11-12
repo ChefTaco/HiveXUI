@@ -2,7 +2,7 @@
 // person can do about it. Docked in the room pane so it never covers the figure it describes.
 import { useEffect, useRef } from 'react';
 import { ExternalLink, MessageSquare, Users, X } from 'lucide-react';
-import { Button } from '@ui';
+import { Button, buttonClass } from '@ui';
 import type { Deliverable, Message, Task } from '../api/endpoints';
 import { StudioLink } from '../link';
 import type { ProjectStore } from '../state/project-store';
@@ -87,7 +87,7 @@ export function AgentPopover({ agent, roles, task, lastMessage, store, tasks, de
         </div>
       </div>
       <footer className="room-popover__actions">
-        <StudioLink href={studioHref} className="btn btn--sm no-underline">
+        <StudioLink href={studioHref} className={buttonClass({ size: 'sm', className: 'no-underline' })}>
           <ExternalLink className="btn-ico" aria-hidden="true" />
           Open in Agent Studio
         </StudioLink>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MattermostUser } from "../../../contracts/chattermost.generated";
-import { ConfirmDialog } from "../../components/ui";
+import { ConfirmDialog, Button } from "../../components/ui";
 import { UsersAdministration } from "./admin-users";
 import {
   SettingsAdministration,
@@ -147,15 +147,14 @@ function ConnectedAdministration({ owner }: { owner: string }) {
           <p className="panel-eyebrow">ChatterMost · administration</p>
           <h2>Manage your chat installation</h2>
         </div>
-        <button
-          className="btn"
+        <Button
           type="button"
           disabled={busy}
           onClick={() => setOpen((value) => !value)}
           aria-expanded={open}
         >
           {open ? "Close administration" : "Open administration"}
-        </button>
+        </Button>
       </header>
       {open ? (
         <div className="chat-admin-layout">
@@ -201,8 +200,7 @@ function ConnectedAdministration({ owner }: { owner: string }) {
                   spellCheck={false}
                 />
                 <div className="chat-admin-actions">
-                  <button
-                    className="btn"
+                  <Button
                     type="button"
                     onClick={() =>
                       void navigator.clipboard
@@ -215,10 +213,10 @@ function ConnectedAdministration({ owner }: { owner: string }) {
                     }
                   >
                     Copy value
-                  </button>
-                  <button className="btn" type="button" onClick={() => setSecret(null)}>
+                  </Button>
+                  <Button type="button" onClick={() => setSecret(null)}>
                     Clear value
-                  </button>
+                  </Button>
                 </div>
               </section>
             ) : null}

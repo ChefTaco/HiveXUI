@@ -1,5 +1,5 @@
 import { Activity, ArrowUpRight, Bot, Database, Radio, Server } from 'lucide-react';
-import { Badge, EmptyState, PageHeader, StatusDot, LoadingRows, ResourceError } from '@ui';
+import { Badge, EmptyState, PageHeader, StatusDot, LoadingRows, ResourceError, buttonClass } from '@ui';
 import { errorMessage } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
 import { FxPanel, PageItem } from '../../../effects';
@@ -19,7 +19,7 @@ export default function ArdentOverviewPage() {
           eyebrow="Agent runtime"
           title="Magnus Ardent"
           description="Inspect the Ardent agent runtime across managed nodes. Each signal comes from the node and its authenticated profile API."
-          actions={<Link href="/ardent/installations" className="btn btn--primary btn--sm no-underline">Open installations <ArrowUpRight className="size-4" /></Link>}
+          actions={<Link href="/ardent/installations" className={buttonClass({ variant: 'primary', size: 'sm', className: 'no-underline' })}>Open installations <ArrowUpRight className="size-4" /></Link>}
         />
       </PageItem>
       <PageItem>
@@ -34,7 +34,7 @@ export default function ArdentOverviewPage() {
           {!known ? (
             inventory.loading ? <LoadingRows /> : <ResourceError error={inventory.error} title="Ardent inventory is unavailable" onRetry={() => void inventory.refresh()} />
           ) : profiles.length === 0 ? (
-            <EmptyState compact icon={<Bot className="size-5" />} title="No Ardent profiles detected" message="Create one on the Profiles page, or review node inventory for installation or connection errors." action={<Link href="/ardent/profiles" className="btn btn--sm no-underline">Profiles</Link>} />
+            <EmptyState compact icon={<Bot className="size-5" />} title="No Ardent profiles detected" message="Create one on the Profiles page, or review node inventory for installation or connection errors." action={<Link href="/ardent/profiles" className={buttonClass({ size: 'sm', className: 'no-underline' })}>Profiles</Link>} />
           ) : (
             <div className="grid gap-3">
               {inventory.error ? <p role="alert" className="m-0 text-sm text-warning">Showing the last good inventory: {errorMessage(inventory.error)}</p> : null}

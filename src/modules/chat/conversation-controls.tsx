@@ -9,6 +9,7 @@ import type {
   MattermostFileInfo,
 } from "../../../contracts/chattermost.generated";
 import { chat, chatResource, json, safeId } from "./api";
+import { Button } from "@ui";
 
 const message = (reason: unknown) =>
   reason instanceof Error ? reason.message : "Chat request failed";
@@ -133,8 +134,7 @@ export function BrowseChannels({
             <li key={value.id}>
               {value.display_name || value.name}{" "}
               {value.type === "P" ? "(private)" : ""}
-              <button
-                className="btn"
+              <Button
                 disabled={busy}
                 onClick={() => {
                   if (joined.some((item) => item.id === value.id)) {
@@ -155,24 +155,22 @@ export function BrowseChannels({
                 {joined.some((item) => item.id === value.id)
                   ? "Open channel"
                   : "Join channel"}
-              </button>
+              </Button>
             </li>
           ))}
       </ul>
-      <button
-        className="btn"
+      <Button
         disabled={!page || busy}
         onClick={() => setPage((old) => old - 1)}
       >
         Previous channels
-      </button>
-      <button
-        className="btn"
+      </Button>
+      <Button
         disabled={channels.length < 50 || busy}
         onClick={() => setPage((old) => old + 1)}
       >
         More channels
-      </button>
+      </Button>
     </details>
   );
 }
@@ -273,9 +271,9 @@ export function NewConversation({
             </label>
           </>
         )}
-        <button className="btn" disabled={busy || (kind === "G" && people.length < 2)}>
+        <Button disabled={busy || (kind === "G" && people.length < 2)}>
           {busy ? "Creating…" : "Create conversation"}
-        </button>
+        </Button>
       </form>
       {error && <p role="alert">{error}</p>}
     </details>
@@ -358,9 +356,9 @@ export function ChannelTools({
       <p>
         {channel.header || "No header"} · {channel.purpose || "No purpose"}
       </p>
-      <button className="btn" disabled={busy} onClick={() => setRevision((value) => value + 1)}>
+      <Button disabled={busy} onClick={() => setRevision((value) => value + 1)}>
         Refresh channel details
-      </button>
+      </Button>
       {error && <p role="alert">{error}</p>}
       <p role="status">{status}</p>
       <h3>Members</h3>
@@ -370,8 +368,7 @@ export function ChannelTools({
             {users.find((user) => user.id === value.user_id)?.username ||
               "Member"}
             {(canManage || value.user_id === me.id) && (
-              <button
-                className="btn"
+              <Button
                 disabled={busy}
                 onClick={() => {
                   if (
@@ -397,7 +394,7 @@ export function ChannelTools({
                 }}
               >
                 {value.user_id === me.id ? "Leave channel" : "Remove member"}
-              </button>
+              </Button>
             )}
           </li>
         ))}
@@ -432,7 +429,7 @@ export function ChannelTools({
                 ))}
             </select>
           </label>
-          <button className="btn" disabled={!member || busy}>Add to channel</button>
+          <Button disabled={!member || busy}>Add to channel</Button>
         </form>
       )}
       <h3>Pinned messages</h3>
@@ -440,9 +437,9 @@ export function ChannelTools({
         <ul>
           {pins.map((post) => (
             <li key={post.id}>
-              <button className="btn" onClick={() => openPost(post)}>
+              <Button onClick={() => openPost(post)}>
                 {post.message || "Attachment message"}
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
@@ -490,7 +487,7 @@ export function ChannelTools({
             onChange={(e) => setPurpose(e.target.value)}
           />
         </label>
-        <button className="btn" disabled={busy}>Save channel</button>
+        <Button disabled={busy}>Save channel</Button>
       </form>
       {isAdmin && policy && (
         <form
@@ -567,12 +564,11 @@ export function ChannelTools({
               }}
             />
           </label>
-          <button className="btn" disabled={busy}>Save agent policy</button>
+          <Button disabled={busy}>Save agent policy</Button>
         </form>
       )}
       {canManage && (
-        <button
-          className="btn"
+        <Button
           disabled={busy}
           onClick={() => {
             if (confirm("Delete this channel?"))
@@ -583,7 +579,7 @@ export function ChannelTools({
           }}
         >
           Delete channel
-        </button>
+        </Button>
       )}
     </details>
   );
@@ -683,7 +679,7 @@ export function ChatProfile({
             )}
           </select>
         </label>
-        <button className="btn" disabled={busy}>Save profile</button>
+        <Button disabled={busy}>Save profile</Button>
       </form>
       <form
         onSubmit={(e) => {
@@ -709,9 +705,8 @@ export function ChatProfile({
             onChange={(e) => setImage(e.target.files?.[0] ?? null)}
           />
         </label>
-        <button className="btn" disabled={busy || !image}>Upload avatar</button>
-        <button
-          className="btn"
+        <Button disabled={busy || !image}>Upload avatar</Button>
+        <Button
           type="button"
           disabled={busy}
           onClick={() =>
@@ -724,7 +719,7 @@ export function ChatProfile({
           }
         >
           Reset avatar
-        </button>
+        </Button>
       </form>
     </details>
   );

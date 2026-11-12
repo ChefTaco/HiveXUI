@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowUpRight } from 'lucide-react';
-import { Badge, Panel, statusTone } from '@ui';
+import { Badge, Panel, statusTone, buttonClass } from '@ui';
 import { adminApi } from '@lib/api';
 import { productInstalled } from '../../../lib/runtime';
 import { idempotencyKey } from '../api/client';
@@ -106,7 +106,7 @@ function ConnectionsPanel({ context }: { context: AgentContext }) {
       title="Channels and peers"
       description="Where the agent takes requests besides Studio, and the agents it may call."
       actions={
-        <StudioLink href={fleetHref(context)} className="btn btn--sm btn--ghost no-underline">
+        <StudioLink href={fleetHref(context)} className={buttonClass({ variant: 'ghost', size: 'sm', className: 'no-underline' })}>
           Configure
           <ArrowUpRight className="btn-ico" aria-hidden="true" />
         </StudioLink>

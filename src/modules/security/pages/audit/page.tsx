@@ -1,6 +1,6 @@
-import { Badge, Button, statusTone, TableFrame } from "@ui";
 import { securityFetch } from "@security/lib/security-api";
 import { FusionHeader } from "@security/components/security-fusion/fusion-ui";
+import { buttonClass, Badge, Button, statusTone, TableFrame } from "@ui";
 export default async function AuditPage({
   searchParams,
 }: {
@@ -93,10 +93,10 @@ export default async function AuditPage({
           </table>
         </TableFrame>
         {page > 1 && (
-          <a className="btn" href={`?date=${date}&page=${page - 1}`}>Newer records</a>
+          <a className={buttonClass()} href={`?date=${date}&page=${page - 1}`}>Newer records</a>
         )}{" "}
         {page * 100 < data.total && page < 100 && (
-          <a className="btn" href={`?date=${date}&page=${page + 1}`}>Older records</a>
+          <a className={buttonClass()} href={`?date=${date}&page=${page + 1}`}>Older records</a>
         )}
       </div>
     );

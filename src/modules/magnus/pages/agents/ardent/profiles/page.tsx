@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowUpRight, BookOpen, Plus, Radio } from 'lucide-react';
-import { Badge, Button, EmptyState, PageHeader, LoadingRows, ResourceError } from '@ui';
+import { Badge, Button, EmptyState, PageHeader, LoadingRows, ResourceError, buttonClass } from '@ui';
 import { useMagnusResource } from '../../../../api/use-resource';
 import { FxPanel, PageItem } from '../../../../effects';
 import Link, { useRouter } from '../../../../navigation';
@@ -66,7 +66,7 @@ export default function ArdentProfilesPage() {
           ) : null}
           <PageItem>
             {data.profiles.length === 0 ? (
-              <FxPanel interactive={false}><EmptyState icon={<BookOpen className="size-5" />} title="No Ardent profiles reported" message="Check installations for node errors." action={<Link href="/ardent/installations" className="btn btn--sm no-underline">Installations</Link>} /></FxPanel>
+              <FxPanel interactive={false}><EmptyState icon={<BookOpen className="size-5" />} title="No Ardent profiles reported" message="Check installations for node errors." action={<Link href="/ardent/installations" className={buttonClass({ size: 'sm', className: 'no-underline' })}>Installations</Link>} /></FxPanel>
             ) : (
               <div className="grid gap-3 lg:grid-cols-2">
                 {data.profiles.map((profile) => (

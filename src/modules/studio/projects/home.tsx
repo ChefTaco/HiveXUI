@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Activity, Archive, ClipboardCheck, FileText, FolderKanban, Library, MessageCircleQuestion, Plus, Search, Users } from 'lucide-react';
-import { Badge, EmptyState, PageHeader, Skeleton, ResourceError } from '@ui';
+import { Badge, EmptyState, PageHeader, Skeleton, ResourceError, buttonClass, Button } from '@ui';
 import { cn } from '@lib/cn';
 import { relativeTime } from '@lib/format';
 import { useMagnusResource } from '../../magnus/api/use-resource';
@@ -138,11 +138,11 @@ export function ProjectsHome() {
         description="Give a team of Ardent agents a shared project, watch them work together and review what they deliver."
         actions={
           <>
-            <StudioLink href={`${STUDIO_PREFIX}/gallery`} className="btn no-underline">
+            <StudioLink href={`${STUDIO_PREFIX}/gallery`} className={buttonClass({ className: 'no-underline' })}>
               <Library className="btn-ico" aria-hidden="true" />
               Gallery
             </StudioLink>
-            <StudioLink href={`${STUDIO_PREFIX}/new`} className="btn btn--primary no-underline">
+            <StudioLink href={`${STUDIO_PREFIX}/new`} className={buttonClass({ variant: 'primary', className: 'no-underline' })}>
               <Plus className="btn-ico" aria-hidden="true" />
               New project
             </StudioLink>
@@ -178,7 +178,7 @@ export function ProjectsHome() {
             </ul>
           </>
         ) : needsReview && !query ? (
-          <EmptyState framed icon={<ClipboardCheck className="size-6" />} title="Nothing needs review" message={`No ${status === 'archived' ? 'archived' : 'active'} project has a delivery waiting for you.`} action={<button type="button" className="btn" onClick={() => setStudioQuery({ review: null })}>Show all projects</button>} />
+          <EmptyState framed icon={<ClipboardCheck className="size-6" />} title="Nothing needs review" message={`No ${status === 'archived' ? 'archived' : 'active'} project has a delivery waiting for you.`} action={<Button type="button" onClick={() => setStudioQuery({ review: null })}>Show all projects</Button>} />
         ) : filtered ? (
           <EmptyState
             framed
@@ -186,9 +186,9 @@ export function ProjectsHome() {
             title="No projects match"
             message={`Nothing ${status === 'archived' ? 'archived' : 'active'}${needsReview ? ' that needs review' : ''} matches “${query}”.`}
             action={
-              <button type="button" className="btn" onClick={() => { setText(''); setStudioQuery({ review: null }); }}>
+              <Button type="button" onClick={() => { setText(''); setStudioQuery({ review: null }); }}>
                 Clear filters
-              </button>
+              </Button>
             }
           />
         ) : status === 'archived' ? (
@@ -201,11 +201,11 @@ export function ProjectsHome() {
             message="Write a brief, add references and pick a starting team. Then bind each role to an Ardent agent and start the conversation."
             action={
               <div className="flex flex-wrap justify-center gap-2">
-                <StudioLink href={`${STUDIO_PREFIX}/new`} className="btn btn--primary no-underline">
+                <StudioLink href={`${STUDIO_PREFIX}/new`} className={buttonClass({ variant: 'primary', className: 'no-underline' })}>
                   <Plus className="btn-ico" aria-hidden="true" />
                   Create project
                 </StudioLink>
-                <StudioLink href={`${STUDIO_PREFIX}/gallery`} className="btn no-underline">
+                <StudioLink href={`${STUDIO_PREFIX}/gallery`} className={buttonClass({ className: 'no-underline' })}>
                   <Library className="btn-ico" aria-hidden="true" />
                   Browse templates
                 </StudioLink>

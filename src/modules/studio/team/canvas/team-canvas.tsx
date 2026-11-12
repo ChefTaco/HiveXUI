@@ -27,6 +27,7 @@ import { keyCommand, RELATIONSHIP_LABEL, treeOrder, type KeyCommand, type Relati
 import { bindingOf, bindingText, RoleCard } from '../role-card';
 import type { GhostChange } from '../proposal';
 import { autoLayout, NODE_HEIGHT, type Positions } from './layout';
+import { IconButton } from '@ui';
 
 export interface TeamCanvasProps {
   draft: TeamDraft;
@@ -264,15 +265,9 @@ function Canvas(props: TeamCanvasProps) {
         />
         {mini ? null : (
           <div className="studio-canvas__zoom" role="group" aria-label="Zoom">
-            <button type="button" className="btn btn--icon btn--sm" aria-label="Zoom in" title="Zoom in" onClick={() => void flow.zoomIn()}>
-              <Plus className="size-4" aria-hidden="true" />
-            </button>
-            <button type="button" className="btn btn--icon btn--sm" aria-label="Zoom out" title="Zoom out" onClick={() => void flow.zoomOut()}>
-              <Minus className="size-4" aria-hidden="true" />
-            </button>
-            <button type="button" className="btn btn--icon btn--sm" aria-label="Fit the team in view" title="Fit" onClick={() => void flow.fitView({ padding: 0.15 })}>
-              <Maximize className="size-4" aria-hidden="true" />
-            </button>
+            <IconButton type="button" variant="default" size="sm" label="Zoom in" icon={<Plus className="size-4" aria-hidden="true" />} onClick={() => void flow.zoomIn()} />
+            <IconButton type="button" variant="default" size="sm" label="Zoom out" icon={<Minus className="size-4" aria-hidden="true" />} onClick={() => void flow.zoomOut()} />
+            <IconButton type="button" variant="default" size="sm" label="Fit the team in view" title="Fit" icon={<Maximize className="size-4" aria-hidden="true" />} onClick={() => void flow.fitView({ padding: 0.15 })} />
           </div>
         )}
       </div>

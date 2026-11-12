@@ -1,5 +1,5 @@
 import { Activity, Bot, Database, MonitorDot, Server, Users } from 'lucide-react';
-import { EmptyState, PageHeader, LoadingRows, ResourceError } from '@ui';
+import { EmptyState, PageHeader, LoadingRows, ResourceError, buttonClass } from '@ui';
 import { HERMES_POLL_MS } from '../../../api/rate-gate';
 import { errorMessage } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
@@ -38,7 +38,7 @@ export default function HermesOverviewPage() {
           eyebrow="Agent runtime"
           title="Hermes agents"
           description={known ? `${detected.length} detected installation${detected.length === 1 ? '' : 's'} · latest sync ${synced(detected[0]?.lastSyncedAt)}` : 'Loading inventory…'}
-          actions={<Link href="/orchestra/installations" className="btn btn--primary btn--sm no-underline"><Server className="size-4" />Installations</Link>}
+          actions={<Link href="/orchestra/installations" className={buttonClass({ variant: 'primary', size: 'sm', className: 'no-underline' })}><Server className="size-4" />Installations</Link>}
         />
       </PageItem>
       <PageItem>

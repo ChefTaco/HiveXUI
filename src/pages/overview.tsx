@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useStore } from '../lib/store';
-import { Badge, EmptyState, HealthBadge, JsonBlock, Panel, StatCard } from '../components/ui';
+import { Badge, EmptyState, HealthBadge, JsonBlock, Panel, StatCard, Button } from '../components/ui';
 import { Icon } from '../components/icons';
 import { compactNumber, relativeTime } from '../lib/format';
 import type { HiveAppState, HiveAppStatus, HiveHealthCheck } from '../lib/types';
@@ -162,9 +162,9 @@ export function OverviewPage({ onNavigate }: { onNavigate: (view: string) => voi
           title="Attention Queue"
           eyebrow="Now"
           actions={latestIncident ? (
-            <button className="btn btn--ghost btn--sm" onClick={() => onNavigate('incidents')}>
+            <Button variant="ghost" size="sm" onClick={() => onNavigate('incidents')}>
               Incidents
-            </button>
+            </Button>
           ) : null}
         >
           {actionItems.length === 0 ? (
@@ -189,9 +189,9 @@ export function OverviewPage({ onNavigate }: { onNavigate: (view: string) => voi
           title="Live Activity"
           eyebrow="Rail"
           actions={
-            <button className="btn btn--ghost btn--sm" onClick={() => onNavigate('audit')}>
+            <Button variant="ghost" size="sm" onClick={() => onNavigate('audit')}>
               Audit
-            </button>
+            </Button>
           }
         >
           {activity.length === 0 ? (
@@ -234,9 +234,9 @@ export function OverviewPage({ onNavigate }: { onNavigate: (view: string) => voi
                 </span>
               ))}
             </div>
-            <button className="btn btn--ghost btn--sm" onClick={() => onNavigate(serviceTarget(app))}>
+            <Button variant="ghost" size="sm" onClick={() => onNavigate(serviceTarget(app))}>
               Inspect
-            </button>
+            </Button>
           </article>
         ))}
       </div>
@@ -246,9 +246,9 @@ export function OverviewPage({ onNavigate }: { onNavigate: (view: string) => voi
           title="Provider Pulse"
           eyebrow="Health"
           actions={
-            <button className="btn btn--ghost btn--sm" onClick={() => onNavigate('providers')}>
+            <Button variant="ghost" size="sm" onClick={() => onNavigate('providers')}>
               Manage
-            </button>
+            </Button>
           }
         >
           {data.providers.length === 0 ? (
@@ -282,9 +282,9 @@ export function OverviewPage({ onNavigate }: { onNavigate: (view: string) => voi
           title="Latest Trace"
           eyebrow="Observability"
           actions={
-            <button className="btn btn--ghost btn--sm" onClick={() => onNavigate('traces')}>
+            <Button variant="ghost" size="sm" onClick={() => onNavigate('traces')}>
               View all
-            </button>
+            </Button>
           }
         >
           {data.telemetry?.latestTrace ? (
@@ -299,9 +299,9 @@ export function OverviewPage({ onNavigate }: { onNavigate: (view: string) => voi
         title="Recent Activity"
         eyebrow="Audit"
         actions={
-          <button className="btn btn--ghost btn--sm" onClick={() => onNavigate('audit')}>
+          <Button variant="ghost" size="sm" onClick={() => onNavigate('audit')}>
             View log
-          </button>
+          </Button>
         }
       >
         {data.audit.length === 0 ? (
