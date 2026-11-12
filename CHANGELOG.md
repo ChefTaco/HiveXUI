@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.6.0] - 2026-11-12
 
 - Add the suite inbox: one list of notable events from every installed product that announces a HiveEvent v1 feed (`events.v1`) in the Hive Registry, read through each product's browser prefix with the shared transport. Events are validated with `@hivemagnus/hive-common/contracts`, deduplicated by ID and shown newest first; an invalid event is dropped without losing the rest of its page. It replaces the Magnus-only notification bell: the header bell shows the unread count and the newest events in a drawer, and the Inbox page (`/?page=inbox`) filters by product, severity and read state.
 - Keep a last-seen position per person and product in local storage; "Mark all read" advances it. Magnus events also follow Magnus's own read flags, matched by the notification ID in `sourceRef`, and "Mark all read" marks them read in Magnus. With storage blocked, marks last until the page reloads.
