@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, OctagonAlert } from 'lucide-react';
-import { Badge, Button, ConfirmDialog, Drawer, EmptyState, Field, Panel, TextArea, TextInput } from '@ui';
+import { Badge, Button, ConfirmDialog, Drawer, EmptyState, Field, Panel, TextArea, TextInput, LoadingRows, ResourceError } from '@ui';
 import { cn } from '@lib/cn';
 import { useToast } from '../../../components/toast';
 import { errorMessage } from '../../magnus/api/errors';
 import { useMagnusResource } from '../../magnus/api/use-resource';
-import { LoadingRows, ResourceError } from '../../magnus/ui/resource-state';
 import { idempotencyKey } from '../api/client';
 import { createTemplate, getTemplate, getTemplateVersion, reassignTask, saveTeamAsTemplate, type Task, type ValidationResult } from '../api/endpoints';
 import { applyChanges, templateDiff } from '../gallery/diff';

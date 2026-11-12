@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { Check, RefreshCw, Search, UserPlus } from 'lucide-react';
-import { Badge, Button, Drawer, EmptyState } from '@ui';
+import { Badge, Button, Drawer, EmptyState, LoadingRows, ResourceError } from '@ui';
 import { cn } from '@lib/cn';
 import type { Resource } from '../../magnus/api/use-resource';
-import { LoadingRows, ResourceError } from '../../magnus/ui/resource-state';
 import type { Agent, AgentList } from '../api/endpoints';
 import { defaultPortrait } from '../room/scene/model';
 import { PortraitBadge } from '../room/scene/portrait';

@@ -1,9 +1,8 @@
 // Compare two revisions of one deliverable. Its own chunk: jsdiff and pdf.js load only here.
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { EmptyState } from '@ui';
+import { EmptyState, LoadingRows } from '@ui';
 import { cn } from '@lib/cn';
 import { errorMessage } from '../../magnus/api/errors';
-import { LoadingRows } from '../../magnus/ui/resource-state';
 import type { Revision } from './api';
 import { useRevisionContent, type Content } from './content';
 import { diffStats, diffText, sides, type DiffPart, type Granularity } from './diff';

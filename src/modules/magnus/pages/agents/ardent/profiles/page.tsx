@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { ArrowUpRight, BookOpen, Plus, Radio } from 'lucide-react';
-import { Badge, Button, EmptyState, PageHeader } from '@ui';
+import { Badge, Button, EmptyState, PageHeader, LoadingRows, ResourceError } from '@ui';
 import { useMagnusResource } from '../../../../api/use-resource';
 import { FxPanel, PageItem } from '../../../../effects';
 import Link, { useRouter } from '../../../../navigation';
 import { ADMIN_ONLY, RequireRole } from '../../../../session';
-import { LoadingRows, ResourceError } from '../../../../ui/resource-state';
 import { listInstallations, listProfiles } from '../api';
 import { parseProfileRef, profileHref } from '../logic';
 import { NewAgentWizard } from './new-agent';

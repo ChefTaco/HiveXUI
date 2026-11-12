@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react';
 import { ArrowUpRight, Compass, Library, Plus, ServerOff, ShieldAlert } from 'lucide-react';
-import { Button, EmptyState, PageHeader, Panel } from '@ui';
+import { Button, EmptyState, PageHeader, Panel, LoadingRows } from '@ui';
 import { parseProfileRef, profileHref } from '../magnus/pages/agents/ardent/logic';
-import { LoadingRows } from '../magnus/ui/resource-state';
 import type { StudioConnection } from './api/client';
 import './projects/projects.css';
 import { AgentStudio } from './agents/page';

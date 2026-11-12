@@ -1,10 +1,9 @@
 import { nodeListResponseSchema } from '@contracts/magnus/browser';
 import type { z } from 'zod';
-import { Badge, Button, statusTone, StatusDot } from '@ui';
+import { Badge, Button, statusTone, StatusDot, LoadingRows } from '@ui';
 import { magnus } from '../../../api/client';
 import { errorMessage } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
-import { LoadingRows } from '../../../ui/resource-state';
 
 export type NodeOption = z.output<typeof nodeListResponseSchema>['data'][number];
 const PAGE_SIZE = 100;

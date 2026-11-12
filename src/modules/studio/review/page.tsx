@@ -1,6 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { PageHeader } from '@ui';
-import { LoadingRows } from '../../magnus/ui/resource-state';
+import { PageHeader, LoadingRows } from '@ui';
 import { ProjectFrame } from '../projects/project-page';
 import './review.css';
 

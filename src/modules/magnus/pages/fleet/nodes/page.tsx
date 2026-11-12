@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, AlertTriangle, ArrowUpCircle, Loader2, Pencil, Plus, Power, RefreshCcwDot, RefreshCw, Server, ShieldCheck, Trash2 } from 'lucide-react';
 import { deleteNodeResponseSchema, systemUpdatesSummaryResponseSchema, tailscaleSummaryResponseSchema } from '@contracts/magnus/browser';
-import { Badge, Button, ConfirmDialog, EmptyState, IconButton, PageHeader, StatusDot, statusTone, TableFrame } from '@ui';
+import { Badge, Button, ConfirmDialog, EmptyState, IconButton, PageHeader, StatusDot, statusTone, TableFrame, LoadingRows, ResourceError } from '@ui';
 import { relativeTime } from '@lib/format';
 import { cn } from '@lib/cn';
 import { useToast } from '../../../../../components/toast';
@@ -12,7 +12,6 @@ import { FxMeter, FxPanel, PageItem } from '../../../effects';
 import Link, { useRouter, useSearchParams } from '../../../navigation';
 import { hasRoute } from '../../../routes';
 import { ADMIN_ONLY, useMagnusSession, WRITE_ROLES } from '../../../session';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { TailscaleExpiryAlert } from '../shared/tailscale-alert';
 import { AgentUpgradeDrawer } from './agent-upgrade';
 import { AssignRoleDrawer, EditNodeDrawer, RegisterNodeDrawer } from './node-actions';

@@ -1,10 +1,9 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Archive, ArchiveRestore, ChevronsUpDown, FolderOpen, Plus, Search } from 'lucide-react';
-import { Badge, Button, ConfirmDialog, Drawer } from '@ui';
+import { Badge, Button, ConfirmDialog, Drawer, LoadingRows, ResourceError } from '@ui';
 import { errorMessage } from '../../magnus/api/errors';
 import { useMagnusResource } from '../../magnus/api/use-resource';
-import { LoadingRows, ResourceError } from '../../magnus/ui/resource-state';
 import { idempotencyKey, StudioApiError } from '../api/client';
 import { archiveProject, listProjects, reopenProject } from '../api/endpoints';
 import { StudioLink } from '../link';

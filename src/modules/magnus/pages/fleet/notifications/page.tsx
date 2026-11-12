@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { BellRing, Save } from 'lucide-react';
-import { Button, PageHeader, Select, TableFrame } from '@ui';
+import { Button, PageHeader, Select, TableFrame, LoadingRows, ResourceError } from '@ui';
 import { useToast } from '../../../../../components/toast';
 import { magnus } from '../../../api/client';
 import { errorMessage } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
 import { FxPanel, PageItem } from '../../../effects';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { InboxPanel } from './inbox-panel';
 import { CATEGORIES, CHANNELS, GROUPS, isEnabled, minSeverity, preferencePayload, samePreferences, setCategorySeverity, SEVERITIES, togglePref } from './prefs';
 import { notificationPreferencesResponseSchema, type NotificationPreference } from './schemas';

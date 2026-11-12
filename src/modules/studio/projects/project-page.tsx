@@ -1,7 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { FolderX } from 'lucide-react';
-import { EmptyState, Panel } from '@ui';
-import { LoadingRows, ResourceError } from '../../magnus/ui/resource-state';
+import { EmptyState, Panel, LoadingRows, ResourceError } from '@ui';
 import { StudioLink } from '../link';
 import { goStudio, STUDIO_PREFIX } from '../paths';
 import { areaHref, projectHref } from '../routes';

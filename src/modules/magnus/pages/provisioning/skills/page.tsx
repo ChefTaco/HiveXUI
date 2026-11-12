@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Eye, FileCode, Package, RefreshCw, Search, Server, Tag, XCircle } from 'lucide-react';
-import { Badge, Button, Drawer, EmptyState, PageHeader, TextInput } from '@ui';
+import { Badge, Button, Drawer, EmptyState, PageHeader, TextInput, ResourceError } from '@ui';
 import { magnus } from '../../../api/client';
 import { useMagnusResource } from '../../../api/use-resource';
 import { FxPanel, GLOW_TEXT, PageItem, ScanPanel } from '../../../effects';
 import Link from '../../../navigation';
 import { hasRoute } from '../../../routes';
 import { useMagnusSession, WRITE_ROLES } from '../../../session';
-import { ResourceError } from '../../../ui/resource-state';
 import { initiallyExpanded, matchesSkill, normalizeScan } from './logic';
 import { skillScanResponseSchema } from './schemas';
 

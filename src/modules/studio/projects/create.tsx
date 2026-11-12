@@ -1,11 +1,10 @@
 import { useEffect, useId, useMemo, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, Check, Copy, LayoutTemplate, Plus, Square, Trash2 } from 'lucide-react';
 import { DELIVERABLE_FORMATS, STAGES } from '@contracts/ardentstudio.generated';
-import { Badge, Button, ConfirmDialog, EmptyState, Field, IconButton, PageHeader, Panel, Select, TextArea, TextInput, Toggle } from '@ui';
+import { Badge, Button, ConfirmDialog, EmptyState, Field, IconButton, PageHeader, Panel, Select, TextArea, TextInput, Toggle, LoadingRows, ResourceError } from '@ui';
 import { cn } from '@lib/cn';
 import { errorMessage } from '../../magnus/api/errors';
 import { useMagnusResource } from '../../magnus/api/use-resource';
-import { LoadingRows, ResourceError } from '../../magnus/ui/resource-state';
 import { idempotencyKey, StudioApiError } from '../api/client';
 import { applyTemplate, createProject, getProject, getTeam, listAgents, listProjects, listTemplates, putTeamDraft, updateProject, type Project, type TemplateSummary } from '../api/endpoints';
 import { goStudio } from '../paths';

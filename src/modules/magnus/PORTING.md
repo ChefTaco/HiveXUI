@@ -120,7 +120,7 @@ Say you are porting `/rollouts`, in the `operations` package.
 | `Gauge`, `Sparkline`, `AnimatedNumber`, `FleetRadar`, `LazyAreaChart`, `useSessionSamples` | The same names from `effects`. Chart tones are `accent`, `signal`, `info`, `success`, `warning`, `danger`, `neutral`. `primary` becomes `accent`, and `accent` becomes `signal`. |
 | `PageTransition` / `PageItem` | Drop `PageTransition` for `<div className="page-stack">`. `PageItem` is in `effects`. |
 | `NodeSelector` | `ui/node-selector` (single select; call it for each node if the old page was multi). |
-| `SkeletonTable`, `SkeletonText`, an inline error state | `LoadingRows` and `ResourceError` from `ui/resource-state`. |
+| `SkeletonTable`, `SkeletonText`, an inline error state | `LoadingRows` and `ResourceError` from `@ui`. |
 | `formatDate`, `formatBytes` | `formatTime`, `relativeTime` from `@lib/format`. Write `formatBytes` beside the page if you need it. |
 | `<h1>`, `text-[10px]`, `uppercase`, `tracking-*`, `bg-black` | Per `docs/THEME.md`. It covers what the guard tests enforce. |
 

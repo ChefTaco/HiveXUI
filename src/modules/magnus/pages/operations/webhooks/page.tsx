@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { Play, Plus, Trash2, Webhook } from 'lucide-react';
-import { Badge, Button, ConfirmDialog, EmptyState, IconButton, PageHeader, Toggle } from '@ui';
+import { Badge, Button, ConfirmDialog, EmptyState, IconButton, PageHeader, Toggle, LoadingRows, ResourceError } from '@ui';
 import { useToast } from '../../../../../components/toast';
 import { magnus, segment } from '../../../api/client';
 import { errorMessage } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
 import { FxPanel, PageItem } from '../../../effects';
 import Link from '../../../navigation';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { postKeepingBody } from '../shared/request';
 import { webhookDeleteResponseSchema, webhookListResponseSchema, webhookResponseSchema, webhookTestResponseSchema, type WebhookEndpoint } from './schemas';
 import { eventsLabel } from './webhook-model';

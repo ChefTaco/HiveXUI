@@ -1,10 +1,9 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowUpCircle, BookmarkPlus, CheckCircle2, LayoutGrid, Library, ListChecks, Play, Plus, Rows3, Sparkles, Upload, Workflow, X } from 'lucide-react';
-import { Badge, Button, ConfirmDialog, PageHeader, Panel } from '@ui';
+import { Badge, Button, ConfirmDialog, PageHeader, Panel, LoadingRows } from '@ui';
 import { cn } from '@lib/cn';
 import { useToast } from '../../../components/toast';
 import { useMagnusResource } from '../../magnus/api/use-resource';
-import { LoadingRows } from '../../magnus/ui/resource-state';
 import { getTemplate, listAgents, type Agent } from '../api/endpoints';
 import { BindPicker } from '../agents/bind-picker';
 import { NewAgentDrawer } from '../agents/new-agent-drawer';

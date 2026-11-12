@@ -1,9 +1,8 @@
 import { CircleAlert, Code2, KeyRound, RefreshCw, Server } from 'lucide-react';
-import { Badge, Button, EmptyState, PageHeader, StatusDot } from '@ui';
+import { Badge, Button, EmptyState, PageHeader, StatusDot, LoadingRows, ResourceError } from '@ui';
 import { errorMessage } from '../../../api/errors';
 import { FxPanel, PageItem } from '../../../effects';
 import Link from '../../../navigation';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { PostureHero, StatTile } from '../shared/fx';
 import { summarize } from './logic';
 import { useCodexFleet } from './use-codex';

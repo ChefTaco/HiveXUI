@@ -1,10 +1,9 @@
 import { Activity, ArrowUpRight, Bot, Database, Radio, Server } from 'lucide-react';
-import { Badge, EmptyState, PageHeader, StatusDot } from '@ui';
+import { Badge, EmptyState, PageHeader, StatusDot, LoadingRows, ResourceError } from '@ui';
 import { errorMessage } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
 import { FxPanel, PageItem } from '../../../effects';
 import Link from '../../../navigation';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { PostureHero, StatTile } from '../shared/fx';
 import { listInstallations } from './api';
 import { channelSummary, profileHref, summarize } from './logic';

@@ -1,8 +1,7 @@
 import { RefreshCw, Server, ShieldCheck } from 'lucide-react';
-import { Button, EmptyState, PageHeader } from '@ui';
+import { Button, EmptyState, PageHeader, LoadingRows, ResourceError } from '@ui';
 import { errorMessage } from '../../../../api/errors';
 import { FxPanel, PageItem } from '../../../../effects';
-import { LoadingRows, ResourceError } from '../../../../ui/resource-state';
 import { CodexInstallationCard } from '../installation-card';
 import type { CodexInstallation } from '../schemas';
 import { useCodexFleet } from '../use-codex';

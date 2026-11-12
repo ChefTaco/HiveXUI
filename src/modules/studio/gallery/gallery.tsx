@@ -1,12 +1,11 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Archive, ArchiveRestore, ArrowLeft, Copy, Library, PencilLine, Play, Search, Users } from 'lucide-react';
-import { Badge, Button, ConfirmDialog, EmptyState, PageHeader, Panel, Select, Skeleton, Toggle } from '@ui';
+import { Badge, Button, ConfirmDialog, EmptyState, PageHeader, Panel, Select, Skeleton, Toggle, LoadingRows, ResourceError } from '@ui';
 import { cn } from '@lib/cn';
 import { formatTime } from '@lib/format';
 import { useToast } from '../../../components/toast';
 import { errorMessage } from '../../magnus/api/errors';
 import { useMagnusResource } from '../../magnus/api/use-resource';
-import { LoadingRows, ResourceError } from '../../magnus/ui/resource-state';
 import { idempotencyKey, StudioApiError } from '../api/client';
 import { applyTemplate, archiveTemplate, getTemplate, getTemplateVersion, listTemplates, type TemplateDetail, type TemplateSummary, type TemplateVersion } from '../api/endpoints';
 import { setStudioQuery, StudioLink, useStudioSearch } from '../link';

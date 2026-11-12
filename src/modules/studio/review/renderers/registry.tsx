@@ -2,8 +2,7 @@
 // the Word view load only when a file of their type is opened.
 import { lazy, Suspense, type ComponentType, type LazyExoticComponent } from 'react';
 import { File } from 'lucide-react';
-import { EmptyState } from '@ui';
-import { LoadingRows } from '../../../magnus/ui/resource-state';
+import { EmptyState, LoadingRows } from '@ui';
 import { formatBytes } from '../../projects/logic';
 import { rendererKind, type RendererKind } from '../logic';
 import { DownloadButton, type RendererProps } from './shared';

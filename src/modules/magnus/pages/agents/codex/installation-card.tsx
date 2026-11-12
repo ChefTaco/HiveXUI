@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Clipboard, ExternalLink, KeyRound, LogOut, RefreshCw } from 'lucide-react';
-import { Badge, Button } from '@ui';
+import { Badge, Button, LoadingRows, ResourceError } from '@ui';
 import { magnus, segment } from '../../../api/client';
 import { errorMessage } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
 import { FxPanel, HaloDot } from '../../../effects';
 import { ActionConfirm } from '../../../ui/action-confirm';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { Fact } from '../shared/fx';
 import { authTone, canRequestUpdate, safeExternalUrl } from './logic';
 import { codexDeviceSessionResponseSchema, codexInstallationResponseSchema, type CodexDeviceSession, type CodexInstallation } from './schemas';

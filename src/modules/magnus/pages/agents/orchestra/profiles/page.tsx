@@ -1,11 +1,10 @@
 import { Bot, Server } from 'lucide-react';
-import { Badge, EmptyState, PageHeader } from '@ui';
+import { Badge, EmptyState, PageHeader, LoadingRows, ResourceError } from '@ui';
 import { errorMessage } from '../../../../api/errors';
 import { HERMES_POLL_MS } from '../../../../api/rate-gate';
 import { useMagnusResource } from '../../../../api/use-resource';
 import { FxPanel, PageItem } from '../../../../effects';
 import { useMagnusSession } from '../../../../session';
-import { LoadingRows, ResourceError } from '../../../../ui/resource-state';
 import { Fact } from '../../shared/fx';
 import { groupProfiles, HermesStatus, installLabel, isDetected, readInstallations, readProfiles } from '../shared';
 

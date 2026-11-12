@@ -1,13 +1,12 @@
 import { useMemo, useState } from 'react';
 import { ArrowLeft, Download, ExternalLink, RefreshCw } from 'lucide-react';
-import { Badge, Button, EmptyState, PageHeader, Select, statusTone, StatusDot } from '@ui';
+import { Badge, Button, EmptyState, PageHeader, Select, statusTone, StatusDot, LoadingRows, ResourceError } from '@ui';
 import { cn } from '@lib/cn';
 import { errorMessage } from '../../../../api/errors';
 import { useMagnusResource } from '../../../../api/use-resource';
 import { FxPanel, PageItem } from '../../../../effects';
 import Link, { useParams, useSearchParams } from '../../../../navigation';
 import { ADMIN_ONLY, RequireRole } from '../../../../session';
-import { LoadingRows, ResourceError } from '../../../../ui/resource-state';
 import { CodexNodePanel } from '../../codex/installation-card';
 import { Fact } from '../../shared/fx';
 import { ardentAction, fetchArtifact, readInstallation, readResource, saveBlob } from '../api';

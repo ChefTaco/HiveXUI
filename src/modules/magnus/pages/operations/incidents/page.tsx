@@ -1,6 +1,6 @@
 import { Activity, ExternalLink, Radar, RefreshCw, ShieldAlert } from 'lucide-react';
 import { dependencyHealthResponseSchema, incidentSummaryResponseSchema, timelineResponseSchema } from '@contracts/magnus/browser';
-import { Badge, Button, PageHeader } from '@ui';
+import { Badge, Button, PageHeader, LoadingRows, ResourceError } from '@ui';
 import { formatTime } from '@lib/format';
 import { cn } from '@lib/cn';
 import { productEnabled } from '../../../../../lib/runtime';
@@ -10,7 +10,6 @@ import { FxPanel, GLOW_TEXT, HaloDot, PageItem, TONE_TEXT } from '../../../effec
 import Link, { useSearchParams } from '../../../navigation';
 import { hasRoute } from '../../../routes';
 import { useMagnusSession, WRITE_ROLES } from '../../../session';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { EvidenceReview } from './evidence-review';
 import { CHECK_TONE, HEALTH_TONE, severityTone, windowHours } from './incident-model';
 

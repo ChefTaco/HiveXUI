@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AlertCircle, ArrowLeft, ExternalLink, Loader2, Pencil, Server, ShieldCheck, TerminalSquare, Trash2 } from 'lucide-react';
 import { deleteNodeResponseSchema, enableSystemUpdatesResponseSchema, hermesInstallationsResponseSchema, nodeDetailResponseSchema, nodeForecastResponseSchema, nodeGpuResponseSchema, nodeHealthResponseSchema, roleApplicationListResponseSchema } from '@contracts/magnus/browser';
-import { Badge, Button, ConfirmDialog, EmptyState, PageHeader, Skeleton, StatusDot, statusTone } from '@ui';
+import { Badge, Button, ConfirmDialog, EmptyState, PageHeader, Skeleton, StatusDot, statusTone, LoadingRows, ResourceError } from '@ui';
 import { formatTime } from '@lib/format';
 import { useToast } from '../../../../../components/toast';
 import { magnus, segment } from '../../../api/client';
@@ -10,7 +10,6 @@ import { useMagnusResource } from '../../../api/use-resource';
 import { FxPanel, Gauge, PageItem } from '../../../effects';
 import Link, { useParams, useRouter } from '../../../navigation';
 import { ADMIN_ONLY, useMagnusSession, WRITE_ROLES } from '../../../session';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { AssignRoleDrawer, EditNodeDrawer } from '../nodes/node-actions';
 import { nodeError, parseDisks, parseTags } from '../nodes/nodes-api';
 import type { AskRequest } from './ask';

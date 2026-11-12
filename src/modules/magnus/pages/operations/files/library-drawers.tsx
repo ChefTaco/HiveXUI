@@ -1,12 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { FileText, Search } from 'lucide-react';
 import { libraryFileResponseSchema, libraryFilesListResponseSchema } from '@contracts/magnus/browser';
-import { Badge, Button, Drawer, Field, TextInput } from '@ui';
+import { Badge, Button, Drawer, Field, TextInput, LoadingRows, ResourceError } from '@ui';
 import { formatTime } from '@lib/format';
 import { magnus, segment } from '../../../api/client';
 import { errorMessage } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { formatBytes, FormError } from '../shared/parts';
 import { libraryDisplayName, libraryMimeType, mimeLabel } from './files-model';
 

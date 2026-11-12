@@ -1,5 +1,5 @@
 import { ArrowUpRight, Route } from 'lucide-react';
-import { Badge, EmptyState, PageHeader, TableFrame } from '@ui';
+import { Badge, EmptyState, PageHeader, TableFrame, LoadingRows, ResourceError } from '@ui';
 import { relativeTime } from '@lib/format';
 import { cn } from '@lib/cn';
 import { magnus, segment } from '../../../api/client';
@@ -8,7 +8,6 @@ import { HERMES_POLL_MS } from '../../../api/rate-gate';
 import { useMagnusResource } from '../../../api/use-resource';
 import { FxPanel, GLOW_TEXT, PageItem } from '../../../effects';
 import Link from '../../../navigation';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { hermesTone } from '../orchestra/shared';
 import { hermesEffectiveStateResponseSchema } from './schemas';
 

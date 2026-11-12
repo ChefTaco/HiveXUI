@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Activity, Archive, ClipboardCheck, FileText, FolderKanban, Library, MessageCircleQuestion, Plus, Search, Users } from 'lucide-react';
-import { Badge, EmptyState, PageHeader, Skeleton } from '@ui';
+import { Badge, EmptyState, PageHeader, Skeleton, ResourceError } from '@ui';
 import { cn } from '@lib/cn';
 import { relativeTime } from '@lib/format';
 import { useMagnusResource } from '../../magnus/api/use-resource';
-import { ResourceError } from '../../magnus/ui/resource-state';
 import { listProjects, type ProjectSummary } from '../api/endpoints';
 import { setStudioQuery, StudioLink, useStudioSearch } from '../link';
 import { STUDIO_PREFIX } from '../paths';

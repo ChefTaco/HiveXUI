@@ -1,5 +1,5 @@
 import { AlertTriangle, ArrowRight, RefreshCw, ShieldAlert, ShieldCheck, Siren, Zap } from 'lucide-react';
-import { Badge, Button, EmptyState, PageHeader } from '@ui';
+import { Badge, Button, EmptyState, PageHeader, LoadingRows, ResourceError } from '@ui';
 import { cn } from '@lib/cn';
 import { formatTime } from '@lib/format';
 import { magnus } from '../../../api/client';
@@ -7,7 +7,6 @@ import { errorMessage } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
 import { FxMeter, FxPanel, PageItem } from '../../../effects';
 import Link from '../../../navigation';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { Figure } from '../shared/figure';
 import { severityTone } from '../shared/severity';
 import { useSweep } from '../shared/sweep';

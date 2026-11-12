@@ -2,13 +2,12 @@ import { useState } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, FileText, RefreshCw, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { auditDaysResponseSchema, auditListResponseSchema } from '@contracts/magnus/browser';
 import type { z } from 'zod';
-import { Badge, Button, Drawer, EmptyState, PageHeader, Select, TableFrame } from '@ui';
+import { Badge, Button, Drawer, EmptyState, PageHeader, Select, TableFrame, LoadingRows, ResourceError } from '@ui';
 import { formatTime } from '@lib/format';
 import { cn } from '@lib/cn';
 import { magnus } from '../../../api/client';
 import { useMagnusResource } from '../../../api/use-resource';
 import { FxPanel, GLOW_TEXT, HaloDot, PageItem, TONE_TEXT } from '../../../effects';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { Fact } from '../shared/parts';
 import { actionTone, dayOptions, detailText, integrityTone, parseDetails, todayKey } from './audit-model';
 

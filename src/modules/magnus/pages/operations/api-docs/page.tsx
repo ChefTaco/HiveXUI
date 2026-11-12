@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { Book, Download, FileJson } from 'lucide-react';
-import { Badge, Button, EmptyState, PageHeader } from '@ui';
+import { Badge, Button, EmptyState, PageHeader, LoadingRows } from '@ui';
 import { magnus } from '../../../api/client';
 import { errorMessage, MagnusApiError } from '../../../api/errors';
 import { FxPanel, PageItem } from '../../../effects';
-import { LoadingRows } from '../../../ui/resource-state';
 import { downloadText } from '../shared/parts';
 import { methodTone, openApiSpecSchema, operationsOf, type OpenApiSpec } from './schemas';
 

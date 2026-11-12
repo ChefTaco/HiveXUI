@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { assignRoleResponseSchema, roleApplicationListResponseSchema, roleListResponseSchema, unassignRoleResponseSchema } from '@contracts/magnus/browser';
 import { AlertCircle, CheckCircle2, ChevronRight, Clock, Container, FileText, KeyRound, Loader2, Package, Pencil, Play, Plus, RefreshCw, Server, Shield, ShieldCheck, SkipForward, Trash2, UserMinus, XCircle } from 'lucide-react';
-import { Badge, Button, ConfirmDialog, EmptyState, PageHeader, statusTone, StatusDot, Toggle } from '@ui';
+import { Badge, Button, ConfirmDialog, EmptyState, PageHeader, statusTone, StatusDot, Toggle, LoadingRows, ResourceError } from '@ui';
 import { formatTime } from '@lib/format';
 import { cn } from '@lib/cn';
 import { useToast } from '../../../../../components/toast';
@@ -11,7 +11,6 @@ import { useMagnusResource } from '../../../api/use-resource';
 import { FxPanel, PageItem } from '../../../effects';
 import { ADMIN_ONLY, useMagnusSession, WRITE_ROLES } from '../../../session';
 import { ActionConfirm } from '../../../ui/action-confirm';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { NodeChecklist } from '../shared/nodes';
 import { applicationIsActive, parseSteps } from './logic';
 import { RoleDrawer } from './role-drawer';

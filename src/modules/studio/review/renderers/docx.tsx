@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FileText } from 'lucide-react';
-import { EmptyState } from '@ui';
+import { EmptyState, LoadingRows } from '@ui';
 import { errorMessage } from '../../../magnus/api/errors';
-import { LoadingRows } from '../../../magnus/ui/resource-state';
 import { StudioApiError } from '../../api/client';
 import { textOffset } from '../anchors';
 import { getRevisionDocx, type DocxDocument } from '../api';

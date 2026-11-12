@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Ban, Check, RotateCcw, Sparkles, X } from 'lucide-react';
 import { teamProposalRecordSchema } from '@contracts/ardentstudio.generated';
-import { Badge, Button, Drawer, EmptyState, Field, Select, TableFrame } from '@ui';
+import { Badge, Button, Drawer, EmptyState, Field, Select, TableFrame, LoadingRows } from '@ui';
 import { cn } from '@lib/cn';
 import { errorMessage } from '../../magnus/api/errors';
 import type { Resource } from '../../magnus/api/use-resource';
-import { LoadingRows } from '../../magnus/ui/resource-state';
 import { idempotencyKey, StudioApiError } from '../api/client';
 import { controlTask, listTeamProposals, proposeTeam, type Agent, type AgentList, type TeamProposalRecord } from '../api/endpoints';
 import type { ProjectStore } from '../state/project-store';

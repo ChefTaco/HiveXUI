@@ -2,10 +2,9 @@
 // decision bar. Used project-wide (/studio/p/:id/review) and in Agent Studio's Review tab.
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { FileStack, ShieldAlert, ShieldCheck } from 'lucide-react';
-import { Badge, Button, EmptyState, Panel, Select } from '@ui';
+import { Badge, Button, EmptyState, Panel, Select, LoadingRows, ResourceError } from '@ui';
 import { cn } from '@lib/cn';
 import { useMagnusResource } from '../../magnus/api/use-resource';
-import { LoadingRows, ResourceError } from '../../magnus/ui/resource-state';
 import type { Snapshot } from '../api/endpoints';
 import { setStudioQuery, StudioLink, useStudioSearch } from '../link';
 import { formatBytes } from '../projects/logic';

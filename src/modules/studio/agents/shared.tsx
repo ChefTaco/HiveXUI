@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
-import { Badge, Panel } from '@ui';
+import { Badge, Panel, LoadingRows, ResourceError } from '@ui';
 import type { Resource } from '../../magnus/api/use-resource';
-import { LoadingRows, ResourceError } from '../../magnus/ui/resource-state';
 
 /** Where a setting applies: everywhere the agent works, or only in the open project. */
 export function ScopeBadge({ scope }: { scope: 'global' | 'project' | 'private' }) {
