@@ -15,9 +15,11 @@ let row = recommendation(); let kind: 'operator' | 'coordinator' = 'operator'; l
 let mutations: { path: string; body: unknown }[] = [];
 let findingRows: unknown[] = [];
 let accessPermissions: string[] = [];
+let observationError: string | null = null;
 beforeEach(() => {
   stubBrowser(); findingRows = []; row = recommendation(); kind = 'operator'; mutations = []; failDecision = false;
   accessPermissions = ['read', 'evidence', 'approve', 'execute'];
+  observationError = null;
   api.mockImplementation(async (path, init) => {
     if (init?.method === 'POST') {
       mutations.push({ path, body: typeof init.body === 'string' ? JSON.parse(init.body) : null });
@@ -27,7 +29,7 @@ beforeEach(() => {
     if (path.endsWith('/recommendations')) return Response.json([row]);
     if (path.endsWith('/findings')) return Response.json(findingRows);
     if (path.endsWith('/access')) return Response.json({ actorId: 'fixture-operator', kind, permissions: accessPermissions, scope });
-    if (path.endsWith('/jobs/fixture-job')) return Response.json({ id: 'fixture-job', kind: 'reconciliation', status: 'completed', progress: 1, deadline: row.plan.expiresAt, cancelRequested: false, result: { originalJobId: 'fixture-held-job' }, error: null });
+    if (path.endsWith('/jobs/fixture-job')) return Response.json({ id: 'fixture-job', kind: 'reconciliation', status: observationError ? 'unknown' : 'completed', progress: 1, deadline: row.plan.expiresAt, cancelRequested: false, result: { originalJobId: 'fixture-held-job' }, error: observationError });
     return Response.json({ error: 'NOT_FOUND' }, { status: 404 });
   });
 });
@@ -46,6 +48,14 @@ describe('Embermend recommendation decisions', () => {
     row.jobs = [{ id: 'fixture-held-job', kind: 'campaign', status: 'unknown', progress: 0, deadline: row.plan.expiresAt, cancelRequested: false, result: null, error: null }];
     await ready(); expect(button('Read retained outcome fixture-')).toBeUndefined(); await clearView();
     accessPermissions.push('recover'); kind = 'coordinator'; await ready(); expect(button('Read retained outcome fixture-')).toBeUndefined(); expect(mutations).toHaveLength(0);
+  });
+  it('explains uncertain ownership outcomes without an internal code in the main status', async () => {
+    accessPermissions.push('recover'); observationError = 'OWNER_SETTLED_ORIGINAL_OUTCOME_UNKNOWN';
+    row.jobs = [{ id: 'fixture-held-job', kind: 'campaign', status: 'unknown', progress: 0, deadline: row.plan.expiresAt, cancelRequested: false, result: null, error: null }];
+    await ready(); const read = button('Read retained outcome fixture-'); if (!read) throw new Error('Missing observation control'); await click(read); await settle(20);
+    const statuses = [...document.querySelectorAll('[role="status"]')].map(element => element.textContent).join(' ');
+    expect(statuses).toContain('Ownership is settled. The original outcome remains unknown.'); expect(statuses).not.toContain('OWNER_SETTLED_ORIGINAL_OUTCOME_UNKNOWN');
+    expect(document.body.textContent).toContain('Observation job fixture-job'); expect(mutations).toHaveLength(1);
   });
   it('distinguishes settled ownership from an unknown original outcome and separate security verification', async () => {
     row.executions = [{ id: 'fixture-original', actionId: 'fixture-action', targetId: 'fixture-node', state: 'unknown', receipt: { operationId: 'fixture-original', requestDigest: hash, targetId: 'fixture-node', state: 'unknown', ownershipReleased: true, observedAt: '2026-11-10T00:00:00Z', evidenceIds: [], result: { originalOutcome: 'unknown', ownershipSettled: true } } }];
