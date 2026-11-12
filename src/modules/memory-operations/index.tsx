@@ -13,6 +13,7 @@ import { MemoryOperationDraft } from "../../lib/memory-operation-draft";
 import {
   Button,
   ConfirmDialog,
+  EmptyState,
   Field,
   JsonBlock,
   Panel,
@@ -123,6 +124,7 @@ export default function MemoryOperationsModule({
     title: string;
     description: string;
     run: () => Promise<unknown>;
+    tone: "danger" | "warning" | "primary";
   } | null>(null);
   const can = (permission: string) => memoryCan(profile, permission);
   const current = () => generation.current;
@@ -283,8 +285,9 @@ export default function MemoryOperationsModule({
     title: string,
     description: string,
     run: () => Promise<unknown>,
+    tone: "danger" | "warning" | "primary" = "danger",
   ) {
-    setConfirm({ title, description, run });
+    setConfirm({ title, description, run, tone });
   }
   async function openSession(id: string) {
     const version = current();
@@ -417,7 +420,13 @@ export default function MemoryOperationsModule({
                   </button>
                 ))}
             </div>
-            {!sessions.length && <p>No sessions in this workspace.</p>}
+            {!sessions.length && (
+              <EmptyState
+                compact
+                title="No sessions"
+                message="No sessions in this workspace."
+              />
+            )}
             <div className="inline-actions">
               <Button
                 disabled={!sessionPage}
@@ -614,7 +623,13 @@ export default function MemoryOperationsModule({
                   </button>
                 ))}
               </div>
-              {!webhooks.length && <p>No endpoints configured.</p>}
+              {!webhooks.length && (
+                <EmptyState
+                  compact
+                  title="No endpoints"
+                  message="No endpoints configured."
+                />
+              )}
             </Panel>
             <Panel title={webhook ? "Edit webhook" : "Create webhook"}>
               <Field label="Webhook URL">
@@ -714,6 +729,7 @@ export default function MemoryOperationsModule({
                     );
                     await refresh();
                   },
+                  "primary",
                 )
               }
             >
@@ -864,6 +880,7 @@ export default function MemoryOperationsModule({
                           );
                           await refresh();
                         },
+                        "warning",
                       );
                     }}
                   >
@@ -876,7 +893,11 @@ export default function MemoryOperationsModule({
             </div>
           ))}
           {!rows(conflicts, "results").length && (
-            <p>No readable unresolved conflicts in this workspace.</p>
+            <EmptyState
+              compact
+              title="No conflicts"
+              message="No readable unresolved conflicts in this workspace."
+            />
           )}
         </Panel>
       )}
@@ -900,6 +921,7 @@ export default function MemoryOperationsModule({
                   "Enqueue consolidation",
                   "Create a durable consolidation job? Review its output before applying subsequent changes.",
                   enqueue,
+                  "primary",
                 )
               }
             >
@@ -950,7 +972,13 @@ export default function MemoryOperationsModule({
                 <span>{text(value.status)}</span>
               </button>
             ))}
-            {!rows(logs, "results").length && <p>No runs in this workspace.</p>}
+            {!rows(logs, "results").length && (
+              <EmptyState
+                compact
+                title="No runs"
+                message="No runs in this workspace."
+              />
+            )}
             <JsonBlock value={runDetail} />
           </Panel>
         </div>
@@ -1097,7 +1125,8 @@ export default function MemoryOperationsModule({
           open
           title={confirm.title}
           message={confirm.description}
-          confirmLabel="Confirm"
+          confirmLabel={confirm.title}
+          tone={confirm.tone}
           onCancel={() => setConfirm(null)}
           onConfirm={() => {
             const operation = confirm.run;
