@@ -4,7 +4,7 @@ import { browserIdentity } from '../../lib/runtime';
 import { can } from '../../lib/permissions';
 import { Badge, Button, CopyField, Panel, PageHeader } from '../../components/ui';
 import { Icon } from '../../components/icons';
-import { SECTION_LABELS, type IamSection } from './shared';
+import { iamSection, SECTION_LABELS, type IamSection } from './shared';
 import { useIamOperations, type IamOps } from './use-iam-operations';
 import { OverviewSection } from './overview';
 import { UsersSection } from './users';
@@ -16,7 +16,7 @@ import { SystemUsersSection } from './system-users';
 import { SecuritySection } from './security';
 import { AuditSection } from './audit';
 
-export type { IamSection } from './shared';
+export { iamSection, type IamSection } from './shared';
 
 const SECTIONS: Record<IamSection, (props: { ops: IamOps }) => ReactNode> = {
   overview: OverviewSection,
@@ -40,15 +40,17 @@ const READ_PERMISSION: Partial<Record<IamSection, string>> = {
   audit: 'iam:audit:read',
 };
 
+/** Every IAM view renders this one component, so its forms keep their state between sections. */
 export function IamOperationsPage({
-  section = 'overview',
+  view,
   onNavigate,
   currentUser,
 }: {
-  section?: IamSection;
+  view: string;
   onNavigate?: (view: string) => void;
   currentUser: AdminUser | null;
 }) {
+  const section = iamSection(view);
   const ops = useIamOperations(section, currentUser);
   const { confirmDialog, loadIam, loading, error, notice, revealedSecret } = ops;
   return (

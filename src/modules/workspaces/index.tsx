@@ -1,3 +1,4 @@
+import { MemoryAccess } from '../../components/memory-access';
 import { useEffect, useRef, useState } from 'react';
 import {
   WorkspacePolicySchema,
@@ -20,6 +21,11 @@ import {
   EmptyState,
   LoadingRows,
 } from '../../components/ui';
+
+/** The Workspaces screen, once this identity's HiveMem profile is known. */
+export function WorkspacesScreen() {
+  return <MemoryAccess>{(profile) => <WorkspacesModule profile={profile} />}</MemoryAccess>;
+}
 
 export default function WorkspacesModule({
   profile,

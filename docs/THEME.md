@@ -103,12 +103,17 @@ data. See `modules/suite`, `pages/routers.tsx` and the Cindertrace overview.
 
 ## Shell
 
+Every screen is one entry in the route table, `lib/routes.ts`: its address, product gate, title,
+sidebar entries and lazy component. The sidebar, the command palette, the breadcrumb and the page
+renderer all come from it, so a new screen needs no other change. Link between products with
+`linkTo(product, screen, params)` and `RouteLink`, never a hand-written address.
+
 The top bar's `<h1>` is the last crumb of the terminal breadcrumb, and the page shows its display
-title in `PageHeader`. Do not add another title. A page owns its Refresh: the shell
-shows one only for pages listed in `showsShellRefresh` in `lib/navigation.ts`, which read the shared
-store and have none of their own. The sidebar groups pages by product through `navProducts`; only
-the current product is open until someone opens another, and that choice is remembered in the
-browser. `Ctrl` or `Cmd` + `K` searches every screen the session can see.
+title in `PageHeader`. Do not add another title. A page owns its Refresh: the shell shows one only
+for routes marked `shellRefresh`, which read the shared store and have none of their own. The
+sidebar groups pages by product through `navProducts`; only the current product is open until
+someone opens another, and that choice is remembered in the browser. `Ctrl` or `Cmd` + `K` searches
+every screen the session can see.
 
 ## Narrow screens
 

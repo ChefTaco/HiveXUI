@@ -9,17 +9,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
-const EmbermendModule = lazy(() => import('./modules/embermend'));
-const SecurityModule = lazy(() => import('./modules/security'));
-const MagnusModule = lazy(() => import('./modules/magnus'));
-const StudioModule = lazy(() => import('./modules/studio'));
 const ChatInviteRedemption = lazy(() => import('./modules/chat/invite-redemption'));
-const ChatModule = lazy(() => import('./modules/chat'));
-const SkillsModule = lazy(() => import('./modules/skills'));
-const WorkspacesModule = lazy(() => import('./modules/workspaces'));
-import { MemoryAccess } from './components/memory-access';
-const AccountModule = lazy(() => import('./modules/account'));
-const SuiteOverview = lazy(() => import('./modules/suite'));
 const CommandPalette = lazy(() => import('./components/command-palette'));
 const NotificationBell = lazy(() => import('./modules/magnus/shell/notification-bell'));
 import { ProductAccess } from './components/product-access';
@@ -29,21 +19,21 @@ import { parsePortalAuthorization } from './lib/authorization-portal';
 import {
   breadcrumbs,
   findActiveNav,
-  magnusAddress,
   navProducts,
   paletteScreens,
   resolveDeepLink,
+  shellLocation,
   showsShellRefresh,
   showsShellStatus,
+  titleFor,
+  viewAddress,
   viewAvailable,
   visibleNavGroups,
-  type IamViewKey,
   type ViewKey,
 } from './lib/navigation';
-import { activeMagnusNavPath, type MagnusNavContext } from './modules/magnus/nav';
-import { isFleetPath, toConsolePath } from './modules/magnus/paths';
-import { matchRoute } from './modules/magnus/routes';
-import { isStudioPath, openStudio } from './modules/studio/paths';
+import { ROUTES, routeFor, underPrefix } from './lib/routes';
+import { type MagnusNavContext } from './modules/magnus/nav';
+import { openStudio } from './modules/studio/paths';
 import {
   browserIdentity,
   productEnabled,
@@ -57,34 +47,9 @@ import { AuthLimitsStrip } from './components/auth-limits-strip';
 import { Breadcrumb } from './components/breadcrumb';
 import { SidebarNav } from './components/sidebar-nav';
 import { initials, relativeTime } from './lib/format';
-import { ProvidersPage } from './pages/providers';
-import { RoutingPage } from './pages/routing';
-import { TestingPage } from './pages/testing';
-import { TracesPage } from './pages/traces';
-import { KeysPage } from './pages/keys';
-import { AuditPage } from './pages/audit';
-import { DocsPage } from './pages/docs';
-import { InstallationSettingsPage, SettingsPage } from './pages/settings';
-import { IamOperationsPage, type IamSection } from './pages/iam';
-import { MemoryDashboardPage } from './pages/memory-dashboard';
-import { RoutersPage } from './pages/routers';
-import { ActorsPage } from './pages/actors';
-import { IncidentsPage } from './pages/incidents';
 import { Button, buttonClass } from '@ui';
 
 type AuthState = 'checking' | 'unauthed' | 'authed';
-
-const IAM_VIEW_SECTIONS: Record<IamViewKey, IamSection> = {
-  'iam-overview': 'overview',
-  'iam-users': 'users',
-  'iam-roles': 'roles',
-  'iam-service-accounts': 'service-accounts',
-  'iam-clients': 'clients',
-  'iam-sessions': 'sessions',
-  'iam-system-users': 'system-users',
-  'iam-security': 'security',
-  'iam-audit': 'audit',
-};
 
 export function App() {
   if (location.pathname === '/auth/authorize') return <AuthorizationPortal />;
@@ -157,20 +122,23 @@ const subscribeLocation = (listener: () => void) => {
 const currentPath = () => location.pathname;
 
 /**
- * Studio is a fullscreen page: under /studio, and only while it is installed, it replaces the shell
- * rather than rendering inside it. Every other address is the console. Each one reads its state from
+ * A fullscreen product (Studio, under /studio) replaces the shell rather than rendering inside it,
+ * but only while it is installed. Every other address is the shell. Each one reads its state from
  * the address when it mounts, so moving between them needs nothing else.
  */
 function SignedIn({ user, onLogout }: { user: AdminUser | null; onLogout: () => void }) {
   const pathname = useSyncExternalStore(subscribeLocation, currentPath);
   // The Registry may answer late and remove Studio; this re-reads the gate when it does.
   useRegistry();
-  if (isStudioPath(pathname) && viewAvailable('studio', productInstalled))
+  const fullscreen = ROUTES.find((route) => 'fullscreen' in route && underPrefix(pathname, route.prefix.path) && viewAvailable(route.id, productInstalled));
+  if (fullscreen) {
+    const Page = fullscreen.component;
     return (
       <Suspense fallback={<><Background /><div className="center-load"><span className="spinner spinner--lg" /></div></>}>
-        <StudioModule onAuthExpired={onLogout} />
+        <Page view={fullscreen.id} currentUser={user} onNavigate={() => {}} onAuthExpired={onLogout} />
       </Suspense>
     );
+  }
   return (
     <StoreProvider onAuthExpired={onLogout}>
       <Shell user={user} onLogout={onLogout} />
@@ -499,7 +467,6 @@ function Shell({
   const registry = useRegistry();
   const products = useMemo(() => navProducts(visibleNavGroups(productInstalled, magnusNav)), [magnusNav, registry]);
   const screens = useMemo(() => paletteScreens(products), [products]);
-  const [magnusPath, setMagnusPath] = useState(() => toConsolePath(location.pathname));
   const [pathname, setPathname] = useState(location.pathname);
   const [paletteOpen, setPaletteOpen] = useState(false);
   useEffect(() => {
@@ -526,16 +493,12 @@ function Shell({
       unsubscribe?.();
     };
   }, []);
-  // The module's links and browser history both end here. Only movement into or out of /fleet
-  // changes the view: other modules keep their own history handling, as they always have.
-  const viewRef = useRef(view);
-  viewRef.current = view;
+  // Links inside modules, linkTo addresses and browser history all end here: the address decides
+  // the view. Pages that keep their own state in the query replace the entry, so this sees only
+  // real moves.
   useEffect(() => {
     const sync = () => {
-      const path = location.pathname;
-      setPathname(path);
-      setMagnusPath(toConsolePath(path));
-      if (!isFleetPath(path) && viewRef.current !== 'magnus') return;
+      setPathname(location.pathname);
       const next = resolveDeepLink(location, productInstalled);
       if (next.url) history.replaceState(null, '', next.url);
       setView(next.view);
@@ -554,6 +517,8 @@ function Shell({
     return () => window.removeEventListener('keydown', open);
   }, []);
   // A late answer can remove the page on screen. Leave it the way a dead bookmark does.
+  const viewRef = useRef(view);
+  viewRef.current = view;
   useEffect(() => {
     if (viewAvailable(viewRef.current, productInstalled)) return;
     history.replaceState(null, '', '/');
@@ -607,55 +572,45 @@ function Shell({
   }
 
   function navigate(requested: string, path?: string) {
-    // Studio opens over the console and returns here when it closes.
-    if (requested === 'studio' && viewAvailable('studio', productInstalled)) {
-      setNavOpen(false);
+    const target = viewAvailable(requested, productInstalled) ? routeFor(requested)! : routeFor('hive')!;
+    setNavOpen(false);
+    // Studio opens over the shell and returns here when it closes.
+    if (target.fullscreen) {
       setPaletteOpen(false);
       openStudio(path);
       return;
     }
-    const next: ViewKey = viewAvailable(requested, productInstalled)
-      ? requested
-      : 'hive';
+    const next = target.id as ViewKey;
     setView(next);
-    setNavOpen(false);
     requestAnimationFrame(() =>
       document.querySelector<HTMLElement>('.topbar .title')?.focus(),
     );
-    if (next === 'magnus') {
-      history.pushState(null, '', magnusAddress(path ?? '/'));
-      window.dispatchEvent(new PopStateEvent('popstate'));
-      return;
-    }
-    if (next === 'security' && path) {
-      history.pushState(null, '', path);
+    // A product with its own addresses is a real move in history.
+    if (target.prefix) {
+      history.pushState(null, '', viewAddress(next, path));
       window.dispatchEvent(new PopStateEvent('popstate'));
       return;
     }
     const url = new URL(location.href);
-    // Leaving /fleet is a real move in history: Back returns to the Magnus page.
-    const leavingFleet = isFleetPath(url.pathname);
-    if (leavingFleet) {
+    // Leaving a product's addresses is a real move too: Back returns to its page.
+    const leaving = ROUTES.some((route) => 'prefix' in route && underPrefix(url.pathname, route.prefix.path));
+    if (leaving) {
       url.pathname = '/';
       url.search = '';
       url.hash = '';
     }
     url.searchParams.set('page', next);
-    if (leavingFleet) {
+    if (leaving) {
       history.pushState(null, '', url);
-      setMagnusPath('/');
+      setPathname('/');
     } else history.replaceState(null, '', url);
   }
 
   const failures = data.telemetry?.totals.failures ?? 0;
   const displayName = user?.displayName ?? user?.username ?? 'Operator';
-  const activeNav = findActiveNav(products, view, view === 'magnus' ? activeMagnusNavPath(magnusPath) : null);
-  const crumbs = breadcrumbs(
-    activeNav,
-    titleFor(view),
-    view === 'magnus' ? (matchRoute(magnusPath)?.route.title ?? 'Magnus') : undefined,
-    view === 'magnus' ? magnusPath : pathname,
-  );
+  const where = shellLocation(view, pathname);
+  const activeNav = findActiveNav(products, view, where.navPath);
+  const crumbs = breadcrumbs(activeNav, titleFor(view), where.path ? titleFor(view, where.path) : undefined, where.path);
 
   return (
     <>
@@ -809,48 +764,13 @@ function Shell({
   );
 }
 
-function titleFor(view: ViewKey): string {
-  const map: Record<ViewKey, string> = {
-    magnus: 'Magnus',
-    studio: 'Studio',
-    account: 'Account security',
-    security: 'Cindertrace',
-    embermend: 'Embermend',
-    chat: 'ChatterMost',
-    hive: 'Hive',
-    'iam-overview': 'IAM Overview',
-    'iam-users': 'IAM Users',
-    'iam-roles': 'IAM Roles',
-    'iam-service-accounts': 'IAM Service Accounts',
-    'iam-clients': 'IAM Clients',
-    'iam-sessions': 'IAM Sessions',
-    'iam-system-users': 'IAM System Users',
-    'iam-security': 'IAM Security',
-    'iam-audit': 'Identity audit',
-    memories: 'Memories',
-    workspaces: 'Workspaces',
-    skills: 'Skills and assignments',
-    actors: 'Actors',
-    routers: 'Routers',
-    providers: 'Providers',
-    routing: 'Routing',
-    testing: 'Testing',
-    traces: 'Traces',
-    incidents: 'Hive incidents',
-    keys: 'API Keys',
-    audit: 'Routing audit',
-    docs: 'API Docs',
-    settings: 'Settings',
-  };
-  return map[view];
-}
-
 function statusPipClass(error: string | null, failures: number): string {
   if (error) return 'status-pip status-pip--err';
   if (failures > 0) return 'status-pip status-pip--warn';
   return 'status-pip status-pip--ok';
 }
 
+/** The page for a view, behind the product access check its route names. */
 function ViewContent({
   view,
   onNavigate,
@@ -858,134 +778,30 @@ function ViewContent({
   onAuthExpired,
 }: {
   view: ViewKey;
-  onNavigate: (next: string) => void;
+  onNavigate: (next: string, path?: string) => void;
   user: AdminUser | null;
   onAuthExpired: () => void;
 }) {
-  if (view === 'magnus')
+  const route = routeFor(view)!;
+  const Page = route.component;
+  const page = (principal: AdminUser | null) => (
+    <Suspense fallback={<p role="status">{route.loading ?? `Loading ${route.title}…`}</p>}>
+      <Page view={view} currentUser={principal} onNavigate={onNavigate} onAuthExpired={onAuthExpired} />
+    </Suspense>
+  );
+  // Emberpath's check applies only where Emberpath is installed, and there a denial is a real
+  // error: Incidents, API Docs and Settings also work without it.
+  if (route.access?.product === 'emberpath' && productInstalled('emberpath'))
     return (
-      <Suspense fallback={<p role="status">Loading Magnus…</p>}>
-        <MagnusModule onAuthExpired={onAuthExpired} />
-      </Suspense>
-    );
-  const models: Partial<Record<ViewKey, string>> = {
-    routers: 'router:routing:read',
-    providers: 'router:providers:read',
-    routing: 'router:routing:read',
-    testing: 'router:testing:read',
-    traces: 'router:admin:read',
-    incidents: 'router:admin:read',
-    keys: 'router:keys:read',
-    audit: 'router:admin:read',
-    docs: 'router:admin:read',
-    settings: 'router:settings:read',
-  };
-  // Incidents, API Docs and Settings also work without Emberpath; its access check
-  // applies only where Emberpath is installed, and there a denial is a real error.
-  if (models[view] && productInstalled('emberpath'))
-    return (
-      <ProductAccess
-        product="emberpath"
-        permission={models[view]}
-        fallback={user}
-      >
-        {(principal) => renderView(view, onNavigate, principal)}
+      <ProductAccess product="emberpath" permission={route.access.permission} fallback={user}>
+        {page}
       </ProductAccess>
     );
-  if (view.startsWith('iam-') || view === 'actors')
+  if (route.access?.product === 'oathweave')
     return (
       <ProductAccess product="oathweave" fallback={user}>
-        {(principal) => renderView(view, onNavigate, principal)}
+        {page}
       </ProductAccess>
     );
-  return renderView(view, onNavigate, user);
-}
-
-function renderView(
-  view: ViewKey,
-  onNavigate: (next: string) => void,
-  user: AdminUser | null,
-) {
-  switch (view) {
-    case 'skills':
-      return (
-        <Suspense fallback={<p role="status">Loading skills…</p>}>
-          <SkillsModule currentUser={user} />
-        </Suspense>
-      );
-    case 'account':
-      return (
-        <Suspense fallback={<p role="status">Loading account security…</p>}>
-          <AccountModule />
-        </Suspense>
-      );
-    case 'embermend':
-      return <Suspense fallback={<p role="status">Loading recommendations…</p>}><EmbermendModule /></Suspense>;
-    case 'security':
-      return (
-        <Suspense fallback={<p role="status">Loading security…</p>}>
-          <SecurityModule />
-        </Suspense>
-      );
-    case 'chat':
-      return (
-        <Suspense fallback={<p role="status">Loading chat…</p>}>
-          <ChatModule />
-        </Suspense>
-      );
-    case 'hive':
-      return (
-        <Suspense fallback={<p role="status">Checking products…</p>}>
-          <SuiteOverview />
-        </Suspense>
-      );
-    case 'iam-overview':
-    case 'iam-users':
-    case 'iam-roles':
-    case 'iam-service-accounts':
-    case 'iam-clients':
-    case 'iam-sessions':
-    case 'iam-system-users':
-    case 'iam-security':
-    case 'iam-audit':
-      return (
-        <IamOperationsPage
-          section={IAM_VIEW_SECTIONS[view]}
-          onNavigate={onNavigate}
-          currentUser={user}
-        />
-      );
-    case 'workspaces':
-      return <MemoryAccess>{profile => <WorkspacesModule profile={profile} />}</MemoryAccess>;
-    case 'memories':
-      return browserIdentity() ? <MemoryAccess>{profile => <MemoryDashboardPage currentUser={user} profile={profile} />}</MemoryAccess> : <MemoryDashboardPage currentUser={user} />;
-    case 'actors':
-      return <ActorsPage currentUser={user} />;
-    case 'routers':
-      return <RoutersPage onNavigate={onNavigate} />;
-    case 'providers':
-      return <ProvidersPage currentUser={user} />;
-    case 'routing':
-      return <RoutingPage currentUser={user} />;
-    case 'testing':
-      return <TestingPage currentUser={user} />;
-    case 'traces':
-      return <TracesPage />;
-    case 'incidents':
-      return <IncidentsPage />;
-    case 'keys':
-      return <KeysPage currentUser={user} />;
-    case 'audit':
-      return <AuditPage />;
-    case 'docs':
-      return <DocsPage onNavigate={onNavigate} />;
-    case 'settings':
-      return productInstalled('emberpath') ? (
-        <SettingsPage currentUser={user} />
-      ) : (
-        <InstallationSettingsPage />
-      );
-    default:
-      return null;
-  }
+  return page(user);
 }

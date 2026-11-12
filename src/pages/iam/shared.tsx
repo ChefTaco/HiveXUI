@@ -101,6 +101,13 @@ export function safeDetail(value: IamAuditEvent['detail']): string {
   return JSON.stringify(value);
 }
 
+const isSection = (value: string): value is IamSection => Object.hasOwn(SECTION_LABELS, value);
+/** The section a view key names: `iam-users` is Users. Anything else is the overview. */
+export const iamSection = (view: string): IamSection => {
+  const section = view.replace(/^iam-/, '');
+  return isSection(section) ? section : 'overview';
+};
+
 export function EntityTable({
   label,
   headers,

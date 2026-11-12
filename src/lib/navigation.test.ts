@@ -8,6 +8,8 @@ import {
   paletteScreens,
   resolveDeepLink,
   searchScreens,
+  shellLocation,
+  titleFor,
   showsShellRefresh,
   viewAvailable,
   visibleNavGroups,
@@ -59,7 +61,7 @@ describe('navigation model', () => {
       Emberpath: EMBERPATH_PAGES,
       HiveMem: ['memories', 'workspaces'],
       HiveSkills: ['skills'],
-      Cindertrace: ['security'],
+      Cindertrace: Array(8).fill('security'),
       ChatterMost: ['chat'],
       System: ['docs', 'settings'],
     });
@@ -193,9 +195,20 @@ describe('breadcrumbs', () => {
     expect(crumbs[3]!.to).toBeUndefined();
   });
   it('do not repeat a one-page product, and follow Cindertrace into its pages', () => {
-    expect(labels('security', null, undefined, '/')).toEqual(['Cindertrace']);
-    expect(labels('security', null, undefined, '/security-fusion/cases')).toEqual(['Cindertrace', 'Cases']);
-    expect(labels('security', null, undefined, '/security-fusion/cases/abc')).toEqual(['Cindertrace', 'Cases', 'Detail']);
+    expect(labels('skills', null)).toEqual(['HiveSkills']);
+    const at = (pathname: string) => {
+      const where = shellLocation('security', pathname);
+      return breadcrumbs(findActiveNav(products, 'security', where.navPath), 'Fallback', titleFor('security', where.path), where.path);
+    };
+    // ?page=security has always opened the overview at the root address.
+    expect(at('/').map((crumb) => crumb.label)).toEqual(['Cindertrace', 'Security overview']);
+    expect(at('/security-fusion').map((crumb) => crumb.label)).toEqual(['Cindertrace', 'Security overview']);
+    expect(at('/security-fusion/cases').map((crumb) => crumb.label)).toEqual(['Cindertrace', 'Cases']);
+    const detail = at('/security-fusion/cases/abc');
+    expect(detail.map((crumb) => crumb.label)).toEqual(['Cindertrace', 'Cases', 'Detail']);
+    expect(detail[1]!.to).toEqual({ view: 'security', path: '/security-fusion/cases' });
+    expect(at('/security-fusion/lab').map((crumb) => crumb.label)).toEqual(['Cindertrace', 'Security overview', 'Lab']);
+    expect(at('/security-fusion/nope').map((crumb) => crumb.label)).toEqual(['Cindertrace']);
   });
   it('fall back to a title for a page the sidebar does not list', () => {
     expect(breadcrumbs({}, 'Fallback')).toEqual([{ label: 'Fallback' }]);
