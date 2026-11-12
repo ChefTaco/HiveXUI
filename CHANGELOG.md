@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.7.0] - 2026-11-12
 
 - Search records from the command palette (Ctrl+K) beside screens: Magnus nodes and Hermes agent profiles, Ardent Project Studio projects, HiveMem memories, Cindertrace cases, Emberpath traces by exact trace or request ID, HiveSkills skills, and Oathweave users and clients. Each source is asked only when its product is installed and configured and the person's role can read it, using the released browser contracts HiveXUI already vendors; a refusal (401 or 403) hides it silently. Lists without a server-side search (Cindertrace cases, Hermes profiles, the HiveSkills catalog, Oathweave clients, recent Emberpath traces) are read and filtered in the browser, so the query is not sent to them.
 - Wait 200 ms after typing and need at least two characters. Each source has 1.5 seconds; results join as each answers, grouped by product, with "searching…" beside a product still answering and a quiet "Couldn't search" line for one that failed. Each source shows at most five records, with "See all" where the product's page takes the query (Studio projects, HiveMem memories). Every result opens an address from the route table; agents open Agent 360. Arrow keys move across groups, and the result count is announced to screen readers.
