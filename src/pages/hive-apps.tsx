@@ -1,6 +1,6 @@
 import { apiFetch } from '../lib/transport';
 import { useEffect, useMemo, useState } from 'react';
-import { Badge, EmptyState, JsonBlock, Panel, StatCard, Button, buttonClass } from '../components/ui';
+import { Badge, EmptyState, JsonBlock, Panel, StatCard, Button, buttonClass, PageHeader } from '../components/ui';
 import { Icon } from '../components/icons';
 import { useStore } from '../lib/store';
 import type { HiveAppKey, HiveAppState, HiveAppStatus, TlsCertificateStatus } from '../lib/types';
@@ -181,13 +181,11 @@ export function HiveOverviewPage({ onNavigate }: { onNavigate: (view: string) =>
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>Hive Control Surface</h2>
-          <p>Identity, memory, and routing status in one operator shell.</p>
-        </div>
-        {generatedAt ? <Badge tone="neutral">sampled {relativeTime(generatedAt)}</Badge> : null}
-      </div>
+      <PageHeader
+        title="Hive Control Surface"
+        description="Identity, memory, and routing status in one operator shell."
+        actions={generatedAt ? <Badge tone="neutral">sampled {relativeTime(generatedAt)}</Badge> : null}
+      />
 
       {skills?.configured && <Panel title="Skills registry" eyebrow={skills.ready ? 'Ready' : 'Unavailable'}>
         {skills.error && <p role="alert">{skills.error}</p>}
@@ -242,17 +240,15 @@ export function IamPage() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>Hive IAM</h2>
-          <p>Identity core, OAuth clients, roles, groups, and Linux user mapping.</p>
-        </div>
-        {app ? (
+      <PageHeader
+        title="Hive IAM"
+        description="Identity core, OAuth clients, roles, groups, and Linux user mapping."
+        actions={app ? (
           <Badge tone={stateTone(app.status)} dot>
             {app.status}
           </Badge>
         ) : null}
-      </div>
+      />
 
       <div className="stats-grid">
         <StatCard label="State" value={app?.status ?? 'unknown'} sub={app?.summary} tone={stateTone(app?.status ?? 'offline')} />
@@ -289,17 +285,15 @@ export function MemoryPage() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>Hive Memory</h2>
-          <p>Semantic memory, task history, consolidation, and relationship graph.</p>
-        </div>
-        {app ? (
+      <PageHeader
+        title="Hive Memory"
+        description="Semantic memory, task history, consolidation, and relationship graph."
+        actions={app ? (
           <Badge tone={stateTone(app.status)} dot>
             {app.status}
           </Badge>
         ) : null}
-      </div>
+      />
 
       <div className="stats-grid">
         <StatCard label="State" value={app?.status ?? 'unknown'} sub={app?.summary} tone={stateTone(app?.status ?? 'offline')} />
@@ -338,17 +332,15 @@ export function RouterPage({ onNavigate }: { onNavigate: (view: string) => void 
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>Hive Router</h2>
-          <p>Provider fleet, routing rules, failover posture, and traffic traces.</p>
-        </div>
-        {app ? (
+      <PageHeader
+        title="Hive Router"
+        description="Provider fleet, routing rules, failover posture, and traffic traces."
+        actions={app ? (
           <Badge tone={stateTone(app.status)} dot>
             {app.status}
           </Badge>
         ) : null}
-      </div>
+      />
 
       <div className="stats-grid">
         <StatCard label="Providers" value={data.providers.length} sub={`${enabledProviders} enabled`} tone="accent" />

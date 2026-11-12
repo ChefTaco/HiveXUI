@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useStore } from '../lib/store';
-import { Badge, EmptyState, HealthBadge, JsonBlock, Panel, StatCard, Button } from '../components/ui';
+import { Badge, EmptyState, HealthBadge, JsonBlock, Panel, StatCard, Button, PageHeader } from '../components/ui';
 import { Icon } from '../components/icons';
 import { compactNumber, relativeTime } from '../lib/format';
 import type { HiveAppState, HiveAppStatus, HiveHealthCheck } from '../lib/types';
@@ -135,13 +135,11 @@ export function OverviewPage({ onNavigate }: { onNavigate: (view: string) => voi
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>Command Center</h2>
-          <p>Identity, memory, routing, incidents, and traffic posture.</p>
-        </div>
-        {data.hiveStatus?.generatedAt ? <Badge tone="neutral">sampled {relativeTime(data.hiveStatus.generatedAt)}</Badge> : null}
-      </div>
+      <PageHeader
+        title="Command Center"
+        description="Identity, memory, routing, incidents, and traffic posture."
+        actions={data.hiveStatus?.generatedAt ? <Badge tone="neutral">sampled {relativeTime(data.hiveStatus.generatedAt)}</Badge> : null}
+      />
 
       <div className="stats-grid">
         <StatCard

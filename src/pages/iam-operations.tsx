@@ -34,6 +34,7 @@ import {
   TextArea,
   TextInput,
   Toggle,
+  PageHeader,
 } from '../components/ui';
 import { Icon } from '../components/icons';
 import { formatTime, relativeTime } from '../lib/format';
@@ -387,17 +388,13 @@ export function IamOperationsPage({
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>{SECTION_LABELS[section]}</h2>
-          <p>
-            Identity, access, service credentials, sessions, and audit controls.
-          </p>
-        </div>
-        <Badge tone="success" dot>
+      <PageHeader
+        title={SECTION_LABELS[section]}
+        description="Identity, access, service credentials, sessions, and audit controls."
+        actions={<Badge tone="success" dot>
           {browserIdentity() ? 'Oathweave sign-in' : 'Console sign-in'}
-        </Badge>
-      </div>
+        </Badge>}
+      />
 
       <div className="ops-toolbar">
         <div

@@ -8,6 +8,7 @@ import {
   EmptyState,
   JsonBlock,
   Panel,
+  PageHeader,
 } from '../components/ui';
 import { Icon } from '../components/icons';
 import { viewAvailable } from '../lib/navigation';
@@ -154,16 +155,10 @@ export function DocsPage({
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>Docs</h2>
-          <p>
-            {endpoints
-              ? 'Runbooks and endpoint surface grouped by scope.'
-              : 'Runbooks for operating this installation.'}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Docs"
+        description={endpoints ? 'Runbooks and endpoint surface grouped by scope.' : 'Runbooks for operating this installation.'}
+      />
 
       <Panel title="Operator Runbooks" eyebrow={`${runbooks.length} workflows`}>
         <div className="runbook-grid">

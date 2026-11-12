@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Activity, CheckCircle2, Clock, TriangleAlert } from 'lucide-react';
-import { Panel, Button, Badge, StatCard, StatusDot, type Tone } from '../../components/ui';
+import { Panel, Button, Badge, StatCard, StatusDot, PageHeader, type Tone } from '../../components/ui';
 import { Gauge } from '../../components/gauge';
 import { Radar, radarRandom, type RadarBlip } from '../../components/radar';
 import { Sparkline, TileTrend } from '../../components/sparkline';
@@ -54,20 +54,22 @@ export default function SuiteOverview() {
   const posture = !checked ? { label: 'Checking', tone: 'neutral' as const } : attention === 0 ? { label: 'All products ready', tone: 'success' as const } : { label: `${attention} need attention`, tone: 'warning' as const };
   return (
     <>
-      <div className="page-head">
-        <div>
-          <p className="eyebrow">Hive · installation</p>
-          <div className="flex flex-wrap items-center gap-3">
-            <h2>Installation overview</h2>
-            <Badge tone={posture.tone} dot>{posture.label}</Badge>
-          </div>
-          <p>Independent products connected through your Oathweave identity.</p>
-          {registry.status === 'ready' ? <p>Installation <code className="font-mono text-text-strong">{registry.installationId}</code></p> : null}
-        </div>
-        <Button loading={busy} onClick={() => void refresh()}>
-          Check readiness
-        </Button>
-      </div>
+      <PageHeader
+        eyebrow="Hive · installation"
+        title="Installation overview"
+        status={<Badge tone={posture.tone} dot>{posture.label}</Badge>}
+        description={
+          <>
+            Independent products connected through your Oathweave identity.
+            {registry.status === 'ready' ? <> Installation <code className="font-mono text-text-strong">{registry.installationId}</code></> : null}
+          </>
+        }
+        actions={
+          <Button loading={busy} onClick={() => void refresh()}>
+            Check readiness
+          </Button>
+        }
+      />
       {registryProblem ? <p role="status" className="warning-banner">{registryProblem}</p> : null}
       <Panel className="grid-bg" aria-label="Installation status">
         <div className="hero-row">

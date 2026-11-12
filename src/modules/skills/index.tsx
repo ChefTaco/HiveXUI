@@ -13,6 +13,7 @@ import {
   JsonBlock,
   CopyField,
   ConfirmDialog,
+  PageHeader,
 } from '../../components/ui';
 import { skillsApi as api } from './api';
 import type {
@@ -183,17 +184,13 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
   }
   return (
     <div className="skills-module">
-      <div className="page-head">
-        <div>
-          <h2>Skills and assignments</h2>
-          <p>
-            Versioned archives, release channels and scoped agent distribution.
-          </p>
-        </div>
-        <Button onClick={() => void run(refresh)} loading={busy}>
+      <PageHeader
+        title="Skills and assignments"
+        description="Versioned archives, release channels and scoped agent distribution."
+        actions={<Button onClick={() => void run(refresh)} loading={busy}>
           Refresh
-        </Button>
-      </div>
+        </Button>}
+      />
       {error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
       <Panel title="Catalogue" eyebrow={`${skills.length} skills`}>

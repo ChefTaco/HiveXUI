@@ -16,6 +16,7 @@ import {
   TextArea,
   TextInput,
   Toggle,
+  PageHeader,
 } from '../../components/ui';
 
 export default function WorkspacesModule({
@@ -130,18 +131,16 @@ export default function WorkspacesModule({
   const canOwn = selected && workspaceCan(profile, selected, 'owner');
   return (
     <section className="workspaces-module">
-      <div className="page-head">
-        <div>
-          <h2>Workspaces</h2>
-          <p>Manage memory boundaries, membership and policy in HiveMem.</p>
-        </div>
-        <Button
+      <PageHeader
+        title="Workspaces"
+        description="Manage memory boundaries, membership and policy in HiveMem."
+        actions={<Button
           disabled={busy}
           onClick={() => void action(refresh, 'Workspace list refreshed.')}
         >
           Refresh
-        </Button>
-      </div>
+        </Button>}
+      />
       {error && (
         <p role="alert" className="error-banner">
           {error}

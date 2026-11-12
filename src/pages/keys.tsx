@@ -20,6 +20,7 @@ import {
   TextArea,
   TextInput,
   Toggle,
+  PageHeader,
 } from '../components/ui';
 import { Icon } from '../components/icons';
 
@@ -176,15 +177,13 @@ export function KeysPage({ currentUser }: { currentUser: AdminUser | null }) {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>API Keys</h2>
-          <p>OpenAI-compatible API credentials that downstream services use to reach the router.</p>
-        </div>
-        <Button variant="primary" icon={<Icon.Plus className="btn-ico" />} disabled={!canWriteKeys} onClick={openCreate}>
+      <PageHeader
+        title="API Keys"
+        description="OpenAI-compatible API credentials that downstream services use to reach the router."
+        actions={<Button variant="primary" icon={<Icon.Plus className="btn-ico" />} disabled={!canWriteKeys} onClick={openCreate}>
           Issue Key
-        </Button>
-      </div>
+        </Button>}
+      />
 
       <Panel title="Issued Keys" eyebrow={`${data.clientKeys.length} total`}>
         {data.clientKeys.length === 0 ? (

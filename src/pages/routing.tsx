@@ -21,6 +21,7 @@ import {
   TextArea,
   TextInput,
   Toggle,
+  PageHeader,
 } from '../components/ui';
 import { Icon } from '../components/icons';
 
@@ -39,12 +40,10 @@ export function RoutingPage({ currentUser }: { currentUser: AdminUser | null }) 
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>Routing</h2>
-          <p>Aliases, deterministic rules, and scoring heuristics that shape every request.</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Routing"
+        description="Aliases, deterministic rules, and scoring heuristics that shape every request."
+      />
 
       <div className="tabs">
         <button className={tab === 'aliases' ? 'tab tab--active' : 'tab'} onClick={() => setTab('aliases')}>

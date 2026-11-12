@@ -24,6 +24,7 @@ import {
   TextInput,
   Toggle,
   buttonClass,
+  PageHeader,
 } from '../components/ui';
 import { Icon } from '../components/icons';
 
@@ -187,20 +188,18 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>Providers</h2>
-          <p>Upstream registry · failover groups · health posture.</p>
-        </div>
-        <div className="inline-actions">
+      <PageHeader
+        title="Providers"
+        description="Upstream registry · failover groups · health posture."
+        actions={<div className="inline-actions">
           <Button variant="ghost" icon={<Icon.Key className="btn-ico" />} onClick={() => setCodexOpen(true)}>
             Authorize Codex
           </Button>
         <Button variant="primary" icon={<Icon.Plus className="btn-ico" />} disabled={!canWriteProviders} onClick={openCreate}>
             Add Provider
           </Button>
-        </div>
-      </div>
+        </div>}
+      />
 
       <Panel title="Registered Providers" eyebrow={`${data.providers.length} total`}>
         {data.providers.length === 0 ? (

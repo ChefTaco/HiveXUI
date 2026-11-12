@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Badge, EmptyState, HealthBadge, JsonBlock, Panel, StatCard, StatusDot, Button } from '../components/ui';
+import { Badge, EmptyState, HealthBadge, JsonBlock, Panel, StatCard, StatusDot, Button, PageHeader } from '../components/ui';
 import { Gauge } from '../components/gauge';
 import { Icon } from '../components/icons';
 import { Radar, radarRandom, type RadarBlip } from '../components/radar';
@@ -33,18 +33,16 @@ export function RoutersPage({ onNavigate }: { onNavigate: (view: string) => void
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <p className="eyebrow">Emberpath · routing</p>
-          <h2>Routers</h2>
-          <p>Provider fleet, route policy, health, and trace evidence in one operations page.</p>
-        </div>
-        {app ? (
+      <PageHeader
+        eyebrow="Emberpath · routing"
+        title="Routers"
+        description="Provider fleet, route policy, health, and trace evidence in one operations page."
+        actions={app ? (
           <Badge tone={app.status === 'online' ? 'success' : app.status === 'degraded' ? 'warning' : 'danger'} dot>
             {app.status}
           </Badge>
         ) : null}
-      </div>
+      />
 
       <Panel className="grid-bg" aria-label="Routing status">
         <div className="hero-row">

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useStore } from '../lib/store';
 import type { Trace } from '../lib/types';
 import { formatTime, relativeTime } from '../lib/format';
-import { Badge, Button, Drawer, EmptyState, JsonBlock, OutcomeBadge, Panel } from '../components/ui';
+import { Badge, Button, Drawer, EmptyState, JsonBlock, OutcomeBadge, Panel, PageHeader } from '../components/ui';
 import { Icon } from '../components/icons';
 
 export function TracesPage() {
@@ -13,15 +13,13 @@ export function TracesPage() {
   function selectTrace(trace: Trace | null) { setSelected(trace); const url = new URL(location.href); if (trace) url.searchParams.set('trace', trace.id); else url.searchParams.delete('trace'); history.replaceState(null, '', url); }
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>Traces</h2>
-          <p>Per-request routing evidence — provider selection, outcome, and timing.</p>
-        </div>
-        <Button variant="ghost" icon={<Icon.Refresh className="btn-ico" />} loading={refreshing} onClick={() => void refresh()}>
+      <PageHeader
+        title="Traces"
+        description="Per-request routing evidence — provider selection, outcome, and timing."
+        actions={<Button variant="ghost" icon={<Icon.Refresh className="btn-ico" />} loading={refreshing} onClick={() => void refresh()}>
           Refresh
-        </Button>
-      </div>
+        </Button>}
+      />
 
       <Panel title="Recent Requests" eyebrow={`${data.traces.length} traces`}>
         {data.traces.length === 0 ? (

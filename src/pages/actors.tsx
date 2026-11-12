@@ -1,6 +1,6 @@
 import { apiFetch } from '../lib/transport';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Badge, Button, Drawer, EmptyState, Field, JsonBlock, Panel, Select, StatCard, TextArea, TextInput, type Tone } from '../components/ui';
+import { Badge, Button, Drawer, EmptyState, Field, JsonBlock, Panel, Select, StatCard, TextArea, TextInput, type Tone, PageHeader } from '../components/ui';
 import { useToast } from '../components/toast';
 import { Icon } from '../components/icons';
 import { useStore } from '../lib/store';
@@ -208,15 +208,13 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>{suite ? 'Identity enrollment' : 'Hive Actors'}</h2>
-          <p>{suite ? 'Oathweave coordinates explicitly linked technical identities. Each product owns its credentials and permissions.' : 'Users, service accounts, host identities, Router keys, and Memory agents in one inventory.'}</p>
-        </div>
-        <Button variant="ghost" icon={<Icon.Refresh className="btn-ico" />} loading={refreshing} onClick={() => void refresh()}>
+      <PageHeader
+        title={suite ? 'Identity enrollment' : 'Hive Actors'}
+        description={suite ? 'Oathweave coordinates explicitly linked technical identities. Each product owns its credentials and permissions.' : 'Users, service accounts, host identities, Router keys, and Memory agents in one inventory.'}
+        actions={<Button variant="ghost" icon={<Icon.Refresh className="btn-ico" />} loading={refreshing} onClick={() => void refresh()}>
           Refresh
-        </Button>
-      </div>
+        </Button>}
+      />
       {suite && !canRead && <Panel title="Access unavailable"><p>Your Oathweave account needs identity inventory permission.</p></Panel>}
       {loadError && <Panel title="Identity enrollment unavailable"><p role="alert">{loadError}</p><p>Configure the owning product APIs or inspect installation health before retrying.</p></Panel>}
       {suite && installations && installations.length > 0 && <Panel title="Installation"><Field label="Independent installation" hint="Select the exact namespace. Product accounts, operation IDs and recovery receipts stay separate."><Select disabled={!!busy} value={installationId ?? ''} options={[{ value: '', label: 'Select an installation' }, ...installations.map(id => ({ value: id, label: id }))]} onChange={value => {
