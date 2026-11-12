@@ -33,6 +33,11 @@ beforeEach(async () => {
     if (path === 'lab') return ok({ enabled: lab, canAdmin: true, runs: [] });
     if (path === 'cases') return ok([CASE]);
     if (path === 'cases/case-1') return ok(DETAIL);
+    if (path === 'cases/case-2') return ok({ ...DETAIL, case: { ...CASE, id: 'case-2' }, entities: [
+      { id: 'ent-1', type: 'agent', canonical: 'actor:ardent-lead', label: 'lead', lastSeenAt: T, aliasesJson: JSON.stringify(['actor:ardent-lead', 'magnus-node:node-1', 'agent-ref:node-1~lead']) },
+      { id: 'ent-2', type: 'agent', canonical: 'actor:no-ref', label: 'unbound', lastSeenAt: T, aliasesJson: JSON.stringify(['actor:no-ref']) },
+      { id: 'ent-3', type: 'host', canonical: 'host:node-1', label: 'node-1', lastSeenAt: T },
+    ] });
     if (path === 'cases/case-1/investigations') return ok({ id: 'inv-1', revision: 1, draft: { summary: 'x', hypotheses: [], prioritizedChecks: [], proposedActions: [], evidenceSteps: [] }, authorId: 'alice', createdAt: T });
     return Response.json({ success: false }, { status: 404 });
   }));
@@ -73,6 +78,13 @@ describe('Cindertrace pages', () => {
     await until(() => text().includes('Recommended investigation'));
     expect(location.pathname).toBe('/security-fusion/cases/case-1');
     expect(requests).toContain('GET cases/case-1');
+  });
+
+  it("link an agent entity to its Agent 360 page when it carries an agent-ref alias", async () => {
+    await open('/security-fusion/cases/case-2');
+    const links = [...document.querySelectorAll<HTMLAnchorElement>('a[href^="/agents/"]')];
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/agents/node-1~lead']);
+    expect(links[0]!.closest('p')?.textContent).toContain('lead');
   });
 
   it('reload a record after a change and keep the page and its message on screen', async () => {

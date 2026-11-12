@@ -13,6 +13,7 @@ import { ardentAction, fetchArtifact, readInstallation, readResource, saveBlob }
 import { asRecord, channelLabel, displayValue, parseProfileRef, taskArtifacts, taskIsFinal, type ArdentArtifact } from '../logic';
 import { CommandOwners } from '../command-owners';
 import { OpenInStudio, studioOffered } from '../open-in-studio';
+import { AgentPageLink } from '../../../../../agents/link';
 import {
   channelsSchema,
   memoryStatusSchema,
@@ -334,7 +335,7 @@ export default function ArdentProfilePage() {
           title={profile?.name ?? profileId}
           description={<span className="break-all font-mono text-xs">{installation.data?.hostname ?? nodeId} · {installation.data?.version ?? 'version unavailable'}</span>}
           status={profile ? <Badge tone={running ? 'success' : 'neutral'} dot>{running ? 'Running' : 'Stopped'}</Badge> : undefined}
-          actions={studioOffered() ? <OpenInStudio nodeId={nodeId} profileId={profileId} /> : undefined}
+          actions={<><AgentPageLink agentRef={`${nodeId}~${profileId}`} />{studioOffered() ? <OpenInStudio nodeId={nodeId} profileId={profileId} /> : null}</>}
         />
       </PageItem>
       {installation.error && !installation.data ? <p role="alert" className="m-0 text-sm text-warning">Node inventory is unavailable: {errorMessage(installation.error)}</p> : null}

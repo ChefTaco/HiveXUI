@@ -57,6 +57,14 @@ describe('Open in Studio on an Ardent profile', () => {
     expect(history.state).toEqual({ studioOrigin: '/fleet/ardent/profiles/node-1~lead' });
   });
 
+  it('sits beside a link to the agent\'s Agent 360 page', async () => {
+    const root = await load();
+    const link = [...root.querySelectorAll('a')].find((item) => item.textContent?.includes('Agent 360'));
+    expect(link?.getAttribute('href')).toBe('/agents/node-1~lead');
+    await click(link);
+    expect(location.pathname).toBe('/agents/node-1~lead');
+  });
+
   it('is not offered without Ardent Project Studio', async () => {
     runtime.studio = false;
     const root = await load();

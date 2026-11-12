@@ -9,6 +9,7 @@
             "enum": [
               "enroll",
               "rotate",
+              "renew",
               "disable"
             ],
             "type": "string"
@@ -33,6 +34,11 @@
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
             "type": "string"
+          },
+          "grace_seconds": {
+            "maximum": 86400,
+            "minimum": 0,
+            "type": "integer"
           },
           "scopes": {
             "items": {
@@ -79,6 +85,12 @@
           },
           "operation_id": {
             "type": "string"
+          },
+          "previous_credential_valid_until": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "token": {
             "type": "string"
@@ -1897,6 +1909,10 @@
           "agent_filter": {
             "type": "string"
           },
+          "agent_id": {
+            "pattern": "^[a-z0-9_-]{2,32}$",
+            "type": "string"
+          },
           "as_of": {
             "type": "string"
           },
@@ -3507,6 +3523,10 @@
         "additionalProperties": false,
         "properties": {
           "agent_filter": {
+            "type": "string"
+          },
+          "agent_id": {
+            "pattern": "^[a-z0-9_-]{2,32}$",
             "type": "string"
           },
           "as_of": {
@@ -5440,6 +5460,26 @@
         "summary": "Dashboard queue"
       }
     },
+    "/health/live": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "summary": "Suite liveness (hive-common)"
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "summary": "Suite readiness with dependency checks (hive-common)"
+      }
+    },
     "/metrics": {
       "get": {
         "responses": {
@@ -5502,7 +5542,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Durable agent credential operation; explicit admin:agents, workspace authorization and scope subset required; encrypted receipt replay expires after fifteen minutes"
+        "summary": "Durable agent credential operation (enroll, rotate, renew, disable); explicit admin:agents, workspace authorization and scope subset required; renew sets a new deadline for an active workspace member without widening its scopes and keeps the previous credential for a bounded grace period; encrypted receipt replay expires after fifteen minutes"
       }
     },
     "/v1/actor-credentials/{operationId}/receipt": {
@@ -6099,6 +6139,14 @@
                 "private",
                 "shared"
               ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "agent_id",
+            "schema": {
+              "pattern": "^[a-z0-9_-]{2,32}$",
+              "type": "string"
             }
           }
         ],
@@ -6807,6 +6855,16 @@
     },
     "/v1/stats": {
       "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "agent_id",
+            "schema": {
+              "pattern": "^[a-z0-9_-]{2,32}$",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -6833,7 +6891,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Read memory statistics"
+        "summary": "Read memory statistics; agent_id scopes every count to that agent's records (only that agent or an administrator)"
       }
     },
     "/v1/webhooks": {

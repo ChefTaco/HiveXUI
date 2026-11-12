@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Add Agent 360 at `/agents/<magnusNodeId>~<profile>`: one page for one agent, with a tab per product. Overview shows the agent's identity from Magnus (`GET /api/v1/agents/:agentRef/identity`) with its node and profile; Memories, Projects, Cases, Traffic and Skills list what HiveMem, Ardent Project Studio, Cindertrace, Emberpath and HiveSkills hold for it. Each tab says when its product is not installed, when the agent has no HiveMem actor to match by, when the product release cannot filter by agent, and when the product refuses this account; a release that ignores the filter is detected and its unfiltered answer is never shown as this agent's.
+- Link to Agent 360 from the Magnus Ardent profile and Hermes profiles pages, from Agent Studio and the room's agent card, and from Cindertrace case entities of type `agent` that carry an `agent-ref` alias. `linkTo('agents', 'agent', { agentRef })` builds the address.
+- Let the Memories page keep one agent's memories with `?agent=<actorId>` and an Agent field, using HiveMem's `agent_id` filter.
+- Refresh the vendored contracts: the Magnus browser contract with agent identity, HiveMem 1.5.0 (`agent_id` in memory search), and Ardent Project Studio 0.3.0 (`agentRef` on the project list).
+
 ## [0.4.0] - 2026-11-12
 
 - Read every product's error answers, including the suite error envelope, through `@hivemagnus/hive-common/errors`, so failures show a consistent message and keep the product's code, details and request ID.

@@ -26,6 +26,12 @@ const PAGES = [
   { name: 'Cindertrace security audit', path: '/security-fusion/audit?date=2026-11-10' },
   { name: 'Magnus fleet timeline', path: '/fleet/fleet-timeline' },
   { name: 'Magnus retention', path: '/fleet/retention' },
+  { name: 'Agent 360 overview', path: '/agents/node-1~lead' },
+  { name: 'Agent 360 memories', path: '/agents/node-1~lead?tab=memories' },
+  { name: 'Agent 360 projects', path: '/agents/node-1~lead?tab=projects' },
+  { name: 'Agent 360 cases', path: '/agents/node-1~lead?tab=cases' },
+  { name: 'Agent 360 traffic', path: '/agents/node-1~lead?tab=traffic' },
+  { name: 'Agent 360 skills', path: '/agents/node-1~lead?tab=skills' },
 ];
 
 for (const { name, path } of PAGES)

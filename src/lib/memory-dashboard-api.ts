@@ -43,16 +43,18 @@ export type MemorySearchResponse = z.infer<typeof MemorySearchResponseSchema> | 
 
 export const memoryDashboardApi = {
   memoryConsole,
-  async searchMemory(params: { query?: string; workspaceId?: string; scope?: string; limit?: number; offset?: number }): Promise<MemorySearchResponse> {
+  /** `agentId` keeps one actor's memories (HiveMem 1.5.0 and later). */
+  async searchMemory(params: { query?: string; workspaceId?: string; scope?: string; agentId?: string; limit?: number; offset?: number }): Promise<MemorySearchResponse> {
     const search = new URLSearchParams({ workspace_id: params.workspaceId ?? '*', limit: String(params.limit ?? 25) });
     if (params.scope) search.set('scope', params.scope);
     if (params.query) {
       search.set('explain', 'true');
       return read(MemorySearchResponseSchema, '/memories/search?' + search, 'POST', MemorySearchRequestSchema.parse({
         query: params.query, workspace_id: params.workspaceId ?? '*', limit: params.limit ?? 25,
-        offset: params.offset ?? 0, ...(params.scope ? { scope: params.scope } : {}),
+        offset: params.offset ?? 0, ...(params.scope ? { scope: params.scope } : {}), ...(params.agentId ? { agent_id: params.agentId } : {}),
       }));
     }
+    if (params.agentId) search.set('agent_id', params.agentId);
     // HiveMem consumes offset; next_cursor is a response hint, not an input parameter.
     search.set('offset', String(params.offset ?? 0));
     return read(MemoryBrowseResponseSchema, '/memories/browse?' + search);

@@ -151,6 +151,7 @@ describe('the Studio page', () => {
     const root = await open('/studio/p/adventure/agents/node-1~writer');
     expect(root.querySelector('[aria-current="page"]')?.textContent).toBe('Agents');
     expect(root.querySelector('a[href="/fleet/ardent/profiles/node-1~writer"]')?.textContent).toContain('Fleet details');
+    expect(root.querySelector('a[href="/agents/node-1~writer"]')?.textContent).toContain('Agent 360');
     await click([...root.querySelectorAll('nav[aria-label="Project areas"] a')].find((tab) => tab.textContent === 'Team'));
     expect(location.pathname).toBe('/studio/p/adventure/team');
     expect(root.querySelector('a[href="/studio/p/adventure/agents/node-1~writer"]')?.textContent).toBe('Agents');

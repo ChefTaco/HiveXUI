@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { ExternalLink, MessageSquare, Users, X } from 'lucide-react';
 import { Button, buttonClass } from '@ui';
 import type { Deliverable, Message, Task } from '../api/endpoints';
+import { AgentPageLink } from '../../agents/link';
 import { StudioLink } from '../link';
 import type { ProjectStore } from '../state/project-store';
 import type { Role } from './addressing';
@@ -91,6 +92,12 @@ export function AgentPopover({ agent, roles, task, lastMessage, store, tasks, de
           <ExternalLink className="btn-ico" aria-hidden="true" />
           Open in Agent Studio
         </StudioLink>
+        <AgentPageLink agentRef={agent.ref} render={(href) => (
+          <StudioLink href={href} className={buttonClass({ size: 'sm', className: 'no-underline' })}>
+            <ExternalLink className="btn-ico" aria-hidden="true" />
+            Agent 360
+          </StudioLink>
+        )} />
         {!archived ? (
           <>
             <Button size="sm" icon={<MessageSquare className="btn-ico" aria-hidden="true" />} onClick={onMessage}>

@@ -9,6 +9,7 @@ import { MAGNUS_NAV, visibleMagnusNav, type MagnusNavContext, type MagnusNavIcon
 import { FLEET_PREFIX, toConsolePath } from '../modules/magnus/paths';
 import { hasRoute, matchRoute } from '../modules/magnus/routes';
 import { STUDIO_PREFIX } from '../modules/studio/paths';
+import { AGENTS_PREFIX } from '../modules/agents/paths';
 
 export type NavIcon = MagnusNavIcon | 'Brain' | 'Messages' | 'Radar' | 'ScanSearch' | 'Workflow';
 
@@ -67,6 +68,8 @@ export interface ScreenRoute {
   id: string;
   /** The product whose API the screen calls, or `hive` for HiveXUI itself. Used by `linkTo`. */
   product: Product | 'hive';
+  /** The `linkTo` key of a page that joins several products, in place of `product`. */
+  linkKey?: string;
   /** The top-bar title. */
   title: string;
   /** The sidebar heading the entry sits under. */
@@ -136,6 +139,13 @@ export const STUDIO_PAGES = [
   { id: 'gallery', path: 'gallery', title: 'Gallery', nav: { label: 'Gallery', icon: 'Library' } },
 ] as const satisfies readonly SubRoute[];
 
+/** Agent 360: one agent across every product. Its pages are records only, reached from other pages. */
+export const AGENT_PAGES = [
+  { id: 'agent', path: ':agentRef', title: 'Agent 360' },
+] as const satisfies readonly SubRoute[];
+/** Every product the page reads. It opens when any of them is installed; each tab says what it lacks. */
+export const AGENT_SOURCES = ['magnus', 'hivemem', 'ardentstudio', 'cindertrace', 'emberpath', 'hiveskills'] as const satisfies readonly Product[];
+
 const prefixed = (prefix: string, pages: readonly SubRoute[]): NavEntry[] =>
   pages.flatMap((page) => (page.nav ? [{ ...page.nav, path: joinPath(prefix, page.path) }] : []));
 
@@ -155,6 +165,11 @@ export const ROUTES = [
   { id: 'studio', product: 'ardentstudio', title: 'Studio', group: 'Studio', icon: 'Workflow', gate: { all: ['ardentstudio'] },
     prefix: { path: STUDIO_PREFIX, ownsQuery: true }, fullscreen: true, subroutes: STUDIO_PAGES, nav: prefixed(STUDIO_PREFIX, STUDIO_PAGES),
     component: screen(() => import('../modules/studio'), (module) => module.default) },
+  // Joins what every product knows about one agent. It has no sidebar entry: agent pages link to it.
+  { id: 'agents', product: 'hive', linkKey: 'agents', title: 'Agent 360', group: 'Hive', icon: 'Radar', gate: { any: AGENT_SOURCES },
+    prefix: { path: AGENTS_PREFIX, ownsQuery: true }, subroutes: AGENT_PAGES, nav: [],
+    pageTitle: (path) => matchSubroute(AGENTS_PREFIX, AGENT_PAGES, path)?.page.title,
+    component: screen(() => import('../modules/agents'), (module) => module.default), loading: 'Loading the agent…' },
   iam('iam-overview', 'IAM Overview', 'Overview', 'Dashboard'),
   { id: 'account', product: 'oathweave', title: 'Account security', group: 'Oathweave', icon: 'Key', gate: OATHWEAVE,
     component: screen(() => import('../modules/account'), (module) => module.default), loading: 'Loading account security…' },
@@ -254,7 +269,7 @@ export function matchSubroute<P extends SubRoute>(prefix: string, pages: readonl
 
 /** Screens of each product that `linkTo` can address. */
 export interface LinkScreens {
-  hive: Extract<(typeof ROUTES)[number], { product: 'hive' }>['id'];
+  hive: Exclude<Extract<(typeof ROUTES)[number], { product: 'hive' }>['id'], 'agents'>;
   oathweave: Extract<(typeof ROUTES)[number], { product: 'oathweave' }>['id'];
   emberpath: Extract<(typeof ROUTES)[number], { product: 'emberpath' }>['id'];
   hivemem: Extract<(typeof ROUTES)[number], { product: 'hivemem' }>['id'];
@@ -263,6 +278,8 @@ export interface LinkScreens {
   chattermost: 'chat';
   cindertrace: (typeof CINDERTRACE_PAGES)[number]['id'];
   ardentstudio: (typeof STUDIO_PAGES)[number]['id'];
+  /** Agent 360, which belongs to no one product. */
+  agents: (typeof AGENT_PAGES)[number]['id'];
   /** A Magnus page's console path, with `:name` parameters: '/nodes/:nodeId'. */
   magnus: string;
 }
@@ -293,6 +310,7 @@ const withQuery = (path: string, query: ReadonlyArray<[string, string]>): string
  *   linkTo('emberpath', 'providers')                   -> '/?page=providers'
  *   linkTo('cindertrace', 'case', { caseId: 'c1' })    -> '/security-fusion/cases/c1'
  *   linkTo('magnus', '/nodes/:nodeId', { nodeId: 'n' }) -> '/fleet/nodes/n'
+ *   linkTo('agents', 'agent', { agentRef: 'n~p' })      -> '/agents/n~p'
  */
 export function linkTo<P extends keyof LinkScreens>(product: P, screen: LinkScreens[P], params: LinkParams = {}): string {
   if (product === 'magnus') {
@@ -300,7 +318,7 @@ export function linkTo<P extends keyof LinkScreens>(product: P, screen: LinkScre
     const { path, rest } = fill(screen, params);
     return withQuery(routeAddress(routeFor('magnus')!, path || '/'), rest);
   }
-  const owner = ROUTES.find((route) => route.product === product && 'subroutes' in route);
+  const owner = ROUTES.find((route) => ('linkKey' in route ? route.linkKey : route.product) === product && 'subroutes' in route);
   if (owner && 'subroutes' in owner) {
     const page = (owner.subroutes as readonly SubRoute[]).find((entry) => entry.id === screen);
     if (!page) throw new Error(`Unknown ${product} screen: ${screen}`);
@@ -308,7 +326,7 @@ export function linkTo<P extends keyof LinkScreens>(product: P, screen: LinkScre
     return withQuery(joinPath(owner.prefix.path, path), rest);
   }
   const route = routeFor(screen);
-  if (!route || route.product !== product) throw new Error(`Unknown ${product} screen: ${screen}`);
+  if (!route || route.linkKey !== undefined || route.product !== product) throw new Error(`Unknown ${product} screen: ${screen}`);
   if (route.prefix) return withQuery(route.prefix.path, Object.entries(params).map(([name, value]) => [name, String(value)]));
   return withQuery('/', [['page', route.id], ...Object.entries(params).map(([name, value]): [string, string] => [name, String(value)])]);
 }

@@ -6,6 +6,7 @@ import { useMagnusResource } from '../../../../api/use-resource';
 import { FxPanel, PageItem } from '../../../../effects';
 import { useMagnusSession } from '../../../../session';
 import { Fact } from '../../shared/fx';
+import { AgentPageLink } from '../../../../../agents/link';
 import { groupProfiles, HermesStatus, installLabel, isDetected, readInstallations, readProfiles } from '../shared';
 
 export default function HermesProfilesPage() {
@@ -49,7 +50,10 @@ export default function HermesProfilesPage() {
                               <p className="m-0 flex items-center gap-2 text-sm font-medium"><Bot className="size-4 text-accent" />{profile.name}</p>
                               <p className="m-0 mt-1 break-all font-mono text-xs text-text-muted">{profile.profileHome || 'profile home unknown'}</p>
                             </div>
-                            {profile.isDefault ? <Badge tone="info">default</Badge> : null}
+                            <div className="flex shrink-0 items-center gap-2">
+                              {profile.isDefault ? <Badge tone="info">default</Badge> : null}
+                              {installation.nodeId ? <AgentPageLink agentRef={`${installation.nodeId}~${profile.name}`} /> : null}
+                            </div>
                           </div>
                           <div className="mt-3 grid grid-cols-2 gap-3">
                             <Fact label="Gateway"><HermesStatus status={profile.gatewayStatus} /></Fact>

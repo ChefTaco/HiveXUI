@@ -103,6 +103,13 @@ it('composes memory summaries directly and uses the native verbs for search, edi
   await adminApi.searchMemory({ workspaceId: 'fixture-workspace', offset: 25 });
   expect(String(send.mock.lastCall?.[0])).toContain('offset=25');
   expect(String(send.mock.lastCall?.[0])).not.toContain('cursor=');
+  expect(String(send.mock.lastCall?.[0])).not.toContain('agent_id=');
+  // One agent's memories: agent_id in the browse query and in the search body.
+  await adminApi.searchMemory({ workspaceId: '*', agentId: 'ardent-lead' });
+  expect(String(send.mock.lastCall?.[0])).toContain('agent_id=ardent-lead');
+  await adminApi.searchMemory({ query: 'fixture', agentId: 'ardent-lead' });
+  expect(JSON.parse(String(send.mock.lastCall?.[1]?.body))).toMatchObject({ query: 'fixture', agent_id: 'ardent-lead' });
+  await expect(adminApi.searchMemory({ query: 'fixture', agentId: 'Not An Actor' })).rejects.toThrow();
   await adminApi.updateMemory('fixture-memory', { content: 'Updated fixture' });
   expect(send.mock.lastCall?.[1]?.method).toBe('PUT');
   await adminApi.runMemoryQueueJob('fixture-job');
