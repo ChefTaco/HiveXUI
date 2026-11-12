@@ -10,10 +10,10 @@ Touch only your package's files. Then several agents can work at once with no co
 
 | Package | Route file | Page directories | Old paths |
 | --- | --- | --- | --- |
-| `fleet` | `routes/fleet.ts` | `pages/fleet/` | `/application-operations` `/fleet-readiness` `/fleet-map` `/anomalies` `/anomalies/[anomalyId]` `/anomalies/remediation` `/notifications` `/nodes/[nodeId]`, and the Upgrade Agents action on `/nodes` (`components/nodes/agent-upgrade-modal.tsx`, `?upgrade=agents`), not yet ported |
-| `operations` | `routes/operations.ts` | `pages/operations/` | `/commands` `/logs` `/audit` `/cron` `/files` `/incidents` `/rollouts` `/governor/operations` `/webhooks` `/webhooks/new` `/webhooks/[id]` `/api-docs` |
+| `fleet` | `routes/fleet.ts` | `pages/fleet/` | `/application-operations` `/fleet-readiness` `/fleet-timeline` `/fleet-map` `/anomalies` `/anomalies/[anomalyId]` `/anomalies/remediation` `/notifications` `/nodes/[nodeId]`, and the Upgrade Agents action on `/nodes` (`components/nodes/agent-upgrade-modal.tsx`, `?upgrade=agents`) |
+| `operations` | `routes/operations.ts` | `pages/operations/` | `/commands` `/logs` `/audit` `/cron` `/files` `/incidents` `/rollouts` `/governor/operations` `/retention` `/webhooks` `/webhooks/new` `/webhooks/[id]` `/api-docs` |
 | `provisioning` | `routes/provisioning.ts` | `pages/provisioning/` | `/roles` `/library` `/skills` |
-| `agents` | `routes/agents.ts` | `pages/agents/` | `/orchestra` `/orchestra/installations` `/orchestra/profiles` `/hermes-drift` `/hermes-security` `/ardent` `/ardent/installations` `/ardent/profiles` `/ardent/profiles/[id]` `/codex` `/codex/installations` |
+| `agents` | `routes/agents.ts` | `pages/agents/` | `/orchestra` `/orchestra/installations` `/orchestra/profiles` `/hermes-drift` `/ardent` `/ardent/installations` `/ardent/profiles` `/ardent/profiles/[id]` `/codex` `/codex/installations` |
 
 Each package also owns `routes/<package>.provenance.json`. Do not edit `nav.ts`, `effects/`, `api/`,
 `navigation.tsx`, `index.tsx`, `src/app.tsx` or anything in `src/lib`. If you need a change there, say so in
@@ -28,6 +28,17 @@ Not ported, by the owner's decision. Leave them out and remove any link to them:
 - `/orchestra/web-gateway` and the embedded Hermes dashboard. Nothing from a node is embedded.
 - The registry parts of `/skills`. HiveSkills is the only registry. Keep only per-node installed Skills.
 - `/governor/share/[token]`. Ask the owner first.
+- `/hermes-security`. It reported on the dashboard's own SSH proxy for the embedded Hermes dashboard: the events and
+  the SSH trust inventory are files on the dashboard's server, written by that proxy, and no Magnus API serves them.
+  The proxy goes with the dashboard and the embedded Hermes dashboard above, so there is nothing left to report on.
+
+## Status
+
+Every page under `apps/dashboard/src/app` is ported or listed above as not ported. Fleet readiness also shows the
+fleet timeline and data retention as panels, which `/fleet-timeline` and `/retention` show as pages; both use the
+same components (`pages/fleet/fleet-timeline/timeline-panel.tsx`, `pages/operations/retention/retention-panel.tsx`).
+The agent upgrade drawer follows the old dialog as of Magnus commit `1981a5f`, later than the pinned revision, and
+its provenance entry records that revision.
 
 ## The recipe
 
@@ -48,7 +59,7 @@ Say you are porting `/rollouts`, in the `operations` package.
 
    Use `:name` for a parameter: `/webhooks/:id`. Add `roles: ['ADMIN']` or `capability: 'hermes'` if the whole page
    is limited. Write roles out as literals here, because route files load with the main chunk and must import
-   nothing from `session` or the contract. Everything under `/orchestra`, `/hermes-drift` and `/hermes-security`
+   nothing from `session` or the contract. Everything under `/orchestra` and `/hermes-drift`
    takes `capability: 'hermes'`.
 4. Replace the imports, using the table below.
 5. Replace the data calls. `fleetFetch` and server components become `useMagnusResource`. Every call names its
@@ -88,6 +99,9 @@ Say you are porting `/rollouts`, in the `operations` package.
    ```bash
    npm run magnus:provenance -- operations <magnus clone> apps/dashboard/src/app/rollouts/page.tsx
    ```
+
+   A file ported from a later Magnus commit than the pinned revision takes `--at <revision>` before its paths, and
+   its entry records that revision.
 10. Check it, in this order:
 
     ```bash

@@ -107,7 +107,8 @@
     },
     {
       "source": "apps/dashboard/src/components/nodes/agent-upgrade-modal.tsx",
-      "sha256": "ef5cad04456471ca4340b1a3352902615f20b6a0f09a1359feca3bd8f167345e"
+      "sha256": "b4afdcf74e4fe8c9d05733ccff0e2966348e1652862ab878bb0d76a4ab1bdbea",
+      "revision": "1981a5f7e59d0ed602fab89c906e3f451d631296"
     },
     {
       "source": "apps/dashboard/src/components/nodes/gpu-telemetry-card.tsx",
@@ -207,7 +208,8 @@
     },
     {
       "source": "apps/dashboard/src/lib/agent-upgrade-view.ts",
-      "sha256": "9022b24dcef356c16819b7d1477a9a856024532da97aed482d8111f3e3d57edc"
+      "sha256": "0cd166d6d60a6eb4e31d95f7be3e69f34dba1d8a97e963470e69e50760b32e11",
+      "revision": "1981a5f7e59d0ed602fab89c906e3f451d631296"
     },
     {
       "source": "apps/dashboard/src/lib/event-feed.ts",

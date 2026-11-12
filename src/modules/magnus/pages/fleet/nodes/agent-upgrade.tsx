@@ -9,7 +9,7 @@ import { MagnusApiError } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
 import { ADMIN_ONLY, useMagnusSession } from '../../../session';
 import { ActionConfirm } from '../../../ui/action-confirm';
-import { failureBudget, nodeDetail, remedyText, retryCount, runHeadline, targetDescription, upgradeErrorMessage, type UpgradeEligibility, type UpgradeRun } from './agent-upgrade-view';
+import { failureBudget, majorUpgradeCount, nodeDetail, remedyText, retryCount, runHeadline, targetDescription, upgradeErrorMessage, type UpgradeEligibility, type UpgradeRun } from './agent-upgrade-view';
 
 const RUN_POLL_MS = 5000;
 
@@ -97,6 +97,7 @@ export function AgentUpgradeDrawer({ open, onClose, onFinished }: { open: boolea
   }, [live.error]);
 
   const eligibleCount = useMemo(() => eligibility?.nodes.filter((node) => node.eligible).length ?? 0, [eligibility]);
+  const majorCount = majorUpgradeCount(eligibility);
   const showCandidates = eligibility !== null && run?.status !== 'running';
   const canStart = canRun && eligibility?.upgradesEnabled === true;
   const retries = retryCount(run);
@@ -172,11 +173,22 @@ export function AgentUpgradeDrawer({ open, onClose, onFinished }: { open: boolea
         {run ? <RunReport run={run} /> : null}
         {check ? <CheckResult check={check} /> : null}
         {showCandidates ? (
+          <p className="m-0 font-semibold">Target {eligibility.version}: {eligibleCount} ready, {eligibility.nodes.length - eligibleCount} unavailable</p>
+        ) : null}
+        {showCandidates && majorCount > 0 ? (
+          <div role="note" className="grid gap-1 rounded-control border border-warning bg-warning-soft px-3 py-2 text-warning">
+            <p className="m-0">{majorCount} agent{majorCount === 1 ? ' requires' : 's require'} a manual major-version upgrade to {eligibility.version}. This dialog only upgrades agents within their current major version.</p>
+            <p className="m-0">Read the agents section of Magnus&apos;s UPGRADING.md, then upgrade each affected node using its installation method. A successful rollout to an older version does not complete this upgrade.</p>
+          </div>
+        ) : null}
+        {showCandidates && eligibleCount === 0 ? <p className="m-0 text-text-muted">No agents can be upgraded from this dialog right now. Review the reasons below{canRun ? '; Check refreshes the readiness report' : ''}.</p> : null}
+        {showCandidates ? (
           <ul className="m-0 max-h-80 list-none divide-y divide-border overflow-y-auto rounded-control border border-border p-0">
+            {/* Muted text, not opacity, marks a node that cannot take the upgrade: its reason must stay readable. */}
             {eligibility.nodes.map((node) => (
-              <li key={node.nodeId} className={cn('flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2', !(node.eligible && eligibility.upgradesEnabled) && 'opacity-60')} title={node.reason ?? undefined}>
+              <li key={node.nodeId} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2" title={node.reason ?? undefined}>
                 {canRun ? <input type="checkbox" aria-label={`Upgrade ${node.name}`} checked={selected.has(node.nodeId)} disabled={!node.eligible || !eligibility.upgradesEnabled} onChange={() => toggle(node.nodeId)} /> : null}
-                <span className="min-w-0 max-w-40 truncate font-medium">{node.name}</span>
+                <span className={cn('min-w-0 max-w-40 truncate font-medium', !(node.eligible && eligibility.upgradesEnabled) && 'text-text-muted')}>{node.name}</span>
                 <span className="num text-xs text-text-muted">{node.version}</span>
                 <span className="min-w-0 flex-[1_1_10rem] text-xs break-words text-text-muted">{node.eligible ? `→ ${eligibility.version}` : node.reason}</span>
                 {node.preflight && node.preflight.status !== 'ok' ? <Badge tone={node.preflight.status === 'blocked' ? 'danger' : 'neutral'}>preflight {node.preflight.status}</Badge> : null}
@@ -217,7 +229,12 @@ function RunReport({ run }: { run: UpgradeRun }) {
       </p>
       {run.status !== 'running' && run.message ? <p className="m-0 text-text-muted">{run.message}</p> : null}
       {(run.warnings ?? []).map((warning) => <p key={`${warning.nodeId}-${warning.code}`} className="m-0 text-warning">{warning.name}: {warning.detail}</p>)}
-      <ul className="m-0 max-h-80 list-none divide-y divide-border overflow-y-auto rounded-control border border-border p-0">
+      {/* A finished run starts folded, so the candidates for the next one come first. */}
+      <details open={run.status === 'running'} className="grid gap-2">
+      <summary className="cursor-pointer text-text-muted">
+        {run.status === 'running' ? 'Current rollout' : 'Previous rollout'} to {run.version} · {run.nodes.length} agent{run.nodes.length === 1 ? '' : 's'}
+      </summary>
+      <ul className="m-0 mt-2 max-h-80 list-none divide-y divide-border overflow-y-auto rounded-control border border-border p-0">
         {run.nodes.map((node) => {
           const detail = nodeDetail(node);
           const badge = STATE_BADGE[node.state];
@@ -236,13 +253,14 @@ function RunReport({ run }: { run: UpgradeRun }) {
           );
         })}
         {(run.excluded ?? []).map((node) => (
-          <li key={`excluded-${node.nodeId}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 opacity-60" title={node.reason}>
-            <span className="min-w-0 max-w-48 truncate font-medium">{node.name}</span>
+          <li key={`excluded-${node.nodeId}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2" title={node.reason}>
+            <span className="min-w-0 max-w-48 truncate font-medium text-text-muted">{node.name}</span>
             <Badge>Not included</Badge>
             <span className="min-w-0 basis-full text-xs break-words text-text-muted">{node.reason}</span>
           </li>
         ))}
       </ul>
+      </details>
       {run.status !== 'running' && run.attention?.length ? (
         <div className="grid gap-2 rounded-control border border-warning bg-warning-soft px-3 py-2">
           <p className="m-0 font-semibold text-warning">Needs attention</p>

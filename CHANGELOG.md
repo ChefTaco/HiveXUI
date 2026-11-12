@@ -12,6 +12,8 @@
 - Render the Cindertrace pages as client components listed in the sidebar. A refresh after an action keeps the page and its message on screen.
 - Serve suite and legacy runtimes from one installation overview, and split the IAM page into one view per section without changing its behaviour.
 - Check pages for serious and critical WCAG 2.1 A/AA violations with axe against a mocked runtime, and fix the accessible names and keyboard access it found.
+- Give the Magnus fleet timeline and data retention their own pages again (`/fleet/fleet-timeline`, `/fleet/retention`) with sidebar entries, sharing their panels with Fleet readiness. The timeline links an event only to a page the operator's role and the Hermes setting allow, and retention lists the tables nothing purges.
+- Bring the agent upgrade drawer up to date with the old dashboard: how many agents are ready, a notice for agents on another major version, an explanation when none can be upgraded, and the previous rollout folded away. Unavailable agents keep readable reasons instead of being dimmed.
 
 ## [0.3.0] - 2026-11-12
 

@@ -55,3 +55,6 @@ export function nodeDetail(node: UpgradeRunNode): string | null {
 
 /** Empty or malformed means the server's own setting, as in the old console. */
 export const failureBudget = (text: string): { maxFailures?: number } => (/^[1-9][0-9]{0,2}$/.test(text) ? { maxFailures: Number(text) } : {});
+
+/** Agents on another major version. The dialog upgrades only within a major, so these need a manual upgrade. */
+export const majorUpgradeCount = (eligibility: UpgradeEligibility | null): number => eligibility?.nodes.filter((node) => node.code === 'MAJOR_VERSION').length ?? 0;

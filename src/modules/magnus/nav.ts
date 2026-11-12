@@ -4,7 +4,7 @@
 // them (navigation.test.ts enforces this). Pure data and no React, because the shell imports it.
 import { hasRoute, type ConsoleRole, type MagnusCapability } from './routes';
 
-export type MagnusNavIcon = 'Activity' | 'Alert' | 'Bell' | 'Book' | 'BookOpen' | 'Clock' | 'Compass' | 'Dashboard' | 'FileText' | 'Gauge' | 'HeartPulse' | 'Hexagon' | 'Key' | 'Library' | 'Map' | 'Package' | 'Puzzle' | 'Route' | 'Scroll' | 'Server' | 'Settings' | 'Shield' | 'Siren' | 'Sliders' | 'Terminal' | 'Webhook' | 'Zap';
+export type MagnusNavIcon = 'Activity' | 'Alert' | 'Bell' | 'Book' | 'BookOpen' | 'Clock' | 'Compass' | 'Dashboard' | 'Database' | 'FileText' | 'Gauge' | 'HeartPulse' | 'Hexagon' | 'History' | 'Key' | 'Library' | 'Map' | 'Package' | 'Puzzle' | 'Route' | 'Scroll' | 'Server' | 'Settings' | 'Shield' | 'Siren' | 'Sliders' | 'Terminal' | 'Webhook' | 'Zap';
 export interface MagnusNavItem {
   path: string;
   label: string;
@@ -31,6 +31,7 @@ export const MAGNUS_NAV: readonly MagnusNavSection[] = [
       { path: '/nodes', label: 'Nodes', icon: 'Server' },
       { path: '/application-operations', label: 'Applications', icon: 'HeartPulse' },
       { path: '/fleet-readiness', label: 'Readiness', icon: 'Gauge' },
+      { path: '/fleet-timeline', label: 'Fleet timeline', icon: 'History' },
       { path: '/fleet-map', label: 'Fleet map', icon: 'Map' },
       { path: '/anomalies', label: 'Anomalies', icon: 'Siren' },
       { path: '/anomalies/remediation', label: 'Remediation', icon: 'Zap' },
@@ -49,6 +50,7 @@ export const MAGNUS_NAV: readonly MagnusNavSection[] = [
       { path: '/logs', label: 'Logs', icon: 'Scroll' },
       { path: '/audit', label: 'Fleet audit', icon: 'Shield' },
       { path: '/webhooks', label: 'Webhooks', icon: 'Webhook', roles: ['ADMIN'] },
+      { path: '/retention', label: 'Retention', icon: 'Database' },
       { path: '/api-docs', label: 'Fleet API', icon: 'BookOpen' },
     ],
   },
