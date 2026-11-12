@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## [0.3.0] - 2026-11-12
+
+- Add concise Embermend recommendations, scoped decisions, pause controls, evidence links and durable outcomes through the existing suite identity.
 
 - Accept the product-owned deployment resource binding contract, preserving global deployment identity independently of host-local Magnus resource names.
 
