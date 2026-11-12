@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from 'react';
 import { ArrowLeft, Check, ChevronDown, Pencil, Plus, RefreshCw, Search, Trash2, Zap } from 'lucide-react';
-import { Badge, Button, ConfirmDialog, EmptyState, IconButton, JsonBlock, PageHeader, TableFrame, TextInput, Toggle } from '@ui';
+import { Badge, Button, ConfirmDialog, EmptyState, IconButton, JsonBlock, PageHeader, TableFrame, TextInput, Toggle, LoadingRows, ResourceError } from '@ui';
 import { cn } from '@lib/cn';
 import { formatTime } from '@lib/format';
 import { useToast } from '../../../../../../components/toast';
@@ -10,7 +10,6 @@ import { useMagnusResource } from '../../../../api/use-resource';
 import { FxPanel, PageItem } from '../../../../effects';
 import Link, { useRouter, useSearchParams } from '../../../../navigation';
 import { ADMIN_ONLY, useMagnusSession, WRITE_ROLES } from '../../../../session';
-import { LoadingRows, ResourceError } from '../../../../ui/resource-state';
 import { ActionConfirm } from '../../../../ui/action-confirm';
 import { severityTone } from '../../shared/severity';
 import { useSweep } from '../../shared/sweep';

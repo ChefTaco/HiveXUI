@@ -9,7 +9,6 @@ import {
   type KeyboardEvent,
 } from "react";
 import { ArrowDown } from "lucide-react";
-import { Badge, Button } from "@ui";
 import type {
   MattermostChannel,
   MattermostChannelMember,
@@ -75,6 +74,7 @@ import {
   type BotIndicator,
 } from "./conversation-state";
 import "./chat.css";
+import { Button, Badge, EmptyState, useConfirm } from "@ui";
 
 const standardEmoji: Record<string, string> = {
   thumbsup: "👍",
@@ -86,15 +86,17 @@ const standardEmoji: Record<string, string> = {
 export default function ChatModule() {
   if (!productEnabled("chattermost"))
     return (
-      <section className="panel">
-        <h2>ChatterMost is not configured</h2>
-        <p>Connect the chat service to open channels and conversations.</p>
-      </section>
+      <EmptyState
+        framed
+        title="ChatterMost is not configured"
+        message="Connect the chat service to open channels and conversations."
+      />
     );
   return <ConnectedChat />;
 }
 function ConnectedChat() {
   const initial = useRef(readChatLocation(location.search));
+  const [confirmAction, confirmDialog] = useConfirm();
   const [me, setMe] = useState<MattermostUser | null>(null);
   const [teams, setTeams] = useState<MattermostTeam[]>([]);
   const [team, setTeam] = useState(initial.current.team);
@@ -635,7 +637,14 @@ function ConnectedChat() {
     }
   }
   async function remove(post: MattermostPost) {
-    if (!confirm("Delete this message?")) return;
+    if (
+      !(await confirmAction({
+        title: "Delete message",
+        message: "Delete this message? This cannot be undone.",
+        confirmLabel: "Delete",
+      }))
+    )
+      return;
     try {
       await chat(`/posts/${safeId(post.id)}`, { method: "DELETE" });
       await refresh();
@@ -798,6 +807,7 @@ function ConnectedChat() {
   };
   return (
     <section className="chat-module">
+      {confirmDialog}
       <aside className="chat-rail">
         <h2>ChatterMost</h2>
         <label className="field">
@@ -844,9 +854,9 @@ function ConnectedChat() {
               ))}
           </select>
         </label>
-        <button className="btn" onClick={() => void direct()} disabled={!person}>
+        <Button onClick={() => void direct()} disabled={!person}>
           Open conversation
-        </button>
+        </Button>
         {me && (
           <>
             <BrowseChannels
@@ -898,7 +908,7 @@ function ConnectedChat() {
             <p role="status">{online ? "Connected" : "Reconnecting chat…"}</p>
           </div>
           {thread ? (
-            <button className="btn" onClick={() => navigate(channel)}>Back to channel</button>
+            <Button onClick={() => navigate(channel)}>Back to channel</Button>
           ) : null}
           <form onSubmit={(event) => void find(event)}>
             <input
@@ -906,11 +916,11 @@ function ConnectedChat() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
-            <button className="btn">Search</button>
+            <Button>Search</Button>
             {results ? (
-              <button className="btn" type="button" onClick={() => setResults(null)}>
+              <Button type="button" onClick={() => setResults(null)}>
                 Clear search
-              </button>
+              </Button>
             ) : null}
           </form>
         </header>
@@ -972,9 +982,9 @@ function ConnectedChat() {
           </aside>
         ) : null}
         {more && !results && !thread && (
-          <button className="btn" disabled={busy} onClick={() => void earlier()}>
+          <Button disabled={busy} onClick={() => void earlier()}>
             Load earlier messages
-          </button>
+          </Button>
         )}
         <div className="chat-posts-frame">
         <ol
@@ -1035,14 +1045,14 @@ function ConnectedChat() {
                   </a>
                 ))}
                 <footer>
-                  <button
-                    className="btn btn--sm btn--ghost"
+                  <Button
+                    variant="ghost" size="sm"
                     onClick={() => {
                       navigate(post.channel_id, post.root_id || post.id);
                     }}
                   >
                     Reply in thread
-                  </button>
+                  </Button>
                   {[
                     ...new Set([
                       "thumbsup",
@@ -1055,8 +1065,8 @@ function ConnectedChat() {
                       (value) => value.emoji_name === name,
                     );
                     return (
-                      <button
-                        className="btn btn--sm btn--ghost"
+                      <Button
+                        variant="ghost" size="sm"
                         key={name}
                         aria-pressed={values.some(
                           (value) => value.user_id === me?.id,
@@ -1067,7 +1077,7 @@ function ConnectedChat() {
                           emoji.find((value) => value.name === name)?.emoji ||
                           ":" + name + ":"}{" "}
                         {values.length || "React"}
-                      </button>
+                      </Button>
                     );
                   })}
                   <label className="chat-reaction-picker">
@@ -1092,8 +1102,8 @@ function ConnectedChat() {
                       ))}
                     </select>
                   </label>
-                  <button
-                    className="btn btn--sm btn--ghost"
+                  <Button
+                    variant="ghost" size="sm"
                     aria-pressed={post.is_pinned}
                     onClick={() => {
                       void chat(
@@ -1113,11 +1123,11 @@ function ConnectedChat() {
                     }}
                   >
                     {post.is_pinned ? "Unpin" : "Pin"}
-                  </button>
+                  </Button>
                   {post.user_id === me?.id ? (
                     <>
-                      <button className="btn btn--sm btn--ghost" onClick={() => void edit(post)}>Edit</button>
-                      <button className="btn btn--sm btn--ghost" onClick={() => void remove(post)}>Delete</button>
+                      <Button variant="ghost" size="sm" onClick={() => void edit(post)}>Edit</Button>
+                      <Button variant="ghost" size="sm" onClick={() => void remove(post)}>Delete</Button>
                     </>
                   ) : null}
                 </footer>
@@ -1224,8 +1234,8 @@ function ConnectedChat() {
               {attachments[composerKey].files.map((file, index) => (
                 <li key={index}>
                   <span>{file.name}</span>
-                  <button
-                    className="btn btn--sm btn--ghost"
+                  <Button
+                    variant="ghost" size="sm"
                     type="button"
                     disabled={busy}
                     aria-label={"Remove attachment " + file.name}
@@ -1239,7 +1249,7 @@ function ConnectedChat() {
                     }
                   >
                     Remove
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -1266,8 +1276,8 @@ function ConnectedChat() {
                 />
               </label>
             </div>
-            <button
-              className="btn btn--primary"
+            <Button
+              variant="primary"
               disabled={
                 busy ||
                 !channel ||
@@ -1275,7 +1285,7 @@ function ConnectedChat() {
               }
             >
               {busy ? "Sending…" : "Send"}
-            </button>
+            </Button>
           </div>
         </form>
       </section>

@@ -1,9 +1,8 @@
 import { CircleAlert, Code2, KeyRound, RefreshCw, Server } from 'lucide-react';
-import { Badge, Button, EmptyState, PageHeader, StatusDot } from '@ui';
+import { Badge, Button, EmptyState, PageHeader, StatusDot, LoadingRows, ResourceError, buttonClass } from '@ui';
 import { errorMessage } from '../../../api/errors';
 import { FxPanel, PageItem } from '../../../effects';
 import Link from '../../../navigation';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { PostureHero, StatTile } from '../shared/fx';
 import { summarize } from './logic';
 import { useCodexFleet } from './use-codex';
@@ -22,7 +21,7 @@ export default function CodexOverviewPage() {
           actions={
             <>
               <Button size="sm" icon={<RefreshCw className="size-4" />} loading={fleet.refreshing} onClick={() => void fleet.refreshLatest()}>Refresh</Button>
-              <Link href="/codex/installations" className="btn btn--primary btn--sm no-underline"><Server className="size-4" />Installations</Link>
+              <Link href="/codex/installations" className={buttonClass({ variant: 'primary', size: 'sm', className: 'no-underline' })}><Server className="size-4" />Installations</Link>
             </>
           }
         />

@@ -1,6 +1,6 @@
 import { Activity, ExternalLink, Radar, RefreshCw, ShieldAlert } from 'lucide-react';
 import { dependencyHealthResponseSchema, incidentSummaryResponseSchema, timelineResponseSchema } from '@contracts/magnus/browser';
-import { Badge, Button, PageHeader } from '@ui';
+import { Badge, Button, PageHeader, LoadingRows, ResourceError, buttonClass } from '@ui';
 import { formatTime } from '@lib/format';
 import { cn } from '@lib/cn';
 import { productEnabled } from '../../../../../lib/runtime';
@@ -10,7 +10,6 @@ import { FxPanel, GLOW_TEXT, HaloDot, PageItem, TONE_TEXT } from '../../../effec
 import Link, { useSearchParams } from '../../../navigation';
 import { hasRoute } from '../../../routes';
 import { useMagnusSession, WRITE_ROLES } from '../../../session';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { EvidenceReview } from './evidence-review';
 import { CHECK_TONE, HEALTH_TONE, severityTone, windowHours } from './incident-model';
 
@@ -37,13 +36,13 @@ export default function IncidentsPage() {
     <div className="page-stack">
       <PageItem>
         <PageHeader
-          title="Incident workspace"
+          title="Fleet incidents"
           eyebrow={<span className="text-danger">Evidence, not execution</span>}
           icon={<ShieldAlert className="size-5" />}
           description="A redacted operating picture. Suggested remediation remains a dry run until explicitly confirmed elsewhere."
           actions={
             <>
-              {productEnabled('cindertrace') ? <Link href="/security-fusion/cases" className="btn btn--sm"><ExternalLink className="size-4" />Correlated security cases</Link> : null}
+              {productEnabled('cindertrace') ? <Link href="/security-fusion/cases" className={buttonClass({ size: 'sm' })}><ExternalLink className="size-4" />Correlated security cases</Link> : null}
               <Button size="sm" icon={<RefreshCw className="size-4" />} loading={refreshing} onClick={refresh}>Refresh</Button>
             </>
           }

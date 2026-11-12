@@ -3,7 +3,7 @@ import { memoryCan } from '../lib/memory-access';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { MemoryAccess } from '../components/memory-access';
 const MemoryOperationsModule = lazy(() => import('../modules/memory-operations'));
-import { Badge, Button, EmptyState, Field, JsonBlock, Panel, StatCard, TextArea, TextInput } from '../components/ui';
+import { Badge, Button, EmptyState, Field, JsonBlock, Panel, StatCard, TextArea, TextInput, PageHeader, useConfirm } from '../components/ui';
 import { Icon } from '../components/icons';
 import { useStore } from '../lib/store';
 import { adminApi, ApiError } from '../lib/api';
@@ -54,6 +54,7 @@ function memoryId(memory: Record<string, unknown>): string {
 export function MemoryDashboardPage({ currentUser, profile = null }: { currentUser: AdminUser | null; profile?: MemoryProfile | null }) {
   const app = useStore().data.hiveStatus?.apps.find((entry) => entry.key === 'memory');
   const [data, setData] = useState<MemoryConsoleData | null>(null);
+  const [confirmAction, confirmDialog] = useConfirm();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState(() => new URLSearchParams(location.search).get('q') ?? '');
@@ -180,7 +181,7 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
   async function deleteSelected() {
     if (!selected) return;
     const id = memoryId(selected);
-    if (!id || !window.confirm('Delete this memory?')) return;
+    if (!id || !(await confirmAction({ title: 'Delete memory', message: 'Delete this memory? This cannot be undone.' }))) return;
     const generation = ++detailGeneration.current;
     const deleted = await run('delete-memory', async () => { await adminApi.deleteMemory(id); return true; }, () => generation === detailGeneration.current);
     if (deleted && generation === detailGeneration.current) {
@@ -219,12 +220,11 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>Memories</h2>
-          <p>Native HiveMem operations inside the unified console.</p>
-        </div>
-        <div className="panel-actions">
+      {confirmDialog}
+      <PageHeader
+        title="Memories"
+        description="Native HiveMem operations inside the unified console."
+        actions={<div className="panel-actions">
           {app ? (
             <Badge tone={app.status === 'online' ? 'success' : app.status === 'degraded' ? 'warning' : 'danger'} dot>
               {app.status}
@@ -233,8 +233,8 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
           <Button variant="ghost" icon={<Icon.Refresh className="btn-ico" />} loading={loading} onClick={() => void refresh()}>
             Refresh
           </Button>
-        </div>
-      </div>
+        </div>}
+      />
 
       {error ? (
         <div className="error-banner">

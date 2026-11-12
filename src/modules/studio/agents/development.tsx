@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react';
 import { History, MessageSquare, Sparkles } from 'lucide-react';
-import { Badge, Button, EmptyState, Field, Panel, Select, TextArea } from '@ui';
+import { Badge, Button, EmptyState, Field, Panel, Select, TextArea, LoadingRows } from '@ui';
 import { errorMessage } from '../../magnus/api/errors';
 import { useMagnusResource } from '../../magnus/api/use-resource';
 import { readResource } from '../../magnus/pages/agents/ardent/api';
-import { LoadingRows } from '../../magnus/ui/resource-state';
 import { identityFileName } from '../../magnus/pages/agents/ardent/profile/editors';
 import { identityHistorySchema } from '../../magnus/pages/agents/ardent/schemas';
 import { idempotencyKey } from '../api/client';

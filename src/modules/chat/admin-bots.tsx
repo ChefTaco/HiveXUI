@@ -17,6 +17,7 @@ import {
   type PendingBotOperation,
 } from "./admin-api";
 import type { AdminControls } from "./admin";
+import { Button } from "@ui";
 const actions = {
   provision: "bot.provisioned",
   identity: "bot.identity_updated",
@@ -165,13 +166,12 @@ export function BotsAdministration({
       <section>
         <div className="chat-admin-actions">
           <h4>Hermes connection health</h4>
-          <button
-            className="btn"
+          <Button
             disabled={busy}
             onClick={() => void perform(load, "Bot health refreshed")}
           >
             Refresh bot health
-          </button>
+          </Button>
         </div>
         {health ? (
           <>
@@ -239,18 +239,16 @@ export function BotsAdministration({
               : "The request will not be repeated. Read the service receipt to establish whether it committed. A missing receipt keeps this operation pending for operator review."}
           </p>
           <div className="chat-admin-actions">
-            <button
-              className="btn"
+            <Button
               disabled={busy}
               onClick={() =>
                 void perform(reconcile, "Committed bot operation verified")
               }
             >
               Reconcile bot operation
-            </button>
+            </Button>
             {pending.status === "committed" ? (
-              <button
-                className="btn"
+              <Button
                 disabled={busy}
                 onClick={() =>
                   confirm(
@@ -263,7 +261,7 @@ export function BotsAdministration({
                 }
               >
                 Acknowledge outcome
-              </button>
+              </Button>
             ) : null}
           </div>
         </section>
@@ -281,7 +279,7 @@ export function BotsAdministration({
           </label>
         </div>
         <div>
-          <button className="btn" disabled={disabled}>Create chat bot</button>
+          <Button disabled={disabled}>Create chat bot</Button>
         </div>
       </form>
       <section className="chat-admin-block">
@@ -305,11 +303,11 @@ export function BotsAdministration({
                 </small>
               </div>
               <div className="chat-admin-actions">
-                <button className="btn" disabled={busy} onClick={() => setSelected(bot)}>
+                <Button disabled={busy} onClick={() => setSelected(bot)}>
                   Edit bot identity
-                </button>
-                <button
-                  className="btn btn--danger"
+                </Button>
+                <Button
+                  variant="danger"
                   disabled={disabled}
                   onClick={() =>
                     confirm(
@@ -320,7 +318,7 @@ export function BotsAdministration({
                   }
                 >
                   Rotate bot token
-                </button>
+                </Button>
               </div>
             </li>
           ))}
@@ -348,9 +346,9 @@ export function BotsAdministration({
         >
           <div className="chat-admin-actions">
             <h4>Edit @{selected.username}</h4>
-            <button className="btn" type="button" onClick={() => setSelected(null)}>
+            <Button type="button" onClick={() => setSelected(null)}>
               Close bot identity
-            </button>
+            </Button>
           </div>
           <div className="chat-admin-grid">
             <label className="field">
@@ -371,7 +369,7 @@ export function BotsAdministration({
             </label>
           </div>
           <div>
-            <button className="btn" disabled={disabled}>Save bot identity</button>
+            <Button disabled={disabled}>Save bot identity</Button>
           </div>
         </form>
       ) : null}

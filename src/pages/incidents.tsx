@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Badge, Button, Drawer, EmptyState, JsonBlock, Panel, StatCard } from '../components/ui';
+import { Badge, Button, Drawer, EmptyState, JsonBlock, Panel, StatCard, PageHeader } from '../components/ui';
 import { Icon } from '../components/icons';
 import { useStore } from '../lib/store';
 import type { HiveIncident } from '../lib/types';
@@ -32,15 +32,13 @@ export function IncidentsPage() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>Incidents</h2>
-          <p>Authorized {failureSources()} failures grouped by request ID and time. Review and response stay in the owning product.</p>
-        </div>
-        <Button variant="ghost" icon={<Icon.Refresh className="btn-ico" />} loading={refreshing} onClick={() => void refresh()}>
+      <PageHeader
+        title="Hive incidents"
+        description={<>Authorized {failureSources()} failures grouped by request ID and time. Review and response stay in the owning product.</>}
+        actions={<Button variant="ghost" icon={<Icon.Refresh className="btn-ico" />} loading={refreshing} onClick={() => void refresh()}>
           Refresh
-        </Button>
-      </div>
+        </Button>}
+      />
 
       {unavailable.length > 0 && <p role="status">Some failure summaries are unavailable: {unavailable.join(' · ')}.</p>}
 

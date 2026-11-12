@@ -3,6 +3,7 @@ import { FusionNav } from './components/security-fusion/fusion-nav';
 import { usePathname } from './navigation';
 import { productEnabled } from '../../lib/runtime';
 import { labEnabled } from './lib/security-fusion';
+import { EmptyState, LoadingRows } from '@ui';
 
 const pages = {
   overview: () => import('./pages/page'),
@@ -23,12 +24,11 @@ type Render = (props: {
 export default function SecurityModule() {
   if (!productEnabled('cindertrace'))
     return (
-      <section className="panel">
-        <h2>Cindertrace is not configured</h2>
-        <p>
-          Connect the security service to review investigations and evidence.
-        </p>
-      </section>
+      <EmptyState
+        framed
+        title="Cindertrace is not configured"
+        message="Connect the security service to review investigations and evidence."
+      />
     );
   return <ConfiguredSecurityModule />;
 }
@@ -98,7 +98,11 @@ function ConfiguredSecurityModule() {
           {error}
         </p>
       ) : (
-        (content ?? <p role="status" className="center-load">Loading security information…</p>)
+        (content ?? (
+          <div role="status" aria-label="Loading security information">
+            <LoadingRows />
+          </div>
+        ))
       )}
     </section>
   );

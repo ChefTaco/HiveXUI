@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Octagon, Pause, Play, RefreshCw, Rocket } from 'lucide-react';
 import { rolloutActionResponseSchema, rolloutDetailResponseSchema, rolloutListResponseSchema } from '@contracts/magnus/browser';
 import type { z } from 'zod';
-import { Badge, ConfirmDialog, EmptyState, IconButton, JsonBlock, PageHeader, statusTone, TableFrame } from '@ui';
+import { Badge, ConfirmDialog, EmptyState, IconButton, JsonBlock, PageHeader, statusTone, TableFrame, LoadingRows, ResourceError } from '@ui';
 import { formatTime } from '@lib/format';
 import { cn } from '@lib/cn';
 import { magnus, segment } from '../../../api/client';
@@ -10,7 +10,6 @@ import { errorMessage } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
 import { FxMeter, FxPanel, PageItem } from '../../../effects';
 import { ADMIN_ONLY, useMagnusSession, WRITE_ROLES } from '../../../session';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { FormError } from '../shared/parts';
 import { abortMessage, canAbort, canPause, canResume, convergencePercent, convergenceTone, statusColor } from './rollout-model';
 

@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Clipboard, ExternalLink, KeyRound, LogOut, RefreshCw } from 'lucide-react';
-import { Badge, Button } from '@ui';
+import { Badge, Button, LoadingRows, ResourceError, buttonClass } from '@ui';
 import { magnus, segment } from '../../../api/client';
 import { errorMessage } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
 import { FxPanel, HaloDot } from '../../../effects';
 import { ActionConfirm } from '../../../ui/action-confirm';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { Fact } from '../shared/fx';
 import { authTone, canRequestUpdate, safeExternalUrl } from './logic';
 import { codexDeviceSessionResponseSchema, codexInstallationResponseSchema, type CodexDeviceSession, type CodexInstallation } from './schemas';
@@ -142,7 +141,7 @@ export function CodexInstallationCard({ installation, onChange }: { installation
                 <div className="mt-3 flex flex-wrap items-center gap-3">
                   <code className="glow-text-accent rounded-control border border-accent bg-surface-sunken px-4 py-2 font-mono text-lg font-bold text-accent">{session.userCode}<span className="fx-cursor" aria-hidden="true" /></code>
                   <Button size="sm" icon={copied ? <Check className="size-4" /> : <Clipboard className="size-4" />} onClick={() => void copyCode()}>{copied ? 'Copied' : 'Copy code'}</Button>
-                  {verificationUrl ? <a className="btn btn--sm no-underline" href={verificationUrl} target="_blank" rel="noreferrer">Open OpenAI <ExternalLink className="size-4" /></a> : <span className="text-sm text-warning">The node gave no usable authorization page.</span>}
+                  {verificationUrl ? <a className={buttonClass({ size: 'sm', className: 'no-underline' })} href={verificationUrl} target="_blank" rel="noreferrer">Open OpenAI <ExternalLink className="size-4" /></a> : <span className="text-sm text-warning">The node gave no usable authorization page.</span>}
                 </div>
                 <p className="m-0 mt-2 text-xs text-text-muted">Expires {when(session.expiresAt)}. Continue only if you started this request here.</p>
                 <Button className="mt-3" size="sm" variant="ghost" disabled={busy !== null} onClick={() => void cancelDeviceLogin()}>Cancel</Button>

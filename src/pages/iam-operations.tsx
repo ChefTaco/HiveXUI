@@ -34,6 +34,9 @@ import {
   TextArea,
   TextInput,
   Toggle,
+  PageHeader,
+  TableFrame,
+  useConfirm,
 } from '../components/ui';
 import { Icon } from '../components/icons';
 import { formatTime, relativeTime } from '../lib/format';
@@ -58,7 +61,7 @@ const SECTION_LABELS: Record<IamSection, string> = {
   sessions: 'Sessions',
   'system-users': 'System Users',
   security: 'Security',
-  audit: 'Audit',
+  audit: 'Identity audit',
 };
 
 const DEFAULT_PERMISSIONS = [
@@ -145,6 +148,7 @@ export function IamOperationsPage({
   currentUser: AdminUser | null;
 }) {
   const [users, setUsers] = useState<IamUser[]>([]);
+  const [confirmAction, confirmDialog] = useConfirm();
   const [roles, setRoles] = useState<IamRole[]>([]);
   const [serviceAccounts, setServiceAccounts] = useState<IamServiceAccount[]>(
     [],
@@ -387,36 +391,31 @@ export function IamOperationsPage({
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>{SECTION_LABELS[section]}</h2>
-          <p>
-            Identity, access, service credentials, sessions, and audit controls.
-          </p>
-        </div>
-        <Badge tone="success" dot>
+      {confirmDialog}
+      <PageHeader
+        title={SECTION_LABELS[section]}
+        description="Identity, access, service credentials, sessions, and audit controls."
+        actions={<Badge tone="success" dot>
           {browserIdentity() ? 'Oathweave sign-in' : 'Console sign-in'}
-        </Badge>
-      </div>
+        </Badge>}
+      />
 
       <div className="ops-toolbar">
-        <div
-          className="segmented-tabs"
-          role="tablist"
-          aria-label="IAM sections"
-        >
+        <nav className="segmented-tabs" aria-label="IAM sections">
           {Object.entries(SECTION_LABELS).map(([key, label]) => (
             <button
               key={key}
+              type="button"
               className={
                 section === key ? 'tab-button tab-button--active' : 'tab-button'
               }
+              aria-current={section === key ? 'page' : undefined}
               onClick={() => onNavigate?.(`iam-${key}`)}
             >
               {label.replace('IAM ', '')}
             </button>
           ))}
-        </div>
+        </nav>
         <Button
           variant="ghost"
           size="sm"
@@ -552,6 +551,7 @@ export function IamOperationsPage({
           </Panel>
           <Panel title="Recent sessions" eyebrow="Access">
             <EntityTable
+              label="Active sessions"
               empty="No active sessions."
               headers={['User', 'IP', 'Created', 'Expires']}
             >
@@ -719,6 +719,7 @@ export function IamOperationsPage({
           className="col-span-full"
         >
           <EntityTable
+            label="IAM users"
             empty="No IAM users found."
             headers={['User', 'Roles', 'Status', 'Last login', 'Actions']}
           >
@@ -814,13 +815,15 @@ export function IamOperationsPage({
                       size="sm"
                       variant="danger"
                       disabled={!canDeleteUsers}
-                      onClick={() =>
-                        window.confirm(`Delete ${user.username}?`) &&
-                        void run(
-                          () => adminApi.deleteIamUser(user.id),
-                          'User deleted',
+                      onClick={async () => {
+                        if (
+                          await confirmAction({ title: 'Delete user', message: `Delete ${user.username}?`, confirmLabel: 'Delete' })
                         )
-                      }
+                          void run(
+                            () => adminApi.deleteIamUser(user.id),
+                            'User deleted',
+                          );
+                      }}
                     >
                       Delete
                     </Button>
@@ -987,13 +990,15 @@ export function IamOperationsPage({
                     size="sm"
                     variant="danger"
                     disabled={role.isSystem || !canWriteRoles}
-                    onClick={() =>
-                      window.confirm(`Delete ${role.name}?`) &&
-                      void run(
-                        () => adminApi.deleteIamRole(role.id),
-                        'Role deleted',
+                    onClick={async () => {
+                      if (
+                        await confirmAction({ title: 'Delete role', message: `Delete ${role.name}?`, confirmLabel: 'Delete' })
                       )
-                    }
+                        void run(
+                          () => adminApi.deleteIamRole(role.id),
+                          'Role deleted',
+                        );
+                    }}
                   >
                     Delete
                   </Button>
@@ -1083,6 +1088,7 @@ export function IamOperationsPage({
           className="col-span-full"
         >
           <EntityTable
+            label="Service accounts"
             empty="No service accounts found."
             headers={['Account', 'Client', 'Roles', 'Status', 'Actions']}
           >
@@ -1139,13 +1145,15 @@ export function IamOperationsPage({
                       size="sm"
                       variant="danger"
                       disabled={!canDeleteServiceAccounts}
-                      onClick={() =>
-                        window.confirm(`Delete ${account.name}?`) &&
-                        void run(
-                          () => adminApi.deleteIamServiceAccount(account.id),
-                          'Service account deleted',
+                      onClick={async () => {
+                        if (
+                          await confirmAction({ title: 'Delete service account', message: `Delete ${account.name}?`, confirmLabel: 'Delete' })
                         )
-                      }
+                          void run(
+                            () => adminApi.deleteIamServiceAccount(account.id),
+                            'Service account deleted',
+                          );
+                      }}
                     >
                       Delete
                     </Button>
@@ -1241,6 +1249,7 @@ export function IamOperationsPage({
         </Panel>
         <Panel title="Clients" eyebrow="OAuth" className="col-span-full">
           <EntityTable
+            label="OAuth clients"
             empty="No clients found."
             headers={['Client', 'Type', 'Grants', 'Status', 'Actions']}
           >
@@ -1299,13 +1308,15 @@ export function IamOperationsPage({
                       size="sm"
                       variant="danger"
                       disabled={!canWriteClients}
-                      onClick={() =>
-                        window.confirm(`Delete ${client.name}?`) &&
-                        void run(
-                          () => adminApi.deleteIamClient(client.id),
-                          'Client deleted',
+                      onClick={async () => {
+                        if (
+                          await confirmAction({ title: 'Delete client', message: `Delete ${client.name}?`, confirmLabel: 'Delete' })
                         )
-                      }
+                          void run(
+                            () => adminApi.deleteIamClient(client.id),
+                            'Client deleted',
+                          );
+                      }}
                     >
                       Delete
                     </Button>
@@ -1325,6 +1336,7 @@ export function IamOperationsPage({
         <p>Review each session before revoking it. A shared IP address or browser
           does not mean two sessions are duplicates.</p>
         <EntityTable
+          label="Sessions"
           empty="No active sessions."
           headers={['User', 'IP', 'Created', 'Expires', 'Actions']}
         >
@@ -1344,13 +1356,15 @@ export function IamOperationsPage({
                   size="sm"
                   variant="danger"
                   disabled={!canRevokeSessions}
-                  onClick={() =>
-                    window.confirm('Revoke this session?') &&
-                    void run(
-                      () => adminApi.revokeIamSession(session.id),
-                      'Session revoked',
+                  onClick={async () => {
+                    if (
+                      await confirmAction({ title: 'Revoke session', message: 'Revoke this session?', confirmLabel: 'Revoke' })
                     )
-                  }
+                      void run(
+                        () => adminApi.revokeIamSession(session.id),
+                        'Session revoked',
+                      );
+                  }}
                 >
                   Revoke
                 </Button>
@@ -1433,6 +1447,7 @@ export function IamOperationsPage({
           className="col-span-full"
         >
           <EntityTable
+            label="System users"
             empty="No system users mapped."
             headers={['Linux user', 'IAM user', 'Hosts', 'Sudo', 'Actions']}
           >
@@ -1472,13 +1487,15 @@ export function IamOperationsPage({
                       size="sm"
                       variant="danger"
                       disabled={!canDeleteUsers}
-                      onClick={() =>
-                        window.confirm(`Delete ${entry.linuxUsername}?`) &&
-                        void run(
-                          () => adminApi.deleteIamSystemUser(entry.id),
-                          'System user deleted',
+                      onClick={async () => {
+                        if (
+                          await confirmAction({ title: 'Delete system user', message: `Delete ${entry.linuxUsername}?`, confirmLabel: 'Delete' })
                         )
-                      }
+                          void run(
+                            () => adminApi.deleteIamSystemUser(entry.id),
+                            'System user deleted',
+                          );
+                      }}
                     >
                       Delete
                     </Button>
@@ -1539,6 +1556,7 @@ export function IamOperationsPage({
         <div className="page-grid page-grid--2">
           <Panel title="MFA And Passkeys" eyebrow="Users">
             <EntityTable
+              label="User sign-in security"
               empty="No IAM users found."
               headers={['User', 'MFA', 'Passkeys', 'Devices', 'Password']}
             >
@@ -1567,6 +1585,7 @@ export function IamOperationsPage({
 
           <Panel title="Step-Up And Risk" eyebrow="Sessions">
             <EntityTable
+              label="High-risk sessions"
               empty="No high-risk sessions."
               headers={['User', 'Risk', 'Step-Up', 'Factors', 'Actions']}
             >
@@ -1602,13 +1621,15 @@ export function IamOperationsPage({
                       size="sm"
                       variant="danger"
                       disabled={!canRevokeSessions}
-                      onClick={() =>
-                        window.confirm('Revoke this risky session?') &&
-                        void run(
-                          () => adminApi.revokeIamSession(session.id),
-                          'Session revoked',
+                      onClick={async () => {
+                        if (
+                          await confirmAction({ title: 'Revoke risky session', message: 'Revoke this risky session?', confirmLabel: 'Revoke' })
                         )
-                      }
+                          void run(
+                            () => adminApi.revokeIamSession(session.id),
+                            'Session revoked',
+                          );
+                      }}
                     >
                       Revoke
                     </Button>
@@ -1778,6 +1799,7 @@ export function IamOperationsPage({
         </div>
         <Panel title="Audit events" eyebrow="Recent">
           <EntityTable
+            label="Identity audit events"
             empty="No audit events found."
             headers={['Time', 'Event', 'Actor', 'Outcome', 'Detail']}
           >
@@ -1815,10 +1837,12 @@ export function IamOperationsPage({
 }
 
 function EntityTable({
+  label,
   headers,
   empty,
   children,
 }: {
+  label: string;
   headers: string[];
   empty: string;
   children: ReactNode;
@@ -1830,7 +1854,7 @@ function EntityTable({
     );
   }
   return (
-    <div className="table-wrap">
+    <TableFrame label={label}>
       <table>
         <thead>
           <tr>
@@ -1841,6 +1865,6 @@ function EntityTable({
         </thead>
         <tbody>{children}</tbody>
       </table>
-    </div>
+    </TableFrame>
   );
 }

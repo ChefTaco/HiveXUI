@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowLeft, Bot, Clock3, GitBranch, Lightbulb, RefreshCw, Siren, Terminal, Zap } from 'lucide-react';
-import { Badge, Button, EmptyState, PageHeader } from '@ui';
+import { Badge, Button, EmptyState, PageHeader, LoadingRows, ResourceError } from '@ui';
 import { cn } from '@lib/cn';
 import { formatTime } from '@lib/format';
 import { useToast } from '../../../../../../components/toast';
@@ -11,7 +11,6 @@ import { FxPanel, HaloDot, PageItem } from '../../../../effects';
 import Link, { notFound, useParams } from '../../../../navigation';
 import { hasRoute } from '../../../../routes';
 import { useMagnusSession, WRITE_ROLES } from '../../../../session';
-import { LoadingRows, ResourceError } from '../../../../ui/resource-state';
 import { Figure } from '../../shared/figure';
 import { severityTone } from '../../shared/severity';
 import { useSweep } from '../../shared/sweep';

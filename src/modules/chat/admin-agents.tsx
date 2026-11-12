@@ -5,6 +5,7 @@ import type {
 } from "../../../contracts/chattermost-admin.generated";
 import { adminAPI } from "./admin-api";
 import type { AdminControls } from "./admin";
+import { Button } from "@ui";
 const strings = (value: unknown): string =>
   Array.isArray(value)
     ? value.filter((item) => typeof item === "string").join("\n")
@@ -71,16 +72,15 @@ export function AgentsAdministration({
       <section>
         <div className="chat-admin-actions">
           <h4>Registered agents</h4>
-          <button className="btn" disabled={busy} onClick={() => setSelected(null)}>
+          <Button disabled={busy} onClick={() => setSelected(null)}>
             New registration
-          </button>
-          <button
-            className="btn"
+          </Button>
+          <Button
             disabled={busy}
             onClick={() => void perform(load, "Agent registry refreshed")}
           >
             Refresh agents
-          </button>
+          </Button>
         </div>
         <ul className="chat-admin-list">
           {agents.map((agent) => (
@@ -92,9 +92,9 @@ export function AgentsAdministration({
                   {agent.verified ? "Verified" : "Unverified"}
                 </small>
               </div>
-              <button className="btn" disabled={busy} onClick={() => setSelected(agent)}>
+              <Button disabled={busy} onClick={() => setSelected(agent)}>
                 Edit registration
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
@@ -174,7 +174,7 @@ export function AgentsAdministration({
           </label>
         </div>
         <div>
-          <button className="btn" disabled={busy}>Save agent registration</button>
+          <Button disabled={busy}>Save agent registration</Button>
         </div>
       </form>
       <section className="chat-admin-block">
@@ -224,7 +224,7 @@ export function AgentsAdministration({
             <textarea name="message" rows={3} />
           </label>
           <div>
-            <button className="btn" disabled={busy}>Simulate policy</button>
+            <Button disabled={busy}>Simulate policy</Button>
           </div>
         </form>
         {result ? (

@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { ArrowUpRight, RefreshCw, Server } from 'lucide-react';
-import { Badge, Button, EmptyState, PageHeader, StatusDot } from '@ui';
+import { Badge, Button, EmptyState, PageHeader, StatusDot, LoadingRows, ResourceError } from '@ui';
 import { errorMessage } from '../../../../api/errors';
 import { useMagnusResource } from '../../../../api/use-resource';
 import { FxPanel, HaloDot, PageItem } from '../../../../effects';
 import Link from '../../../../navigation';
 import { ActionConfirm } from '../../../../ui/action-confirm';
-import { LoadingRows, ResourceError } from '../../../../ui/resource-state';
 import { Fact } from '../../shared/fx';
 import { ardentAction, listInstallations } from '../api';
 import { CommandOwners } from '../command-owners';

@@ -2,8 +2,8 @@ import { securityPost,securityFetch } from '@security/lib/security-api';
 "use client";
 
 import { useState, useEffect } from "react";
-import { Panel } from "@ui";
 import { useRouter } from "@security/navigation";
+import { Button, Panel } from '@ui';
 
 interface ExistingAction {
   id: string;
@@ -92,7 +92,7 @@ export function ContainmentPanel({
           placeholder="Rationale (minimum 10 characters)"
           className="min-h-20"
         />
-        <button
+        <Button
           disabled={busy}
           onClick={() =>
             void run("Preview created", async () =>
@@ -108,10 +108,10 @@ export function ContainmentPanel({
               ),
             )
           }
-          className="btn btn--primary"
+          variant="primary"
         >
           Preview
-        </button>
+        </Button>
       </div>
       {draft && (
         <div className="grid gap-2">
@@ -119,7 +119,7 @@ export function ContainmentPanel({
             SHA-256 {String(draft["previewSha256"])}
           </p>
           <pre className="code-block">{JSON.stringify(draft["preview"], null, 2)}</pre>
-          <button
+          <Button
             disabled={busy}
             onClick={() =>
               void run("Approval requested", async () => {
@@ -129,10 +129,10 @@ export function ContainmentPanel({
                 setDraft(result);
               })
             }
-            className="btn justify-self-start"
+            className="justify-self-start"
           >
             Request approval
-          </button>
+          </Button>
         </div>
       )}
       {draft?.["plan"] != null && <div className="warning-banner grid">
@@ -140,14 +140,14 @@ export function ContainmentPanel({
         <pre className="code-block">{JSON.stringify(draft["plan"], null, 2)}</pre>
         {approvalMode === "external" ? <p>This installation requires its signed external approval channel.</p> : canApprove && <>
           <label className="check-field"><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />I reviewed the target, effect, risks, and rollback for this exact plan.</label>
-          <div className="inline-actions"><button disabled={busy || !confirmed} className="btn btn--warning" onClick={() => void run("Decision recorded", async () => {
+          <div className="inline-actions"><Button disabled={busy || !confirmed} variant="warning" onClick={() => void run("Decision recorded", async () => {
             const plan = draft["plan"] as Record<string, unknown>;
             await post(`actions/${String(draft["id"])}/approve`, { confirmed: true, planSha256: plan["plan_sha256"], previewSha256: draft["previewSha256"] }); setDraft(null);
-          })}>Approve and execute</button>
-          <button disabled={busy} className="btn" onClick={() => void run("Response rejected", async () => {
+          })}>Approve and execute</Button>
+          <Button disabled={busy} onClick={() => void run("Response rejected", async () => {
             const plan = draft["plan"] as Record<string, unknown>;
             await post(`actions/${String(draft["id"])}/reject`, { confirmed: true, planSha256: plan["plan_sha256"], previewSha256: draft["previewSha256"] }); setDraft(null);
-          })}>Reject</button></div>
+          })}>Reject</Button></div>
         </>}
       </div>}
       {actions
@@ -157,7 +157,7 @@ export function ContainmentPanel({
             ["executing", "succeeded", "unknown"].includes(action.status),
         )
         .map((action) => (
-          <button
+          <Button
             key={action.id}
             disabled={busy}
             onClick={() =>
@@ -165,10 +165,10 @@ export function ContainmentPanel({
                 await post(`actions/${action.id}/release`);
               })
             }
-            className="btn btn--danger justify-self-start"
+            variant="danger" className="justify-self-start"
           >
             Release isolation {action.id.slice(-6)}
-          </button>
+          </Button>
         ))}
       {actions
         .filter((action) =>
@@ -176,26 +176,26 @@ export function ContainmentPanel({
         )
         .map((action) => (
           <div key={action.id} className="inline-actions">
-            <button disabled={busy} onClick={() => void run("Response ready for review; no action executed", async () => {
+            <Button disabled={busy} onClick={() => void run("Response ready for review; no action executed", async () => {
               if (action.status === "previewed") setDraft(await post(`actions/${action.id}/request`));
               else {
                 const result = await securityFetch<{data:unknown}>(`security-fusion/approval-plans/${encodeURIComponent(`containment:${action.id}`)}`);
                 setDraft({ id: action.id, previewSha256: action.previewSha256, plan: result.data });
               }
-            })} className="btn">
+            })}>
               Review response {action.id.slice(-6)}
-            </button>
-            <button
+            </Button>
+            <Button
               disabled={busy}
               onClick={() =>
                 void run("Pending action cancelled", async () => {
                   await post(`actions/${action.id}/cancel`);
                 })
               }
-              className="btn btn--ghost"
+              variant="ghost"
             >
               Cancel {action.id.slice(-6)}
-            </button>
+            </Button>
           </div>
         ))}
       {actions.length > 0 && <div className="stack-list" aria-label="Action history">

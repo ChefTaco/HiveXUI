@@ -8,7 +8,7 @@ import { TerminalSquare, X } from 'lucide-react';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal, type ITheme } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import { Badge, Button } from '@ui';
+import { Badge, Button, IconButton } from '@ui';
 import { cn } from '@lib/cn';
 import { formatTime } from '@lib/format';
 import { readThemeColors } from '@lib/theme-colors';
@@ -174,7 +174,7 @@ export default function TerminalPanel({ nodeId, nodeName, onClose, createGateway
           <TerminalSquare aria-hidden="true" className="size-5 shrink-0 text-accent" />
           <h3 className="m-0 min-w-0 flex-1 truncate text-base font-semibold">{nodeName}</h3>
           <span role="status"><Badge tone={state.tone} dot={phase === 'live'}>{state.label}</Badge></span>
-          <button ref={closeButton} type="button" className="btn btn--icon btn--ghost" title="Close terminal" aria-label="Close terminal" onClick={onClose}><X aria-hidden="true" className="size-4" /></button>
+          <IconButton ref={closeButton} type="button" label="Close terminal" icon={<X aria-hidden="true" className="size-4" />} onClick={onClose} />
         </header>
         <p className="m-0 text-xs text-text-muted">
           Alt+Shift+Q moves focus to Close. Closing ends the shell.

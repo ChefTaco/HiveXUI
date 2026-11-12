@@ -1,11 +1,10 @@
 import { useEffect, useId, useMemo, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, Check, Copy, LayoutTemplate, Plus, Square, Trash2 } from 'lucide-react';
 import { DELIVERABLE_FORMATS, STAGES } from '@contracts/ardentstudio.generated';
-import { Badge, Button, ConfirmDialog, EmptyState, Field, IconButton, PageHeader, Panel, Select, TextArea, TextInput, Toggle } from '@ui';
+import { Badge, Button, ConfirmDialog, EmptyState, Field, IconButton, PageHeader, Panel, Select, TextArea, TextInput, Toggle, LoadingRows, ResourceError, buttonClass } from '@ui';
 import { cn } from '@lib/cn';
 import { errorMessage } from '../../magnus/api/errors';
 import { useMagnusResource } from '../../magnus/api/use-resource';
-import { LoadingRows, ResourceError } from '../../magnus/ui/resource-state';
 import { idempotencyKey, StudioApiError } from '../api/client';
 import { applyTemplate, createProject, getProject, getTeam, listAgents, listProjects, listTemplates, putTeamDraft, updateProject, type Project, type TemplateSummary } from '../api/endpoints';
 import { goStudio } from '../paths';
@@ -84,9 +83,9 @@ function DeliverableRow({ value, index, onChange, onRemove }: { value: Deliverab
             </button>
           ))}
           {more ? null : (
-            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setMore(true)}>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setMore(true)}>
               More formats
-            </button>
+            </Button>
           )}
         </div>
       </fieldset>
@@ -180,7 +179,7 @@ function BriefStep({ project, onSaved }: { project: Project | null; onSaved: (pr
       {failure ? <p role="alert" className="m-0 text-sm text-danger">{failure}</p> : null}
       {archived ? <p className="m-0 text-sm text-warning">This project is archived and read-only. Reopen it to change the brief.</p> : null}
       <div className="studio-form-actions">
-        <StudioLink href={STUDIO_PREFIX} className="btn btn--ghost no-underline">
+        <StudioLink href={STUDIO_PREFIX} className={buttonClass({ variant: 'ghost', className: 'no-underline' })}>
           Cancel
         </StudioLink>
         <Button type="submit" variant="primary" loading={saving} disabled={archived} icon={<ArrowRight className="size-4" />}>

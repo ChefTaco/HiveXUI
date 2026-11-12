@@ -4,7 +4,7 @@
 // ?agent= avatar card.
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { ListChecks, MessagesSquare, PencilRuler, Pin, Plus, Save, Square, X } from 'lucide-react';
-import { Button, ConfirmDialog, Drawer, EmptyState, StatusDot } from '@ui';
+import { Button, ConfirmDialog, Drawer, EmptyState, StatusDot, buttonClass } from '@ui';
 import { cn } from '@lib/cn';
 import { errorMessage } from '../../magnus/api/errors';
 import { useMagnusResource } from '../../magnus/api/use-resource';
@@ -495,7 +495,7 @@ function Room({ projectId, snapshot, stream }: { projectId: string; snapshot: Sn
           title={team ? 'No agent is bound yet' : 'No published team'}
           message={team ? 'Bind an agent to each role in Team Assignment. They appear here at their desks.' : 'Design the team and publish it in Team Assignment. Its agents then appear here.'}
           action={
-            <StudioLink href={projectHref(projectId, '/team')} className="btn no-underline">
+            <StudioLink href={projectHref(projectId, '/team')} className={buttonClass({ className: 'no-underline' })}>
               Open Team Assignment
             </StudioLink>
           }

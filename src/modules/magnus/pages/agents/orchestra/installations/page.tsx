@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Bot, Server } from 'lucide-react';
-import { Badge, EmptyState, PageHeader } from '@ui';
+import { Badge, EmptyState, PageHeader, LoadingRows, ResourceError } from '@ui';
 import { cn } from '@lib/cn';
 import { errorMessage } from '../../../../api/errors';
 import { HERMES_POLL_MS } from '../../../../api/rate-gate';
@@ -8,7 +8,6 @@ import { useMagnusResource } from '../../../../api/use-resource';
 import { FxPanel, PageItem } from '../../../../effects';
 import { useSearchParams } from '../../../../navigation';
 import { useMagnusSession } from '../../../../session';
-import { LoadingRows, ResourceError } from '../../../../ui/resource-state';
 import { Fact } from '../../shared/fx';
 import { HermesStatus, HiveMemTokenStatus, installLabel, isDetected, readInstallations, synced } from '../shared';
 

@@ -26,3 +26,5 @@ jobs:
       - run: npm run check:contracts
       - run: npm run scan:secrets
       - run: npm run check:private
+      - name: Accessibility check against a mocked runtime
+        run: npx playwright install --with-deps chromium && npm run e2e:a11y

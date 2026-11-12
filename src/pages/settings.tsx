@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { adminApi, ApiError } from '../lib/api';
 import { useStore } from '../lib/store';
 import { useToast } from '../components/toast';
-import { Button, EmptyState, Field, JsonBlock, Panel, TextArea } from '../components/ui';
+import { Button, EmptyState, Field, JsonBlock, Panel, TextArea, PageHeader, TableFrame } from '../components/ui';
 import { can } from '../lib/permissions';
 import type { AdminUser, ConfigImportRequest, RoutingGoal, RoutingObjectiveConfig } from '../lib/types';
 import { Icon } from '../components/icons';
@@ -32,12 +32,10 @@ function parseRoutingObjective(settings: Array<{ key: string; parsed?: unknown }
 export function InstallationSettingsPage() {
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>Settings</h2>
-          <p>Installation lifecycle.</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Settings"
+        description="Installation lifecycle."
+      />
       <UpgradesPanel canUpgrade={false} />
     </>
   );
@@ -111,12 +109,10 @@ export function SettingsPage({ currentUser }: { currentUser: AdminUser | null })
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>Settings</h2>
-          <p>Runtime configuration and full-config portability.</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Settings"
+        description="Runtime configuration and full-config portability."
+      />
 
       <UpgradesPanel canUpgrade={can(currentUser, 'hive:upgrades:write')} />
       <div className="page-grid page-grid--2">
@@ -179,7 +175,7 @@ export function SettingsPage({ currentUser }: { currentUser: AdminUser | null })
         {data.runtimeSettings.length === 0 ? (
           <EmptyState icon={<Icon.Settings width={34} height={34} />} message="No runtime settings configured." />
         ) : (
-          <div className="table-wrap">
+          <TableFrame label="Runtime settings">
             <table>
               <thead>
                 <tr>
@@ -198,7 +194,7 @@ export function SettingsPage({ currentUser }: { currentUser: AdminUser | null })
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableFrame>
         )}
       </Panel>
     </>

@@ -104,7 +104,7 @@ const HIVE_GROUP: NavGroup = {
   items: [
     { key: 'hive', label: 'Installation', icon: 'Dashboard' },
     // Correlates failures from whichever of these products is present; each source is optional.
-    { key: 'incidents', label: 'Incidents', icon: 'Alert', gate: { any: ['emberpath', 'oathweave', 'hivemem'] } },
+    { key: 'incidents', label: 'Hive incidents', icon: 'Alert', gate: { any: ['emberpath', 'oathweave', 'hivemem'] } },
   ],
 };
 const PRODUCT_GROUPS: readonly NavGroup[] = [
@@ -120,7 +120,7 @@ const PRODUCT_GROUPS: readonly NavGroup[] = [
       { key: 'iam-sessions', label: 'Sessions', icon: 'Activity', gate: OATHWEAVE },
       { key: 'iam-system-users', label: 'System Users', icon: 'Settings', gate: OATHWEAVE },
       { key: 'iam-security', label: 'Security', icon: 'Shield', gate: OATHWEAVE },
-      { key: 'iam-audit', label: 'Audit', icon: 'Book', gate: OATHWEAVE },
+      { key: 'iam-audit', label: 'Identity audit', icon: 'Book', gate: OATHWEAVE },
       // The browser only calls Oathweave, but every enrollment links an Emberpath key
       // and a HiveMem agent; the coordinator is unusable without both.
       { key: 'actors', label: 'Actors', icon: 'Key', gate: { all: ['oathweave', 'emberpath', 'hivemem'] } },
@@ -135,7 +135,7 @@ const PRODUCT_GROUPS: readonly NavGroup[] = [
       { key: 'testing', label: 'Testing', icon: 'Hexagon', gate: EMBERPATH },
       { key: 'traces', label: 'Traces', icon: 'Activity', gate: EMBERPATH },
       { key: 'keys', label: 'API Keys', icon: 'Key', gate: EMBERPATH },
-      { key: 'audit', label: 'Audit Log', icon: 'Scroll', gate: EMBERPATH },
+      { key: 'audit', label: 'Routing audit', icon: 'Scroll', gate: EMBERPATH },
     ],
   },
   {
@@ -251,7 +251,7 @@ const SECURITY_PAGES: Readonly<Record<string, string>> = {
   sources: 'Sources',
   evidence: 'Evidence',
   policies: 'Policies',
-  audit: 'Audit',
+  audit: 'Security audit',
   lab: 'Lab',
 };
 /**

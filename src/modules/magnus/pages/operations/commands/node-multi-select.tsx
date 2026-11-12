@@ -1,10 +1,9 @@
 import { Server } from 'lucide-react';
 import { nodeListResponseSchema } from '@contracts/magnus/browser';
-import { StatusDot } from '@ui';
+import { StatusDot, ResourceError } from '@ui';
 import { cn } from '@lib/cn';
 import { magnus } from '../../../api/client';
 import { useMagnusResource } from '../../../api/use-resource';
-import { ResourceError } from '../../../ui/resource-state';
 import { toggleAllOnline } from './quick-actions';
 
 /** The old console's checklist of target nodes. Nodes that are not ONLINE can be seen, not chosen. */

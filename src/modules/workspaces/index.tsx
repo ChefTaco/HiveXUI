@@ -16,6 +16,9 @@ import {
   TextArea,
   TextInput,
   Toggle,
+  PageHeader,
+  EmptyState,
+  LoadingRows,
 } from '../../components/ui';
 
 export default function WorkspacesModule({
@@ -29,7 +32,8 @@ export default function WorkspacesModule({
     [includeArchived, setIncludeArchived] = useState(false);
   const [error, setError] = useState(''),
     [notice, setNotice] = useState(''),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [loaded, setLoaded] = useState(false);
   const [newId, setNewId] = useState(''),
     [newTitle, setNewTitle] = useState('');
   const [title, setTitle] = useState(''),
@@ -101,11 +105,13 @@ export default function WorkspacesModule({
     }
   }
   useEffect(() => {
-    void refresh().catch((error) =>
-      setError(
-        error instanceof Error ? error.message : 'Workspace list unavailable',
-      ),
-    );
+    void refresh()
+      .catch((error) =>
+        setError(
+          error instanceof Error ? error.message : 'Workspace list unavailable',
+        ),
+      )
+      .finally(() => setLoaded(true));
     return () => {
       listGeneration.current++;
     };
@@ -130,18 +136,16 @@ export default function WorkspacesModule({
   const canOwn = selected && workspaceCan(profile, selected, 'owner');
   return (
     <section className="workspaces-module">
-      <div className="page-head">
-        <div>
-          <h2>Workspaces</h2>
-          <p>Manage memory boundaries, membership and policy in HiveMem.</p>
-        </div>
-        <Button
+      <PageHeader
+        title="Workspaces"
+        description="Manage memory boundaries, membership and policy in HiveMem."
+        actions={<Button
           disabled={busy}
           onClick={() => void action(refresh, 'Workspace list refreshed.')}
         >
           Refresh
-        </Button>
-      </div>
+        </Button>}
+      />
       {error && (
         <p role="alert" className="error-banner">
           {error}
@@ -178,8 +182,18 @@ export default function WorkspacesModule({
                 </button>
               ))}
             </div>
+          ) : loaded ? (
+            <EmptyState
+              compact
+              title="No workspaces"
+              message={
+                includeArchived
+                  ? 'No permitted workspaces returned.'
+                  : 'No permitted workspaces returned. Archived workspaces are hidden.'
+              }
+            />
           ) : (
-            <p>No permitted workspaces returned.</p>
+            <LoadingRows rows={3} />
           )}
           <div className="inline-actions">
             <Button

@@ -8,6 +8,8 @@ import {
   EmptyState,
   JsonBlock,
   Panel,
+  PageHeader,
+  TableFrame,
 } from '../components/ui';
 import { Icon } from '../components/icons';
 import { viewAvailable } from '../lib/navigation';
@@ -154,16 +156,10 @@ export function DocsPage({
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>Docs</h2>
-          <p>
-            {endpoints
-              ? 'Runbooks and endpoint surface grouped by scope.'
-              : 'Runbooks for operating this installation.'}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Docs"
+        description={endpoints ? 'Runbooks and endpoint surface grouped by scope.' : 'Runbooks for operating this installation.'}
+      />
 
       <Panel title="Operator Runbooks" eyebrow={`${runbooks.length} workflows`}>
         <div className="runbook-grid">
@@ -176,12 +172,12 @@ export function DocsPage({
               <p className="runbook-action">{runbook.action}</p>
               <code>{runbook.command}</code>
               {onNavigate ? (
-                <button
-                  className="btn btn--ghost btn--sm"
+                <Button
+                  variant="ghost" size="sm"
                   onClick={() => onNavigate(runbook.target)}
                 >
                   Open
-                </button>
+                </Button>
               ) : null}
             </article>
           ))}
@@ -200,7 +196,7 @@ export function DocsPage({
       ) : (
         grouped.map(([scope, docs]) => (
           <Panel key={scope} title={scope} eyebrow={`${docs.length} endpoints`}>
-            <div className="table-wrap">
+            <TableFrame label={`${scope} endpoints`}>
               <table>
                 <thead>
                   <tr>
@@ -229,7 +225,7 @@ export function DocsPage({
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableFrame>
           </Panel>
         ))
       )}

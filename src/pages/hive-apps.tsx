@@ -1,6 +1,6 @@
 import { apiFetch } from '../lib/transport';
 import { useEffect, useMemo, useState } from 'react';
-import { Badge, EmptyState, JsonBlock, Panel, StatCard } from '../components/ui';
+import { Badge, EmptyState, JsonBlock, Panel, StatCard, Button, buttonClass, PageHeader } from '../components/ui';
 import { Icon } from '../components/icons';
 import { useStore } from '../lib/store';
 import type { HiveAppKey, HiveAppState, HiveAppStatus, TlsCertificateStatus } from '../lib/types';
@@ -126,12 +126,12 @@ function AppStatusCard({ app, onNavigate }: { app: HiveAppStatus; onNavigate?: (
       </div>
       <div className="service-actions">
         {onNavigate ? (
-          <button className="btn btn--ghost btn--sm" onClick={() => onNavigate(focusTarget)}>
+          <Button variant="ghost" size="sm" onClick={() => onNavigate(focusTarget)}>
             <Icon.Hexagon className="btn-ico" />
             Focus
-          </button>
+          </Button>
         ) : null}
-        <a className="btn btn--ghost btn--sm" href={app.consoleUrl} target="_blank" rel="noreferrer">
+        <a className={buttonClass({ variant: 'ghost', size: 'sm' })} href={app.consoleUrl} target="_blank" rel="noreferrer">
           <Icon.Route className="btn-ico" />
           {openLabel}
         </a>
@@ -181,13 +181,11 @@ export function HiveOverviewPage({ onNavigate }: { onNavigate: (view: string) =>
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>Hive Control Surface</h2>
-          <p>Identity, memory, and routing status in one operator shell.</p>
-        </div>
-        {generatedAt ? <Badge tone="neutral">sampled {relativeTime(generatedAt)}</Badge> : null}
-      </div>
+      <PageHeader
+        title="Hive Control Surface"
+        description="Identity, memory, and routing status in one operator shell."
+        actions={generatedAt ? <Badge tone="neutral">sampled {relativeTime(generatedAt)}</Badge> : null}
+      />
 
       {skills?.configured && <Panel title="Skills registry" eyebrow={skills.ready ? 'Ready' : 'Unavailable'}>
         {skills.error && <p role="alert">{skills.error}</p>}
@@ -242,17 +240,15 @@ export function IamPage() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>Hive IAM</h2>
-          <p>Identity core, OAuth clients, roles, groups, and Linux user mapping.</p>
-        </div>
-        {app ? (
+      <PageHeader
+        title="Hive IAM"
+        description="Identity core, OAuth clients, roles, groups, and Linux user mapping."
+        actions={app ? (
           <Badge tone={stateTone(app.status)} dot>
             {app.status}
           </Badge>
         ) : null}
-      </div>
+      />
 
       <div className="stats-grid">
         <StatCard label="State" value={app?.status ?? 'unknown'} sub={app?.summary} tone={stateTone(app?.status ?? 'offline')} />
@@ -266,7 +262,7 @@ export function IamPage() {
           eyebrow="Checks"
           actions={
             app ? (
-              <a className="btn btn--ghost btn--sm" href={app.consoleUrl} target="_blank" rel="noreferrer">
+              <a className={buttonClass({ variant: 'ghost', size: 'sm' })} href={app.consoleUrl} target="_blank" rel="noreferrer">
                 <Icon.Book className="btn-ico" />
                 Docs
               </a>
@@ -289,17 +285,15 @@ export function MemoryPage() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>Hive Memory</h2>
-          <p>Semantic memory, task history, consolidation, and relationship graph.</p>
-        </div>
-        {app ? (
+      <PageHeader
+        title="Hive Memory"
+        description="Semantic memory, task history, consolidation, and relationship graph."
+        actions={app ? (
           <Badge tone={stateTone(app.status)} dot>
             {app.status}
           </Badge>
         ) : null}
-      </div>
+      />
 
       <div className="stats-grid">
         <StatCard label="State" value={app?.status ?? 'unknown'} sub={app?.summary} tone={stateTone(app?.status ?? 'offline')} />
@@ -313,7 +307,7 @@ export function MemoryPage() {
           eyebrow="Checks"
           actions={
             app ? (
-              <a className="btn btn--ghost btn--sm" href={app.consoleUrl} target="_blank" rel="noreferrer">
+              <a className={buttonClass({ variant: 'ghost', size: 'sm' })} href={app.consoleUrl} target="_blank" rel="noreferrer">
                 <Icon.Activity className="btn-ico" />
                 Dashboard
               </a>
@@ -338,17 +332,15 @@ export function RouterPage({ onNavigate }: { onNavigate: (view: string) => void 
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>Hive Router</h2>
-          <p>Provider fleet, routing rules, failover posture, and traffic traces.</p>
-        </div>
-        {app ? (
+      <PageHeader
+        title="Hive Router"
+        description="Provider fleet, routing rules, failover posture, and traffic traces."
+        actions={app ? (
           <Badge tone={stateTone(app.status)} dot>
             {app.status}
           </Badge>
         ) : null}
-      </div>
+      />
 
       <div className="stats-grid">
         <StatCard label="Providers" value={data.providers.length} sub={`${enabledProviders} enabled`} tone="accent" />
@@ -360,22 +352,22 @@ export function RouterPage({ onNavigate }: { onNavigate: (view: string) => void 
       <div className="page-grid page-grid--2">
         <Panel title="Router Workbench" eyebrow="Controls">
           <div className="workbench-actions">
-            <button className="btn btn--ghost" onClick={() => onNavigate('providers')}>
+            <Button variant="ghost" onClick={() => onNavigate('providers')}>
               <Icon.Server className="btn-ico" />
               Providers
-            </button>
-            <button className="btn btn--ghost" onClick={() => onNavigate('routing')}>
+            </Button>
+            <Button variant="ghost" onClick={() => onNavigate('routing')}>
               <Icon.Route className="btn-ico" />
               Routing
-            </button>
-            <button className="btn btn--ghost" onClick={() => onNavigate('testing')}>
+            </Button>
+            <Button variant="ghost" onClick={() => onNavigate('testing')}>
               <Icon.Hexagon className="btn-ico" />
               Testing
-            </button>
-            <button className="btn btn--ghost" onClick={() => onNavigate('traces')}>
+            </Button>
+            <Button variant="ghost" onClick={() => onNavigate('traces')}>
               <Icon.Activity className="btn-ico" />
               Traces
-            </button>
+            </Button>
           </div>
         </Panel>
         <Panel title="Router Health" eyebrow="Checks">

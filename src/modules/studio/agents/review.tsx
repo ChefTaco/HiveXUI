@@ -1,7 +1,6 @@
 import { Suspense } from 'react';
 import { FileStack } from 'lucide-react';
-import { EmptyState } from '@ui';
-import { LoadingRows } from '../../magnus/ui/resource-state';
+import { EmptyState, LoadingRows } from '@ui';
 import { ReviewWorkspace } from '../review/page';
 import { projectRoles } from './logic';
 import type { AgentContext } from './page';

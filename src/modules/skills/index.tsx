@@ -13,6 +13,10 @@ import {
   JsonBlock,
   CopyField,
   ConfirmDialog,
+  PageHeader,
+  EmptyState,
+  LoadingRows,
+  TableFrame,
 } from '../../components/ui';
 import { skillsApi as api } from './api';
 import type {
@@ -33,9 +37,11 @@ export default function SkillsModule({
 }) {
   if (!productEnabled('hiveskills'))
     return (
-      <Panel title="HiveSkills">
-        <p>The skills registry is not configured for this installation.</p>
-      </Panel>
+      <EmptyState
+        framed
+        title="HiveSkills is not configured"
+        message="The skills registry is not configured for this installation."
+      />
     );
   return <Registry currentUser={currentUser} />;
 }
@@ -50,7 +56,8 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
   const [admin, setAdmin] = useState(false),
     [error, setError] = useState(''),
     [notice, setNotice] = useState(''),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState(''),
     [releases, setReleases] = useState<Release[]>([]),
     [version, setVersion] = useState(''),
@@ -115,9 +122,11 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
     }
   }
   useEffect(() => {
-    void refresh().catch((e) =>
-      setError(e instanceof Error ? e.message : 'Registry unavailable'),
-    );
+    void refresh()
+      .catch((e) =>
+        setError(e instanceof Error ? e.message : 'Registry unavailable'),
+      )
+      .finally(() => setLoaded(true));
     return () => setOneTime('');
   }, []);
   useEffect(() => {
@@ -183,17 +192,13 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
   }
   return (
     <div className="skills-module">
-      <div className="page-head">
-        <div>
-          <h2>Skills and assignments</h2>
-          <p>
-            Versioned archives, release channels and scoped agent distribution.
-          </p>
-        </div>
-        <Button onClick={() => void run(refresh)} loading={busy}>
+      <PageHeader
+        title="Skills and assignments"
+        description="Versioned archives, release channels and scoped agent distribution."
+        actions={<Button onClick={() => void run(refresh)} loading={busy}>
           Refresh
-        </Button>
-      </div>
+        </Button>}
+      />
       {error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
       <Panel title="Catalogue" eyebrow={`${skills.length} skills`}>
@@ -209,7 +214,7 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
               <Button onClick={() => select(skill)}>Open {skill.slug}</Button>
             </div>
           ))}
-          {!skills.length && <p>No skills have been registered.</p>}
+          {!skills.length && (loaded ? <EmptyState compact title="No skills yet" message="No skills have been registered." /> : <LoadingRows rows={3} />)}
         </div>
       </Panel>
       {admin && (
@@ -409,12 +414,7 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
           )}
           <Panel title="Channel assignments">
             {channels.length ? (
-              <div
-                className="table-wrap"
-                role="region"
-                aria-label="Channel assignments"
-                tabIndex={0}
-              >
+              <TableFrame label="Channel assignments">
                 <table>
                   <thead>
                     <tr>
@@ -433,9 +433,9 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </TableFrame>
             ) : (
-              <p>No releases have been assigned to a channel.</p>
+              <EmptyState compact title="No channel assignments" message="No releases have been assigned to a channel." />
             )}
           </Panel>
           <Panel title="Agent targets">
@@ -456,6 +456,7 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
                   </Button>
                 </div>
               ))}
+              {!targets.length && <EmptyState compact title="No agent targets" message="Save a target below to distribute skills to an agent host." />}
             </div>
             <form
               onSubmit={(event) => {
@@ -540,12 +541,7 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
           </Panel>
           <Panel title="Distribution receipts">
             {receipts.length ? (
-              <div
-                className="table-wrap"
-                role="region"
-                aria-label="Distribution receipts"
-                tabIndex={0}
-              >
+              <TableFrame label="Distribution receipts">
                 <table>
                   <thead>
                     <tr>
@@ -588,9 +584,9 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
                     })}
                   </tbody>
                 </table>
-              </div>
+              </TableFrame>
             ) : (
-              <p>No agent distribution receipts have been received.</p>
+              <EmptyState compact title="No receipts yet" message="No agent distribution receipts have been received." />
             )}
           </Panel>
           <Panel title="Deployment jobs">
@@ -609,12 +605,7 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
               <Button onClick={()=>setDeploymentPreview(null)}>Close review</Button>
             </Panel>}
             {jobs.length ? (
-              <div
-                className="table-wrap"
-                role="region"
-                aria-label="Deployment jobs"
-                tabIndex={0}
-              >
+              <TableFrame label="Deployment jobs">
                 <table>
                   <thead>
                     <tr>
@@ -637,19 +628,14 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </TableFrame>
             ) : (
-              <p>No deployment jobs have been recorded.</p>
+              <EmptyState compact title="No deployment jobs" message="No deployment jobs have been recorded." />
             )}
           </Panel>
           <Panel title="Registry audit">
             {audit.length ? (
-              <div
-                className="table-wrap"
-                role="region"
-                aria-label="Registry audit"
-                tabIndex={0}
-              >
+              <TableFrame label="Registry audit">
                 <table>
                   <thead>
                     <tr>
@@ -677,9 +663,9 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </TableFrame>
             ) : (
-              <p>No registry audit events have been recorded.</p>
+              <EmptyState compact title="No audit events" message="No registry audit events have been recorded." />
             )}
             <Button
               disabled={!audit.length || busy}

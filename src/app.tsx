@@ -71,6 +71,7 @@ import { MemoryDashboardPage } from './pages/memory-dashboard';
 import { RoutersPage } from './pages/routers';
 import { ActorsPage } from './pages/actors';
 import { IncidentsPage } from './pages/incidents';
+import { Button, buttonClass } from '@ui';
 
 type AuthState = 'checking' | 'unauthed' | 'authed';
 
@@ -211,9 +212,9 @@ function AuthorizationPortal() {
     <p className="login-eyebrow">Hive:Magnus</p><h1 id="authorization-title">Oathweave sign-in</h1>
     <p className="login-sub">Continue securely to your application.</p>
     <p role={error || !identity ? 'alert' : 'status'} className={error || !identity ? 'error-banner' : 'muted'}>{message}</p>
-    {!error && identity && selection.request && <button className="btn" onClick={() => {
+    {!error && identity && selection.request && <Button onClick={() => {
       identity.invalidate(); setError('Authorization cancelled. Return to the application to start again.');
-    }}>Cancel authorization</button>}
+    }}>Cancel authorization</Button>}
   </section></main></>;
 }
 
@@ -412,7 +413,7 @@ function LoginScreen({ onSuccess, authorization = false }: { onSuccess: (user: A
             </label>
           )}
 
-          <button className="btn btn--primary" type="submit" disabled={busy}>
+          <Button variant="primary" type="submit" disabled={busy}>
             {busy ? (
               <span className="spinner" />
             ) : (
@@ -425,58 +426,57 @@ function LoginScreen({ onSuccess, authorization = false }: { onSuccess: (user: A
                 : challenge
                   ? 'Verify and sign in'
                   : 'Sign in'}
-          </button>
+          </Button>
           {mode === 'sign-in' && challenge?.methods.includes('webauthn') && (
-            <button
-              className="btn"
+            <Button
               type="button"
               onClick={() => void passkey()}
               disabled={busy}
             >
               Use passkey
-            </button>
+            </Button>
           )}
           {browserIdentity() && (
             <div className="login-recovery-actions">
               {mode !== 'sign-in' || challenge ? (
-                <button
-                  className="btn btn--ghost"
+                <Button
+                  variant="ghost"
                   type="button"
                   onClick={() => changeMode('sign-in')}
                 >
                   Back to sign in
-                </button>
+                </Button>
               ) : (
                 <>
-                  <button
-                    className="btn btn--ghost"
+                  <Button
+                    variant="ghost"
                     type="button"
                     onClick={() => changeMode('recover')}
                   >
                     Forgot password?
-                  </button>
-                  <button
-                    className="btn btn--ghost"
+                  </Button>
+                  <Button
+                    variant="ghost"
                     type="button"
                     onClick={() => changeMode('reset')}
                   >
                     Use recovery code
-                  </button>
+                  </Button>
                 </>
               )}
               {mode === 'recover' && (
-                <button
-                  className="btn btn--ghost"
+                <Button
+                  variant="ghost"
                   type="button"
                   onClick={() => changeMode('reset')}
                 >
                   I have a recovery code
-                </button>
+                </Button>
               )}
             </div>
           )}
           {!authorization && productEnabled('chattermost') && mode === 'sign-in' && !challenge && (
-            <a className="btn btn--ghost" href="/signup">Have a chat invite?</a>
+            <a className={buttonClass({ variant: 'ghost' })} href="/signup">Have a chat invite?</a>
           )}
         </form>
       </div>
@@ -713,7 +713,7 @@ function Shell({
                   <span aria-hidden="true">·</span>
                   {lastSync ? `Synced ${relativeTime(lastSync.toISOString())}` : 'Syncing…'}
                   <details>
-                    <summary aria-label="Panel freshness">Panels</summary>
+                    <summary>Panels<span className="sr-only"> freshness</span></summary>
                     <div className="status-pip__panel">
                       {Object.entries(resourceFreshness).map(([key, value]) => (
                         <p key={key}>
@@ -726,10 +726,10 @@ function Shell({
                   </details>
                 </span>
               ) : null}
-              <button type="button" className="topbar-search" onClick={() => setPaletteOpen(true)} aria-label="Search screens" aria-keyshortcuts="Control+K Meta+K" title="Search every screen">
+              <button type="button" className="topbar-search" onClick={() => setPaletteOpen(true)} aria-keyshortcuts="Control+K Meta+K" title="Search every screen">
                 <Icon.Search aria-hidden="true" />
-                <span>Search</span>
-                <kbd className="key">{/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl+K'}</kbd>
+                <span>Search<span className="sr-only"> screens</span></span>
+                <kbd className="key" aria-hidden="true">{/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl+K'}</kbd>
               </button>
               {showsShellRefresh(view) ? (
                 <button
@@ -770,8 +770,8 @@ function Shell({
                         <span>{loadIssues.slice(0, 3).join(' · ')}</span>
                       ) : null}
                     </div>
-                    <button
-                      className="btn btn--ghost btn--sm"
+                    <Button
+                      variant="ghost" size="sm"
                       onClick={() => {
                         browserIdentity()?.retryConsent();
                         void refresh();
@@ -784,7 +784,7 @@ function Shell({
                         <Icon.Refresh className="btn-ico" />
                       )}
                       Retry
-                    </button>
+                    </Button>
                   </div>
                 ) : null}
                 <ViewContent
@@ -827,7 +827,7 @@ function titleFor(view: ViewKey): string {
     'iam-sessions': 'IAM Sessions',
     'iam-system-users': 'IAM System Users',
     'iam-security': 'IAM Security',
-    'iam-audit': 'IAM Audit',
+    'iam-audit': 'Identity audit',
     memories: 'Memories',
     workspaces: 'Workspaces',
     skills: 'Skills and assignments',
@@ -837,9 +837,9 @@ function titleFor(view: ViewKey): string {
     routing: 'Routing',
     testing: 'Testing',
     traces: 'Traces',
-    incidents: 'Incidents',
+    incidents: 'Hive incidents',
     keys: 'API Keys',
-    audit: 'Audit Log',
+    audit: 'Routing audit',
     docs: 'API Docs',
     settings: 'Settings',
   };

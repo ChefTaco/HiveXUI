@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { AlertTriangle, ShieldAlert } from 'lucide-react';
 import { tailscaleSummaryResponseSchema } from '@contracts/magnus/browser';
-import { Badge, Panel } from '@ui';
+import { Badge, Panel, buttonClass } from '@ui';
 import Link from '../../../navigation';
 
 type Summary = z.output<typeof tailscaleSummaryResponseSchema>['data'];
@@ -25,7 +25,7 @@ export function TailscaleExpiryAlert({ summary, showAction = true }: { summary: 
         className={expired ? 'panel-corners [--panel-corner-color:var(--danger)]' : 'panel-corners [--panel-corner-color:var(--warning)]'}
         title={<span className="flex items-center gap-2"><Icon className={expired ? 'fx-pulse size-4 text-danger' : 'size-4 text-warning'} />{expired ? 'Tailscale access expired' : 'Tailscale renewal due'}</span>}
         description={`${nodes.length} node ${nodes.length === 1 ? 'key needs' : 'keys need'} renewal within ${summary.warningDays} days. Renew before tailnet access is interrupted.`}
-        actions={showAction ? <Link href="/nodes#tailscale-renewal" className="btn btn--sm">Review nodes</Link> : undefined}
+        actions={showAction ? <Link href="/nodes#tailscale-renewal" className={buttonClass({ size: 'sm' })}>Review nodes</Link> : undefined}
       >
         <div className="flex flex-wrap gap-1.5">
           {nodes.map((node) => (

@@ -26,7 +26,7 @@ theme switches until then, so remove that check with it.
 | Shared component classes and the console shell | `src/styles/app.css` |
 | Shared React components | `src/components/ui.tsx`, imported as `@ui` |
 | Focal widgets | `src/components/gauge.tsx`, `radar.tsx`, `sparkline.tsx`, `tones.ts` |
-| Guard tests | `src/styles/tokens.test.ts`, `src/styles/theme-guard.test.ts` |
+| Guard tests | `src/styles/tokens.test.ts`, `src/styles/theme-guard.test.ts`, `src/styles/consistency-guard.test.ts` |
 
 Styles load in the layers `theme, base, components, utilities`. A Tailwind utility always
 beats a component class or an element default, regardless of import order or specificity.
@@ -38,7 +38,12 @@ beats a component class or an element default, regardless of import order or spe
 2. Replace the module's own primitives with the ones in `@ui`:
    `Button`, `IconButton`, `Badge`, `Panel`, `PageHeader`, `EmptyState`, `TableFrame`,
    `Field`, `TextInput`, `Select`, `Toggle`, `StatCard`, `StatusDot`, `Meter`, `Skeleton`,
-   `Drawer`, `ConfirmDialog`. Use `cn` from `@lib/cn` to merge classes.
+   `Drawer`, `ConfirmDialog`. Use `cn` from `@lib/cn` to merge classes. Lists and navigation
+   within a page have their own: `DataTable` (typed columns, loading, empty and error states, row
+   action), `Tabs` and `TabPanel`, `Pagination` with `useCursorPagination`, `FilterBar` and `Menu`.
+   `LoadingRows` and `ResourceError` are the loading and failed-read states for a panel. A link
+   that looks like a button takes its classes from `buttonClass()`. Ask before a destructive
+   step with `useConfirm()`, never the browser's `confirm()`.
 3. Remove what the theme no longer supports (table below), then run `npm test`. The guard
    tests list each remaining violation by file.
 4. Check the page at desktop and phone width. Canvas and chart code that cannot use CSS reads
@@ -99,7 +104,7 @@ data. See `modules/suite`, `pages/routers.tsx` and the Cindertrace overview.
 ## Shell
 
 The top bar's `<h1>` is the last crumb of the terminal breadcrumb, and the page shows its display
-title in `PageHeader` or `page-head`. Do not add another title. A page owns its Refresh: the shell
+title in `PageHeader`. Do not add another title. A page owns its Refresh: the shell
 shows one only for pages listed in `showsShellRefresh` in `lib/navigation.ts`, which read the shared
 store and have none of their own. The sidebar groups pages by product through `navProducts`; only
 the current product is open until someone opens another, and that choice is remembered in the
@@ -145,6 +150,9 @@ which also keeps its case, so names read as written.
 - Hardcode a glow color or a duration; use the tokens.
 - Name a class after a Tailwind utility (`grid`, `table`, `flex`). The utility would then bring that class's other declarations with it.
 - Give a shared component an outer margin. Parents space children with `gap`; `page-stack` and `page-grid` are there for it.
-- Leave a `<button>` without a class. Preflight strips its appearance; use `Button` or `btn`.
+- Leave a `<button>` without a class. Preflight strips its appearance; use `Button` or `IconButton`.
+- Spell `className="btn"`, use the `page-head` class, wrap a table in a bare `table-wrap` or call
+  `confirm()`. `consistency-guard.test.ts` lists each by file.
+- Give two pages the same name. Qualify it with the product, such as Fleet audit or Identity audit.
 - Add a theme switch, a `dark:` variant or a query on the operating system's color scheme. There is one theme for now.
 - Use a color pair that fails WCAG AA. `tokens.test.ts` checks this; add new pairs there.

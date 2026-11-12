@@ -14,6 +14,7 @@ import {
   TextArea,
   EmptyState,
   JsonBlock,
+  PageHeader,
 } from '../components/ui';
 import { Icon } from '../components/icons';
 
@@ -660,15 +661,10 @@ export function TestingPage({
         </Button>
         {preview !== null && <JsonBlock value={preview} />}
       </Panel>
-      <div className="page-head">
-        <div>
-          <h2>Testing</h2>
-          <p>
-            Profile the routing engine against seeded categories and measure
-            provider selection + latency.
-          </p>
-        </div>
-        <Button
+      <PageHeader
+        title="Testing"
+        description="Profile the routing engine against seeded categories and measure provider selection + latency."
+        actions={<Button
           variant="ghost"
           icon={<Icon.Refresh className="btn-ico" />}
           loading={runningAll}
@@ -676,8 +672,8 @@ export function TestingPage({
           disabled={!canExecute || running !== null}
         >
           Run all categories
-        </Button>
-      </div>
+        </Button>}
+      />
 
       {availableCases.length === 0 ? (
         <Panel title="Routing categories" eyebrow="No seeded categories found">

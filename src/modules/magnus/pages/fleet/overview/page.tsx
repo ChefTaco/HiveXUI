@@ -9,7 +9,7 @@ import {
   tailscaleSummaryResponseSchema,
   unpinInsightResponseSchema,
 } from '@contracts/magnus/browser';
-import { Badge, Button, EmptyState, IconButton, PageHeader, StatCard, StatusDot, statusTone, type Tone } from '@ui';
+import { Badge, Button, EmptyState, IconButton, PageHeader, StatCard, StatusDot, statusTone, type Tone, LoadingRows, ResourceError } from '@ui';
 import { formatTime, relativeTime } from '@lib/format';
 import { cn } from '@lib/cn';
 import { useToast } from '../../../../../components/toast';
@@ -21,7 +21,6 @@ import { LiveEventList } from '../../../live/live-list';
 import Link from '../../../navigation';
 import { hasRoute } from '../../../routes';
 import { useMagnusSession, WRITE_ROLES } from '../../../session';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { TailscaleExpiryAlert } from '../shared/tailscale-alert';
 
 type Insight = z.output<typeof aiInsightsResponseSchema>['data']['insights'][number];

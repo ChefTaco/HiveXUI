@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Badge, EmptyState, HealthBadge, JsonBlock, Panel, StatCard, StatusDot } from '../components/ui';
+import { Badge, EmptyState, HealthBadge, JsonBlock, Panel, StatCard, StatusDot, Button, PageHeader } from '../components/ui';
 import { Gauge } from '../components/gauge';
 import { Icon } from '../components/icons';
 import { Radar, radarRandom, type RadarBlip } from '../components/radar';
@@ -33,18 +33,16 @@ export function RoutersPage({ onNavigate }: { onNavigate: (view: string) => void
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <p className="eyebrow">Emberpath · routing</p>
-          <h2>Routers</h2>
-          <p>Provider fleet, route policy, health, and trace evidence in one operations page.</p>
-        </div>
-        {app ? (
+      <PageHeader
+        eyebrow="Emberpath · routing"
+        title="Routers"
+        description="Provider fleet, route policy, health, and trace evidence in one operations page."
+        actions={app ? (
           <Badge tone={app.status === 'online' ? 'success' : app.status === 'degraded' ? 'warning' : 'danger'} dot>
             {app.status}
           </Badge>
         ) : null}
-      </div>
+      />
 
       <Panel className="grid-bg" aria-label="Routing status">
         <div className="hero-row">
@@ -74,31 +72,31 @@ export function RoutersPage({ onNavigate }: { onNavigate: (view: string) => void
       <div className="page-grid page-grid--2">
         <Panel title="Router Workbench" eyebrow="Controls">
           <div className="workbench-actions">
-            <button className="btn btn--ghost" onClick={() => onNavigate('providers')}>
+            <Button variant="ghost" onClick={() => onNavigate('providers')}>
               <Icon.Server className="btn-ico" />
               Providers
-            </button>
-            <button className="btn btn--ghost" onClick={() => onNavigate('routing')}>
+            </Button>
+            <Button variant="ghost" onClick={() => onNavigate('routing')}>
               <Icon.Route className="btn-ico" />
               Routing
-            </button>
-            <button className="btn btn--ghost" onClick={() => onNavigate('testing')}>
+            </Button>
+            <Button variant="ghost" onClick={() => onNavigate('testing')}>
               <Icon.Hexagon className="btn-ico" />
               Testing
-            </button>
-            <button className="btn btn--ghost" onClick={() => onNavigate('traces')}>
+            </Button>
+            <Button variant="ghost" onClick={() => onNavigate('traces')}>
               <Icon.Activity className="btn-ico" />
               Traces
-            </button>
+            </Button>
           </div>
         </Panel>
 
-        <Panel title="Latest Trace" eyebrow="Evidence" actions={<button className="btn btn--ghost btn--sm" onClick={() => onNavigate('traces')}>View all</button>}>
+        <Panel title="Latest Trace" eyebrow="Evidence" actions={<Button variant="ghost" size="sm" onClick={() => onNavigate('traces')}>View all</Button>}>
           {data.telemetry?.latestTrace ? <JsonBlock value={data.telemetry.latestTrace} /> : <EmptyState icon={<Icon.Activity width={34} height={34} />} message="No traces recorded yet." />}
         </Panel>
       </div>
 
-      <Panel title="Provider Pulse" eyebrow="Health" actions={<button className="btn btn--ghost btn--sm" onClick={() => onNavigate('providers')}>Manage</button>}>
+      <Panel title="Provider Pulse" eyebrow="Health" actions={<Button variant="ghost" size="sm" onClick={() => onNavigate('providers')}>Manage</Button>}>
         {data.providers.length === 0 ? (
           <EmptyState icon={<Icon.Server width={34} height={34} />} message="No providers registered yet." />
         ) : (

@@ -1,6 +1,6 @@
 import { apiFetch } from '../lib/transport';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Badge, Button, Drawer, EmptyState, Field, JsonBlock, Panel, Select, StatCard, TextArea, TextInput, type Tone } from '../components/ui';
+import { Badge, Button, Drawer, EmptyState, Field, JsonBlock, Panel, Select, StatCard, TextArea, TextInput, type Tone, PageHeader, useConfirm, TableFrame } from '../components/ui';
 import { useToast } from '../components/toast';
 import { Icon } from '../components/icons';
 import { useStore } from '../lib/store';
@@ -84,6 +84,7 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
     history.replaceState(null, '', url);
   }
   const [busy, setBusy] = useState<string | null>(null);
+  const [confirmAction, confirmDialog] = useConfirm();
   const [actionResult, setActionResult] = useState<HiveActorLifecycleResponse | null>(null);
   const [createForm, setCreateForm] = useState({
     agentId: '',
@@ -124,7 +125,7 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
   }
 
   async function runLifecycle(action: 'disable' | 'rotate', actor: HiveActor) {
-    if (action === 'disable' && !window.confirm(`Disable ${actor.label} across linked Hive services?`)) return;
+    if (action === 'disable' && !(await confirmAction({ title: 'Disable actor', message: `Disable ${actor.label} across linked Hive services?`, confirmLabel: 'Disable' }))) return;
     setBusy(`${action}-${actor.id}`);
     try {
       const storageKey = operationStorage(actor.id, action);
@@ -162,7 +163,7 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
 
   async function containLatest() {
     if (!actionResult || typeof actionResult.actorId !== 'string') return;
-    if (!window.confirm('Disable all linked resources for this partial actor? Records and content are retained.')) return;
+    if (!(await confirmAction({ title: 'Contain partial actor', message: 'Disable all linked resources for this partial actor? Records and content are retained.', confirmLabel: 'Disable' }))) return;
     const operationId = actionResult.action === 'disable' && typeof actionResult.operationId === 'string' ? actionResult.operationId : crypto.randomUUID();
     const storageKey = operationStorage(actionResult.actorId, 'disable');
     sessionStorage.setItem(storageKey, operationId);
@@ -208,15 +209,14 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>{suite ? 'Identity enrollment' : 'Hive Actors'}</h2>
-          <p>{suite ? 'Oathweave coordinates explicitly linked technical identities. Each product owns its credentials and permissions.' : 'Users, service accounts, host identities, Router keys, and Memory agents in one inventory.'}</p>
-        </div>
-        <Button variant="ghost" icon={<Icon.Refresh className="btn-ico" />} loading={refreshing} onClick={() => void refresh()}>
+      {confirmDialog}
+      <PageHeader
+        title={suite ? 'Identity enrollment' : 'Hive Actors'}
+        description={suite ? 'Oathweave coordinates explicitly linked technical identities. Each product owns its credentials and permissions.' : 'Users, service accounts, host identities, Router keys, and Memory agents in one inventory.'}
+        actions={<Button variant="ghost" icon={<Icon.Refresh className="btn-ico" />} loading={refreshing} onClick={() => void refresh()}>
           Refresh
-        </Button>
-      </div>
+        </Button>}
+      />
       {suite && !canRead && <Panel title="Access unavailable"><p>Your Oathweave account needs identity inventory permission.</p></Panel>}
       {loadError && <Panel title="Identity enrollment unavailable"><p role="alert">{loadError}</p><p>Configure the owning product APIs or inspect installation health before retrying.</p></Panel>}
       {suite && installations && installations.length > 0 && <Panel title="Installation"><Field label="Independent installation" hint="Select the exact namespace. Product accounts, operation IDs and recovery receipts stay separate."><Select disabled={!!busy} value={installationId ?? ''} options={[{ value: '', label: 'Select an installation' }, ...installations.map(id => ({ value: id, label: id }))]} onChange={value => {
@@ -267,7 +267,7 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
         {data.actors.length === 0 ? (
           <EmptyState icon={<Icon.Key width={34} height={34} />} message={suite ? 'No technical identities have been explicitly enrolled or migrated into this installation.' : 'No actors could be assembled from IAM, Router, or Memory.'} />
         ) : (
-          <div className="table-wrap">
+          <TableFrame label="Actor graph">
             <table>
               <thead>
                 <tr>
@@ -294,7 +294,7 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableFrame>
         )}
       </Panel>
 

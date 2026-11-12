@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AlertCircle, ArrowLeft, ExternalLink, Loader2, Pencil, Server, ShieldCheck, TerminalSquare, Trash2 } from 'lucide-react';
 import { deleteNodeResponseSchema, enableSystemUpdatesResponseSchema, hermesInstallationsResponseSchema, nodeDetailResponseSchema, nodeForecastResponseSchema, nodeGpuResponseSchema, nodeHealthResponseSchema, roleApplicationListResponseSchema } from '@contracts/magnus/browser';
-import { Badge, Button, ConfirmDialog, EmptyState, PageHeader, Skeleton, StatusDot, statusTone } from '@ui';
+import { Badge, Button, ConfirmDialog, EmptyState, PageHeader, Skeleton, StatusDot, statusTone, LoadingRows, ResourceError, buttonClass } from '@ui';
 import { formatTime } from '@lib/format';
 import { useToast } from '../../../../../components/toast';
 import { magnus, segment } from '../../../api/client';
@@ -10,7 +10,6 @@ import { useMagnusResource } from '../../../api/use-resource';
 import { FxPanel, Gauge, PageItem } from '../../../effects';
 import Link, { useParams, useRouter } from '../../../navigation';
 import { ADMIN_ONLY, useMagnusSession, WRITE_ROLES } from '../../../session';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { AssignRoleDrawer, EditNodeDrawer } from '../nodes/node-actions';
 import { nodeError, parseDisks, parseTags } from '../nodes/nodes-api';
 import type { AskRequest } from './ask';
@@ -98,7 +97,7 @@ export default function NodeDetailPage() {
           icon={<Server className="size-5" />}
           title={<span className="fx-glitch inline-block">Node not found</span>}
           message="It may have been decommissioned."
-          action={<Link href="/nodes" className="btn btn--sm">Back to nodes</Link>}
+          action={<Link href="/nodes" className={buttonClass({ size: 'sm' })}>Back to nodes</Link>}
         />
       );
     }
@@ -161,7 +160,7 @@ export default function NodeDetailPage() {
       <PageItem>
         <FxPanel hero fxTone={fxTone} interactive={false}>
           <div className="flex items-start gap-2">
-            <Link href="/nodes" className="btn btn--icon btn--ghost" aria-label="Back to nodes" title="Back to nodes"><ArrowLeft aria-hidden="true" className="size-4" /></Link>
+            <Link href="/nodes" className={buttonClass({ variant: 'ghost', className: 'btn--icon' })} aria-label="Back to nodes" title="Back to nodes"><ArrowLeft aria-hidden="true" className="size-4" /></Link>
             <PageHeader
               className="min-w-0 flex-1"
               eyebrow="Node"

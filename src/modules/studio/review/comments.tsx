@@ -54,10 +54,10 @@ function Composer({ revision, pending, onClearPending, readOnly, onChanged, onFo
         <span className="text-text-muted">On:</span>
         <span className="review-composer__anchor">{pending ? anchorLabel(pending) : 'Whole file'}</span>
         {pending ? (
-          <button type="button" className="btn btn--ghost btn--sm" onClick={onClearPending} aria-label="Comment on the whole file instead">
+          <Button type="button" variant="ghost" size="sm" onClick={onClearPending} aria-label="Comment on the whole file instead">
             <X className="size-3" aria-hidden="true" />
             Whole file
-          </button>
+          </Button>
         ) : (
           <span className="text-text-muted">Select text or draw a region to point at part of it.</span>
         )}
@@ -198,9 +198,9 @@ export function CommentsPanel(props: CommentsProps) {
                 {comment.state === 'open' && !readOnly ? (
                   <input type="checkbox" className="review-comment__check" checked={chosen.has(comment.id)} onChange={() => toggle(comment.id)} aria-label={`Include in a revision request: ${anchorLabel(comment.anchor)}`} />
                 ) : null}
-                <button type="button" className="review-comment__anchor btn btn--ghost btn--sm" aria-pressed={comment.id === focused} onClick={() => onFocus(comment.id === focused ? null : comment.id)}>
+                <Button type="button" variant="ghost" size="sm" className="review-comment__anchor" aria-pressed={comment.id === focused} onClick={() => onFocus(comment.id === focused ? null : comment.id)}>
                   {anchorLabel(comment.anchor)}
-                </button>
+                </Button>
                 {comment.state === 'resolved' ? <Badge tone="success">Resolved</Badge> : null}
               </div>
               <p className="m-0 mt-2 whitespace-pre-wrap text-sm">{comment.body_md}</p>
@@ -213,9 +213,9 @@ export function CommentsPanel(props: CommentsProps) {
                     <StudioLink href={projectHref(projectId, `/room?task=${encodeURIComponent(comment.revision_task_id)}`)}>→ Revision task</StudioLink>
                   ) : null}
                   {comment.addressed_in_revision_id ? (
-                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => onOpenRevision(comment.addressed_in_revision_id!)}>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => onOpenRevision(comment.addressed_in_revision_id!)}>
                       → rev {revisionNumber(comment.addressed_in_revision_id) ?? '?'}
-                    </button>
+                    </Button>
                   ) : null}
                 </p>
               ) : null}

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { z } from 'zod';
 import { Activity, Clock, Database, HardDrive, History, RefreshCw, Server, ShieldAlert, Wrench } from 'lucide-react';
 import { fleetReadinessResponseSchema, timelineResponseSchema } from '@contracts/magnus/browser';
-import { Badge, Button, EmptyState, PageHeader, statusTone, TableFrame } from '@ui';
+import { Badge, Button, EmptyState, PageHeader, statusTone, TableFrame, LoadingRows, ResourceError } from '@ui';
 import { cn } from '@lib/cn';
 import { formatTime, relativeTime } from '@lib/format';
 import { magnus } from '../../../api/client';
@@ -12,7 +12,6 @@ import { FleetRadar, FxMeter, FxPanel, Gauge, PageItem } from '../../../effects'
 import Link from '../../../navigation';
 import { hasRoute } from '../../../routes';
 import { useMagnusSession } from '../../../session';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { Figure } from '../shared/figure';
 import { severityTone } from '../shared/severity';
 import { useArrivals, useSweep } from '../shared/sweep';

@@ -21,6 +21,8 @@ import {
   TextArea,
   TextInput,
   Toggle,
+  PageHeader,
+  TableFrame,
 } from '../components/ui';
 import { Icon } from '../components/icons';
 
@@ -39,12 +41,10 @@ export function RoutingPage({ currentUser }: { currentUser: AdminUser | null }) 
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>Routing</h2>
-          <p>Aliases, deterministic rules, and scoring heuristics that shape every request.</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Routing"
+        description="Aliases, deterministic rules, and scoring heuristics that shape every request."
+      />
 
       <div className="tabs">
         <button className={tab === 'aliases' ? 'tab tab--active' : 'tab'} onClick={() => setTab('aliases')}>
@@ -181,7 +181,7 @@ function AliasSection({ canWrite }: { canWrite: boolean }) {
       {data.aliases.length === 0 ? (
         <EmptyState icon={<Icon.Alias width={34} height={34} />} message="No aliases defined." />
       ) : (
-        <div className="table-wrap">
+        <TableFrame label="Model aliases">
           <table>
             <thead>
               <tr>
@@ -211,7 +211,7 @@ function AliasSection({ canWrite }: { canWrite: boolean }) {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableFrame>
       )}
 
       <Drawer
@@ -376,7 +376,7 @@ function RuleSection({ canWrite }: { canWrite: boolean }) {
       {data.routeRules.length === 0 ? (
         <EmptyState icon={<Icon.Route width={34} height={34} />} message="No route rules defined." />
       ) : (
-        <div className="table-wrap">
+        <TableFrame label="Route rules">
           <table>
             <thead>
               <tr>
@@ -408,7 +408,7 @@ function RuleSection({ canWrite }: { canWrite: boolean }) {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableFrame>
       )}
 
       <Drawer
@@ -564,7 +564,7 @@ function HeuristicSection({ canWrite }: { canWrite: boolean }) {
       {data.heuristics.length === 0 ? (
         <EmptyState icon={<Icon.Signal width={34} height={34} />} message="No heuristics defined." />
       ) : (
-        <div className="table-wrap">
+        <TableFrame label="Heuristics">
           <table>
             <thead>
               <tr>
@@ -598,7 +598,7 @@ function HeuristicSection({ canWrite }: { canWrite: boolean }) {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableFrame>
       )}
 
       <Drawer

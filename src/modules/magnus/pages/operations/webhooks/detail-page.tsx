@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Compass, Play, RotateCcw } from 'lucide-react';
-import { Badge, Button, EmptyState, PageHeader } from '@ui';
+import { Badge, Button, EmptyState, PageHeader, LoadingRows, ResourceError } from '@ui';
 import { formatTime } from '@lib/format';
 import { cn } from '@lib/cn';
 import { useToast } from '../../../../../components/toast';
@@ -9,7 +9,6 @@ import { errorMessage, MagnusApiError } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
 import { FxPanel, PageItem } from '../../../effects';
 import Link, { useParams } from '../../../navigation';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { postKeepingBody } from '../shared/request';
 import { webhookDeliveriesResponseSchema, webhookRedeliverResponseSchema, webhookResponseSchema, webhookTestResponseSchema } from './schemas';
 import { WebhookForm } from './webhook-form';

@@ -23,6 +23,9 @@ import {
   TextArea,
   TextInput,
   Toggle,
+  buttonClass,
+  PageHeader,
+  TableFrame,
 } from '../components/ui';
 import { Icon } from '../components/icons';
 
@@ -186,26 +189,24 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>Providers</h2>
-          <p>Upstream registry · failover groups · health posture.</p>
-        </div>
-        <div className="inline-actions">
+      <PageHeader
+        title="Providers"
+        description="Upstream registry · failover groups · health posture."
+        actions={<div className="inline-actions">
           <Button variant="ghost" icon={<Icon.Key className="btn-ico" />} onClick={() => setCodexOpen(true)}>
             Authorize Codex
           </Button>
         <Button variant="primary" icon={<Icon.Plus className="btn-ico" />} disabled={!canWriteProviders} onClick={openCreate}>
             Add Provider
           </Button>
-        </div>
-      </div>
+        </div>}
+      />
 
       <Panel title="Registered Providers" eyebrow={`${data.providers.length} total`}>
         {data.providers.length === 0 ? (
           <EmptyState icon={<Icon.Server width={34} height={34} />} message="No providers yet — register your first upstream." />
         ) : (
-          <div className="table-wrap">
+          <TableFrame label="Registered providers">
             <table>
               <thead>
                 <tr>
@@ -248,7 +249,7 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableFrame>
         )}
       </Panel>
 
@@ -402,7 +403,7 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
                   </Badge>
                 </div>
                 <CopyField value={codexFlow.userCode} label="Copy Codex code" />
-                <a className="btn btn--primary" href={codexFlow.verificationUrl} target="_blank" rel="noreferrer">
+                <a className={buttonClass({ variant: 'primary' })} href={codexFlow.verificationUrl} target="_blank" rel="noreferrer">
                   Open authorization link
                 </a>
                 <span className="field-hint">Expires {relativeTime(codexFlow.expiresAt)}. This modal checks automatically every {codexFlow.intervalSeconds}s.</span>

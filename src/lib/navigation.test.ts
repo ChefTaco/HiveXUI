@@ -350,3 +350,15 @@ describe('deep links', () => {
     expect(link('/security-fusion/cases/abc?page=traces', CORE)).toEqual({ view: 'traces', url: null });
   });
 });
+
+describe('page names', () => {
+  it('give every audit and incident screen a product-qualified, distinct name', () => {
+    const everything = only('oathweave', 'emberpath', 'hivemem', 'hiveskills', 'cindertrace', 'chattermost', 'magnus');
+    const labels = paletteScreens(navProducts(visibleNavGroups(everything, { role: 'ADMIN' })))
+      .map((screen) => screen.label)
+      .filter((label) => /audit|incident/i.test(label));
+    expect(labels).toEqual(expect.arrayContaining(['Hive incidents', 'Fleet incidents', 'Identity audit', 'Routing audit', 'Fleet audit', 'Security audit']));
+    expect(new Set(labels).size).toBe(labels.length);
+    expect(labels.filter((label) => /^(audit|audit log|incidents)$/i.test(label))).toEqual([]);
+  });
+});

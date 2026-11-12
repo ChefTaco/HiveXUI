@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowUpRight } from 'lucide-react';
-import { Badge, Button, Field, Panel, Select, TextInput } from '@ui';
+import { Badge, Button, Field, Panel, Select, TextInput, buttonClass } from '@ui';
 import { errorMessage } from '../../magnus/api/errors';
 import { useMagnusResource } from '../../magnus/api/use-resource';
 import { readResource } from '../../magnus/pages/agents/ardent/api';
@@ -107,7 +107,7 @@ function ProjectRolePanel({ context }: { context: AgentContext }) {
                 <dt className="text-text-muted">Role skills</dt>
                 <dd className="m-0">{role.skills.length ? role.skills.map((skill) => skill.ref).join(', ') : '—'}</dd>
               </dl>
-              <StudioLink href={projectHref(projectId, `/team?role=${encodeURIComponent(role.key)}`)} className="btn btn--sm btn--ghost justify-self-start no-underline">
+              <StudioLink href={projectHref(projectId, `/team?role=${encodeURIComponent(role.key)}`)} className={buttonClass({ variant: 'ghost', size: 'sm', className: 'justify-self-start no-underline' })}>
                 Edit in Team Assignment
                 <ArrowUpRight className="btn-ico" aria-hidden="true" />
               </StudioLink>
@@ -117,7 +117,7 @@ function ProjectRolePanel({ context }: { context: AgentContext }) {
       ) : (
         <div className="grid gap-3">
           <p className="m-0 text-sm text-text-muted">This agent holds no role in this project&apos;s team.</p>
-          <StudioLink href={projectHref(projectId, '/team')} className="btn btn--sm justify-self-start no-underline">
+          <StudioLink href={projectHref(projectId, '/team')} className={buttonClass({ size: 'sm', className: 'justify-self-start no-underline' })}>
             Open Team Assignment
           </StudioLink>
         </div>

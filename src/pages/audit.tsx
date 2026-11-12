@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../lib/store';
 import type { AuditEvent } from '../lib/types';
 import { formatTime, relativeTime } from '../lib/format';
-import { Badge, Button, Drawer, EmptyState, JsonBlock, Panel } from '../components/ui';
+import { Badge, Button, Drawer, EmptyState, JsonBlock, Panel, PageHeader, TableFrame } from '../components/ui';
 import { Icon } from '../components/icons';
 
 export function AuditPage() {
@@ -11,21 +11,19 @@ export function AuditPage() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h2>Audit Log</h2>
-          <p>Every administrative mutation, attributed and timestamped.</p>
-        </div>
-        <Button variant="ghost" icon={<Icon.Refresh className="btn-ico" />} loading={refreshing} onClick={() => void refresh()}>
+      <PageHeader
+        title="Routing audit"
+        description="Every administrative mutation, attributed and timestamped."
+        actions={<Button variant="ghost" icon={<Icon.Refresh className="btn-ico" />} loading={refreshing} onClick={() => void refresh()}>
           Refresh
-        </Button>
-      </div>
+        </Button>}
+      />
 
       <Panel title="Events" eyebrow={`${data.audit.length} records`}>
         {data.audit.length === 0 ? (
           <EmptyState icon={<Icon.Scroll width={34} height={34} />} message="No audit events recorded." />
         ) : (
-          <div className="table-wrap">
+          <TableFrame label="Model audit events">
             <table>
               <thead>
                 <tr>
@@ -55,7 +53,7 @@ export function AuditPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableFrame>
         )}
       </Panel>
 

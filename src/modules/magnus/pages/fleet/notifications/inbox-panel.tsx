@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AlertCircle, AlertTriangle, Bell, Check, CheckCheck, Info } from 'lucide-react';
-import { Badge, Button, EmptyState, IconButton } from '@ui';
+import { Badge, Button, EmptyState, IconButton, LoadingRows, ResourceError } from '@ui';
 import { cn } from '@lib/cn';
 import { formatTime, relativeTime } from '@lib/format';
 import { useToast } from '../../../../../components/toast';
@@ -8,7 +8,6 @@ import { magnus } from '../../../api/client';
 import { errorMessage } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
 import { FxPanel } from '../../../effects';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { severityTone } from '../shared/severity';
 import { useArrivals } from '../shared/sweep';
 import { notificationListResponseSchema, notificationMarkedResponseSchema, notificationUnreadResponseSchema, type NotificationItem } from './schemas';

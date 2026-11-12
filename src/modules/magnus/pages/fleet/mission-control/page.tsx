@@ -1,7 +1,7 @@
 import type { ElementType, ReactNode } from 'react';
 import { Activity, AlertTriangle, Bot, Brain, CheckCircle2, Compass, Router, Server, Shield, Siren } from 'lucide-react';
 import { dependencyHealthResponseSchema, hermesInstallationsResponseSchema, hermesProfilesResponseSchema, statsOverviewResponseSchema } from '@contracts/magnus/browser';
-import { Badge, EmptyState, PageHeader, StatusDot, type Tone } from '@ui';
+import { Badge, EmptyState, PageHeader, StatusDot, type Tone, LoadingRows } from '@ui';
 import { cn } from '@lib/cn';
 import { magnus } from '../../../api/client';
 import { HERMES_POLL_MS } from '../../../api/rate-gate';
@@ -10,7 +10,6 @@ import { FxMeter, FxPanel, Gauge, GLOW_TEXT, latencyTone, PageItem, TONE_TEXT, t
 import Link from '../../../navigation';
 import { hasRoute } from '../../../routes';
 import { useMagnusSession } from '../../../session';
-import { LoadingRows } from '../../../ui/resource-state';
 import { summarizeHermesInventory } from './hermes-inventory';
 
 const POLL_MS = 15_000;

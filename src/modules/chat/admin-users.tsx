@@ -7,6 +7,7 @@ import type {
 import { adminAPI } from "./admin-api";
 import { inviteLink } from "./invite";
 import type { AdminControls } from "./admin";
+import { Button } from "@ui";
 const text = (data: FormData, name: string) =>
   String(data.get(name) ?? "").trim();
 export function UsersAdministration({
@@ -143,21 +144,20 @@ export function UsersAdministration({
           </label>
         </div>
         <div>
-          <button disabled={busy} className="btn btn--primary">
+          <Button disabled={busy} variant="primary">
             Create user
-          </button>
+          </Button>
         </div>
       </form>
       <section className="chat-admin-block">
         <div className="chat-admin-actions">
           <h4>Accounts</h4>
-          <button
-            className="btn"
+          <Button
             disabled={busy}
             onClick={() => void perform(load, "Accounts refreshed")}
           >
             Refresh accounts
-          </button>
+          </Button>
         </div>
         <label className="field">
           Find a chat account
@@ -191,11 +191,10 @@ export function UsersAdministration({
                   </small>
                 </div>
                 <div className="chat-admin-actions">
-                  <button className="btn" disabled={busy} onClick={() => setSelected(user)}>
+                  <Button disabled={busy} onClick={() => setSelected(user)}>
                     Manage account
-                  </button>
-                  <button
-                    className="btn"
+                  </Button>
+                  <Button
                     disabled={busy}
                     onClick={() =>
                       confirm(
@@ -208,9 +207,9 @@ export function UsersAdministration({
                     }
                   >
                     Revoke sessions
-                  </button>
-                  <button
-                    className="btn btn--danger"
+                  </Button>
+                  <Button
+                    variant="danger"
                     disabled={busy}
                     onClick={() =>
                       confirm(
@@ -227,7 +226,7 @@ export function UsersAdministration({
                     }
                   >
                     {user.delete_at ? "Reactivate" : "Deactivate"}
-                  </button>
+                  </Button>
                 </div>
               </li>
             ))}
@@ -238,9 +237,9 @@ export function UsersAdministration({
         <section className="chat-admin-block">
           <div className="chat-admin-actions">
             <h4>Manage @{selected.username}</h4>
-            <button className="btn" type="button" onClick={() => setSelected(null)}>
+            <Button type="button" onClick={() => setSelected(null)}>
               Close account
-            </button>
+            </Button>
           </div>
           <form
             key={selected.id}
@@ -278,7 +277,7 @@ export function UsersAdministration({
               </label>
             </div>
             <div>
-              <button className="btn" disabled={busy}>Save account details</button>
+              <Button disabled={busy}>Save account details</Button>
             </div>
           </form>
           <form onSubmit={reset} className="chat-admin-block">
@@ -293,9 +292,9 @@ export function UsersAdministration({
               />
             </label>
             <div>
-              <button disabled={busy} className="btn btn--danger">
+              <Button disabled={busy} variant="danger">
                 Reset password
-              </button>
+              </Button>
             </div>
           </form>
         </section>
@@ -329,7 +328,7 @@ export function UsersAdministration({
             </label>
           </div>
           <div>
-            <button className="btn" disabled={busy}>Create invite</button>
+            <Button disabled={busy}>Create invite</Button>
           </div>
         </form>
         <ul className="chat-admin-list">
@@ -342,8 +341,7 @@ export function UsersAdministration({
                   {new Date(item.expires_at).toLocaleString()} · {item.role}
                 </small>
               </div>
-              <button
-                className="btn"
+              <Button
                 disabled={busy}
                 onClick={() =>
                   confirm(
@@ -357,7 +355,7 @@ export function UsersAdministration({
                 }
               >
                 Revoke invite
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
@@ -370,8 +368,7 @@ export function UsersAdministration({
           public/private channels beginning with <code>Test</code> before
           removing their access.
         </p>
-        <button
-          className="btn"
+        <Button
           disabled={busy}
           onClick={() =>
             void perform(async () => {
@@ -382,7 +379,7 @@ export function UsersAdministration({
           }
         >
           Preview cleanup
-        </button>
+        </Button>
         {cleanup ? (
           <div className="chat-admin-receipt">
             <p>
@@ -399,8 +396,8 @@ export function UsersAdministration({
               ))}
             </ul>
             {cleanup.dry_run ? (
-              <button
-                className="btn btn--danger"
+              <Button
+                variant="danger"
                 disabled={busy}
                 onClick={() =>
                   confirm(
@@ -437,7 +434,7 @@ export function UsersAdministration({
                 }
               >
                 Apply reviewed cleanup
-              </button>
+              </Button>
             ) : null}
           </div>
         ) : null}

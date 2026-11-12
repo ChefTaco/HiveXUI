@@ -1,6 +1,6 @@
 import { useId, type ReactNode } from 'react';
 import { ArrowLeft, ArrowUpRight, Bot } from 'lucide-react';
-import { Badge, EmptyState, StatusDot } from '@ui';
+import { Badge, EmptyState, StatusDot, buttonClass } from '@ui';
 import { cn } from '@lib/cn';
 import { useMagnusResource, type Resource } from '../../magnus/api/use-resource';
 import { readInstallation, readResource } from '../../magnus/pages/agents/ardent/api';
@@ -170,7 +170,7 @@ function AgentHeader({ context, credential, loading, magnusDown }: { context: Ag
           {magnusDown ? <p className="m-0 text-sm text-warning" role="status">{magnusDown}</p> : null}
         </div>
         <div className="agent-head__actions">
-          <StudioLink href={'/fleet' + profileHref(nodeId, profileId)} className="btn btn--sm no-underline">
+          <StudioLink href={'/fleet' + profileHref(nodeId, profileId)} className={buttonClass({ size: 'sm', className: 'no-underline' })}>
             Fleet details
             <ArrowUpRight className="btn-ico" aria-hidden="true" />
           </StudioLink>

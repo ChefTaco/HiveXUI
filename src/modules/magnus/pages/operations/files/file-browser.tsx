@@ -1,11 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { ArrowUp, File, FileArchive, FileCode, FileImage, FileText, Folder, Home, RefreshCw } from 'lucide-react';
 import { quickCommandResponseSchema } from '@contracts/magnus/browser';
-import { Drawer, IconButton, TableFrame } from '@ui';
+import { Drawer, IconButton, TableFrame, LoadingRows } from '@ui';
 import { cn } from '@lib/cn';
 import { magnus, segment } from '../../../api/client';
 import { errorMessage } from '../../../api/errors';
-import { LoadingRows } from '../../../ui/resource-state';
 import { FormError } from '../shared/parts';
 import { childPath, formatListedSize, listCommand, parentDirectory, parseListing, type FileEntry } from './files-model';
 

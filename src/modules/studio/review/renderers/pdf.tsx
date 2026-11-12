@@ -2,10 +2,9 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
 import { getDocument, GlobalWorkerOptions, TextLayer, type PDFDocumentProxy } from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import { Button, EmptyState, IconButton } from '@ui';
+import { Button, EmptyState, IconButton, LoadingRows } from '@ui';
 import { cn } from '@lib/cn';
 import { errorMessage } from '../../../magnus/api/errors';
-import { LoadingRows } from '../../../magnus/ui/resource-state';
 import { pdfAnchor } from '../anchors';
 import { RegionLayer } from './regions';
 import { DownloadButton, useSelection, type RendererProps } from './shared';

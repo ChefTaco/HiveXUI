@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Clock, Pause, Play, Plus, RefreshCw, Server, SlidersHorizontal, Terminal, Trash2 } from 'lucide-react';
 import { cronCreateResponseSchema, cronDeleteResponseSchema, cronListResponseSchema, cronUpdateResponseSchema, nodeListResponseSchema, skillListResponseSchema } from '@contracts/magnus/browser';
 import type { z } from 'zod';
-import { Badge, Button, ConfirmDialog, Drawer, EmptyState, Field, IconButton, PageHeader, Select, StatusDot, statusTone, TextInput } from '@ui';
+import { Badge, Button, ConfirmDialog, Drawer, EmptyState, Field, IconButton, PageHeader, Select, StatusDot, statusTone, TextInput, LoadingRows, ResourceError } from '@ui';
 import { formatTime } from '@lib/format';
 import { cn } from '@lib/cn';
 import { useToast } from '../../../../../components/toast';
@@ -11,7 +11,6 @@ import { errorMessage } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
 import { FxPanel, PageItem } from '../../../effects';
 import { useMagnusSession, WRITE_ROLES } from '../../../session';
-import { LoadingRows, ResourceError } from '../../../ui/resource-state';
 import { FormError } from '../shared/parts';
 import { AI_JOB_PREFIX, createJobBody, CUSTOM_SCHEDULE, DEFAULT_SCHEDULE, describeSchedule, displayName, isSkillJob, nextStatus, SCHEDULE_PRESETS, skillCommand } from './job-model';
 

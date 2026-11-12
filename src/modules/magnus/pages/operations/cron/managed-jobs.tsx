@@ -2,14 +2,13 @@ import { useState, type FormEvent } from 'react';
 import { Pause, Play, Plus, RefreshCw } from 'lucide-react';
 import { cronCreateResponseSchema, cronListResponseSchema, cronUpdateResponseSchema, nodeListResponseSchema } from '@contracts/magnus/browser';
 import type { z } from 'zod';
-import { Badge, Button, Drawer, Field, Select, TextInput } from '@ui';
+import { Badge, Button, Drawer, Field, Select, TextInput, ResourceError } from '@ui';
 import { formatTime } from '@lib/format';
 import { magnus, segment } from '../../../api/client';
 import { errorMessage } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
 import { useMagnusSession, WRITE_ROLES } from '../../../session';
 import { FxPanel } from '../../../effects';
-import { ResourceError } from '../../../ui/resource-state';
 import { FormError } from '../shared/parts';
 import { finiteJobBody, localExpiry, managedRegistration, scheduleActive } from './managed-model';
 

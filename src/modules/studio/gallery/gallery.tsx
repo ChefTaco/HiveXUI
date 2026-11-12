@@ -1,12 +1,11 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Archive, ArchiveRestore, ArrowLeft, Copy, Library, PencilLine, Play, Search, Users } from 'lucide-react';
-import { Badge, Button, ConfirmDialog, EmptyState, PageHeader, Panel, Select, Skeleton, Toggle } from '@ui';
+import { Badge, Button, ConfirmDialog, EmptyState, PageHeader, Panel, Select, Skeleton, Toggle, LoadingRows, ResourceError, buttonClass } from '@ui';
 import { cn } from '@lib/cn';
 import { formatTime } from '@lib/format';
 import { useToast } from '../../../components/toast';
 import { errorMessage } from '../../magnus/api/errors';
 import { useMagnusResource } from '../../magnus/api/use-resource';
-import { LoadingRows, ResourceError } from '../../magnus/ui/resource-state';
 import { idempotencyKey, StudioApiError } from '../api/client';
 import { applyTemplate, archiveTemplate, getTemplate, getTemplateVersion, listTemplates, type TemplateDetail, type TemplateSummary, type TemplateVersion } from '../api/endpoints';
 import { setStudioQuery, StudioLink, useStudioSearch } from '../link';
@@ -134,7 +133,7 @@ function Detail({ id, version, projectId, onBack }: { id: string; version: numbe
   return (
     <div className="page-stack">
       <div>
-        <StudioLink href={onBack} className="btn btn--ghost btn--sm no-underline">
+        <StudioLink href={onBack} className={buttonClass({ variant: 'ghost', size: 'sm', className: 'no-underline' })}>
           <ArrowLeft className="btn-ico" aria-hidden="true" />
           All templates
         </StudioLink>
@@ -352,7 +351,7 @@ export function Gallery({ projectId }: { projectId?: string }) {
         description={projectId ? 'Templates to start or update this project’s team. Projects pin the version they use and never update by themselves.' : 'Reusable team and agent templates, with their versions.'}
         actions={
           projectId ? (
-            <StudioLink href={projectHref(projectId, '/team')} className="btn no-underline">
+            <StudioLink href={projectHref(projectId, '/team')} className={buttonClass({ className: 'no-underline' })}>
               <Users className="btn-ico" aria-hidden="true" />
               Back to the team
             </StudioLink>
