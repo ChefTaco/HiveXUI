@@ -17,6 +17,7 @@ const product = z.enum([
   'chattermost',
   'magnus',
   'ardentstudio',
+  'embermend',
 ]);
 const prefix = z.string().regex(/^\/api\/[a-z][a-z0-9-]*$/);
 export const runtimeSchema = z

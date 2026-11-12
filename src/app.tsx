@@ -9,6 +9,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
+const EmbermendModule = lazy(() => import('./modules/embermend'));
 const SecurityModule = lazy(() => import('./modules/security'));
 const MagnusModule = lazy(() => import('./modules/magnus'));
 const StudioModule = lazy(() => import('./modules/studio'));
@@ -815,6 +816,7 @@ function titleFor(view: ViewKey): string {
     studio: 'Studio',
     account: 'Account security',
     security: 'Cindertrace',
+    embermend: 'Embermend',
     chat: 'ChatterMost',
     hive: 'Hive',
     'iam-overview': 'IAM Overview',
@@ -918,6 +920,8 @@ function renderView(
           <AccountModule />
         </Suspense>
       );
+    case 'embermend':
+      return <Suspense fallback={<p role="status">Loading recommendations…</p>}><EmbermendModule /></Suspense>;
     case 'security':
       return (
         <Suspense fallback={<p role="status">Loading security…</p>}>

@@ -1,6 +1,6 @@
 {
   "name": "@hivemagnus/hivexui",
-  "version": "0.2.8",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
@@ -14,7 +14,7 @@
     "scan:secrets": "bash scripts/scan-secrets.sh",
     "check:private": "bash scripts/check-private-data.sh",
     "postbuild": "node scripts/collect-browser-licenses.mjs",
-    "check:contracts": "node scripts/check-owned-identity-skills.mjs && node scripts/generate-memory-client.mjs --check && node scripts/check-chat-contracts.mjs && node scripts/check-emberpath-contracts.mjs && node scripts/check-security-contracts.mjs && node scripts/check-magnus-contracts.mjs && node scripts/check-registry-contracts.mjs && node scripts/check-ardentstudio-contracts.mjs",
+    "check:contracts": "node scripts/check-owned-identity-skills.mjs && node scripts/generate-memory-client.mjs --check && node scripts/check-chat-contracts.mjs && node scripts/check-emberpath-contracts.mjs && node scripts/check-security-contracts.mjs && node scripts/check-magnus-contracts.mjs && node scripts/check-registry-contracts.mjs && node scripts/check-ardentstudio-contracts.mjs && node scripts/check-embermend-contracts.mjs",
     "contracts:magnus:import": "node scripts/import-magnus-contracts.mjs",
     "magnus:provenance": "node scripts/record-magnus-provenance.mjs",
     "contracts:ardentstudio:import": "node scripts/import-ardentstudio-contracts.mjs"
@@ -49,7 +49,7 @@
     "@vitejs/plugin-react": "^5.1.1",
     "jsdom": "31.0.0",
     "tailwindcss": "4.3.3",
-    "typescript": "^5.9.3",
+    "typescript": "6.0.3",
     "vite": "^7.2.2",
     "vitest": "^5.0.5"
   }

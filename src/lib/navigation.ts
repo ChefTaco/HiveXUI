@@ -17,6 +17,7 @@ export type ViewKey =
   | 'account'
   | 'skills'
   | 'chat'
+  | 'embermend'
   | 'security'
   | 'magnus'
   | 'studio'
@@ -149,6 +150,10 @@ const PRODUCT_GROUPS: readonly NavGroup[] = [
     items: [{ key: 'skills', label: 'HiveSkills', icon: 'Puzzle', gate: { all: ['hiveskills'] } }],
   },
   {
+    label: 'Embermend',
+    items: [{ key: 'embermend', label: 'Recommendations', icon: 'Shield', gate: { all: ['embermend'] } }],
+  },
+  {
     label: 'Cindertrace',
     items: [{ key: 'security', label: 'Cindertrace', icon: 'ScanSearch', gate: { all: ['cindertrace'] } }],
   },
@@ -199,6 +204,7 @@ const PRODUCT_ICON: Readonly<Record<string, NavIcon>> = {
   HiveMem: 'Brain',
   HiveSkills: 'Puzzle',
   Cindertrace: 'ScanSearch',
+  Embermend: 'Shield',
   ChatterMost: 'Messages',
   System: 'Settings',
 };
