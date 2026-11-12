@@ -1,10 +1,17 @@
 # Changelog
 
-## Unreleased
+## [0.4.0] - 2026-11-12
 
 - Read every product's error answers, including the suite error envelope, through `@hivemagnus/hive-common/errors`, so failures show a consistent message and keep the product's code, details and request ID.
 - Send an `x-request-id` with every API request and keep the answer's request ID on the error, so a failure can be quoted and traced.
 - Accept ingress product names (`/api/oathweave/...`) as API paths beside the older logical aliases, which remain for legacy recovery runtimes without product prefixes.
+- Present every product section through the shared UI kit, now including data tables, tabs, pagination, filter bars and menus, with framed tables, page headers and consistent empty and loading states.
+- Confirm destructive actions, including IAM, actor, memory and chat deletions, in the shared confirmation dialog instead of the browser prompt.
+- Give each audit and incident page a product-qualified name in the sidebar, breadcrumb, command palette and page header.
+- Derive the sidebar, command palette, breadcrumb, page titles and deep links from one typed route table. Every existing address opens the same screen.
+- Render the Cindertrace pages as client components listed in the sidebar. A refresh after an action keeps the page and its message on screen.
+- Serve suite and legacy runtimes from one installation overview, and split the IAM page into one view per section without changing its behaviour.
+- Check pages for serious and critical WCAG 2.1 A/AA violations with axe against a mocked runtime, and fix the accessible names and keyboard access it found.
 - Give the Magnus fleet timeline and data retention their own pages again (`/fleet/fleet-timeline`, `/fleet/retention`) with sidebar entries, sharing their panels with Fleet readiness. The timeline links an event only to a page the operator's role and the Hermes setting allow, and retention lists the tables nothing purges.
 - Bring the agent upgrade drawer up to date with the old dashboard: how many agents are ready, a notice for agents on another major version, an explanation when none can be upgraded, and the previous rollout folded away. Unavailable agents keep readable reasons instead of being dimmed.
 
