@@ -14,6 +14,16 @@ const PAGES = [
   { name: 'ChatterMost administration', path: '/?page=chat&chatAdmin=users' },
   { name: 'HiveSkills', path: '/?page=skills' },
   { name: 'HiveMem workspaces', path: '/?page=workspaces' },
+  { name: 'Installation overview', path: '/' },
+  { name: 'Cindertrace overview', path: '/security-fusion' },
+  { name: 'Cindertrace cases', path: '/security-fusion/cases' },
+  { name: 'Cindertrace case', path: '/security-fusion/cases/case-1' },
+  { name: 'Cindertrace events', path: '/security-fusion/events' },
+  { name: 'Cindertrace entities', path: '/security-fusion/entities' },
+  { name: 'Cindertrace sources', path: '/security-fusion/sources' },
+  { name: 'Cindertrace evidence', path: '/security-fusion/evidence' },
+  { name: 'Cindertrace policies', path: '/security-fusion/policies' },
+  { name: 'Cindertrace security audit', path: '/security-fusion/audit?date=2026-11-10' },
 ];
 
 for (const { name, path } of PAGES)
