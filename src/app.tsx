@@ -65,7 +65,6 @@ import { KeysPage } from './pages/keys';
 import { AuditPage } from './pages/audit';
 import { DocsPage } from './pages/docs';
 import { InstallationSettingsPage, SettingsPage } from './pages/settings';
-import { HiveOverviewPage } from './pages/hive-apps';
 import { IamOperationsPage, type IamSection } from './pages/iam';
 import { MemoryDashboardPage } from './pages/memory-dashboard';
 import { RoutersPage } from './pages/routers';
@@ -935,12 +934,10 @@ function renderView(
         </Suspense>
       );
     case 'hive':
-      return browserIdentity() ? (
+      return (
         <Suspense fallback={<p role="status">Checking products…</p>}>
           <SuiteOverview />
         </Suspense>
-      ) : (
-        <HiveOverviewPage onNavigate={onNavigate} />
       );
     case 'iam-overview':
     case 'iam-users':
