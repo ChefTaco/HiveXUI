@@ -274,9 +274,10 @@ const registryProduct = (id: string, displayName: string) => ({
   links: { repository: null, documentation: null, license: null, licenseSpdx: null },
   consoleSection: id, required: false, installed: true, dependencies: [],
 });
+// Feed paths as the Registry announces them, relative to each browser prefix after the ingress mapping.
 const FEEDS: Record<string, [string, string]> = {
-  magnus: ['Magnus', '/api/v1/hive/events'],
-  cindertrace: ['Cindertrace', '/api/v1/hive/events'],
+  magnus: ['Magnus', '/hive/events'],
+  cindertrace: ['Cindertrace', '/hive/events'],
   embermend: ['Embermend', '/api/v1/hive/events'],
   hiveskills: ['HiveSkills', '/v1/hive/events'],
 };
@@ -380,8 +381,8 @@ export const ROUTES: Array<[string, RegExp, Answer]> = [
     id: match[1], consolePath: null, browserPrefix: `/api/${match[1]}`, nativeApis: {}, documentation: null,
     capabilities: { 'events.v1': { path: FEEDS[match[1]!]![1] }, 'future.v9': { anything: true } },
   })],
-  ['GET', /^\/api\/magnus\/api\/v1\/hive\/events\?limit=200$/, { data: EVENTS.magnus, nextCursor: null }],
-  ['GET', /^\/api\/security\/api\/v1\/hive\/events\?limit=200$/, { data: [...EVENTS.cindertrace, { id: 'broken' }], nextCursor: null }],
+  ['GET', /^\/api\/magnus\/hive\/events\?limit=200$/, { data: EVENTS.magnus, nextCursor: null }],
+  ['GET', /^\/api\/security\/hive\/events\?limit=200$/, { data: [...EVENTS.cindertrace, { id: 'broken' }], nextCursor: null }],
   ['GET', /^\/api\/embermend\/api\/v1\/hive\/events\?limit=200$/, { data: EVENTS.embermend, nextCursor: null }],
   ['GET', /^\/api\/skills\/v1\/hive\/events\?limit=200$/, { __status: 503, body: { error: { code: 'unavailable', message: 'unavailable' } } }],
   ['GET', /^\/api\/magnus\/notifications\?pageSize=100$/, magnusOk({ notifications: [

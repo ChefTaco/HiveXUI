@@ -7,7 +7,8 @@
 - Poll every 60 seconds while the tab is visible. Each product has 5 seconds; one that fails or times out shows a "Couldn't reach" row and never holds up the others.
 - Link an event only to a page the route table knows and this installation shows; any other path is shown as text.
 - Open the Embermend recommendation named by `?plan=<id>` or `?campaign=<id>`, the addresses Embermend's events link to.
-- Read the optional `capabilities` object on Hive Registry products and connections, a local extension of the pinned Registry contract until the Registry release publishes it.
+- Read the optional `capabilities` object on Hive Registry products and connections from the vendored Registry browser contract. A product whose `events.v1` path is unusable keeps its place in the catalog and serves no feed.
+- Vendor the Hive Registry browser contract version 2 from Hive's own export (`services/hive-registry/src/browser-contract.ts`), replacing the hand-written local pin. It adds product capabilities; the check now verifies its source path, revision and checksum like the Magnus and Cindertrace contracts.
 - Require `@hivemagnus/hive-common` 0.4.0.
 
 ## [0.5.0] - 2026-11-12

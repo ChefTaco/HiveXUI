@@ -22,22 +22,22 @@ import { hiveEvent, memoryStorage, page, registryEntry, throwingStorage } from '
 
 const everything = () => true;
 const noReads: ReadState = { seen: {}, magnusRead: new Map() };
-const source: FeedSource = { product: 'cindertrace', name: 'Cindertrace', url: '/api/cindertrace/api/v1/hive/events' };
+const source: FeedSource = { product: 'cindertrace', name: 'Cindertrace', url: '/api/cindertrace/hive/events' };
 const fresh = (cursor: string | null = null): FeedProgress => ({ events: [], cursor, dropped: 0 });
 
 describe('which products serve a feed', () => {
   it('reads events.v1 from the connection, or from the product, through the browser prefix', () => {
     const feeds = discoverFeeds(
       [
-        registryEntry('magnus', 'Magnus', '/api/v1/hive/events'),
-        registryEntry('cindertrace', 'Cindertrace', '/api/v1/hive/events', { onProduct: true }),
+        registryEntry('magnus', 'Magnus', '/hive/events'),
+        registryEntry('cindertrace', 'Cindertrace', '/hive/events', { onProduct: true }),
         registryEntry('hiveskills', 'HiveSkills', null),
       ],
       everything,
     );
     expect(feeds).toEqual([
-      { product: 'magnus', name: 'Magnus', url: '/api/magnus/api/v1/hive/events' },
-      { product: 'cindertrace', name: 'Cindertrace', url: '/api/cindertrace/api/v1/hive/events' },
+      { product: 'magnus', name: 'Magnus', url: '/api/magnus/hive/events' },
+      { product: 'cindertrace', name: 'Cindertrace', url: '/api/cindertrace/hive/events' },
     ]);
   });
   it('skips a product that is not installed here, has no browser prefix, or is unknown to the console', () => {
@@ -63,9 +63,9 @@ describe('reading one feed', () => {
     const progress = fresh('c0');
     await readFeed(source, progress, async (path) => (asked.push(path), Response.json(pages.shift())), new AbortController().signal);
     expect(asked).toEqual([
-      '/api/cindertrace/api/v1/hive/events?after=c0&limit=200',
-      '/api/cindertrace/api/v1/hive/events?after=c1&limit=200',
-      '/api/cindertrace/api/v1/hive/events?after=c2&limit=200',
+      '/api/cindertrace/hive/events?after=c0&limit=200',
+      '/api/cindertrace/hive/events?after=c1&limit=200',
+      '/api/cindertrace/hive/events?after=c2&limit=200',
     ]);
     expect(progress.events.map((event) => event.id)).toEqual(['cindertrace:record:1:opened', 'cindertrace:record:2:opened']);
     expect(progress.cursor).toBe('c2');
@@ -74,7 +74,7 @@ describe('reading one feed', () => {
     let calls = 0;
     const progress = fresh();
     await readFeed(source, progress, async (path) => {
-      if (calls === 0) expect(path).toBe('/api/cindertrace/api/v1/hive/events?limit=200');
+      if (calls === 0) expect(path).toBe('/api/cindertrace/hive/events?limit=200');
       calls++;
       return Response.json(page([], `c${calls}`));
     }, new AbortController().signal);

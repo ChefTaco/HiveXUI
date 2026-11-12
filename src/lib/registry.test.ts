@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { registryConnectionSchema, registryProductSchema } from '@contracts/hive-registry/browser';
-import { FIRST_PAINT_BUDGET_MS, readRegistryState } from './registry';
+import { catalogConnectionSchema, catalogProductSchema, FIRST_PAINT_BUDGET_MS, readRegistryState } from './registry';
 import type { Product } from './transport';
 
 const INSTALLATION = '/api/registry/v1/installation';
@@ -201,7 +201,7 @@ describe('the product catalog', () => {
   });
 });
 
-describe('the pinned browser contract', () => {
+describe('the vendored browser contract', () => {
   it('drops private fields, so a version or host can never reach the console', () => {
     const product = registryProductSchema.parse(entry('emberpath', { kind: 'application', versions: [{ version: '1.0.0' }], installation: { inventoryHost: 'host-one', version: '1.0.0' } }));
     expect(Object.keys(product).sort()).toEqual(['consoleSection', 'dependencies', 'description', 'displayName', 'id', 'installed', 'links', 'required']);
@@ -213,5 +213,32 @@ describe('the pinned browser contract', () => {
       expect(registryProductSchema.safeParse(entry('emberpath', { links: { repository: url, documentation: null, license: null, licenseSpdx: null } })).success).toBe(false);
       expect(registryConnectionSchema.safeParse({ id: 'emberpath', consolePath: null, browserPrefix: null, nativeApis: { model: url }, documentation: null }).success).toBe(false);
     }
+  });
+});
+
+describe('product capabilities', () => {
+  const connection = { id: 'magnus', consolePath: null, browserPrefix: '/api/magnus', nativeApis: {}, documentation: null };
+  it('reads events.v1 and drops capabilities it does not know', () => {
+    const parsed = registryConnectionSchema.parse({ ...connection, capabilities: { 'events.v1': { path: '/hive/events' }, 'future.v2': { x: 1 } } });
+    expect(parsed.capabilities).toEqual({ 'events.v1': { path: '/hive/events' } });
+    expect(registryProductSchema.parse(entry('magnus', { capabilities: { 'events.v1': { path: '/hive/events' } } })).capabilities).toEqual({ 'events.v1': { path: '/hive/events' } });
+  });
+  it('is optional', () => {
+    expect(registryConnectionSchema.parse(connection).capabilities).toBeUndefined();
+  });
+  it('the contract refuses a feed path that is not same-origin', () => {
+    for (const path of ['https://example.com/events', '/api/../oathweave', 'relative'])
+      expect(registryConnectionSchema.safeParse({ ...connection, capabilities: { 'events.v1': { path } } }).success).toBe(false);
+  });
+  it('the catalog drops only an unusable capability, and keeps the product', () => {
+    for (const capabilities of [{ 'events.v1': { path: 'https://example.com/events' } }, { 'events.v1': 'yes' }, 'all']) {
+      const product = catalogProductSchema.parse(entry('magnus', { capabilities }));
+      expect(product.id).toBe('magnus');
+      expect(product.capabilities?.['events.v1']).toBeUndefined();
+      const parsed = catalogConnectionSchema.parse({ ...connection, capabilities });
+      expect(parsed.browserPrefix).toBe('/api/magnus');
+      expect(parsed.capabilities?.['events.v1']).toBeUndefined();
+    }
+    expect(catalogConnectionSchema.parse({ ...connection, capabilities: { 'events.v1': { path: '/hive/events' } } }).capabilities).toEqual({ 'events.v1': { path: '/hive/events' } });
   });
 });

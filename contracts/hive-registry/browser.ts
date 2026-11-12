@@ -1,14 +1,13 @@
-// LOCAL PIN, NOT A PRODUCT EXPORT. Hive publishes no browser contract for the Hive Registry yet,
-// so this file is hand-written from the service's public views. provenance.json records the Hive
-// revision it was read from and the checksum of each source file. Replace this file with Hive's
-// own export when one exists, the way contracts/magnus and contracts/cindertrace are imported.
+// Hive Registry browser contract: what an unauthenticated browser may read through the ingress
+// at /api/registry. HiveXUI vendors this file unchanged as contracts/hive-registry/browser.ts, with
+// its checksum and the Hive revision recorded beside it. It imports only zod, never the service.
 //
-// Only what an unauthenticated browser may read is described. Objects are not strict: a field
-// this contract does not name is dropped on parsing, so a version, digest, host or internal
-// endpoint can never reach the console, even if a future response carried one.
+// Objects are not strict: a field this contract does not name is dropped on parsing, so a version,
+// digest, host or internal endpoint can never reach the browser, even if a future response
+// carried one. Capability names the contract does not know are dropped the same way.
 import { z } from 'zod';
 
-export const registryBrowserContractVersion = 1;
+export const registryBrowserContractVersion = 2;
 
 const productId = z.string().regex(/^[a-z][a-z0-9-]{0,47}$/);
 const localPath = z
@@ -42,6 +41,19 @@ export const registryInstallationSchema = z.object({
 });
 export type RegistryInstallation = z.infer<typeof registryInstallationSchema>;
 
+/**
+ * A product's optional capabilities. Each `path` is relative to the product's `browserPrefix`
+ * (GET /v1/products/{id}/connection) as the browser sees it: the browser fetches
+ * `browserPrefix + path`, and the ingress maps that to the product's own route. A product
+ * without any capability omits the field.
+ *
+ * `events.v1`: the product serves a HiveEvent v1 feed, `GET browserPrefix + path?after=&limit=`.
+ */
+export const registryCapabilitiesSchema = z.object({
+  'events.v1': z.object({ path: localPath }).optional(),
+});
+export type RegistryCapabilities = z.infer<typeof registryCapabilitiesSchema>;
+
 /** GET /v1/products/{id} */
 export const registryProductSchema = z.object({
   id: productId,
@@ -57,6 +69,7 @@ export const registryProductSchema = z.object({
   required: z.boolean(),
   installed: z.boolean(),
   dependencies: z.array(productId).max(32),
+  capabilities: registryCapabilitiesSchema.optional(),
 });
 export type RegistryProduct = z.infer<typeof registryProductSchema>;
 
@@ -73,5 +86,6 @@ export const registryConnectionSchema = z.object({
   browserPrefix: localPath.nullable(),
   nativeApis: z.record(productId, publicUrl),
   documentation: publicUrl.nullable(),
+  capabilities: registryCapabilitiesSchema.optional(),
 });
 export type RegistryConnection = z.infer<typeof registryConnectionSchema>;

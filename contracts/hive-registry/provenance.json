@@ -1,17 +1,14 @@
 {
   "schema": 1,
   "product": "hive-registry-browser",
-  "version": 1,
-  "origin": "local-pin",
-  "note": "Hand-written here because Hive has no browser contract export for the Registry. The sources are what it was read from, not what it was generated from.",
+  "version": 2,
   "repository": "https://github.com/ChefTaco/hive",
-  "revision": "623eba65fc67b7b97bb58180088b6b8fb17dc307",
-  "sources": [
-    { "path": "services/hive-registry/src/app.ts", "sha256": "ab4cb5ecc0ede89baee785833c4a49ed5bbd05a5e47932327f7f793d8e00c7a5" },
-    { "path": "services/hive-registry/src/schema.ts", "sha256": "f63b74b437bc0894e94f8c2bd099720f6c1dd7824de6238253cd6efec7af3270" },
-    { "path": "services/hive-registry/src/views.ts", "sha256": "623628dcca830d2ce73f8e5529600e4bd21f60dcc2124200b3954ce6081bc1b3" }
-  ],
+  "revision": "892cfa1be1559ec0dd9ab050970f120aa87e4b2c",
   "files": [
-    { "path": "browser.ts", "sha256": "8fccb7b71d5d397a790ca0d60273eef39cda5cff00ada10af6adca550cf7d2dc" }
+    {
+      "path": "browser.ts",
+      "source": "services/hive-registry/src/browser-contract.ts",
+      "sha256": "21ab20f5d128a1a66f865312628b55e31fa8c30f635c1b53d65899eb742db05e"
+    }
   ]
 }

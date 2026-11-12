@@ -1,11 +1,14 @@
 import { useSyncExternalStore } from 'react';
-import type { z } from 'zod';
-import { registryInstallationSchema } from '@contracts/hive-registry/browser';
+import { z } from 'zod';
 import {
-  registryConnectionWithCapabilitiesSchema,
-  registryProductListWithCapabilitiesSchema,
-  registryProductWithCapabilitiesSchema,
-} from './registry-capabilities';
+  registryCapabilitiesSchema,
+  registryConnectionSchema,
+  registryInstallationSchema,
+  registryProductListSchema,
+  registryProductSchema,
+  type RegistryConnection,
+  type RegistryProduct,
+} from '@contracts/hive-registry/browser';
 import type { Product } from './transport';
 import { createRequestId, failureMeta, HiveApiError, readApiFailure, REQUEST_ID_HEADER, type HiveApiErrorMeta } from './api-error';
 
@@ -139,9 +142,22 @@ export function registryWarning(current: RegistryState): string | null {
   return `The Hive Registry is not answering. Every installation runs one, so something is wrong. ${fallback}`;
 }
 
-/** A catalog product and its connection, with `capabilities` until the Registry release ships it. */
-export type RegistryProduct = z.infer<typeof registryProductWithCapabilitiesSchema>;
-export type RegistryConnection = z.infer<typeof registryConnectionWithCapabilitiesSchema>;
+export type { RegistryConnection, RegistryProduct };
+
+/**
+ * The contract's capabilities, read one capability at a time. The contract holds `events.v1` to a
+ * same-origin path, so a product announcing an unusable path would fail the whole catalog read.
+ * Here that capability is dropped instead: the product stays listed and simply serves no feed.
+ * A capability added to the contract later is read strictly until it is listed here too.
+ */
+const lenientCapabilities = registryCapabilitiesSchema
+  .extend({ 'events.v1': registryCapabilitiesSchema.shape['events.v1'].catch(undefined) })
+  .optional()
+  .catch(undefined);
+export const catalogProductSchema = registryProductSchema.extend({ capabilities: lenientCapabilities });
+const catalogProductListSchema = registryProductListSchema.extend({ products: z.array(catalogProductSchema).max(512) });
+export const catalogConnectionSchema = registryConnectionSchema.extend({ capabilities: lenientCapabilities });
+
 export interface RegistryEntry {
   product: RegistryProduct;
   /** Null when this product's own connection could not be read. */
@@ -153,13 +169,13 @@ export interface RegistryEntry {
  * asked for. A failed connection costs that product its native URLs, not the whole list.
  */
 export async function readRegistryCatalog(presented: (id: string) => boolean): Promise<RegistryEntry[]> {
-  const { products } = await read('/v1/products?installed=true', registryProductListWithCapabilitiesSchema);
+  const { products } = await read('/v1/products?installed=true', catalogProductListSchema);
   return Promise.all(
     products
       .filter((product) => product.installed && presented(product.id))
       .map(async (product) => ({
         product,
-        connection: await read(`/v1/products/${encodeURIComponent(product.id)}/connection`, registryConnectionWithCapabilitiesSchema).catch(() => null),
+        connection: await read(`/v1/products/${encodeURIComponent(product.id)}/connection`, catalogConnectionSchema).catch(() => null),
       })),
   );
 }
