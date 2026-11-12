@@ -13,5 +13,6 @@ export const operationsRoutes: readonly MagnusRoute[] = [
   { path: '/webhooks', title: 'Webhooks', roles: ['ADMIN'], load: () => import('../pages/operations/webhooks/page') },
   // Also serves /webhooks/new. A literal route would need its own sidebar entry (routes.test.ts).
   { path: '/webhooks/:id', title: 'Webhook', roles: ['ADMIN'], load: () => import('../pages/operations/webhooks/detail-page') },
+  { path: '/retention', title: 'Retention', load: () => import('../pages/operations/retention/page') },
   { path: '/api-docs', title: 'API Documentation', load: () => import('../pages/operations/api-docs/page') },
 ];

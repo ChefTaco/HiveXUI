@@ -1,22 +1,20 @@
-import { useState } from 'react';
-import type { z } from 'zod';
-import { Activity, Clock, Database, HardDrive, History, RefreshCw, Server, ShieldAlert, Wrench } from 'lucide-react';
-import { fleetReadinessResponseSchema, timelineResponseSchema } from '@contracts/magnus/browser';
-import { Badge, Button, EmptyState, PageHeader, statusTone, TableFrame, LoadingRows, ResourceError } from '@ui';
+import { Activity, ArrowRight, RefreshCw, Server, ShieldAlert, Wrench } from 'lucide-react';
+import { fleetReadinessResponseSchema, retentionSummaryResponseSchema, timelineResponseSchema } from '@contracts/magnus/browser';
+import { Badge, Button, buttonClass, EmptyState, PageHeader, statusTone, TableFrame, LoadingRows, ResourceError } from '@ui';
 import { cn } from '@lib/cn';
 import { formatTime, relativeTime } from '@lib/format';
 import { magnus } from '../../../api/client';
 import { errorMessage } from '../../../api/errors';
-import { useMagnusResource, type Resource } from '../../../api/use-resource';
+import { useMagnusResource } from '../../../api/use-resource';
 import { FleetRadar, FxMeter, FxPanel, Gauge, PageItem } from '../../../effects';
 import Link from '../../../navigation';
 import { hasRoute } from '../../../routes';
 import { useMagnusSession } from '../../../session';
 import { Figure } from '../shared/figure';
-import { severityTone } from '../shared/severity';
-import { useArrivals, useSweep } from '../shared/sweep';
-import { fleetNodes, keyedTimeline, radarCounts, TIMELINE_TYPES, totalRecords, type ReadinessNode, type TimelineFilter } from './model';
-import { retentionResponseSchema } from './schemas';
+import { useSweep } from '../shared/sweep';
+import { RetentionPanel } from '../../operations/retention/retention-panel';
+import { TimelinePanel } from '../fleet-timeline/timeline-panel';
+import { fleetNodes, radarCounts, type ReadinessNode } from './model';
 
 const POLL_MS = 30_000;
 const TIMELINE_LIMIT = 120;
@@ -24,7 +22,7 @@ const TIMELINE_LIMIT = 120;
 export default function FleetReadinessPage() {
   const readiness = useMagnusResource((signal) => magnus.get('/ops/readiness', fleetReadinessResponseSchema, { signal }), [], { pollMs: POLL_MS });
   const timeline = useMagnusResource((signal) => magnus.get('/ops/timeline', timelineResponseSchema, { query: { limit: TIMELINE_LIMIT }, signal }), [], { pollMs: POLL_MS });
-  const retention = useMagnusResource((signal) => magnus.get('/ops/retention', retentionResponseSchema, { signal }));
+  const retention = useMagnusResource((signal) => magnus.get('/ops/retention', retentionSummaryResponseSchema, { signal }));
   const nodes = readiness.data ? fleetNodes(readiness.data.data.nodes) : undefined;
   const refreshAll = () => {
     void readiness.refresh();
@@ -62,8 +60,8 @@ export default function FleetReadinessPage() {
           )}
         </FxPanel>
       </PageItem>
-      <PageItem><TimelinePanel resource={timeline} /></PageItem>
-      <PageItem><RetentionPanel resource={retention} /></PageItem>
+      <PageItem><TimelinePanel resource={timeline} limit={TIMELINE_LIMIT} actions={<FullPage path="/fleet-timeline" label="Open the timeline" />} /></PageItem>
+      <PageItem><RetentionPanel resource={retention} actions={<FullPage path="/retention" label="Open retention" />} /></PageItem>
     </div>
   );
 }
@@ -142,89 +140,8 @@ function ReadinessTable({ nodes }: { nodes: readonly ReadinessNode[] }) {
   );
 }
 
-function TimelinePanel({ resource }: { resource: Resource<z.output<typeof timelineResponseSchema>> }) {
-  const [filter, setFilter] = useState<TimelineFilter>('all');
-  const items = resource.data ? keyedTimeline(resource.data.data, filter) : undefined;
-  const arrival = useArrivals(resource.data ? keyedTimeline(resource.data.data).map(({ key }) => key) : undefined);
-  return (
-    <FxPanel
-      id="fleet-timeline"
-      title={<span className="flex items-center gap-2"><History className="size-4 text-accent" />Fleet timeline</span>}
-      description="Recent commands, deploys, Hermes jobs, logs, audit events and notifications in one stream."
-      interactive={false}
-      className="scroll-mt-4"
-    >
-      <div className="grid gap-3">
-        <div className="segmented-tabs justify-self-start" role="group" aria-label="Filter the timeline by type">
-          {(['all', ...TIMELINE_TYPES] as const).map((type) => (
-            <button key={type} type="button" aria-pressed={filter === type} className={cn('tab-button capitalize', filter === type && 'tab-button--active')} onClick={() => setFilter(type)}>{type}</button>
-          ))}
-        </div>
-        {!items ? (
-          resource.loading ? <LoadingRows rows={6} /> : <ResourceError error={resource.error} title="Timeline data unavailable" onRetry={() => void resource.refresh()} />
-        ) : items.length === 0 ? (
-          <EmptyState compact icon={<Clock className="size-4" />} title={filter === 'all' ? 'Nothing on the timeline yet' : `No ${filter} events in the latest ${TIMELINE_LIMIT}`} />
-        ) : (
-          <ol className="m-0 grid max-h-[32rem] list-none grid-cols-1 gap-px overflow-y-auto p-0" tabIndex={0} aria-label="Timeline events">
-            {items.map((item) => (
-              <li key={item.key} className={cn(arrival(item.key), 'fx-rail rounded-chip hover:bg-surface-hover')}>
-                <div className="grid gap-x-3 gap-y-0.5 px-3 py-2 text-sm sm:grid-cols-[11rem_6rem_minmax(0,1fr)_5rem] sm:items-center">
-                  <span className="num flex items-center gap-2 text-xs text-text-muted"><Clock className="size-3.5 shrink-0" aria-hidden="true" />{formatTime(item.timestamp)}</span>
-                  <span className="text-xs font-medium capitalize text-accent">{item.type}</span>
-                  <span className="min-w-0 break-words">
-                    {hasRoute(item.href) ? <Link href={item.href}>{item.title}</Link> : item.title}
-                    {item.node ? <span className="block text-xs text-text-muted">{item.node}</span> : null}
-                  </span>
-                  <span><Badge tone={severityTone(item.severity)}>{item.severity}</Badge></span>
-                </div>
-              </li>
-            ))}
-          </ol>
-        )}
-      </div>
-    </FxPanel>
-  );
-}
-
-function RetentionPanel({ resource }: { resource: Resource<z.output<typeof retentionResponseSchema>> }) {
-  const data = resource.data?.data;
-  return (
-    <FxPanel
-      id="data-retention"
-      title={<span className="flex items-center gap-2"><Database className="size-4 text-accent" />Data retention</span>}
-      description="Operational data volume, oldest rows and purge policy."
-      interactive={false}
-      className="scroll-mt-4"
-    >
-      {!data ? (
-        resource.loading ? <LoadingRows rows={5} /> : <ResourceError error={resource.error} title="Retention data unavailable" onRetry={() => void resource.refresh()} />
-      ) : (
-        <div className="grid gap-4">
-          {data.policyStatus ? <p className="m-0"><Badge tone={data.policyStatus.status === 'pass' ? 'success' : 'warning'} dot>Policy {data.policyStatus.status}: {data.policyStatus.message}</Badge></p> : null}
-          <div className="grid grid-cols-2 gap-3">
-            <Figure label="Total records" value={totalRecords(data.tables).toLocaleString()} icon={Database} />
-            <Figure label="Tables tracked" value={data.tables.length} icon={HardDrive} tone="info" />
-          </div>
-          <TableFrame label="Retention by table">
-            <table>
-              <thead><tr>{['Table', 'Rows', 'Oldest', 'Policy', 'Calculated cutoffs'].map((heading) => <th key={heading}>{heading}</th>)}</tr></thead>
-              <tbody>
-                {data.tables.map((table) => (
-                  <tr key={table.name} className="fx-rail">
-                    <td className="font-semibold">{table.name}</td>
-                    <td className="num text-accent">{table.count.toLocaleString()}</td>
-                    <td className="text-text-muted">{table.oldestAt ? <span title={table.oldestAt}>{formatTime(table.oldestAt)}</span> : table.count ? 'Not tracked' : 'None'}</td>
-                    <td className="text-text-muted">{table.policy}</td>
-                    <td className="text-xs text-text-muted">
-                      {table.cutoffs ? Object.entries(table.cutoffs).map(([name, value]) => <div key={name}><span className="font-semibold">{name}:</span> {formatTime(value)}</div>) : 'None'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TableFrame>
-        </div>
-      )}
-    </FxPanel>
-  );
+/** The panel's own page, once it is ported. */
+function FullPage({ path, label }: { path: string; label: string }) {
+  if (!hasRoute(path)) return null;
+  return <Link href={path} className={buttonClass({ size: 'sm', variant: 'ghost' })}>{label}<ArrowRight aria-hidden="true" className="size-4" /></Link>;
 }
