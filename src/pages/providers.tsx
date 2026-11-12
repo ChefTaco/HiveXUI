@@ -25,6 +25,7 @@ import {
   Toggle,
   buttonClass,
   PageHeader,
+  TableFrame,
 } from '../components/ui';
 import { Icon } from '../components/icons';
 
@@ -205,7 +206,7 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
         {data.providers.length === 0 ? (
           <EmptyState icon={<Icon.Server width={34} height={34} />} message="No providers yet — register your first upstream." />
         ) : (
-          <div className="table-wrap">
+          <TableFrame label="Registered providers">
             <table>
               <thead>
                 <tr>
@@ -248,7 +249,7 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableFrame>
         )}
       </Panel>
 

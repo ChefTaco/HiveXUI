@@ -21,6 +21,7 @@ import {
   TextInput,
   Toggle,
   PageHeader,
+  TableFrame,
 } from '../components/ui';
 import { Icon } from '../components/icons';
 
@@ -189,7 +190,7 @@ export function KeysPage({ currentUser }: { currentUser: AdminUser | null }) {
         {data.clientKeys.length === 0 ? (
           <EmptyState icon={<Icon.Key width={34} height={34} />} message="No client keys issued yet." />
         ) : (
-          <div className="table-wrap">
+          <TableFrame label="Issued keys">
             <table>
               <thead>
                 <tr>
@@ -238,7 +239,7 @@ export function KeysPage({ currentUser }: { currentUser: AdminUser | null }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableFrame>
         )}
       </Panel>
 

@@ -9,6 +9,7 @@ import {
   JsonBlock,
   Panel,
   PageHeader,
+  TableFrame,
 } from '../components/ui';
 import { Icon } from '../components/icons';
 import { viewAvailable } from '../lib/navigation';
@@ -195,7 +196,7 @@ export function DocsPage({
       ) : (
         grouped.map(([scope, docs]) => (
           <Panel key={scope} title={scope} eyebrow={`${docs.length} endpoints`}>
-            <div className="table-wrap">
+            <TableFrame label={`${scope} endpoints`}>
               <table>
                 <thead>
                   <tr>
@@ -224,7 +225,7 @@ export function DocsPage({
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableFrame>
           </Panel>
         ))
       )}

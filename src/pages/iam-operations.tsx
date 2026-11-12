@@ -35,6 +35,7 @@ import {
   TextInput,
   Toggle,
   PageHeader,
+  TableFrame,
   useConfirm,
 } from '../components/ui';
 import { Icon } from '../components/icons';
@@ -552,6 +553,7 @@ export function IamOperationsPage({
           </Panel>
           <Panel title="Recent sessions" eyebrow="Access">
             <EntityTable
+              label="Active sessions"
               empty="No active sessions."
               headers={['User', 'IP', 'Created', 'Expires']}
             >
@@ -719,6 +721,7 @@ export function IamOperationsPage({
           className="col-span-full"
         >
           <EntityTable
+            label="IAM users"
             empty="No IAM users found."
             headers={['User', 'Roles', 'Status', 'Last login', 'Actions']}
           >
@@ -1087,6 +1090,7 @@ export function IamOperationsPage({
           className="col-span-full"
         >
           <EntityTable
+            label="Service accounts"
             empty="No service accounts found."
             headers={['Account', 'Client', 'Roles', 'Status', 'Actions']}
           >
@@ -1247,6 +1251,7 @@ export function IamOperationsPage({
         </Panel>
         <Panel title="Clients" eyebrow="OAuth" className="col-span-full">
           <EntityTable
+            label="OAuth clients"
             empty="No clients found."
             headers={['Client', 'Type', 'Grants', 'Status', 'Actions']}
           >
@@ -1333,6 +1338,7 @@ export function IamOperationsPage({
         <p>Review each session before revoking it. A shared IP address or browser
           does not mean two sessions are duplicates.</p>
         <EntityTable
+          label="Sessions"
           empty="No active sessions."
           headers={['User', 'IP', 'Created', 'Expires', 'Actions']}
         >
@@ -1443,6 +1449,7 @@ export function IamOperationsPage({
           className="col-span-full"
         >
           <EntityTable
+            label="System users"
             empty="No system users mapped."
             headers={['Linux user', 'IAM user', 'Hosts', 'Sudo', 'Actions']}
           >
@@ -1551,6 +1558,7 @@ export function IamOperationsPage({
         <div className="page-grid page-grid--2">
           <Panel title="MFA And Passkeys" eyebrow="Users">
             <EntityTable
+              label="User sign-in security"
               empty="No IAM users found."
               headers={['User', 'MFA', 'Passkeys', 'Devices', 'Password']}
             >
@@ -1579,6 +1587,7 @@ export function IamOperationsPage({
 
           <Panel title="Step-Up And Risk" eyebrow="Sessions">
             <EntityTable
+              label="High-risk sessions"
               empty="No high-risk sessions."
               headers={['User', 'Risk', 'Step-Up', 'Factors', 'Actions']}
             >
@@ -1792,6 +1801,7 @@ export function IamOperationsPage({
         </div>
         <Panel title="Audit events" eyebrow="Recent">
           <EntityTable
+            label="Identity audit events"
             empty="No audit events found."
             headers={['Time', 'Event', 'Actor', 'Outcome', 'Detail']}
           >
@@ -1829,10 +1839,12 @@ export function IamOperationsPage({
 }
 
 function EntityTable({
+  label,
   headers,
   empty,
   children,
 }: {
+  label: string;
   headers: string[];
   empty: string;
   children: ReactNode;
@@ -1844,7 +1856,7 @@ function EntityTable({
     );
   }
   return (
-    <div className="table-wrap">
+    <TableFrame label={label}>
       <table>
         <thead>
           <tr>
@@ -1855,6 +1867,6 @@ function EntityTable({
         </thead>
         <tbody>{children}</tbody>
       </table>
-    </div>
+    </TableFrame>
   );
 }

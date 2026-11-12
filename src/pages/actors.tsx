@@ -1,6 +1,6 @@
 import { apiFetch } from '../lib/transport';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Badge, Button, Drawer, EmptyState, Field, JsonBlock, Panel, Select, StatCard, TextArea, TextInput, type Tone, PageHeader, useConfirm } from '../components/ui';
+import { Badge, Button, Drawer, EmptyState, Field, JsonBlock, Panel, Select, StatCard, TextArea, TextInput, type Tone, PageHeader, useConfirm, TableFrame } from '../components/ui';
 import { useToast } from '../components/toast';
 import { Icon } from '../components/icons';
 import { useStore } from '../lib/store';
@@ -267,7 +267,7 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
         {data.actors.length === 0 ? (
           <EmptyState icon={<Icon.Key width={34} height={34} />} message={suite ? 'No technical identities have been explicitly enrolled or migrated into this installation.' : 'No actors could be assembled from IAM, Router, or Memory.'} />
         ) : (
-          <div className="table-wrap">
+          <TableFrame label="Actor graph">
             <table>
               <thead>
                 <tr>
@@ -294,7 +294,7 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableFrame>
         )}
       </Panel>
 

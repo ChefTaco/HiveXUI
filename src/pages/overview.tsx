@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useStore } from '../lib/store';
-import { Badge, EmptyState, HealthBadge, JsonBlock, Panel, StatCard, Button, PageHeader } from '../components/ui';
+import { Badge, EmptyState, HealthBadge, JsonBlock, Panel, StatCard, Button, PageHeader, TableFrame } from '../components/ui';
 import { Icon } from '../components/icons';
 import { compactNumber, relativeTime } from '../lib/format';
 import type { HiveAppState, HiveAppStatus, HiveHealthCheck } from '../lib/types';
@@ -305,7 +305,7 @@ export function OverviewPage({ onNavigate }: { onNavigate: (view: string) => voi
         {data.audit.length === 0 ? (
           <EmptyState icon={<Icon.Scroll width={34} height={34} />} message="No audit events recorded." />
         ) : (
-          <div className="table-wrap">
+          <TableFrame label="Recent activity">
             <table>
               <thead>
                 <tr>
@@ -326,7 +326,7 @@ export function OverviewPage({ onNavigate }: { onNavigate: (view: string) => voi
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableFrame>
         )}
       </Panel>
     </>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useStore } from '../lib/store';
 import type { Trace } from '../lib/types';
 import { formatTime, relativeTime } from '../lib/format';
-import { Badge, Button, Drawer, EmptyState, JsonBlock, OutcomeBadge, Panel, PageHeader } from '../components/ui';
+import { Badge, Button, Drawer, EmptyState, JsonBlock, OutcomeBadge, Panel, PageHeader, TableFrame } from '../components/ui';
 import { Icon } from '../components/icons';
 
 export function TracesPage() {
@@ -25,7 +25,7 @@ export function TracesPage() {
         {data.traces.length === 0 ? (
           <EmptyState icon={<Icon.Activity width={34} height={34} />} message="No traces recorded yet." />
         ) : (
-          <div className="table-wrap">
+          <TableFrame label="Recent requests">
             <table>
               <thead>
                 <tr>
@@ -59,7 +59,7 @@ export function TracesPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableFrame>
         )}
       </Panel>
 

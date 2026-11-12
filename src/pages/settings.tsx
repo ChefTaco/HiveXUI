@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { adminApi, ApiError } from '../lib/api';
 import { useStore } from '../lib/store';
 import { useToast } from '../components/toast';
-import { Button, EmptyState, Field, JsonBlock, Panel, TextArea, PageHeader } from '../components/ui';
+import { Button, EmptyState, Field, JsonBlock, Panel, TextArea, PageHeader, TableFrame } from '../components/ui';
 import { can } from '../lib/permissions';
 import type { AdminUser, ConfigImportRequest, RoutingGoal, RoutingObjectiveConfig } from '../lib/types';
 import { Icon } from '../components/icons';
@@ -175,7 +175,7 @@ export function SettingsPage({ currentUser }: { currentUser: AdminUser | null })
         {data.runtimeSettings.length === 0 ? (
           <EmptyState icon={<Icon.Settings width={34} height={34} />} message="No runtime settings configured." />
         ) : (
-          <div className="table-wrap">
+          <TableFrame label="Runtime settings">
             <table>
               <thead>
                 <tr>
@@ -194,7 +194,7 @@ export function SettingsPage({ currentUser }: { currentUser: AdminUser | null })
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableFrame>
         )}
       </Panel>
     </>
