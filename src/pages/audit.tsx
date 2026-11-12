@@ -12,7 +12,7 @@ export function AuditPage() {
   return (
     <>
       <PageHeader
-        title="Audit Log"
+        title="Routing audit"
         description="Every administrative mutation, attributed and timestamped."
         actions={<Button variant="ghost" icon={<Icon.Refresh className="btn-ico" />} loading={refreshing} onClick={() => void refresh()}>
           Refresh

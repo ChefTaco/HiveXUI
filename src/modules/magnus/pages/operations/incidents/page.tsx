@@ -36,7 +36,7 @@ export default function IncidentsPage() {
     <div className="page-stack">
       <PageItem>
         <PageHeader
-          title="Incident workspace"
+          title="Fleet incidents"
           eyebrow={<span className="text-danger">Evidence, not execution</span>}
           icon={<ShieldAlert className="size-5" />}
           description="A redacted operating picture. Suggested remediation remains a dry run until explicitly confirmed elsewhere."

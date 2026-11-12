@@ -34,7 +34,7 @@ export default async function AuditPage({
       <div className="page-stack">
         <FusionHeader
           eyebrow="Decision and integrity trail"
-          title="Audit"
+          title="Security audit"
           copy="Review security changes and verify the retained audit chain."
         />
         <form className="flex flex-wrap items-end gap-3">
@@ -105,7 +105,7 @@ export default async function AuditPage({
       <div className="page-stack">
         <FusionHeader
           eyebrow="Decision and integrity trail"
-          title="Audit"
+          title="Security audit"
           copy="Review security changes and verify the retained audit chain."
         />
         <p role="alert" className="error-banner">

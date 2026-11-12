@@ -61,7 +61,7 @@ const SECTION_LABELS: Record<IamSection, string> = {
   sessions: 'Sessions',
   'system-users': 'System Users',
   security: 'Security',
-  audit: 'Audit',
+  audit: 'Identity audit',
 };
 
 const DEFAULT_PERMISSIONS = [

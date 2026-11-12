@@ -33,7 +33,7 @@ export function IncidentsPage() {
   return (
     <>
       <PageHeader
-        title="Incidents"
+        title="Hive incidents"
         description={<>Authorized {failureSources()} failures grouped by request ID and time. Review and response stay in the owning product.</>}
         actions={<Button variant="ghost" icon={<Icon.Refresh className="btn-ico" />} loading={refreshing} onClick={() => void refresh()}>
           Refresh

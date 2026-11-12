@@ -36,7 +36,7 @@ export default function AuditPage() {
     <div className="page-stack">
       <PageItem>
         <PageHeader
-          title="Audit Log"
+          title="Fleet audit"
           eyebrow="Operations"
           icon={<ShieldCheck className="size-5" />}
           description="Fleet actions with verified or explicitly partial legacy integrity"
