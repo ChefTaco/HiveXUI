@@ -66,7 +66,7 @@ import { AuditPage } from './pages/audit';
 import { DocsPage } from './pages/docs';
 import { InstallationSettingsPage, SettingsPage } from './pages/settings';
 import { HiveOverviewPage } from './pages/hive-apps';
-import { IamOperationsPage, type IamSection } from './pages/iam-operations';
+import { IamOperationsPage, type IamSection } from './pages/iam';
 import { MemoryDashboardPage } from './pages/memory-dashboard';
 import { RoutersPage } from './pages/routers';
 import { ActorsPage } from './pages/actors';
