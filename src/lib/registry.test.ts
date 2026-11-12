@@ -242,3 +242,45 @@ describe('product capabilities', () => {
     expect(catalogConnectionSchema.parse({ ...connection, capabilities: { 'events.v1': { path: '/hive/events' } } }).capabilities).toEqual({ 'events.v1': { path: '/hive/events' } });
   });
 });
+
+describe('the setup checklist on the installation', () => {
+  const item = (id: string, status = 'pending', extra: Record<string, unknown> = {}) => ({
+    id, title: `Step ${id}`, status, command: `./hive.sh setup done ${id}`, docs: 'deployment/FULL.md#setup-checklist', ...extra,
+  });
+  const withSetup = (setup: unknown) => Response.json({ schema: 1, id: 'lab-one', products: ['oathweave', 'emberpath', 'magnus'], setup });
+  const UPDATED = '2026-11-12T10:00:00Z';
+
+  it('is null when the Registry records none, as an older Registry does', async () => {
+    const { state } = await boot(() => installed('oathweave'));
+    expect(state.registrySetup(state.registryState())).toBeNull();
+    expect(state.pendingSetupItems(state.registryState())).toEqual([]);
+  });
+  it('keeps every item, known or not, and lists the pending ones', async () => {
+    const { state } = await boot(() => withSetup({ items: [item('magnus-agent-enrolled', 'pending', { product: 'magnus', check: 'magnus.agent' }), item('first-admin', 'done'), item('some-future-step', 'pending', { check: 'future.probe' })], updatedAt: UPDATED }));
+    expect(state.registrySetup(state.registryState())?.items.map((entry) => entry.id)).toEqual(['magnus-agent-enrolled', 'first-admin', 'some-future-step']);
+    expect(state.pendingSetupItems(state.registryState()).map((entry) => entry.id)).toEqual(['magnus-agent-enrolled', 'some-future-step']);
+  });
+  it('drops an item it cannot read, and keeps the rest', async () => {
+    const { state } = await boot(() => withSetup({ items: [item('first-admin'), item('Bad ID'), item('certificate-renewal', 'someday'), item('docs-elsewhere', 'pending', { docs: 'https://docs.example.com/x' })], updatedAt: UPDATED }));
+    expect(state.registrySetup(state.registryState())?.items.map((entry) => entry.id)).toEqual(['first-admin']);
+  });
+  it('never lets a checklist it cannot read cost the installation', async () => {
+    for (const setup of [{ items: 'none', updatedAt: UPDATED }, { items: [] }, 'pending', null]) {
+      const { runtime, state } = await boot(() => withSetup(setup));
+      expect(state.registryState()).toMatchObject({ status: 'ready', setup: null });
+      expect(runtime.productInstalled('magnus')).toBe(true);
+    }
+  });
+  it('tells the shell when the checklist changes, and only then', async () => {
+    let status = 'pending';
+    const { state } = await boot(() => withSetup({ items: [item('first-admin', status)], updatedAt: UPDATED }));
+    const changed = vi.fn();
+    state.subscribeRegistry(changed);
+    await state.refreshRegistry();
+    expect(changed).not.toHaveBeenCalled();
+    status = 'done';
+    await state.refreshRegistry();
+    expect(changed).toHaveBeenCalledOnce();
+    expect(state.pendingSetupItems(state.registryState())).toEqual([]);
+  });
+});

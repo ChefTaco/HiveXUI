@@ -6,8 +6,12 @@ import {
   registryInstallationSchema,
   registryProductListSchema,
   registryProductSchema,
+  registrySetupItemSchema,
+  registrySetupSchema,
   type RegistryConnection,
   type RegistryProduct,
+  type RegistrySetup,
+  type RegistrySetupItem,
 } from '@contracts/hive-registry/browser';
 import type { Product } from './transport';
 import { createRequestId, failureMeta, HiveApiError, readApiFailure, REQUEST_ID_HEADER, type HiveApiErrorMeta } from './api-error';
@@ -28,7 +32,13 @@ export const FIRST_PAINT_BUDGET_MS = 300;
 export type RegistryState =
   /** Not asked yet, or never asked: legacy recovery and the authorization portal have no Registry. */
   | { status: 'pending' }
-  | { status: 'ready'; installationId: string; installed: ReadonlySet<string> }
+  | {
+      status: 'ready';
+      installationId: string;
+      installed: ReadonlySet<string>;
+      /** The first-run setup checklist, or null when the Registry recorded none (or is older). */
+      setup: RegistrySetup | null;
+    }
   /** `empty`: it answered, but listed nothing this console is configured for. */
   | { status: 'unavailable'; reason: 'unreachable' | 'malformed' | 'empty' };
 
@@ -69,17 +79,36 @@ async function read<T>(path: string, schema: z.ZodType<T>): Promise<T> {
   return parsed.data;
 }
 
+/**
+ * The setup checklist, read one item at a time. A checklist this console cannot read must never
+ * cost the installation read, so a malformed one is dropped, and so is an item a newer controller
+ * wrote in a shape this contract does not know; the rest still show.
+ */
+const lenientSetup = registrySetupSchema
+  .extend({
+    items: z
+      .array(z.unknown())
+      .max(32)
+      .transform((items) => items.flatMap((item) => {
+        const parsed = registrySetupItemSchema.safeParse(item);
+        return parsed.success ? [parsed.data] : [];
+      })),
+  })
+  .optional()
+  .catch(undefined);
+const installationSchema = registryInstallationSchema.extend({ setup: lenientSetup });
+
 /** Reads what is installed. Never rejects: every failure is a state the console can fall back from. */
 export async function readRegistryState(configured: readonly Product[]): Promise<RegistryState> {
   try {
-    const installation = await read('/v1/installation', registryInstallationSchema);
+    const installation = await read('/v1/installation', installationSchema);
     const installed = new Set(installation.products);
     // An installation always has Oathweave, so answering with none of the configured products
     // means the record is not complete: before its first sync, or while activating. Hiding every
     // section would blank the console, so this falls back like any other unusable answer.
     if (configured.length > 0 && !configured.some((product) => installed.has(product)))
       return { status: 'unavailable', reason: 'empty' };
-    return { status: 'ready', installationId: installation.id, installed };
+    return { status: 'ready', installationId: installation.id, installed, setup: installation.setup ?? null };
   } catch (error) {
     return { status: 'unavailable', reason: error instanceof RegistryError ? error.reason : 'malformed' };
   }
@@ -87,7 +116,12 @@ export async function readRegistryState(configured: readonly Product[]): Promise
 
 const same = (a: RegistryState, b: RegistryState): boolean => {
   if (a.status === 'ready' && b.status === 'ready')
-    return a.installationId === b.installationId && a.installed.size === b.installed.size && [...a.installed].every((id) => b.installed.has(id));
+    return (
+      a.installationId === b.installationId &&
+      a.installed.size === b.installed.size &&
+      [...a.installed].every((id) => b.installed.has(id)) &&
+      JSON.stringify(a.setup) === JSON.stringify(b.setup)
+    );
   if (a.status === 'unavailable' && b.status === 'unavailable') return a.reason === b.reason;
   return a.status === b.status;
 };
@@ -142,7 +176,12 @@ export function registryWarning(current: RegistryState): string | null {
   return `The Hive Registry is not answering. Every installation runs one, so something is wrong. ${fallback}`;
 }
 
-export type { RegistryConnection, RegistryProduct };
+export type { RegistryConnection, RegistryProduct, RegistrySetup, RegistrySetupItem };
+
+/** The setup checklist the Registry recorded, or null without a usable answer or checklist. */
+export const registrySetup = (current: RegistryState): RegistrySetup | null => (current.status === 'ready' ? current.setup : null);
+/** The checklist items still waiting for a person. */
+export const pendingSetupItems = (current: RegistryState): RegistrySetupItem[] => registrySetup(current)?.items.filter((item) => item.status === 'pending') ?? [];
 
 /**
  * The contract's capabilities, read one capability at a time. The contract holds `events.v1` to a

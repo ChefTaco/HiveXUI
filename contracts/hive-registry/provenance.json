@@ -1,14 +1,14 @@
 {
   "schema": 1,
   "product": "hive-registry-browser",
-  "version": 2,
+  "version": 3,
   "repository": "https://github.com/ChefTaco/hive",
-  "revision": "892cfa1be1559ec0dd9ab050970f120aa87e4b2c",
+  "revision": "bceea1aef968296206d547777b7e95f926237760",
   "files": [
     {
       "path": "browser.ts",
       "source": "services/hive-registry/src/browser-contract.ts",
-      "sha256": "21ab20f5d128a1a66f865312628b55e31fa8c30f635c1b53d65899eb742db05e"
+      "sha256": "06076025681c0f9263ece0857907f37b267141b573be758b5d649d56c288b5bf"
     }
   ]
 }

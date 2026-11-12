@@ -162,6 +162,10 @@ export const ROUTES = [
   // The header bell opens the same list in a drawer.
   { id: 'inbox', product: 'hive', title: 'Inbox', group: 'Hive', icon: 'Bell',
     component: screen(() => import('../modules/inbox'), (module) => module.default), loading: 'Loading the inbox…' },
+  // The first-run setup checklist, for administrators. It has no sidebar entry: the header nudge
+  // opens it while a step is pending.
+  { id: 'setup', product: 'hive', title: 'Setup', group: 'Hive', icon: 'Settings', nav: [],
+    component: screen(() => import('../modules/setup'), (module) => module.default), loading: 'Loading the setup checklist…' },
   { id: 'magnus', product: 'magnus', title: 'Magnus', group: 'Magnus', icon: 'Radar', gate: { all: ['magnus'] },
     prefix: { path: FLEET_PREFIX, ownsQuery: true }, pageMovesToPrefix: true,
     navFor: (context) => (context ? visibleMagnusNav(context) : MAGNUS_NAV).flatMap((section) => section.items.map((item) => ({ label: item.label, icon: item.icon, path: item.path, section: section.label }))),

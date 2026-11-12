@@ -46,6 +46,7 @@ import { Icon, HiveSigil } from './components/icons';
 import { AuthLimitsStrip } from './components/auth-limits-strip';
 import { Breadcrumb } from './components/breadcrumb';
 import { SidebarNav } from './components/sidebar-nav';
+import { SetupNudge } from './components/setup-nudge';
 import { initials, relativeTime } from './lib/format';
 import { Button, buttonClass } from '@ui';
 
@@ -712,6 +713,7 @@ function Shell({
                   {refreshing ? <span className="spinner" /> : <Icon.Refresh aria-hidden="true" />}
                 </button>
               ) : null}
+              <SetupNudge user={user} onOpen={() => navigate('setup')} />
               <Suspense fallback={null}>
                 <InboxBell subject={user?.id || 'operator'} onOpenInbox={() => navigate('inbox')} />
               </Suspense>
