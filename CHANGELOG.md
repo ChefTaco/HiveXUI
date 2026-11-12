@@ -1,13 +1,14 @@
 # Changelog
 
-## [Unreleased]
+## [0.6.0] - 2026-11-12
 
 - Add the suite inbox: one list of notable events from every installed product that announces a HiveEvent v1 feed (`events.v1`) in the Hive Registry, read through each product's browser prefix with the shared transport. Events are validated with `@hivemagnus/hive-common/contracts`, deduplicated by ID and shown newest first; an invalid event is dropped without losing the rest of its page. It replaces the Magnus-only notification bell: the header bell shows the unread count and the newest events in a drawer, and the Inbox page (`/?page=inbox`) filters by product, severity and read state.
 - Keep a last-seen position per person and product in local storage; "Mark all read" advances it. Magnus events also follow Magnus's own read flags, matched by the notification ID in `sourceRef`, and "Mark all read" marks them read in Magnus. With storage blocked, marks last until the page reloads.
 - Poll every 60 seconds while the tab is visible. Each product has 5 seconds; one that fails or times out shows a "Couldn't reach" row and never holds up the others.
 - Link an event only to a page the route table knows and this installation shows; any other path is shown as text.
 - Open the Embermend recommendation named by `?plan=<id>` or `?campaign=<id>`, the addresses Embermend's events link to.
-- Read the optional `capabilities` object on Hive Registry products and connections, a local extension of the pinned Registry contract until the Registry release publishes it.
+- Read the optional `capabilities` object on Hive Registry products and connections from the vendored Registry browser contract. A product whose `events.v1` path is unusable keeps its place in the catalog and serves no feed.
+- Vendor the Hive Registry browser contract version 2 from Hive's own export (`services/hive-registry/src/browser-contract.ts`), replacing the hand-written local pin. It adds product capabilities; the check now verifies its source path, revision and checksum like the Magnus and Cindertrace contracts.
 - Require `@hivemagnus/hive-common` 0.4.0.
 
 ## [0.5.0] - 2026-11-12

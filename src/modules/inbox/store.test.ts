@@ -5,7 +5,7 @@ import { hiveEvent, memoryStorage, page, registryEntry, throwingStorage } from '
 
 const CATALOG = [
   registryEntry('magnus', 'Magnus', '/hive/events'),
-  registryEntry('cindertrace', 'Cindertrace', '/api/v1/hive/events'),
+  registryEntry('cindertrace', 'Cindertrace', '/hive/events'),
   registryEntry('hiveskills', 'HiveSkills', '/v1/hive/events'),
 ];
 type Answer = Response | Promise<Response> | 'hang';

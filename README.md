@@ -138,8 +138,9 @@ Memory and workspace administration use the reviewed immutable HiveMem OpenAPI a
 `contracts/`, pinned by source revision and checksum with license and notice attribution. The check
 covers provenance and generated browser validators, including URL and array limits.
 
-Hive has no browser contract export for the Registry yet, so `contracts/hive-registry` is pinned
-locally to a source revision and checksum.
+The Hive Registry uses Hive's own browser contract export (`services/hive-registry/src/browser-contract.ts`),
+vendored unchanged as `contracts/hive-registry/browser.ts` and pinned by source revision, version and
+checksum.
 
 Models, routing policies and revisions, inference tests and previews, client-key management and
 quota usage, telemetry and traces, audit, settings, API docs and Codex authorization use Emberpath's
