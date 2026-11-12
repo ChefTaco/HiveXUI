@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import { recommendationSchema, findingSchema, occurrenceSchema, accessSchema, evidenceSchema, jobSchema, type Recommendation } from '@contracts/embermend.generated';
 import { embermendRequest } from './api';
@@ -43,6 +43,17 @@ export default function EmbermendModule() {
     finally { setBusy(false); }
   }
   useEffect(() => { void refresh(); }, []);
+  // A link from the inbox names one plan or campaign: /?page=embermend&plan=<id> or &campaign=<id>.
+  const [target] = useState(() => { const query = new URLSearchParams(location.search); return { plan: query.get('plan'), campaign: query.get('campaign') }; });
+  const targeted = (row: Recommendation) => (target.plan !== null && row.plan.id === target.plan) || (target.campaign !== null && row.plan.campaignId === target.campaign);
+  const shown = useRef(false);
+  useEffect(() => {
+    if (!loaded || shown.current || (target.plan === null && target.campaign === null)) return;
+    shown.current = true;
+    const element = document.querySelector<HTMLElement>('[data-linked-recommendation="true"]');
+    element?.scrollIntoView?.({ block: 'start' });
+    element?.focus({ preventScroll: true });
+  }, [loaded, recommendations]);
   useEffect(() => {
     const pending = Object.entries(observations).filter(([, job]) => ['queued', 'running'].includes(job.status));
     if (!pending.length) return;
@@ -101,7 +112,8 @@ export default function EmbermendModule() {
       const canRecover = access?.kind === 'operator' && access.permissions.includes('recover');
       const settledUnknown = row.executions.some(item => item.receipt?.state === 'unknown' && item.receipt.ownershipReleased && item.receipt.result['ownershipSettled'] === true);
       const ownership = !row.executions.length ? 'not reserved' : row.executions.every(item => item.receipt?.ownershipReleased) ? 'settled' : 'retained';
-      return <Panel key={`${row.plan.id}:${row.plan.revision}`}>
+      const linked = targeted(row) && recommendations.findIndex(targeted) === recommendations.indexOf(row);
+      return <Panel key={`${row.plan.id}:${row.plan.revision}`} {...(linked ? { 'data-linked-recommendation': 'true', tabIndex: -1, 'aria-current': 'true' as const } : {})}>
         <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="eyebrow">Revision {row.plan.revision} · {row.plan.scope.targetIds.length} managed {row.plan.scope.targetIds.length === 1 ? 'target' : 'targets'}</p><h3>{row.plan.objective}</h3></div><Badge tone={row.campaign?.paused ? 'warning' : row.status === 'authorized' ? 'success' : 'neutral'}>{row.campaign?.paused ? 'Paused' : awaiting ? 'Awaiting decision' : row.status === 'authorized' ? 'Authorized' : row.status}</Badge></div>
         <p className="whitespace-pre-wrap">{row.plan.explanation}</p>
         <p><strong>Service impact:</strong> {row.plan.impact}</p>

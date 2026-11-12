@@ -15,6 +15,7 @@ const PAGES = [
   { name: 'HiveSkills', path: '/?page=skills' },
   { name: 'HiveMem workspaces', path: '/?page=workspaces' },
   { name: 'Installation overview', path: '/' },
+  { name: 'Inbox', path: '/?page=inbox' },
   { name: 'Cindertrace overview', path: '/security-fusion' },
   { name: 'Cindertrace cases', path: '/security-fusion/cases' },
   { name: 'Cindertrace case', path: '/security-fusion/cases/case-1' },
@@ -73,4 +74,24 @@ test('the Magnus agent upgrade drawer has no serious or critical accessibility v
   await page.waitForTimeout(500);
   const results = await new AxeBuilder({ page }).include('[role="dialog"]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
   expect(results.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical').map((violation) => violation.id)).toEqual([]);
+});
+
+test('the inbox drawer has no serious or critical accessibility violations', async ({ page }) => {
+  await page.clock.setFixedTime(FIXED_NOW);
+  await installMocks(page);
+  await page.goto('/?page=providers', { waitUntil: 'networkidle' });
+  const bell = page.getByRole('button', { name: /^Inbox, \d+ unread$/ });
+  await expect(bell).toBeVisible();
+  await bell.click();
+  const drawer = page.getByRole('dialog', { name: 'Inbox' });
+  await expect(drawer).toBeVisible();
+  await expect(drawer.getByText("Couldn't reach HiveSkills.")).toBeVisible();
+  await expect(drawer.getByRole('link', { name: 'Case opened: repeated sign-in failures' })).toBeVisible();
+  await page.waitForTimeout(500);
+  const results = await new AxeBuilder({ page }).include('[role="dialog"]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  expect(results.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical').map((violation) => violation.id)).toEqual([]);
+  // Following an event's link closes the drawer and opens its page.
+  await drawer.getByRole('link', { name: 'Case opened: repeated sign-in failures' }).click();
+  await expect(drawer).toBeHidden();
+  await expect(page).toHaveURL(/\/security-fusion\/cases\/case-1$/);
 });

@@ -267,6 +267,39 @@ const UPGRADE_ELIGIBILITY = {
   },
 };
 
+// The inbox: the Hive Registry announces three feeds (events.v1); HiveSkills's feed fails, so the
+// "couldn't reach" row shows beside the others' events.
+const registryProduct = (id: string, displayName: string) => ({
+  id, displayName, description: `${displayName} for the example installation.`,
+  links: { repository: null, documentation: null, license: null, licenseSpdx: null },
+  consoleSection: id, required: false, installed: true, dependencies: [],
+});
+const FEEDS: Record<string, [string, string]> = {
+  magnus: ['Magnus', '/api/v1/hive/events'],
+  cindertrace: ['Cindertrace', '/api/v1/hive/events'],
+  embermend: ['Embermend', '/api/v1/hive/events'],
+  hiveskills: ['HiveSkills', '/v1/hive/events'],
+};
+const hiveEvent = (product: string, id: string, type: string, severity: string, title: string, summary: string, minutesAgo: number, path: string, sourceRef?: string) => ({
+  id: `${product}:${id}`, product, type, severity, title, summary, occurredAt: new Date(NOW_MS - minutesAgo * 60_000).toISOString(),
+  link: { product, path }, ...(sourceRef ? { sourceRef } : {}),
+});
+const EVENTS = {
+  magnus: [
+    hiveEvent('magnus', 'notification:ntf-1', 'node.offline', 'critical', 'node-3 went offline', 'No heartbeat for 5 minutes.', 12, '/fleet/nodes/node-3', 'ntf-1'),
+    hiveEvent('magnus', 'notification:ntf-2', 'agent.upgrade.blocked', 'warning', 'Agent upgrade blocked on node-3', 'Agent 1.4.2 is on another major version.', 90, '/fleet/ardent/profiles/node-1~lead', 'ntf-2'),
+    hiveEvent('magnus', 'notification:ntf-3', 'deployment.completed', 'info', 'Role apply completed', 'role-apply finished on 3 nodes.', 300, '/fleet/notifications', 'ntf-3'),
+  ],
+  cindertrace: [
+    hiveEvent('cindertrace', 'case:case-1:opened', 'case.opened', 'warning', 'Case opened: repeated sign-in failures', 'Five failed sign-ins for bob from one address.', 35, '/security-fusion/cases/case-1', 'case-1'),
+  ],
+  embermend: [
+    hiveEvent('embermend', 'recommendation:plan-1:created', 'recommendation.created', 'info', 'New recommendation: protect configuration files', 'Reduce file access on node-2.', 140, '/?page=embermend&plan=plan-1', 'plan-1'),
+    // A link the route table does not know shows as text.
+    hiveEvent('embermend', 'recommendation:plan-2:expired', 'recommendation.expired', 'info', 'Recommendation expired', 'The plan passed its expiry before a decision.', 600, '/embermend/legacy/plan-2', 'plan-2'),
+  ],
+};
+
 export const ROUTES: Array<[string, RegExp, Answer]> = [
   // Emberpath (legacy console API; also serves /api/auth/me and /api/hive/* in legacy mode)
   ['GET', /^\/api\/emberpath\/auth\/me$/, { user: ADMIN }],
@@ -341,6 +374,20 @@ export const ROUTES: Array<[string, RegExp, Answer]> = [
   ['GET', /^\/api\/emberpath\/traces\?actorId=ardent-lead&limit=50$/, { data: AGENT_TRACES, nextCursor: null }],
   ['GET', /^\/api\/skills\/admin\/targets\?nodeId=node-1$/, AGENT_TARGETS],
   ['GET', /^\/api\/skills\/admin\/targets\?nodeId=%21$/, refused({ error: 'Invalid target filter' })],
+  // Hive Registry and the inbox's feeds
+  ['GET', /^\/api\/registry\/v1\/products\?installed=true$/, { schema: 1, products: Object.entries(FEEDS).map(([id, [name]]) => registryProduct(id, name)) }],
+  ['GET', /^\/api\/registry\/v1\/products\/([a-z]+)\/connection$/, (match: RegExpMatchArray) => ({
+    id: match[1], consolePath: null, browserPrefix: `/api/${match[1]}`, nativeApis: {}, documentation: null,
+    capabilities: { 'events.v1': { path: FEEDS[match[1]!]![1] }, 'future.v9': { anything: true } },
+  })],
+  ['GET', /^\/api\/magnus\/api\/v1\/hive\/events\?limit=200$/, { data: EVENTS.magnus, nextCursor: null }],
+  ['GET', /^\/api\/security\/api\/v1\/hive\/events\?limit=200$/, { data: [...EVENTS.cindertrace, { id: 'broken' }], nextCursor: null }],
+  ['GET', /^\/api\/embermend\/api\/v1\/hive\/events\?limit=200$/, { data: EVENTS.embermend, nextCursor: null }],
+  ['GET', /^\/api\/skills\/v1\/hive\/events\?limit=200$/, { __status: 503, body: { error: { code: 'unavailable', message: 'unavailable' } } }],
+  ['GET', /^\/api\/magnus\/notifications\?pageSize=100$/, magnusOk({ notifications: [
+    { id: 'ntf-1', type: 'node', severity: 'critical', title: 'node-3 went offline', message: '', nodeName: 'node-3', isRead: false, createdAt: T1 },
+    { id: 'ntf-3', type: 'deploy', severity: 'info', title: 'Role apply completed', message: '', nodeName: null, isRead: true, createdAt: T1 },
+  ], total: 2 })],
   // Cindertrace
   ['GET', /^\/api\/security\/security-fusion\/overview$/, fusion({ generatedAt: T1, openCases: FUSION_CASES, sources: FUSION_SOURCES, bySeverity: [{ severity: 'high', _count: { id: 1 } }, { severity: 'medium', _count: { id: 1 } }, { severity: 'low', _count: { id: 1 } }] })],
   ['GET', /^\/api\/security\/security-fusion\/lab$/, fusion({ enabled: false, canAdmin: true, runs: [] })],

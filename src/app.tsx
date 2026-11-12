@@ -11,7 +11,7 @@ import {
 } from 'react';
 const ChatInviteRedemption = lazy(() => import('./modules/chat/invite-redemption'));
 const CommandPalette = lazy(() => import('./components/command-palette'));
-const NotificationBell = lazy(() => import('./modules/magnus/shell/notification-bell'));
+const InboxBell = lazy(() => import('./modules/inbox/bell'));
 import { ProductAccess } from './components/product-access';
 import { adminApi, ApiError } from './lib/api';
 import { MfaRequired } from './lib/browser-auth';
@@ -700,11 +700,9 @@ function Shell({
                   {refreshing ? <span className="spinner" /> : <Icon.Refresh aria-hidden="true" />}
                 </button>
               ) : null}
-              {magnusNav.role ? (
-                <Suspense fallback={null}>
-                  <NotificationBell onOpenInbox={() => navigate('magnus', '/notifications')} />
-                </Suspense>
-              ) : null}
+              <Suspense fallback={null}>
+                <InboxBell subject={user?.id || 'operator'} onOpenInbox={() => navigate('inbox')} />
+              </Suspense>
             </div>
           </header>
 

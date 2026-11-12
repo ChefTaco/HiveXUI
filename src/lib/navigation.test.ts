@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   breadcrumbs,
   findActiveNav,
+  knownAddress,
   magnusAddress,
   NAV_GROUPS,
   navProducts,
@@ -56,7 +57,7 @@ describe('navigation model', () => {
 
   it('shows one section per product when everything is installed', () => {
     expect(layout(ALL)).toEqual({
-      Hive: ['hive', 'incidents'],
+      Hive: ['hive', 'incidents', 'inbox'],
       Oathweave: [...IDENTITY_PAGES, 'actors'],
       Emberpath: EMBERPATH_PAGES,
       HiveMem: ['memories', 'workspaces'],
@@ -69,7 +70,7 @@ describe('navigation model', () => {
 
   it('drops the sections of absent products from a core installation', () => {
     expect(layout(CORE)).toEqual({
-      Hive: ['hive', 'incidents'],
+      Hive: ['hive', 'incidents', 'inbox'],
       Oathweave: [...IDENTITY_PAGES, 'actors'],
       Emberpath: EMBERPATH_PAGES,
       HiveMem: ['memories', 'workspaces'],
@@ -79,14 +80,14 @@ describe('navigation model', () => {
 
   it('reduces an identity-only installation to Hive, Oathweave and System', () => {
     expect(layout(IDENTITY)).toEqual({
-      Hive: ['hive', 'incidents'],
+      Hive: ['hive', 'incidents', 'inbox'],
       Oathweave: IDENTITY_PAGES,
       System: ['docs', 'settings'],
     });
   });
 
   it('keeps the console itself with no products and never returns an empty section', () => {
-    expect(layout(only())).toEqual({ Hive: ['hive'], System: ['docs', 'settings'] });
+    expect(layout(only())).toEqual({ Hive: ['hive', 'inbox'], System: ['docs', 'settings'] });
     for (const installed of [ALL, CORE, IDENTITY, only()])
       expect(visibleNavGroups(installed).every((group) => group.items.length > 0)).toBe(true);
   });
@@ -373,5 +374,32 @@ describe('page names', () => {
     expect(labels).toEqual(expect.arrayContaining(['Hive incidents', 'Fleet incidents', 'Identity audit', 'Routing audit', 'Fleet audit', 'Security audit']));
     expect(new Set(labels).size).toBe(labels.length);
     expect(labels.filter((label) => /^(audit|audit log|incidents)$/i.test(label))).toEqual([]);
+  });
+});
+
+describe('addresses from data', () => {
+  const EVERY = only('oathweave', 'emberpath', 'hivemem', 'hiveskills', 'cindertrace', 'chattermost', 'magnus', 'ardentstudio', 'embermend');
+  it('follows a page the route table knows', () => {
+    expect(knownAddress('/security-fusion/cases/case-1', EVERY)).toBe('/security-fusion/cases/case-1');
+    expect(knownAddress('/fleet/nodes/node-1', EVERY)).toBe('/fleet/nodes/node-1');
+    expect(knownAddress('/fleet/notifications', EVERY)).toBe('/fleet/notifications');
+    expect(knownAddress('/fleet/ardent/profiles/node-1~lead', EVERY)).toBe('/fleet/ardent/profiles/node-1~lead');
+    expect(knownAddress('/?page=embermend&plan=plan-1', EVERY)).toBe('/?page=embermend&plan=plan-1');
+    expect(knownAddress('/?page=embermend&campaign=c-1', EVERY)).toBe('/?page=embermend&campaign=c-1');
+    expect(knownAddress('/?page=skills', EVERY)).toBe('/?page=skills');
+    expect(knownAddress('/agents/node-1~lead', EVERY)).toBe('/agents/node-1~lead');
+    expect(knownAddress('/?page=embermend', EVERY)).toBe('/?page=embermend');
+    expect(knownAddress('/?page=skills&tab=receipts', EVERY)).toBe('/?page=skills&tab=receipts');
+    expect(knownAddress('/', EVERY)).toBe('/');
+  });
+  it('does not follow an address the table does not know, or a product not installed here', () => {
+    for (const href of ['/security-fusion/nowhere/1/2', '/fleet/not-a-page', '/?page=nope', '/elsewhere', '/?page=magnus', '/?page=constructor'])
+      expect(knownAddress(href, EVERY)).toBeNull();
+    expect(knownAddress('/security-fusion/cases/case-1', only('magnus'))).toBeNull();
+    expect(knownAddress('/?page=embermend', only('magnus'))).toBeNull();
+  });
+  it('never follows an address that leaves HiveXUI', () => {
+    for (const href of ['https://example.com/x', '//example.com/x', '/\\example.com', 'javascript:alert(1)', '/security-fusion/cases/../../x', '/security-fusion/cases/%2e%2e', '/fleet/nodes/a b', 42, null])
+      expect(knownAddress(href, EVERY)).toBeNull();
   });
 });

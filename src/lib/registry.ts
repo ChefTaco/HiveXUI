@@ -1,12 +1,11 @@
 import { useSyncExternalStore } from 'react';
 import type { z } from 'zod';
+import { registryInstallationSchema } from '@contracts/hive-registry/browser';
 import {
-  registryConnectionSchema,
-  registryInstallationSchema,
-  registryProductListSchema,
-  type RegistryConnection,
-  type RegistryProduct,
-} from '@contracts/hive-registry/browser';
+  registryConnectionWithCapabilitiesSchema,
+  registryProductListWithCapabilitiesSchema,
+  registryProductWithCapabilitiesSchema,
+} from './registry-capabilities';
 import type { Product } from './transport';
 import { createRequestId, failureMeta, HiveApiError, readApiFailure, REQUEST_ID_HEADER, type HiveApiErrorMeta } from './api-error';
 
@@ -140,6 +139,9 @@ export function registryWarning(current: RegistryState): string | null {
   return `The Hive Registry is not answering. Every installation runs one, so something is wrong. ${fallback}`;
 }
 
+/** A catalog product and its connection, with `capabilities` until the Registry release ships it. */
+export type RegistryProduct = z.infer<typeof registryProductWithCapabilitiesSchema>;
+export type RegistryConnection = z.infer<typeof registryConnectionWithCapabilitiesSchema>;
 export interface RegistryEntry {
   product: RegistryProduct;
   /** Null when this product's own connection could not be read. */
@@ -151,13 +153,13 @@ export interface RegistryEntry {
  * asked for. A failed connection costs that product its native URLs, not the whole list.
  */
 export async function readRegistryCatalog(presented: (id: string) => boolean): Promise<RegistryEntry[]> {
-  const { products } = await read('/v1/products?installed=true', registryProductListSchema);
+  const { products } = await read('/v1/products?installed=true', registryProductListWithCapabilitiesSchema);
   return Promise.all(
     products
       .filter((product) => product.installed && presented(product.id))
       .map(async (product) => ({
         product,
-        connection: await read(`/v1/products/${encodeURIComponent(product.id)}/connection`, registryConnectionSchema).catch(() => null),
+        connection: await read(`/v1/products/${encodeURIComponent(product.id)}/connection`, registryConnectionWithCapabilitiesSchema).catch(() => null),
       })),
   );
 }

@@ -40,7 +40,7 @@ describe('the route table', () => {
     expect(ROUTES.map((route) => route.id).sort()).toEqual(
       [
         'account', 'actors', 'agents', 'audit', 'chat', 'docs', 'embermend', 'hive', 'iam-audit', 'iam-clients', 'iam-overview', 'iam-roles',
-        'iam-security', 'iam-service-accounts', 'iam-sessions', 'iam-system-users', 'iam-users', 'incidents', 'keys', 'magnus',
+        'iam-security', 'iam-service-accounts', 'iam-sessions', 'iam-system-users', 'iam-users', 'inbox', 'incidents', 'keys', 'magnus',
         'memories', 'providers', 'routers', 'routing', 'security', 'settings', 'skills', 'studio', 'testing', 'traces', 'workspaces',
       ].sort(),
     );
@@ -53,7 +53,7 @@ describe('the route table', () => {
       'iam-clients': 'IAM Clients', 'iam-sessions': 'IAM Sessions', 'iam-system-users': 'IAM System Users', 'iam-security': 'IAM Security',
       'iam-audit': 'Identity audit', memories: 'Memories', workspaces: 'Workspaces', skills: 'Skills and assignments', actors: 'Actors',
       routers: 'Routers', providers: 'Providers', routing: 'Routing', testing: 'Testing', traces: 'Traces', incidents: 'Hive incidents',
-      keys: 'API Keys', audit: 'Routing audit', docs: 'API Docs', settings: 'Settings', agents: 'Agent 360',
+      keys: 'API Keys', audit: 'Routing audit', docs: 'API Docs', settings: 'Settings', agents: 'Agent 360', inbox: 'Inbox',
     });
     expect(titleFor('agents', '/agents/node-1~lead')).toBe('Agent 360');
     expect(titleFor('magnus', '/nodes/abc')).toBe('Node');
