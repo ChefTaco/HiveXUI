@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { z } from 'zod';
 import { recommendationSchema, findingSchema, occurrenceSchema, accessSchema, evidenceSchema, jobSchema, type Recommendation } from '@contracts/embermend.generated';
-import { apiFetch } from '../../lib/transport';
+import { embermendRequest } from './api';
 import { Panel, Button, Badge } from '../../components/ui';
 
 const findingsSchema = z.array(z.object({ finding: findingSchema, occurrences: z.array(occurrenceSchema) }));
@@ -24,11 +24,7 @@ function outcomeForScope(row: Recommendation, findings: readonly FindingRow[], d
   if (dimension === 'runtime' && states.every(state => ['not-applicable', 'verified-mitigated', 'verified-resolved'].includes(state))) return 'mitigated';
   return 'outstanding';
 }
-async function request(path: string, body?: unknown, signal?: AbortSignal): Promise<unknown> {
-  const response = await apiFetch('/api/embermend/api/v1/' + path, { method: body === undefined ? 'GET' : 'POST', headers: { ...(body === undefined ? {} : { 'content-type': 'application/json' }) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }), ...(signal ? { signal } : {}) });
-  if (!response.ok) throw new Error(response.status === 403 ? 'Your current access does not allow this action.' : response.status === 409 ? 'The recommendation or its execution conditions changed. Refresh and review the current revision.' : 'Embermend could not complete the request. Refresh to inspect the retained outcome before trying another action.');
-  return response.json();
-}
+const request = embermendRequest;
 export default function EmbermendModule() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [findings, setFindings] = useState<FindingRow[]>([]);

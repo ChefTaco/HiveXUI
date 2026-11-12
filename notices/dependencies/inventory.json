@@ -35,6 +35,13 @@
     "sha256": "18a4de52385f6b988782639d5d0cc1326e5a8c2de9a7f01d7b20d9aedcc60943"
   },
   {
+    "name": "@hivemagnus/hive-common",
+    "version": "0.1.0",
+    "license": "Apache-2.0",
+    "file": "hivemagnus-hive-common.LICENSE",
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  {
     "name": "@reduxjs/toolkit",
     "version": "2.14.0",
     "license": "MIT",

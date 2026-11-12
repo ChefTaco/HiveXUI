@@ -2,6 +2,7 @@ import {createEmberpathApi} from './emberpath-api';
 import { memoryDashboardApi } from './memory-dashboard-api';
 import { readConsoleIncidents } from './console-incidents';
 import { apiFetch, clearAccess } from './transport';
+import { failureMeta, HiveApiError, readApiFailure, type HiveApiErrorOptions } from './api-error';
 import {createIamApi} from './iam-api';
 import { browserIdentity, enrollmentInstallationId } from './runtime';
 import { readConsoleHealth } from './suite-health';
@@ -24,12 +25,11 @@ function enrollmentPath(suffix = '') {
   return '/api/iam/enrollments' + suffix + (installation ? '?installationId=' + encodeURIComponent(installation) : '');
 }
 
-export class ApiError extends Error {
-  status: number;
-  constructor(message: string, status: number) {
-    super(message);
-    this.name = 'ApiError';
-    this.status = status;
+/** A failed request to Emberpath, Oathweave or the native console API that pages tell apart by status. */
+export class ApiError extends HiveApiError {
+  override name = 'ApiError';
+  constructor(message: string, status: number, options: HiveApiErrorOptions = {}) {
+    super(status, message, options);
   }
 }
 
@@ -55,17 +55,9 @@ async function request<T, TBody extends JsonRequestBody = JsonRequestBody>(
   });
 
   if (!response.ok) {
-    let message = `Request failed with status ${response.status}`;
-    const text = await response.text();
-    if (text) {
-      try {
-        const parsed = JSON.parse(text) as { error?: string; message?: string };
-        message = parsed.message ?? parsed.error ?? text;
-      } catch {
-        message = text;
-      }
-    }
-    throw new ApiError(message, response.status);
+    const failure = await readApiFailure(response, { fallback: (status) => `Request failed with status ${status}` });
+    // A bare code ({error:"CODE"}) was shown as the message before, so it still is.
+    throw new ApiError(failure.remoteMessage ?? failure.code ?? failure.message, response.status, { ...failureMeta(failure), code: failure.code });
   }
 
   if (response.status === 204) {
@@ -160,7 +152,7 @@ export const adminApi = {
   ...memoryDashboardApi,
 
   // ---- IAM operations ----
-  ...createIamApi(apiFetch, (message,status)=>new ApiError(message,status)),
+  ...createIamApi(apiFetch, (failure)=>new ApiError(failure.message,failure.status,{...failureMeta(failure),code:failure.code})),
 
   ...createEmberpathApi(request),
 

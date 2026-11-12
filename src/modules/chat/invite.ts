@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { mattermostUserSchema } from "../../../contracts/chattermost-chat.generated";
 import { productPrefix } from "../../lib/transport";
+import { hiveApiError } from "../../lib/api-error";
 
 /**
  * Redeeming an invite is anonymous: the person has no Oathweave identity yet, and this must
@@ -40,15 +41,9 @@ export async function redeemInvite(
     redirect: "error",
     cache: "no-store",
   });
+  if (!response.ok)
+    throw await hiveApiError(response, { fallback: "The invite could not be redeemed. Try again in a moment." });
   const body: unknown = await response.json().catch(() => null);
-  if (!response.ok) {
-    const failure = z.object({ message: z.string() }).safeParse(body);
-    throw new Error(
-      failure.success
-        ? failure.data.message
-        : "The invite could not be redeemed. Try again in a moment.",
-    );
-  }
   const user = mattermostUserSchema.safeParse(body);
   if (!user.success)
     throw new Error(

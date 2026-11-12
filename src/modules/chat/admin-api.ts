@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { apiFetch } from "../../lib/transport";
+import { hiveApiError } from "../../lib/api-error";
 import {
   chatBotOperationSchema,
   chatBotMutationSchema,
@@ -17,14 +18,6 @@ import {
   chatCustomEmojiSchema,
   chatAdminUserSchema,
 } from "../../../contracts/chattermost-admin.generated";
-export class ChatAdminError extends Error {
-  constructor(
-    message: string,
-    public status: number,
-  ) {
-    super(message);
-  }
-}
 export async function chatAdmin<T>(
   path: string,
   schema: z.ZodType<T>,
@@ -41,16 +34,9 @@ export async function chatAdmin<T>(
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
+  if (!response.ok)
+    throw await hiveApiError(response, { fallback: "Chat administration is unavailable" });
   const value: unknown = await response.json().catch(() => null);
-  if (!response.ok) {
-    const message = z.object({ message: z.string() }).safeParse(value);
-    throw new ChatAdminError(
-      message.success
-        ? message.data.message
-        : "Chat administration is unavailable",
-      response.status,
-    );
-  }
   return schema.parse(value);
 }
 const success = z.object({ status: z.literal("OK") });

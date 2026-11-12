@@ -1,11 +1,18 @@
 import {z} from 'zod';
 import * as owner from '../../contracts/oathweave-browser.generated';
 import {apiFetch} from './transport';
-export function createIamApi(send:typeof apiFetch=apiFetch,fail:(message:string,status:number)=>Error=message=>new Error(message)) {
+import {apiFailureFromBody, failureMeta, HiveApiError, type ApiFailure} from './api-error';
+const identityFailure=(failure:ApiFailure):Error=>new HiveApiError(failure.status,failure.message,{...failureMeta(failure),code:failure.code});
+export function createIamApi(send:typeof apiFetch=apiFetch,fail:(failure:ApiFailure)=>Error=identityFailure) {
   async function call<T>(path:string,schema:z.ZodType<T>,method='GET',body?:object):Promise<T>{
     const response=await send('/api/iam/'+path,{method,...(body===undefined?{}:{headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})});
+    if(!response.ok){
+      const value:unknown=await response.json().catch(()=>null);
+      // A bare code ({error:"CODE"}) was shown as the message before, so it still is.
+      const failure=apiFailureFromBody(response.status,value,{fallback:'Identity request failed',response});
+      throw fail({...failure,message:failure.remoteMessage??failure.code??failure.message});
+    }
     const value:unknown=await response.json();
-    if(!response.ok){const detail=z.object({message:z.string().optional(),error:z.string().optional()}).safeParse(value);throw fail(detail.success?(detail.data.message??detail.data.error??'Identity request failed'):'Identity request failed',response.status);}
     return schema.parse(value);
   }
   const id=(value:string)=>encodeURIComponent(value);

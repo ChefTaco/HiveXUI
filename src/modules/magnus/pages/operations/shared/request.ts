@@ -4,25 +4,14 @@
 // mutation's step-up with RETRY_AFTER_STEP_UP, and the operator submits again.
 import { z } from 'zod';
 import { apiFetch } from '../../../../../lib/transport';
-import { apiPath, handleUnauthorized, randomId } from '../../../api/client';
-import { agentDisabledMessage, MagnusApiError, MagnusContractError } from '../../../api/errors';
+import { apiFailureFromBody } from '../../../../../lib/api-error';
+import { apiPath, handleUnauthorized, magnusFallback, magnusFailure, randomId } from '../../../api/client';
+import { MagnusContractError, type MagnusApiError } from '../../../api/errors';
 
 const WRITE_TIMEOUT_MS = 120_000;
-const failureShape = z.object({
-  message: z.string().optional(),
-  error: z.union([z.string(), z.object({ code: z.string().optional(), message: z.string().optional() })]).optional(),
-});
 
-export function failureFromBody(status: number, body: unknown): MagnusApiError {
-  const disabled = agentDisabledMessage(body);
-  if (disabled) return new MagnusApiError(status, disabled, 'AGENT_NOT_PRIVILEGED');
-  const shape = failureShape.safeParse(body);
-  const parsed = shape.success ? shape.data : {};
-  const inner = typeof parsed.error === 'object' ? parsed.error : undefined;
-  const code = inner?.code ?? (typeof parsed.error === 'string' ? parsed.error : undefined);
-  const text = inner?.message ?? parsed.message ?? (typeof parsed.error === 'string' && !/^[A-Z_]+$/.test(parsed.error) ? parsed.error : undefined);
-  const fallback = status === 401 ? 'Sign in again to continue' : status === 403 ? 'Your Magnus role does not allow this' : status === 429 ? 'Too many requests. Wait a moment and try again.' : status >= 500 ? 'The Magnus API could not complete this request' : 'The request was rejected';
-  return new MagnusApiError(status, text ?? fallback, code);
+export function failureFromBody(status: number, body: unknown, response?: Response): MagnusApiError {
+  return magnusFailure(apiFailureFromBody(status, body, { fallback: magnusFallback, response }));
 }
 
 /** Returns the parsed body for a success, and for a failure whose body matches the schema. Otherwise throws. */
@@ -39,6 +28,6 @@ export async function postKeepingBody<S extends z.ZodType>(path: string, schema:
   const parsedBody: unknown = await response.json().catch(() => undefined);
   const parsed = schema.safeParse(parsedBody);
   if (parsed.success) return parsed.data;
-  if (!response.ok) throw failureFromBody(response.status, parsedBody);
+  if (!response.ok) throw failureFromBody(response.status, parsedBody, response);
   throw new MagnusContractError(path, true);
 }
