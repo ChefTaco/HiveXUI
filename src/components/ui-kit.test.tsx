@@ -2,7 +2,7 @@
 import { act, useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { button, click, dialog, mount, stubBrowser, type, type Mounted } from '../modules/magnus/test-dom';
-import { DataTable, FilterBar, LoadingRows, Menu, Pagination, ResourceError, TabPanel, Tabs, useConfirm, useCursorPagination, type DataTableColumn } from './ui';
+import { CopyField, DataTable, FilterBar, LoadingRows, Menu, Pagination, ResourceError, TabPanel, Tabs, useConfirm, useCursorPagination, type DataTableColumn } from './ui';
 
 let view: Mounted | undefined;
 beforeEach(() => stubBrowser());
@@ -288,5 +288,32 @@ describe('useConfirm', () => {
     await key(dialog(), 'Escape');
     expect(dialog()).toBeNull();
     expect(onDelete).not.toHaveBeenCalled();
+  });
+});
+
+describe('CopyField', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('marks the value copied, and stays quiet when the browser has no clipboard or refuses', async () => {
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+    try {
+      const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined);
+      vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+      view = await mount(<CopyField value="obviously-fake-code" label="Copy code" />);
+      await click(button('Copy code'));
+      expect(writeText).toHaveBeenCalledWith('obviously-fake-code');
+
+      writeText.mockRejectedValue(new DOMException('Denied', 'NotAllowedError'));
+      await click(button('Copy code'));
+      // Not a secure context: there is no clipboard at all.
+      vi.stubGlobal('navigator', { ...navigator, clipboard: undefined });
+      await click(button('Copy code'));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(unhandled).not.toHaveBeenCalled();
+      expect(document.body.textContent).toContain('obviously-fake-code');
+    } finally {
+      process.off('unhandledRejection', unhandled);
+    }
   });
 });

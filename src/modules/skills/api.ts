@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { apiFetch } from '../../lib/transport';
-import { hiveApiError } from '../../lib/api-error';
+import { hiveApiError, parseAnswer, readJsonAnswer } from '../../lib/api-error';
 import {
   SkillSchema,
   ReleaseSchema,
@@ -43,7 +43,7 @@ export function createSkillsApi(send: typeof apiFetch = apiFetch) {
     });
     if (!response.ok)
       throw await hiveApiError(response, { fallback: 'The registry could not complete this request' });
-    return schema.parse(response.status === 204 ? null : await response.json());
+    return parseAnswer(schema, response.status === 204 ? null : await readJsonAnswer(response, 'HiveSkills', method !== 'GET'), 'HiveSkills', method !== 'GET');
   }
   return {
     catalog: () => request('/v1/skills', SkillListSchema),

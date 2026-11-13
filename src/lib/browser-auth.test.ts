@@ -151,6 +151,19 @@ it('reports password expiry without requesting tokens or treating it as a sessio
 });
 
 
+it('reports a gateway error page at sign-in by its status, not as a JSON parser error', async () => {
+  const request = vi.fn<typeof fetch>().mockImplementation(async () =>
+    new Response('<html><body>502 Bad Gateway</body></html>', { status: 502, headers: { 'content-type': 'text/html', 'x-request-id': 'req-gateway-1' } }),
+  );
+  const auth = createBrowserAuth({ issuer: 'https://identity.example.com', apiPrefix: '/api/identity', clients: {} }, request);
+  const error = await auth.login('admin', 'obviously-fake-password').catch((caught: unknown) => caught);
+  expect(error).toBeInstanceOf(Error);
+  expect((error as Error).message).toBe('Oathweave could not be reached (HTTP 502). Try again in a moment.');
+  expect(error).toMatchObject({ status: 502, requestId: 'req-gateway-1' });
+  request.mockImplementation(async () => new Response('', { status: 200 }));
+  await expect(auth.me()).rejects.toThrow('Invalid identity response');
+});
+
 it('shares one pending step-up across concurrent readers and refuses completion after logout',async()=>{
  let finish:((value:Response)=>void)|undefined;let prompts=0;
  const unsubscribe=subscribeIdentityPrompts(prompt=>{if(prompt?.kind==='step-up'){prompts++;prompt.resolve({password:'obviously-fake-password'})}});

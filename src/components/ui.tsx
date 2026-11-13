@@ -601,10 +601,15 @@ export function CopyField({ value, label }: { value: string; label?: string }) {
         label={label ?? 'Copy'}
         icon={copied ? <Icon.Check /> : <Icon.Copy />}
         onClick={() => {
-          void navigator.clipboard.writeText(value).then(() => {
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 1600);
-          });
+          // Without a secure context there is no clipboard, and a browser may refuse the write:
+          // the value stays on screen to select, and neither case is an unhandled error.
+          void Promise.resolve()
+            .then(() => navigator.clipboard.writeText(value))
+            .then(() => {
+              setCopied(true);
+              window.setTimeout(() => setCopied(false), 1600);
+            })
+            .catch(() => undefined);
         }}
       />
     </div>

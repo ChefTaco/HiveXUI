@@ -105,6 +105,8 @@ export function createInboxStore(options: InboxOptions): InboxStore {
   let inFlight: Promise<void> | undefined;
   let lastRound = 0;
   let stopped = new AbortController();
+  /** The round in flight was cut short because the last view let go, not because a product failed. */
+  let interrupted = false;
 
   function update(next: Partial<InboxSnapshot>): void {
     const merged = { ...snapshot, ...next };
@@ -141,6 +143,9 @@ export function createInboxStore(options: InboxOptions): InboxStore {
   }
 
   async function round(): Promise<void> {
+    // The views that held the store when this round began. A later retain gets its own signal.
+    const stop = stopped.signal;
+    interrupted = false;
     if (!sources || now() - catalogAt >= CATALOG_MS) {
       try {
         sources = discoverFeeds(await readCatalog(), installed);
@@ -191,6 +196,13 @@ export function createInboxStore(options: InboxOptions): InboxStore {
       snapshot.events.filter((event) => products.has(event.product)),
       results.flatMap((result) => result.progress.events),
     );
+    if (stop.aborted) {
+      // Aborted reads say nothing about the products: keep what arrived and each product's last
+      // known state, and let the next view that holds the store ask again at once.
+      interrupted = true;
+      update({ events, read: { seen: seenFor(list), magnusRead } });
+      return;
+    }
     update({ phase: 'ready', sources: results.map((result) => result.status), events, read: { seen: seenFor(list), magnusRead } });
   }
 
@@ -203,8 +215,10 @@ export function createInboxStore(options: InboxOptions): InboxStore {
   function refresh(): Promise<void> {
     inFlight ??= round().finally(() => {
       inFlight = undefined;
-      lastRound = now();
-      schedule();
+      lastRound = interrupted ? 0 : now();
+      // Views that arrived while an interrupted round was still unwinding have waited for it.
+      if (interrupted && holders > 0 && doc?.visibilityState !== 'hidden') void refresh();
+      else schedule();
     });
     return inFlight;
   }

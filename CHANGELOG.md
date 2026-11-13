@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+- Report a success answer HiveXUI cannot read as one operator message ("Emberpath answered in a format this version of HiveXUI cannot read.") with its request ID, instead of the schema library's issue list or a JSON parser error. This covers the Emberpath, Oathweave, HiveSkills, HiveMem dashboard, Embermend and incident-summary clients, which now raise the shared `HiveContractError`; after a change it says the change was sent and to refresh.
+- Report a gateway error page at sign-in by its status ("Oathweave could not be reached (HTTP 502). Try again in a moment.") instead of "Unexpected token '<'".
+- Link the Codex device authorization page on Providers, and release notes on the legacy update panel, only when the address the product sent is http or https; anything else is not rendered as a link.
+- Stop the inbox from showing "Couldn't reach" for every product for up to a minute after returning from a fullscreen product (Studio) that was opened while feeds were still being read; it now asks again at once.
+- Announce a failed sign-in to screen readers (`role="alert"`).
+- Keep a copy button quiet when the browser has no clipboard or refuses the write, instead of raising an unhandled error.
+- Show "Sign in again to continue this conversation" in chat only when the session check is refused, not when one check fails to get through.
+
 ## [0.7.0] - 2026-11-12
 
 - Search records from the command palette (Ctrl+K) beside screens: Magnus nodes and Hermes agent profiles, Ardent Project Studio projects, HiveMem memories, Cindertrace cases, Emberpath traces by exact trace or request ID, HiveSkills skills, and Oathweave users and clients. Each source is asked only when its product is installed and configured and the person's role can read it, using the released browser contracts HiveXUI already vendors; a refusal (401 or 403) hides it silently. Lists without a server-side search (Cindertrace cases, Hermes profiles, the HiveSkills catalog, Oathweave clients, recent Emberpath traces) are read and filtered in the browser, so the query is not sent to them.

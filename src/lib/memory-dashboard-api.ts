@@ -6,11 +6,12 @@ import {
   SessionSchema, GraphNodeSchema, GraphSchema, WebhookSchema, WebhookDeliveriesSchema,
   type MemoryWrite, type MemoryUpdate,
 } from '../../contracts/hivemem.generated';
+import { parseAnswer } from './api-error';
 import { memoryRequest } from './memory-api';
 
 const id = (value: string) => encodeURIComponent(value);
 async function read<T>(schema: z.ZodType<T>, path: string, method = 'GET', body?: object): Promise<T> {
-  return schema.parse(await memoryRequest(path, method, body));
+  return parseAnswer(schema, await memoryRequest(path, method, body), 'HiveMem', method !== 'GET');
 }
 const value = <T>(result: PromiseSettledResult<T>) => result.status === 'fulfilled' ? result.value : null;
 

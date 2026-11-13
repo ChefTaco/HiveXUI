@@ -1,6 +1,6 @@
 import { createRemoteJWKSet, customFetch, jwtVerify } from 'jose';
 import { clearAccess, refreshResourceAccess, rememberAccess, type Product } from './transport';
-import { apiFailureFromBody, createRequestId, failureMeta, HiveApiError, rememberSentRequestId, REQUEST_ID_HEADER } from './api-error';
+import { apiFailureFromBody, createRequestId, failureMeta, HiveApiError, rememberSentRequestId, REQUEST_ID_HEADER, responseRequestId } from './api-error';
 import type { AdminUser } from './types';
 import { z } from 'zod';
 import { authorizationRedirect, validatePortalAuthorization, type PortalAuthorizationRequest } from './authorization-portal';
@@ -120,9 +120,19 @@ export function createBrowserAuth(
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
     rememberSentRequestId(response, requestId);
-    const result: unknown = await response.json();
-    if (!result || typeof result !== 'object' || Array.isArray(result))
+    // A gateway error page or an empty answer is not JSON. Report the status, not a parser error.
+    const result: unknown = await response.json().catch(() => undefined);
+    if (!result || typeof result !== 'object' || Array.isArray(result)) {
+      if (!response.ok)
+        throw new HiveApiError(
+          response.status,
+          response.status >= 500
+            ? `Oathweave could not be reached (HTTP ${response.status}). Try again in a moment.`
+            : `Oathweave refused the request (HTTP ${response.status})`,
+          { requestId: responseRequestId(response) },
+        );
       throw new Error('Invalid identity response');
+    }
     if (
       response.status === 403 &&
       'passwordExpired' in result &&
