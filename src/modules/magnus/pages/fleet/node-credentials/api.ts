@@ -1,22 +1,36 @@
 // Per-node credentials (Magnus docs/NODE_CREDENTIALS.md), over the routes Magnus publishes to the browser.
-// The key administration routes (/nodes/{nodeId}/credentials, .../revoke, .../reset, .../enrollment-token)
-// are deliberately not browser routes, so nothing here calls them: model.ts shows their CLI and API steps.
+// Since Magnus c158e8c an ADMIN lists, revokes and resets a node's keys in the browser. Issuing an
+// enrollment token is still not a browser route (its answer is a secret): model.ts shows its CLI steps.
 import { z } from 'zod';
 import {
   nodeCredentialDowngradeCheckResponseSchema,
   nodeCredentialFleetSummaryResponseSchema,
+  nodeCredentialResetResponseSchema,
+  nodeCredentialRevokeResponseSchema,
   nodeCredentialSchema,
+  nodeCredentialsResponseSchema,
   pendingBindingDecisionResponseSchema,
   pendingBindingsResponseSchema,
 } from '@contracts/magnus/browser';
 import { magnus, segment } from '../../../api/client';
-import { MagnusApiError } from '../../../api/errors';
+import { MagnusApiError, MagnusContractError } from '../../../api/errors';
 
 export type NodeCredential = z.output<typeof nodeCredentialSchema>;
 export type CredentialSummary = z.output<typeof nodeCredentialFleetSummaryResponseSchema>['data'];
 export type EnforceBlocker = CredentialSummary['blockers'][number];
 export type PendingBinding = z.output<typeof pendingBindingsResponseSchema>['data'][number];
 export type DowngradeCheck = z.output<typeof nodeCredentialDowngradeCheckResponseSchema>['data'];
+export type NodeKey = z.output<typeof nodeCredentialsResponseSchema>['data'][number];
+export type RevokeResult = z.output<typeof nodeCredentialRevokeResponseSchema>['data'];
+export type ResetResult = z.output<typeof nodeCredentialResetResponseSchema>['data'];
+
+/** Magnus takes a reason of 1 to 500 characters after trimming, for the audit log. */
+export const REASON_MAX = 500;
+/** The reason to send: trimmed, cut to the limit, and left out when empty. */
+export function reasonBody(reason: string | undefined): { reason?: string } {
+  const trimmed = reason?.trim().slice(0, REASON_MAX).trim();
+  return trimmed ? { reason: trimmed } : {};
+}
 
 /**
  * A Magnus older than per-node credentials, or an ingress that does not offer these routes yet, answers
@@ -45,8 +59,52 @@ export const approvePendingBinding = async (id: string): Promise<PendingBinding>
 
 /** Refuse the waiting key (ADMIN). The reason goes to the audit log. */
 export async function rejectPendingBinding(id: string, reason?: string): Promise<PendingBinding> {
-  const trimmed = reason?.trim().slice(0, 500);
-  return (await magnus.post(`/node-credentials/pending-bindings/${segment(id)}/reject`, pendingBindingDecisionResponseSchema, { body: trimmed ? { reason: trimmed } : {} })).data;
+  return (await magnus.post(`/node-credentials/pending-bindings/${segment(id)}/reject`, pendingBindingDecisionResponseSchema, { body: reasonBody(reason) })).data;
+}
+
+/**
+ * Every key of the node, newest first (ADMIN). Null when this Magnus, or its ingress, does not offer the
+ * route to the browser: the card then shows the CLI steps instead, as before.
+ */
+export const listNodeKeys = (nodeId: string, signal?: AbortSignal): Promise<NodeKey[] | null> =>
+  unlessMissing(magnus.get(`/nodes/${segment(nodeId)}/credentials`, nodeCredentialsResponseSchema, { signal }).then(({ data }) => data));
+
+/** One confirmed action: the reason for the audit log, and the idempotency key made when it was confirmed. */
+export interface KeyAction {
+  reason?: string | undefined;
+  idempotencyKey: string;
+}
+
+/** Revoke every valid key of the node (ADMIN). Its agent is refused until it is enrolled again or reset. */
+export const revokeNodeKeys = async (nodeId: string, action: KeyAction): Promise<RevokeResult> =>
+  (await magnus.post(`/nodes/${segment(nodeId)}/credentials/revoke`, nodeCredentialRevokeResponseSchema, { body: reasonBody(action.reason), idempotencyKey: action.idempotencyKey })).data;
+
+/** Forget the node's keys, so Magnus accepts the shared secret from it again (ADMIN). Refused in enforce mode. */
+export const resetNodeKeys = async (nodeId: string, action: KeyAction): Promise<ResetResult> =>
+  (await magnus.post(`/nodes/${segment(nodeId)}/credentials/reset`, nodeCredentialResetResponseSchema, { body: reasonBody(action.reason), idempotencyKey: action.idempotencyKey })).data;
+
+/** The operator's words for a refused revoke or reset, from Magnus's error code. */
+export function keyActionErrorMessage(error: unknown, kind: 'revoke' | 'reset'): string {
+  if (error instanceof MagnusContractError) return error.message;
+  if (!(error instanceof MagnusApiError)) return error instanceof Error && error.message ? error.message : String(error);
+  switch (error.code) {
+    case 'NODE_CREDENTIAL_NOT_FOUND':
+      return 'The node has no valid key left to revoke. The list below is read again.';
+    case 'NOT_FOUND':
+      return 'Magnus has no such node any more. It may have been deleted.';
+    case 'NODE_AUTH_ENFORCED':
+      return 'The server runs NODE_AUTH_MODE=enforce, which has no credential reset. Keep an agent of 2.10.0 or later on the node, or enroll it again with a token.';
+    case 'DUPLICATE_REQUEST':
+      return 'Magnus already took this request. Read the node again to see its result.';
+    case 'VALIDATION_ERROR':
+      return `Magnus refused the request: ${error.message.replace(/[.\s]+$/u, '')}. A reason is 1 to 500 characters.`;
+    case 'FORBIDDEN':
+      return `Only a Magnus administrator can ${kind} a node's keys.`;
+    default:
+      if (error.notFound) return `This Magnus does not offer ${kind === 'revoke' ? 'revoking' : 'resetting'} keys in the UI. Use the API steps under "Manage this node's key".`;
+      if (error.forbidden) return `Only a Magnus administrator can ${kind} a node's keys.`;
+      return error.message;
+  }
 }
 
 /** What installing agent version `to` on this node needs first (ADMIN, OPERATOR). */

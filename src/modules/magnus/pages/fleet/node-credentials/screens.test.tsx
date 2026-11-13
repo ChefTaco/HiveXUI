@@ -6,12 +6,13 @@ import { button, click, dialog, mount, settle, stubApi, stubBrowser, type, type 
 import NodeDetailPage from '../node-detail/page';
 import NodesPage from '../nodes/page';
 import FleetOverviewPage from '../overview/page';
-import { binding, credential, node, session, summary } from './fixtures';
+import { binding, credential, node, nodeKey, resetResult, revokeResult, session, summary } from './fixtures';
 
 vi.mock('@xterm/xterm', () => ({ Terminal: class {} }));
 vi.mock('@xterm/addon-fit', () => ({ FitAddon: class {} }));
 
 const ok = (data: unknown) => ({ success: true, data });
+const AT_REVOKED = '2026-11-04T12:00:00.000Z';
 const page = (nodes: unknown[]) => ({ success: true, data: nodes, meta: { total: nodes.length, page: 1, pageSize: 100, hasMore: false } });
 
 interface Fleet {
@@ -21,13 +22,18 @@ interface Fleet {
   summary?: unknown;
   pending?: unknown[];
   decision?: (request: RecordedRequest) => unknown;
+  /** Absent: the key list answers 404, as on a Magnus that keeps key administration out of the browser. */
+  keys?: unknown[];
+  keyAction?: (request: RecordedRequest) => unknown;
 }
-function serve({ role, nodes, summary: fleetSummary, pending = [], decision }: Fleet) {
+function serve({ role, nodes, summary: fleetSummary, pending = [], decision, keys, keyAction }: Fleet) {
   const stub = stubApi((request) => {
     const { method, path } = request;
     if (path === '/console/session') return session(role);
     if (method === 'GET' && path.startsWith('/nodes?')) return page(nodes);
     if (method === 'GET' && path.startsWith('/nodes/') && !path.includes('/', '/nodes/'.length)) return ok(nodes.find((item) => path === `/nodes/${(item as { id: string }).id}`));
+    if (method === 'GET' && /^\/nodes\/[^/]+\/credentials$/u.test(path)) return keys === undefined ? undefined : ok(keys);
+    if (method === 'POST' && /^\/nodes\/[^/]+\/credentials\/(?:revoke|reset)$/u.test(path)) return keyAction?.(request);
     if (method === 'GET' && path === '/node-credentials/summary') return fleetSummary === undefined ? undefined : ok(fleetSummary);
     if (method === 'GET' && path.startsWith('/node-credentials/pending-bindings')) return fleetSummary === undefined ? undefined : ok(pending);
     if (method === 'POST' && path.startsWith('/node-credentials/pending-bindings/')) return decision?.(request);
@@ -180,6 +186,178 @@ describe('node detail', () => {
     await mounted.unmount();
     ({ mounted } = await open(<NodeDetailPage />, { role: 'ADMIN', nodes: [node('node-1', 'node one')] }, { nodeId: 'node-1' }));
     expect(text()).not.toContain('Node credential');
+    await mounted.unmount();
+  });
+});
+
+describe('node key administration', () => {
+  const KEYS = [nodeKey(), nodeKey({ keyId: 'b'.repeat(64), keyFingerprint: 'bcbcbcbcbcbcbcbc', status: 'RETIRING', origin: 'ROTATION', retireAt: '2026-11-06T12:00:00.000Z', lastUsedAt: null }), nodeKey({ keyId: 'c'.repeat(64), keyFingerprint: 'cdcdcdcdcdcdcdcd', status: 'REVOKED', origin: 'ENROLLMENT_TOKEN', revokedAt: AT_REVOKED, revokedBy: 'alice' })];
+  const card = () => [...document.querySelectorAll('section')].find((section) => section.querySelector('h3')?.textContent === 'Node credential');
+  const reasonInput = () => dialog()?.querySelector('textarea') ?? null;
+
+  it('lists every key for an administrator, with Revoke and Reset, and keeps rotate and enrollment as CLI text', async () => {
+    const { stub, mounted } = await open(<NodeDetailPage />, { role: 'ADMIN', nodes: [node('node-1', 'node one', credential())], summary: summary(), keys: KEYS }, { nodeId: 'node-1' });
+    const table = card()?.querySelector('[aria-label="Keys of this node"] table');
+    expect(table).toBeTruthy();
+    const rows = [...table!.querySelectorAll('tbody tr')].map((row) => row.textContent ?? '');
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toContain('abababababababab');
+    expect(rows[0]).toContain('active');
+    expect(rows[0]).toContain('Bound automatically while moving off the shared secret');
+    expect(rows[1]).toContain('retiring');
+    expect(rows[1]).toContain('never');
+    expect(rows[2]).toContain('revoked');
+    expect(rows[2]).toContain('Enrolled with a one-time token');
+    expect(button('Revoke', card())).toBeDefined();
+    expect(button('Reset', card())).toBeDefined();
+    const steps = card()!.querySelector('details:last-of-type')!.textContent ?? '';
+    expect(steps).toContain('magnus-agent identity rotate');
+    expect(steps).toContain('/enrollment-token');
+    expect(steps).not.toContain('/credentials/revoke');
+    expect(steps).not.toContain('/credentials/reset');
+    expect(stub.of('/nodes/node-1/credentials')).toHaveLength(1);
+    await mounted.unmount();
+  });
+
+  it('gives operators and viewers no key buttons, and does not ask for the key list', async () => {
+    for (const role of ['OPERATOR', 'VIEWER']) {
+      const { stub, mounted } = await open(<NodeDetailPage />, { role, nodes: [node('node-1', 'node one', credential())], summary: summary(), keys: KEYS }, { nodeId: 'node-1' });
+      expect(card()).toBeDefined();
+      expect(button('Revoke', card())).toBeUndefined();
+      expect(button('Reset', card())).toBeUndefined();
+      expect(stub.of('/nodes/node-1/credentials')).toEqual([]);
+      expect(card()!.textContent).toContain('/credentials/revoke');
+      await mounted.unmount();
+      document.body.innerHTML = '';
+    }
+  });
+
+  it('explains a revoke before sending it, sends one request with the reason and an idempotency key, then shows Magnus’s detail and reads everything again', async () => {
+    const { stub, mounted } = await open(<NodeDetailPage />, { role: 'ADMIN', nodes: [node('node-1', 'node one', credential())], summary: summary(), keys: KEYS, keyAction: () => ok(revokeResult({ revoked: 2 })) }, { nodeId: 'node-1' });
+    const reads = { node: stub.of('/nodes/node-1').length, keys: stub.of('/nodes/node-1/credentials').length, summary: stub.of('/node-credentials/summary').length };
+    await click(button('Revoke', card()));
+    const confirm = dialog();
+    expect(confirm?.textContent).toContain('Revoke all 2 valid keys of node one?');
+    expect(confirm?.textContent).toContain('Key fingerprint: abababababababab (active)');
+    expect(confirm?.textContent).toContain('Key fingerprint: bcbcbcbcbcbcbcbc (retiring)');
+    expect(confirm?.textContent).not.toContain('cdcdcdcdcdcdcdcd');
+    expect(confirm?.textContent).toContain('until the node is enrolled again with a token, or its credentials are reset');
+    expect(stub.mutations()).toEqual([]);
+    await type(reasonInput(), '  host was rebuilt  ');
+    expect(confirm?.textContent).toContain('20/500');
+    await click(button('Revoke', confirm!));
+    await settle(5);
+    expect(stub.mutations()).toEqual([{ method: 'POST', path: '/nodes/node-1/credentials/revoke', body: { reason: 'host was rebuilt' } }]);
+    const key = stub.headersOf(stub.mutations()[0]!).get('x-idempotency-key');
+    expect(key).toMatch(/^[a-f0-9]{32}$/u);
+    const status = card()!.querySelector('[role="status"]');
+    expect(status?.textContent).toContain('Revoked 1 key. The agent is refused until it is enrolled with a new token.');
+    expect(status?.textContent).toContain('2 keys revoked: the agent is refused until it is enrolled again or reset');
+    expect(stub.of('/nodes/node-1').length).toBeGreaterThan(reads.node);
+    expect(stub.of('/nodes/node-1/credentials').length).toBeGreaterThan(reads.keys);
+    expect(stub.of('/node-credentials/summary').length).toBeGreaterThan(reads.summary);
+    await mounted.unmount();
+  });
+
+  it('sends nothing on cancel, and a new idempotency key for each confirmation', async () => {
+    const { stub, mounted } = await open(<NodeDetailPage />, { role: 'ADMIN', nodes: [node('node-1', 'node one', credential())], summary: summary(), keys: KEYS, keyAction: () => ok(revokeResult()) }, { nodeId: 'node-1' });
+    await click(button('Revoke', card()));
+    await click(button('Cancel', dialog()!));
+    expect(dialog()).toBeNull();
+    expect(stub.mutations()).toEqual([]);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await click(button('Revoke', card()));
+      // The reason starts empty each time.
+      expect(reasonInput()?.value).toBe('');
+      await click(button('Revoke', dialog()!));
+      await settle(5);
+    }
+    expect(stub.mutations()).toEqual([
+      { method: 'POST', path: '/nodes/node-1/credentials/revoke', body: {} },
+      { method: 'POST', path: '/nodes/node-1/credentials/revoke', body: {} },
+    ]);
+    const keys = stub.mutations().map((request) => stub.headersOf(request).get('x-idempotency-key'));
+    expect(keys.every(Boolean)).toBe(true);
+    expect(new Set(keys).size).toBe(2);
+    await mounted.unmount();
+  });
+
+  it('bounds the reason to what Magnus accepts and shows the count', async () => {
+    const { mounted } = await open(<NodeDetailPage />, { role: 'ADMIN', nodes: [node('node-1', 'node one', credential())], summary: summary(), keys: KEYS }, { nodeId: 'node-1' });
+    await click(button('Reset', card()));
+    const input = reasonInput();
+    expect(input?.maxLength).toBe(500);
+    expect(input?.labels?.[0]?.textContent).toBe('Reason (optional)');
+    expect(document.getElementById(input!.getAttribute('aria-describedby')!)?.textContent).toContain('0/500');
+    await type(input, 'x'.repeat(500));
+    expect(dialog()?.textContent).toContain('500/500');
+    await click(button('Cancel', dialog()!));
+    await mounted.unmount();
+  });
+
+  it('explains a reset with the upgrade window, sends it, and shows what Magnus says', async () => {
+    const { stub, mounted } = await open(<NodeDetailPage />, { role: 'ADMIN', nodes: [node('node-1', 'node one', credential())], summary: summary(), keys: KEYS, keyAction: () => ok(resetResult({ removed: 3 })) }, { nodeId: 'node-1' });
+    await click(button('Reset', card()));
+    const confirm = dialog();
+    expect(confirm?.textContent).toContain('Move node one back to the shared secret?');
+    expect(confirm?.textContent).toContain('Magnus forgets its 3 keys and accepts the fleet-wide shared secret from this node again');
+    expect(confirm?.textContent).toContain('The automatic upgrade window is open until');
+    expect(confirm?.textContent).toContain('binds a new key by itself after its next heartbeat');
+    await click(button('Reset', confirm!));
+    await settle(5);
+    expect(stub.mutations()).toEqual([{ method: 'POST', path: '/nodes/node-1/credentials/reset', body: {} }]);
+    expect(card()!.querySelector('[role="status"]')?.textContent).toContain('The node is accepted with the shared node secret again.');
+    await mounted.unmount();
+  });
+
+  it('offers no reset in enforce mode, and explains Magnus’s refusal codes', async () => {
+    let { mounted } = await open(<NodeDetailPage />, { role: 'ADMIN', nodes: [node('node-1', 'node one', credential())], summary: summary({ mode: 'enforce' }), keys: KEYS }, { nodeId: 'node-1' });
+    expect(button('Reset', card())?.disabled).toBe(true);
+    expect(card()!.textContent).toContain('NODE_AUTH_MODE=enforce, which has no credential reset');
+    await mounted.unmount();
+    document.body.innerHTML = '';
+    let stub;
+    ({ stub, mounted } = await open(<NodeDetailPage />, {
+      role: 'ADMIN', nodes: [node('node-1', 'node one', credential())], summary: summary(), keys: KEYS,
+      keyAction: () => Response.json({ success: false, error: { code: 'NODE_AUTH_ENFORCED', message: 'Credentials cannot be reset in enforce mode' } }, { status: 409 }),
+    }, { nodeId: 'node-1' }));
+    await click(button('Reset', card()));
+    await click(button('Reset', dialog()!));
+    await settle(5);
+    expect(stub.mutations()).toHaveLength(1);
+    expect(text()).toContain('The credentials could not be reset');
+    expect(text()).toContain('Keep an agent of 2.10.0 or later on the node, or enroll it again with a token');
+    expect(card()!.querySelector('[role="status"]')).toBeNull();
+    await mounted.unmount();
+  });
+
+  it('falls back to the CLI text on a Magnus that keeps key administration out of the browser, without an error', async () => {
+    const { stub, mounted } = await open(<NodeDetailPage />, { role: 'ADMIN', nodes: [node('node-1', 'node one', credential())], summary: summary() }, { nodeId: 'node-1' });
+    expect(stub.of('/nodes/node-1/credentials')).toHaveLength(1);
+    expect(button('Revoke', card())).toBeUndefined();
+    expect(button('Reset', card())).toBeUndefined();
+    expect(card()!.textContent).toContain('/credentials/revoke');
+    expect(card()!.textContent).toContain('/credentials/reset');
+    expect(card()!.querySelector('[role="alert"]')).toBeNull();
+    expect(document.querySelector('.toast--error')).toBeNull();
+    await mounted.unmount();
+  });
+});
+
+describe('rejecting a pending binding', () => {
+  it('sends the optional reason given in the confirmation', async () => {
+    const { stub, mounted } = await open(<NodesPage />, { role: 'ADMIN', nodes: FLEET, summary: summary(), pending: [binding()], decision: () => ok(binding({ status: 'REJECTED' })) });
+    await click(button(/^Approve the key for node two/));
+    // Approving asks for no reason.
+    expect(dialog()?.querySelector('textarea')).toBeNull();
+    await click(button('Cancel', dialog()!));
+    await click(button(/^Reject the key for node two/));
+    const input = dialog()?.querySelector('textarea');
+    expect(input?.maxLength).toBe(500);
+    await type(input, ' unknown host ');
+    await click(button('Reject', dialog()!));
+    await settle(5);
+    expect(stub.mutations()).toEqual([{ method: 'POST', path: '/node-credentials/pending-bindings/pb-1/reject', body: { reason: 'unknown host' } }]);
     await mounted.unmount();
   });
 });

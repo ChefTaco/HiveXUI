@@ -255,7 +255,7 @@ export default function NodeDetailPage() {
               </dl>
             </FxPanel>
             {/* Absent on a Magnus older than per-node credentials: then there is nothing to show. */}
-            {node.nodeCredential ? <NodeCredentialCard nodeId={node.id} credential={node.nodeCredential} agentVersion={node.agent?.version ?? null} onChanged={refreshNode} /> : null}
+            {node.nodeCredential ? <NodeCredentialCard nodeId={node.id} nodeName={node.name} credential={node.nodeCredential} agentVersion={node.agent?.version ?? null} onChanged={refreshNode} /> : null}
             {hermes ? <HermesCard installation={installation} skills={skills} onShowSkills={() => setSkillsOpen(true)} /> : null}
             <ServiceChecksCard services={parseServices(health?.services)} />
           </div>

@@ -1,12 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import { KeyRound, SearchCheck } from 'lucide-react';
-import { Badge, Button, Field, TextInput } from '@ui';
+import { Badge, Button, Field, ResourceError, TextInput } from '@ui';
 import { formatTime, relativeTime } from '@lib/format';
 import { useMagnusResource } from '../../../api/use-resource';
 import { FxPanel } from '../../../effects';
 import { ADMIN_ONLY, useMagnusSession, WRITE_ROLES } from '../../../session';
 import { Row } from '../node-detail/posture-cards';
-import { checkDowngrade, downgradeErrorMessage, listPendingBindings, type DowngradeCheck, type NodeCredential, type PendingBinding } from './api';
+import { checkDowngrade, downgradeErrorMessage, listNodeKeys, listPendingBindings, readCredentialSummary, type DowngradeCheck, type NodeCredential, type PendingBinding } from './api';
+import { NodeKeyAdministration } from './key-administration';
 import { credentialStateView, credentialTasks, downgradeView, evidenceSigningText, legacyUseRows, looksLikeVersion, NODE_KEYS_SINCE, originLabel } from './model';
 import { PendingBindingsTable } from './pending-bindings';
 
@@ -22,17 +23,31 @@ export function NodeCredentialBadge({ credential, pending }: { credential: NodeC
 
 /**
  * Node detail: how this node authenticates to Magnus, the use of the shared credentials still recorded for
- * it, a binding waiting for an administrator, a check before installing an older agent, and the key
- * administration that the browser does not offer, as instructions.
+ * it, a binding waiting for an administrator, a check before installing an older agent, and key
+ * administration. An administrator on a Magnus that offers it lists, revokes and resets the node's keys
+ * here; everyone else, and every Magnus that answers the key list with 404, gets the CLI and API steps.
  */
-export function NodeCredentialCard({ nodeId, credential, agentVersion, onChanged }: { nodeId: string; credential: NodeCredential; agentVersion: string | null; onChanged: () => void }) {
+export function NodeCredentialCard({ nodeId, nodeName, credential, agentVersion, onChanged }: { nodeId: string; nodeName?: string | undefined; credential: NodeCredential; agentVersion: string | null; onChanged: () => void }) {
   const { can } = useMagnusSession();
   const isAdmin = can(ADMIN_ONLY);
   const pending = useMagnusResource((signal) => listPendingBindings({ nodeId, signal }), [nodeId], { enabled: isAdmin && credential.state === 'none' });
+  const keys = useMagnusResource((signal) => listNodeKeys(nodeId, signal), [nodeId], { enabled: isAdmin });
+  const summary = useMagnusResource((signal) => readCredentialSummary(signal), [], { enabled: isAdmin });
   const waiting = credential.state === 'none' ? pending.data?.[0] ?? null : null;
   const view = credentialStateView(credential, waiting);
   const legacy = legacyUseRows(credential);
   const evidence = evidenceSigningText(credential);
+  // Null: this Magnus answers the key list with 404, so its key administration is not a browser route.
+  const inBrowser = isAdmin && Boolean(keys.data);
+  // After a decision: the node (its credential state), its keys, the summary and its waiting binding.
+  const changed = () => {
+    if (isAdmin) {
+      void keys.refresh();
+      void summary.refresh();
+      if (credential.state === 'none') void pending.refresh();
+    }
+    onChanged();
+  };
   return (
     <FxPanel
       fxTone={view.tone === 'danger' ? 'danger' : view.tone === 'warning' ? 'warning' : 'accent'}
@@ -67,11 +82,13 @@ export function NodeCredentialCard({ nodeId, credential, agentVersion, onChanged
         {waiting ? (
           <div className="grid gap-2">
             <p className="m-0 font-medium">Waiting for an administrator</p>
-            <PendingBindingsTable bindings={[waiting]} canDecide={isAdmin} showNode={false} onDecided={() => { void pending.refresh(); onChanged(); }} />
+            <PendingBindingsTable bindings={[waiting]} canDecide={isAdmin} showNode={false} onDecided={changed} />
           </div>
         ) : null}
+        {inBrowser && keys.data ? <NodeKeyAdministration nodeId={nodeId} nodeName={nodeName ?? nodeId} credential={credential} keys={keys.data} summary={summary.data} onChanged={changed} /> : null}
+        {isAdmin && !keys.data && keys.error ? <ResourceError error={keys.error} title="The node's keys could not be read" onRetry={() => void keys.refresh()} /> : null}
         {can(WRITE_ROLES) ? <DowngradeCheckTool nodeId={nodeId} agentVersion={agentVersion} /> : null}
-        <CredentialInstructions nodeId={nodeId} />
+        <CredentialInstructions nodeId={nodeId} inBrowser={inBrowser} />
       </div>
     </FxPanel>
   );
@@ -129,13 +146,20 @@ export function DowngradeCheckTool({ nodeId, agentVersion }: { nodeId: string; a
   );
 }
 
-/** Rotate, revoke, re-enroll and reset are not browser routes yet: what to run instead. */
-export function CredentialInstructions({ nodeId }: { nodeId: string }) {
-  const tasks = credentialTasks(nodeId);
+/**
+ * The key administration steps as text. With `inBrowser`, the card already offers the list, revoke and
+ * reset, so only rotating (on the node) and enrolling again with a token remain.
+ */
+export function CredentialInstructions({ nodeId, inBrowser = false }: { nodeId: string; inBrowser?: boolean }) {
+  const tasks = credentialTasks(nodeId, { inBrowser });
   return (
     <details className="grid gap-2">
-      <summary className="cursor-pointer font-medium">Manage this node&apos;s key</summary>
-      <p className="m-0 mt-2 text-text-muted">The UI does not offer these yet. Run them on the node, or against the Magnus API with an administrator&apos;s token ($MAGNUS_URL is the server&apos;s address).</p>
+      <summary className="cursor-pointer font-medium">{inBrowser ? 'Rotate or enroll this node’s key' : 'Manage this node’s key'}</summary>
+      <p className="m-0 mt-2 text-text-muted">
+        {inBrowser
+          ? 'The UI does not offer these: rotating runs on the node, and an enrollment token is a secret the UI never shows. Run them on the node, or against the Magnus API with an administrator’s token ($MAGNUS_URL is the server’s address).'
+          : 'The UI does not offer these here. Run them on the node, or against the Magnus API with an administrator’s token ($MAGNUS_URL is the server’s address).'}
+      </p>
       <ul className="m-0 mt-2 grid list-none gap-3 p-0">
         {tasks.map((task) => (
           <li key={task.id} className="grid gap-1">
