@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { nodeCredentialFleetSummarySchema, nodeCredentialSchema, pendingBindingSchema, nodeCredentialDowngradeCheckSchema } from '@contracts/magnus/browser';
-import { binding, credential, summary } from './fixtures';
+import { magnusBrowserRoutes, nodeCredentialDetailSchema, nodeCredentialFleetSummarySchema, nodeCredentialResetResultSchema, nodeCredentialRevokeResultSchema, nodeCredentialSchema, pendingBindingSchema, nodeCredentialDowngradeCheckSchema } from '@contracts/magnus/browser';
+import { binding, credential, nodeKey, resetResult, revokeResult, summary } from './fixtures';
 import {
   approvalMessage,
   bindingIsStale,
@@ -9,10 +9,16 @@ import {
   credentialTasks,
   downgradeView,
   evidenceSigningText,
+  keyActionOutcome,
+  keyStatusView,
   legacyUseRows,
   looksLikeVersion,
   originLabel,
   readinessText,
+  resetMessage,
+  resetUnavailable,
+  revocableKeys,
+  revokeMessage,
   summaryNeedsAttention,
   upgradeWindowText,
 } from './model';
@@ -117,11 +123,61 @@ describe('the downgrade check', () => {
 });
 
 describe('key administration', () => {
-  it('is instructions only, until Magnus offers its routes to the browser', () => {
+  it('names the browser route for the list, revoke and reset, and keeps rotate and enrollment as text', () => {
     const tasks = credentialTasks('node 1');
     expect(tasks.map((task) => task.id)).toEqual(['list', 'rotate', 'revoke', 'reenroll', 'reset']);
-    expect(tasks.every((task) => task.browserRoute === null)).toBe(true);
+    expect(tasks.filter((task) => task.browserRoute === null).map((task) => task.id)).toEqual(['rotate', 'reenroll']);
     expect(tasks.find((task) => task.id === 'revoke')?.commands[0]).toContain('"$MAGNUS_URL"/api/v1/nodes/node%201/credentials/revoke');
     expect(tasks.find((task) => task.id === 'rotate')).toMatchObject({ where: 'node', commands: ['magnus-agent identity rotate'] });
+    expect(credentialTasks('node 1', { inBrowser: true }).map((task) => task.id)).toEqual(['rotate', 'reenroll']);
+  });
+  it('names only routes the vendored contract publishes to the browser, for ADMIN only', () => {
+    for (const task of credentialTasks('node-1')) {
+      if (!task.browserRoute) continue;
+      const [method, path] = task.browserRoute.split(' ');
+      const route = magnusBrowserRoutes.find((item) => item.method === method && item.path === path);
+      expect(route, task.browserRoute).toBeDefined();
+      expect(route?.roles).toEqual(['ADMIN']);
+    }
+    // Issuing an enrollment token answers a secret, and stays out of the browser.
+    expect(magnusBrowserRoutes.some((route) => route.path.endsWith('/enrollment-token'))).toBe(false);
+  });
+});
+
+describe('keys', () => {
+  const key = (overrides: Record<string, unknown> = {}) => nodeCredentialDetailSchema.parse(nodeKey(overrides));
+  const keys = [key(), key({ keyId: 'b'.repeat(64), keyFingerprint: 'bbbbbbbbbbbbbbbb', status: 'RETIRING' }), key({ keyId: 'c'.repeat(64), keyFingerprint: 'cccccccccccccccc', status: 'REVOKED' })];
+  it('reads each status, and revokes only the valid keys', () => {
+    expect(keys.map((item) => keyStatusView(item).label)).toEqual(['active', 'retiring', 'revoked']);
+    expect(revocableKeys(keys).map((item) => item.keyFingerprint)).toEqual(['abababababababab', 'bbbbbbbbbbbbbbbb']);
+  });
+  it('says before a revoke that the agent is refused until it is enrolled again or reset', () => {
+    const message = revokeMessage('node one', keys);
+    expect(message).toContain('Revoke all 2 valid keys of node one?');
+    expect(message).not.toContain('cccccccccccccccc');
+    expect(message).toContain('refuses this node\'s agent from its next request');
+    expect(message).toContain('does not fall back to the shared secret');
+    expect(message).toContain('until the node is enrolled again with a token, or its credentials are reset');
+    expect(revokeMessage('node one', [keys[0]!])).toContain('Revoke the key of node one?');
+  });
+  it('says before a reset whether the node binds a key again by itself', () => {
+    const format = (value: string) => value.slice(0, 10);
+    expect(resetMessage('node one', 1, { open: true, until: '2026-12-05T12:00:00.000Z' }, format)).toContain('Magnus forgets its key and accepts the fleet-wide shared secret from this node again. The automatic upgrade window is open until 2026-12-05');
+    expect(resetMessage('node one', 2, { open: false, until: '2026-11-01T00:00:00.000Z' }, format)).toContain('The automatic upgrade window is closed, so the node stays on the shared secret until it is enrolled with a token.');
+    expect(resetMessage('node one', 2, null, format)).toContain('While the automatic upgrade window is open');
+  });
+  it('offers no reset in enforce mode, or for a node that has no key', () => {
+    expect(resetUnavailable(keys, cred(), fleet({ mode: 'enforce' }))).toContain('enforce');
+    expect(resetUnavailable([], cred({ state: 'none' }), fleet())).toContain('no key');
+    expect(resetUnavailable(keys, cred(), fleet())).toBeNull();
+    expect(resetUnavailable(keys, cred(), null)).toBeNull();
+  });
+  it('reads Magnus’s answer after a revoke or reset', () => {
+    expect(keyActionOutcome('revoke', nodeCredentialRevokeResultSchema.parse(revokeResult()))).toMatchObject({ tone: 'danger', title: '1 key revoked: the agent is refused until it is enrolled again or reset' });
+    expect(keyActionOutcome('revoke', nodeCredentialRevokeResultSchema.parse(revokeResult({ revoked: 1, state: 'active', agentRefused: false })))).toMatchObject({ tone: 'warning', title: '1 key revoked' });
+    expect(keyActionOutcome('revoke', nodeCredentialRevokeResultSchema.parse(revokeResult({ resetAvailable: false }))).title).toBe('1 key revoked: the agent is refused until it is enrolled again');
+    const reset = keyActionOutcome('reset', nodeCredentialResetResultSchema.parse(resetResult({ legacyUpgradeOpen: false })));
+    expect(reset.title).toBe('2 keys removed: the node uses the shared secret again');
+    expect(reset.detail).toBe('Removed 2 keys. The node is accepted with the shared node secret again.');
   });
 });

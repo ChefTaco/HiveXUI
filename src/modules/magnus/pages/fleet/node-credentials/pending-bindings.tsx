@@ -9,10 +9,13 @@ import { hasRoute } from '../../../routes';
 import { ActionConfirm } from '../../../ui/action-confirm';
 import { approvePendingBinding, decisionErrorMessage, rejectPendingBinding, type PendingBinding } from './api';
 import { approvalMessage, bindingIsStale, rejectionMessage } from './model';
+import { ReasonField } from './reason-field';
 
 interface Decision {
   binding: PendingBinding;
   kind: 'approve' | 'reject';
+  /** A rejection's optional reason, for Magnus's audit log. */
+  reason?: string;
 }
 
 /**
@@ -23,7 +26,8 @@ export function usePendingBindingDecisions(onDecided: () => void): { ask: (bindi
   const toast = useToast();
   const [asking, setAsking] = useState<Decision | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  async function decide({ binding, kind }: Decision) {
+  const [reason, setReason] = useState('');
+  async function decide({ binding, kind, reason: why }: Decision) {
     setBusyId(binding.id);
     const node = binding.nodeName ?? binding.nodeId;
     try {
@@ -31,7 +35,7 @@ export function usePendingBindingDecisions(onDecided: () => void): { ask: (bindi
         await approvePendingBinding(binding.id);
         toast.success(`Key bound to ${node}`, `Fingerprint ${binding.keyFingerprint}. The agent learns it on its next attempt.`);
       } else {
-        await rejectPendingBinding(binding.id);
+        await rejectPendingBinding(binding.id, why);
         toast.success(`Key refused for ${node}`, 'The node stays on the shared secret.');
       }
     } catch (error) {
@@ -51,12 +55,21 @@ export function usePendingBindingDecisions(onDecided: () => void): { ask: (bindi
       onConfirm={() => {
         const decision = asking;
         setAsking(null);
-        if (decision) void decide(decision);
+        if (decision) void decide(decision.kind === 'reject' ? { ...decision, reason } : decision);
       }}
       onCancel={() => setAsking(null)}
-    />
+    >
+      {asking?.kind === 'reject' ? <ReasonField value={reason} onChange={setReason} /> : null}
+    </ActionConfirm>
   );
-  return { ask: (binding, kind) => setAsking({ binding, kind }), busyId, dialog };
+  return {
+    ask: (binding, kind) => {
+      setReason('');
+      setAsking({ binding, kind });
+    },
+    busyId,
+    dialog,
+  };
 }
 
 function NodeName({ binding }: { binding: PendingBinding }) {

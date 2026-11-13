@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearAccess, configureEndpoint } from '../../../../../lib/transport';
-import { MagnusApiError } from '../../../api/errors';
+import { MagnusApiError, MagnusContractError } from '../../../api/errors';
 import { stubApi, type RecordedRequest } from '../../../test-dom';
-import { approvePendingBinding, checkDowngrade, decisionErrorMessage, downgradeErrorMessage, listPendingBindings, readCredentialSummary, rejectPendingBinding } from './api';
-import { binding, summary } from './fixtures';
+import { approvePendingBinding, checkDowngrade, decisionErrorMessage, downgradeErrorMessage, keyActionErrorMessage, listNodeKeys, listPendingBindings, readCredentialSummary, reasonBody, rejectPendingBinding, resetNodeKeys, revokeNodeKeys } from './api';
+import { binding, nodeKey, resetResult, revokeResult, summary } from './fixtures';
 
 const ok = (data: unknown) => ({ success: true, data });
 const fail = (status: number, code: string, message: string) => Response.json({ success: false, error: { code, message } }, { status });
@@ -78,5 +78,64 @@ describe('the downgrade check', () => {
     expect(downgradeErrorMessage(new MagnusApiError(404, 'Not found'))).toContain('does not answer the downgrade check');
     expect(downgradeErrorMessage(new MagnusApiError(404, 'Node not found'))).toBe('Node not found');
     expect(downgradeErrorMessage(new MagnusApiError(400, 'to must be a version such as 2.9.1'))).toBe('to must be a version such as 2.9.1');
+  });
+});
+
+describe('reasons', () => {
+  it('sends a trimmed reason of at most 500 characters, and none when empty', () => {
+    expect(reasonBody(undefined)).toEqual({});
+    expect(reasonBody('   ')).toEqual({});
+    expect(reasonBody('  rollback  ')).toEqual({ reason: 'rollback' });
+    expect(reasonBody('x'.repeat(500))).toEqual({ reason: 'x'.repeat(500) });
+    expect(reasonBody('y'.repeat(501)).reason).toHaveLength(500);
+    // Cutting at the limit must not leave trailing space that Magnus would trim to another length.
+    expect(reasonBody(`${'z'.repeat(499)} tail`).reason).toBe('z'.repeat(499));
+  });
+});
+
+describe('node key administration', () => {
+  it('lists every key of the node through the contract', async () => {
+    const stub = serve(({ path }) => (path === '/nodes/node%201/credentials' ? ok([nodeKey(), nodeKey({ keyId: 'b'.repeat(64), status: 'REVOKED', revokedAt: '2026-11-01T00:00:00.000Z', revokedBy: 'alice' })]) : undefined));
+    const keys = await listNodeKeys('node 1');
+    expect(keys?.map((key) => key.status)).toEqual(['ACTIVE', 'REVOKED']);
+    expect(stub.requests.map((request) => request.path)).toEqual(['/nodes/node%201/credentials']);
+  });
+  it('reads a 404 from an older Magnus or its ingress as no browser route, not as a failure', async () => {
+    serve(() => undefined);
+    await expect(listNodeKeys('node-1')).resolves.toBeNull();
+  });
+  it('still fails on a refused role', async () => {
+    serve(() => fail(403, 'FORBIDDEN', 'Insufficient permissions'));
+    await expect(listNodeKeys('node-1')).rejects.toBeInstanceOf(MagnusApiError);
+  });
+  it('revokes and resets with the reason in the body and the idempotency key as a header', async () => {
+    const stub = serve(({ path }) => (path.endsWith('/revoke') ? ok(revokeResult()) : path.endsWith('/reset') ? ok(resetResult()) : undefined));
+    const revoked = await revokeNodeKeys('node-1', { reason: '  lost laptop ', idempotencyKey: 'key-1' });
+    expect(revoked).toMatchObject({ agentRefused: true, sharedSecretAccepted: false, resetAvailable: true });
+    const reset = await resetNodeKeys('node-1', { idempotencyKey: 'key-2' });
+    expect(reset).toMatchObject({ state: 'none', sharedSecretAccepted: true, legacyUpgradeOpen: true });
+    expect(stub.mutations()).toEqual([
+      { method: 'POST', path: '/nodes/node-1/credentials/revoke', body: { reason: 'lost laptop' } },
+      { method: 'POST', path: '/nodes/node-1/credentials/reset', body: {} },
+    ]);
+    expect(stub.mutations().map((request) => stub.headersOf(request).get('x-idempotency-key'))).toEqual(['key-1', 'key-2']);
+  });
+  it('treats an answer outside the contract as applied but unreadable', async () => {
+    serve(() => ok({ revoked: 1 }));
+    const error = await revokeNodeKeys('node-1', { idempotencyKey: 'key-1' }).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(MagnusContractError);
+    expect(keyActionErrorMessage(error, 'revoke')).toContain('The change was applied');
+  });
+  it('turns the error codes Magnus documents into operator messages', () => {
+    const message = (status: number, code: string | undefined, text: string, kind: 'revoke' | 'reset' = 'revoke') => keyActionErrorMessage(new MagnusApiError(status, text, code), kind);
+    expect(message(404, 'NODE_CREDENTIAL_NOT_FOUND', 'No credential')).toContain('no valid key left to revoke');
+    expect(message(404, 'NOT_FOUND', 'Node not found')).toContain('no such node');
+    expect(message(409, 'NODE_AUTH_ENFORCED', 'Enforced', 'reset')).toContain('NODE_AUTH_MODE=enforce, which has no credential reset');
+    expect(message(409, 'DUPLICATE_REQUEST', 'Duplicate')).toContain('already took this request');
+    expect(message(400, 'VALIDATION_ERROR', 'reason: Too big.')).toBe('Magnus refused the request: reason: Too big. A reason is 1 to 500 characters.');
+    expect(message(403, 'FORBIDDEN', 'Insufficient permissions', 'reset')).toBe("Only a Magnus administrator can reset a node's keys.");
+    expect(message(404, undefined, 'Not found', 'reset')).toContain('does not offer resetting keys in the UI');
+    expect(message(500, 'INTERNAL', 'boom')).toBe('boom');
+    expect(keyActionErrorMessage(new Error('offline'), 'revoke')).toBe('offline');
   });
 });

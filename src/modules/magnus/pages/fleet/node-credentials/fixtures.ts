@@ -55,3 +55,38 @@ export const node = (id: string, name: string, nodeCredential?: Record<string, u
 });
 
 export const session = (role: string) => ({ success: true, data: { userId: 'alice', role, capabilities: { hermes: false, terminal: false, agentVersion: '2.10.0', magnusVersion: '2.10.0', securityConsoleUrl: null } } });
+
+export const nodeKey = (overrides: Record<string, unknown> = {}) => ({
+  keyId: 'a'.repeat(64),
+  keyFingerprint: 'abababababababab',
+  status: 'ACTIVE',
+  origin: 'LEGACY_UPGRADE',
+  boundFqdn: 'node-1.example.com',
+  evidenceSigning: true,
+  evidenceSigningAt: AT,
+  createdAt: AT,
+  lastUsedAt: AT,
+  retireAt: null,
+  revokedAt: null,
+  revokedBy: null,
+  ...overrides,
+});
+
+export const revokeResult = (overrides: Record<string, unknown> = {}) => ({
+  revoked: 1,
+  state: 'revoked',
+  agentRefused: true,
+  sharedSecretAccepted: false,
+  resetAvailable: true,
+  detail: 'Revoked 1 key. The agent is refused until it is enrolled with a new token.',
+  ...overrides,
+});
+
+export const resetResult = (overrides: Record<string, unknown> = {}) => ({
+  removed: 2,
+  state: 'none',
+  sharedSecretAccepted: true,
+  legacyUpgradeOpen: true,
+  detail: 'Removed 2 keys. The node is accepted with the shared node secret again.',
+  ...overrides,
+});

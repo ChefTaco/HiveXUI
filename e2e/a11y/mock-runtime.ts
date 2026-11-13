@@ -312,6 +312,12 @@ const NODE_CREDENTIAL_SUMMARY = {
   ],
   generatedAt: T1,
 };
+/** Every key of node-1, for an administrator on a Magnus that offers key administration to the browser. */
+const nodeKey = (n: string, status: string, origin: string, extra: Record<string, unknown> = {}) => ({
+  keyId: n.repeat(64), keyFingerprint: n.repeat(16), status, origin, boundFqdn: 'node-1.example.internal', evidenceSigning: status === 'ACTIVE', evidenceSigningAt: status === 'ACTIVE' ? T1 : null,
+  createdAt: T0, lastUsedAt: status === 'REVOKED' ? null : T1, retireAt: null, revokedAt: status === 'REVOKED' ? T1 : null, revokedBy: status === 'REVOKED' ? 'usr_admin' : null, ...extra,
+});
+const NODE_KEYS = [nodeKey('9', 'ACTIVE', 'LEGACY_UPGRADE', { keyFingerprint: '9999999988888888' }), nodeKey('7', 'REVOKED', 'ENROLLMENT_TOKEN')];
 const PENDING_BINDING = {
   id: 'pb-1', nodeId: 'node-2', nodeName: 'node-2', keyId: 'd'.repeat(64), keyFingerprint: 'dddddddddddddddd', fqdn: 'node-2.example.internal',
   peerAddress: '198.51.100.7', recordedAddress: '192.0.2.12', status: 'PENDING', attempts: 4, createdAt: T1, lastSeenAt: T1,
@@ -436,6 +442,7 @@ export const ROUTES: Array<[string, RegExp, Answer]> = [
   ['GET', /^\/api\/magnus\/agents\/upgrade\/eligibility$/, magnusOk(UPGRADE_ELIGIBILITY)],
   ['GET', /^\/api\/magnus\/agents\/node-1~lead\/identity$/, magnusOk(AGENT_IDENTITY)],
   ['GET', /^\/api\/magnus\/nodes\/node-1$/, magnusOk(AGENT_NODE)],
+  ['GET', /^\/api\/magnus\/nodes\/node-1\/credentials$/, magnusOk(NODE_KEYS)],
   ['GET', /^\/api\/magnus\/ardent\/installations\/node-1$/, magnusOk(ARDENT_INSTALLATION)],
   ['GET', /^\/api\/magnus\/ardent\/installations\/node-1\/profiles\/lead\/skills$/, magnusOk({ skills: [
     { name: 'summarize', description: 'Condense long documents.', hash: 'a'.repeat(12), enabled: true },

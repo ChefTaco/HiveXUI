@@ -127,6 +127,35 @@ test('the Magnus node credentials panel and its approval have no serious or crit
   await expect(dialog).toBeHidden();
 });
 
+test('the Magnus node key list and its revoke dialog have no serious or critical accessibility violations', async ({ page }) => {
+  await page.clock.setFixedTime(FIXED_NOW);
+  await installMocks(page);
+  await page.route(/\/api\/magnus\/nodes\/node-1$/, (route) => route.fulfill({ json: { success: true, data: CREDENTIAL_NODES[0] } }));
+  await page.goto('/fleet/nodes/node-1', { waitUntil: 'networkidle' });
+  const keys = page.getByRole('region', { name: 'Keys of this node' });
+  await expect(keys).toBeVisible();
+  await expect(keys).toContainText('9999999988888888');
+  await expect(keys).toContainText('revoked');
+  await page.waitForTimeout(500);
+  const scan = await new AxeBuilder({ page }).include('[aria-label="Keys of this node"]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  expect(scan.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical').map((violation) => violation.id)).toEqual([]);
+  let sent = 0;
+  await page.route(/\/api\/magnus\/nodes\/node-1\/credentials\/revoke$/, (route) => { sent++; return route.abort(); });
+  await page.getByRole('button', { name: 'Revoke', exact: true }).click();
+  const dialog = page.getByRole('alertdialog', { name: 'Revoke this node’s keys?' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('Key fingerprint: 9999999988888888 (active)');
+  await expect(dialog).toContainText('until the node is enrolled again with a token, or its credentials are reset');
+  await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
+  await dialog.getByRole('textbox', { name: 'Reason (optional)' }).fill('host rebuilt');
+  await expect(dialog).toContainText('12/500');
+  const results = await new AxeBuilder({ page }).include('[role="alertdialog"]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  expect(results.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical').map((violation) => violation.id)).toEqual([]);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  expect(sent).toBe(0);
+});
+
 test('the inbox drawer has no serious or critical accessibility violations', async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);
   await installMocks(page);

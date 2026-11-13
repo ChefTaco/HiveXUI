@@ -15,6 +15,7 @@ export type Route = (request: RecordedRequest) => unknown;
 /** Answers by route, and records every request with its logical path. Anything unrouted is a 404. */
 export function stubApi(route: Route) {
   const requests: RecordedRequest[] = [];
+  const headers = new WeakMap<RecordedRequest, Headers>();
   const request: typeof fetch = async (input, init) => {
     const url = new URL(String(input), 'https://console.example.com');
     const recorded: RecordedRequest = {
@@ -23,6 +24,7 @@ export function stubApi(route: Route) {
       body: typeof init?.body === 'string' ? JSON.parse(init.body) as Record<string, unknown> : null,
     };
     requests.push(recorded);
+    headers.set(recorded, new Headers(init?.headers));
     const answer = route(recorded);
     if (answer instanceof Response) return answer;
     return answer === undefined ? Response.json({ error: { message: 'Not found' } }, { status: 404 }) : Response.json(answer);
@@ -33,6 +35,8 @@ export function stubApi(route: Route) {
     /** Everything sent that is not a plain read. */
     mutations: () => requests.filter((item) => item.method !== 'GET'),
     of: (path: string) => requests.filter((item) => item.path === path),
+    /** The headers a recorded request was sent with. */
+    headersOf: (recorded: RecordedRequest): Headers => headers.get(recorded) ?? new Headers(),
   };
 }
 

@@ -2,7 +2,7 @@
 // docs/NODE_CREDENTIALS.md; nothing here talks to the API.
 import type { Tone } from '@ui';
 import type { ConsoleRole } from '../../../routes';
-import type { CredentialSummary, DowngradeCheck, EnforceBlocker, NodeCredential, PendingBinding } from './api';
+import type { CredentialSummary, DowngradeCheck, EnforceBlocker, NodeCredential, NodeKey, PendingBinding, ResetResult, RevokeResult } from './api';
 
 /** The first agent release that has a node key. An older agent only knows the shared node secret. */
 export const NODE_KEYS_SINCE = '2.10.0';
@@ -212,7 +212,7 @@ export function downgradeView(check: DowngradeCheck): DowngradeView {
     title: `Reset the node's credentials before installing ${check.to}`,
     detail: check.detail,
     steps: [
-      "An administrator resets the node's credentials on the server with the command below. The UI does not offer this step.",
+      "An administrator resets the node's credentials on the server: with Reset under Keys on this card, where this Magnus offers it, or with the command below.",
       'If the node runs NODE_AUTH_MODE=enforce in its agent .env, set it to compat and restart the agent.',
       `Install ${check.to}. Without the reset, Magnus refuses the older agent for this node.`,
       `Upgrading back to ${NODE_KEYS_SINCE} or later binds a new key by itself while the automatic upgrade window is open.`,
@@ -225,9 +225,9 @@ export function downgradeView(check: DowngradeCheck): DowngradeView {
 export const looksLikeVersion = (text: string): boolean => /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(text.trim());
 
 /**
- * Key administration the browser cannot do yet: Magnus keeps these routes out of the browser class.
- * Each task is shown as instructions; `browserRoute` stays null until the owner allows the route, and a
- * button can then use it without changing the rest.
+ * Key administration, as CLI and API steps. `browserRoute` names the Magnus browser route that does the
+ * same step, for an administrator, from the card; rotating (on the node) and issuing an enrollment token
+ * (its answer is a secret) have none.
  */
 export interface CredentialTask {
   id: 'list' | 'rotate' | 'revoke' | 'reset' | 'reenroll';
@@ -238,17 +238,90 @@ export interface CredentialTask {
   roles: readonly ConsoleRole[] | null;
   commands: string[];
   effect: string;
-  browserRoute: null;
+  browserRoute: string | null;
 }
-export function credentialTasks(nodeId: string): CredentialTask[] {
+/**
+ * The steps to show as text. With `inBrowser`, the card offers the list, revoke and reset itself, so only
+ * the steps the browser cannot take remain.
+ */
+export function credentialTasks(nodeId: string, { inBrowser = false }: { inBrowser?: boolean } = {}): CredentialTask[] {
   const node = encodeURIComponent(nodeId);
   const auth = '-H "Authorization: Bearer $TOKEN"';
   const json = `-H 'content-type: application/json' -d '{}'`;
-  return [
-    { id: 'list', title: 'List its keys', where: 'server', roles: ['ADMIN'], commands: [`curl ${auth} ${API}/api/v1/nodes/${node}/credentials`], effect: 'Key ids, fingerprints, status, origin and last use. Compare the fingerprint with magnus-agent identity show on the host.', browserRoute: null },
+  const tasks: CredentialTask[] = [
+    { id: 'list', title: 'List its keys', where: 'server', roles: ['ADMIN'], commands: [`curl ${auth} ${API}/api/v1/nodes/${node}/credentials`], effect: 'Key ids, fingerprints, status, origin and last use. Compare the fingerprint with magnus-agent identity show on the host.', browserRoute: 'GET /nodes/{nodeId}/credentials' },
     { id: 'rotate', title: 'Rotate the key', where: 'node', roles: null, commands: ['magnus-agent identity rotate'], effect: 'A new key, signed for by the old one. The old key stays valid for 24 hours.', browserRoute: null },
-    { id: 'revoke', title: 'Revoke the key', where: 'server', roles: ['ADMIN'], commands: [`curl -X POST ${auth} ${json} ${API}/api/v1/nodes/${node}/credentials/revoke`], effect: 'The agent is refused (NODE_CREDENTIAL_REVOKED) and the node stays closed to the shared secret until it is enrolled again.', browserRoute: null },
-    { id: 'reenroll', title: 'Enroll it again with a token', where: 'server', roles: ['ADMIN'], commands: [`curl -X POST ${auth} ${json} ${API}/api/v1/nodes/${node}/enrollment-token`, "magnus-agent enroll --token-file /run/magnus/enrollment-token   # on the node"], effect: 'The token works once, for one hour. A new key replaces the old ones.', browserRoute: null },
-    { id: 'reset', title: 'Move it back to the shared secret', where: 'server', roles: ['ADMIN'], commands: [`curl -X POST ${auth} ${json} ${API}/api/v1/nodes/${node}/credentials/reset`, 'magnus-agent identity reset   # then, on the node'], effect: 'Both sides forget the key: reset the server first. Not available in enforce mode.', browserRoute: null },
+    { id: 'revoke', title: 'Revoke the key', where: 'server', roles: ['ADMIN'], commands: [`curl -X POST ${auth} ${json} ${API}/api/v1/nodes/${node}/credentials/revoke`], effect: 'The agent is refused (NODE_CREDENTIAL_REVOKED) and the node stays closed to the shared secret until it is enrolled again.', browserRoute: 'POST /nodes/{nodeId}/credentials/revoke' },
+    { id: 'reenroll', title: 'Enroll it again with a token', where: 'server', roles: ['ADMIN'], commands: [`curl -X POST ${auth} ${json} ${API}/api/v1/nodes/${node}/enrollment-token`, "magnus-agent enroll --token-file /run/magnus/enrollment-token   # on the node"], effect: 'The token works once, for one hour. A new key replaces the old ones. The UI does not issue tokens: the answer is a secret.', browserRoute: null },
+    { id: 'reset', title: 'Move it back to the shared secret', where: 'server', roles: ['ADMIN'], commands: [`curl -X POST ${auth} ${json} ${API}/api/v1/nodes/${node}/credentials/reset`, 'magnus-agent identity reset   # then, on the node'], effect: 'Both sides forget the key: reset the server first. Not available in enforce mode.', browserRoute: 'POST /nodes/{nodeId}/credentials/reset' },
   ];
+  return inBrowser ? tasks.filter((task) => task.browserRoute === null) : tasks;
+}
+
+const KEY_STATUSES: Record<NodeKey['status'], { label: string; tone: Tone }> = {
+  ACTIVE: { label: 'active', tone: 'success' },
+  RETIRING: { label: 'retiring', tone: 'warning' },
+  REVOKED: { label: 'revoked', tone: 'danger' },
+};
+export const keyStatusView = (key: NodeKey): { label: string; tone: Tone } => KEY_STATUSES[key.status] ?? { label: key.status.toLowerCase(), tone: 'neutral' };
+
+/** Keys a revoke without a key id would revoke: every one still valid. */
+export const revocableKeys = (keys: readonly NodeKey[]): NodeKey[] => keys.filter((key) => key.status !== 'REVOKED');
+
+/** What the operator reads before revoking every valid key of a node. */
+export function revokeMessage(nodeName: string, keys: readonly NodeKey[]): string {
+  const valid = revocableKeys(keys);
+  return [
+    `Revoke ${valid.length === 1 ? 'the key' : `all ${valid.length} valid keys`} of ${nodeName}?`,
+    '',
+    ...valid.map((key) => `Key fingerprint: ${key.keyFingerprint} (${keyStatusView(key).label})`),
+    '',
+    'What happens: Magnus refuses this node\'s agent from its next request (NODE_CREDENTIAL_REVOKED). It does not fall back to the shared secret. The agent stays refused until the node is enrolled again with a token, or its credentials are reset.',
+  ].join('\n');
+}
+
+/**
+ * What the operator reads before resetting a node's credentials. `window` is the automatic upgrade window
+ * from the fleet summary, or null when this Magnus does not report it.
+ */
+export function resetMessage(nodeName: string, keyCount: number, window: CredentialSummary['legacyUpgrade'] | null, format: (value: string) => string): string {
+  const rebind = window === null
+    ? `While the automatic upgrade window is open, an agent of ${NODE_KEYS_SINCE} or later binds a new key by itself after its next heartbeat; once it is closed, the node stays on the shared secret until it is enrolled with a token.`
+    : window.open
+      ? `The automatic upgrade window is open until ${format(window.until)}, so an agent of ${NODE_KEYS_SINCE} or later binds a new key by itself after its next heartbeat.`
+      : 'The automatic upgrade window is closed, so the node stays on the shared secret until it is enrolled with a token.';
+  return [
+    `Move ${nodeName} back to the shared secret?`,
+    '',
+    `What happens: Magnus forgets ${keyCount === 1 ? 'its key' : `its ${keyCount} keys`} and accepts the fleet-wide shared secret from this node again. ${rebind}`,
+    '',
+    'For an older agent, or to make the node forget its key too, run magnus-agent identity reset on the node afterwards.',
+  ].join('\n');
+}
+
+/** Why Reset is not offered, or null when it is. */
+export function resetUnavailable(keys: readonly NodeKey[], credential: NodeCredential, summary: CredentialSummary | null | undefined): string | null {
+  if (summary?.mode === 'enforce') return 'The server runs NODE_AUTH_MODE=enforce, which has no credential reset.';
+  if (keys.length === 0 && credential.state === 'none') return 'The node has no key: it already uses the shared secret.';
+  return null;
+}
+
+/** Magnus's sentence after a revoke or reset, with what it means for the agent, for the card to keep showing. */
+export function keyActionOutcome(kind: 'revoke', result: RevokeResult): { tone: Tone; title: string; detail: string };
+export function keyActionOutcome(kind: 'reset', result: ResetResult): { tone: Tone; title: string; detail: string };
+export function keyActionOutcome(kind: 'revoke' | 'reset', result: RevokeResult | ResetResult): { tone: Tone; title: string; detail: string } {
+  if (kind === 'revoke') {
+    const revoke = result as RevokeResult;
+    return {
+      tone: revoke.agentRefused ? 'danger' : 'warning',
+      title: `${revoke.revoked} ${revoke.revoked === 1 ? 'key' : 'keys'} revoked${revoke.agentRefused ? ': the agent is refused until it is enrolled again' : ''}${revoke.agentRefused && revoke.resetAvailable ? ' or reset' : ''}`,
+      detail: revoke.detail,
+    };
+  }
+  const reset = result as ResetResult;
+  return {
+    tone: 'info',
+    title: `${reset.removed} ${reset.removed === 1 ? 'key' : 'keys'} removed: the node uses the shared secret again${reset.legacyUpgradeOpen ? ' and binds a new key by itself' : ''}`,
+    detail: reset.detail,
+  };
 }
