@@ -2,7 +2,7 @@
 import { act, useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { button, click, dialog, mount, stubBrowser, type, type Mounted } from '../modules/magnus/test-dom';
-import { CopyField, DataTable, FilterBar, LoadingRows, Menu, Pagination, ResourceError, TabPanel, Tabs, useConfirm, useCursorPagination, type DataTableColumn } from './ui';
+import { ConfirmDialog, CopyField, DataTable, FilterBar, LoadingRows, Menu, Pagination, ResourceError, TabPanel, Tabs, useConfirm, useCursorPagination, type DataTableColumn } from './ui';
 
 let view: Mounted | undefined;
 beforeEach(() => stubBrowser());
@@ -288,6 +288,22 @@ describe('useConfirm', () => {
     await key(dialog(), 'Escape');
     expect(dialog()).toBeNull();
     expect(onDelete).not.toHaveBeenCalled();
+  });
+});
+
+describe('ConfirmDialog with a field', () => {
+  it('starts on Cancel and keeps the field inside the focus loop', async () => {
+    view = await mount(<ConfirmDialog open title="Revoke?" message="The agent is refused." confirmLabel="Revoke" onConfirm={() => {}} onCancel={() => {}}><textarea aria-label="Reason" /></ConfirmDialog>);
+    const box = dialog()!;
+    const field = box.querySelector('textarea')!;
+    expect(document.activeElement).toBe(button('Cancel', box));
+    button('Revoke', box)!.focus();
+    await key(button('Revoke', box)!, 'Tab');
+    expect(document.activeElement).toBe(field);
+    await act(async () => {
+      field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }));
+    });
+    expect(document.activeElement).toBe(button('Revoke', box));
   });
 });
 

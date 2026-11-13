@@ -501,6 +501,7 @@ export function ConfirmDialog({
   onCancel,
   loading,
   tone = 'danger',
+  children,
 }: {
   open: boolean;
   title: string;
@@ -511,6 +512,8 @@ export function ConfirmDialog({
   loading?: boolean;
   /** `primary` for a confirmation that destroys nothing, such as reopening. */
   tone?: 'danger' | 'warning' | 'primary';
+  /** Optional fields between the message and the buttons, such as a reason. Focus starts on Cancel. */
+  children?: ReactNode;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef(onCancel);
@@ -519,12 +522,12 @@ export function ConfirmDialog({
   useEffect(() => {
     if (!open) return;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const buttons = () => [...(dialogRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])];
-    (buttons()[0] ?? dialogRef.current)?.focus();
+    const focusable = () => [...(dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled)') ?? [])];
+    (dialogRef.current?.querySelector<HTMLButtonElement>('button:not(:disabled)') ?? dialogRef.current)?.focus();
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { event.preventDefault(); cancelRef.current(); }
       if (event.key === 'Tab') {
-        const elements = buttons(), first = elements[0], last = elements.at(-1);
+        const elements = focusable(), first = elements[0], last = elements.at(-1);
         if (!first) { event.preventDefault(); dialogRef.current?.focus(); }
         else if (event.shiftKey && (document.activeElement === first || !dialogRef.current?.contains(document.activeElement))) { event.preventDefault(); last?.focus(); }
         else if (!event.shiftKey && (document.activeElement === last || !dialogRef.current?.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
@@ -539,6 +542,7 @@ export function ConfirmDialog({
       <div ref={dialogRef} className="confirm-box" role="alertdialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={messageId} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <h3 id={titleId}>{title}</h3>
         <p id={messageId}>{message}</p>
+        {children}
         <div className="confirm-actions">
           <Button variant="ghost" onClick={onCancel}>
             Cancel
