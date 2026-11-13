@@ -73,6 +73,23 @@ describe('the inbox store', () => {
     expect(inbox.snapshot().events.map((event) => event.id)).toEqual(['magnus:record:2:opened', 'magnus:record:1:opened']);
   });
 
+  it('does not report products as unreachable when the last view lets go mid-round, and asks again for the next view', async () => {
+    let hang = true;
+    const { request, asked } = feeds({ magnus: () => (hang ? 'hang' : Response.json(page([hiveEvent('magnus', 1, 1)]))) });
+    const inbox = store({ request, readCatalog: async () => [CATALOG[0]!], timeoutMs: 5_000 });
+    const release = inbox.retain();
+    await vi.waitFor(() => expect(asked).toHaveLength(1));
+    // The shell unmounts (a fullscreen product opens) while the first read is still out.
+    release();
+    hang = false;
+    // It returns before the aborted round has finished unwinding.
+    const releaseAgain = inbox.retain();
+    await vi.waitFor(() => expect(inbox.snapshot().phase).toBe('ready'));
+    expect(inbox.snapshot().sources).toEqual([{ product: 'magnus', name: 'Magnus', state: 'ready' }]);
+    expect(inbox.snapshot().events.map((event) => event.id)).toEqual(['magnus:record:1:opened']);
+    releaseAgain();
+  });
+
   it('shows the Registry failure only when it has never been read', async () => {
     const { request } = feeds({ magnus: () => Response.json(page([])) });
     let fail = true;
