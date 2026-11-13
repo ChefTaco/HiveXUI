@@ -13,6 +13,9 @@ import Link, { useRouter, useSearchParams } from '../../../navigation';
 import { hasRoute } from '../../../routes';
 import { ADMIN_ONLY, useMagnusSession, WRITE_ROLES } from '../../../session';
 import { TailscaleExpiryAlert } from '../shared/tailscale-alert';
+import { listPendingBindings, readCredentialSummary, type PendingBinding } from '../node-credentials/api';
+import { NodeCredentialsPanel } from '../node-credentials/fleet-panel';
+import { NodeCredentialBadge } from '../node-credentials/node-credential';
 import { AgentUpgradeDrawer } from './agent-upgrade';
 import { AssignRoleDrawer, EditNodeDrawer, RegisterNodeDrawer } from './node-actions';
 import { diskSeverity, listAllNodes, nodeError, worstPersistentDisk, type NodeRow } from './nodes-api';
@@ -30,6 +33,10 @@ export default function NodesPage() {
   useEffect(() => setTransient(!!rows?.some((node) => node.status === 'PROVISIONING' || node.agent?.status === 'UPDATING')), [rows]);
   const updates = useMagnusResource((signal) => magnus.get('/nodes/system-updates/summary', systemUpdatesSummaryResponseSchema, { signal }));
   const tailscale = useMagnusResource((signal) => magnus.get('/nodes/tailscale/summary', tailscaleSummaryResponseSchema, { signal }));
+  // Per-node credentials: a Magnus without them answers 404, read as null, and the panel stays away.
+  const credentials = useMagnusResource((signal) => readCredentialSummary(signal), [], { enabled: canWrite });
+  const credentialSummary = canWrite ? credentials.data : null;
+  const pendingBindings = useMagnusResource((signal) => listPendingBindings({ signal }), [], { enabled: canDelete && !!credentialSummary });
   const router = useRouter();
   // The update banner links here with ?upgrade=agents. Closing clears it, so the same link opens it again.
   const upgradeLinked = useSearchParams().get('upgrade') === 'agents';
@@ -50,6 +57,8 @@ export default function NodesPage() {
     void nodes.refresh();
     void updates.refresh();
     void tailscale.refresh();
+    if (canWrite) void credentials.refresh();
+    if (canDelete && credentialSummary) void pendingBindings.refresh();
   };
   async function confirmDelete() {
     if (!deleting) return;
@@ -69,6 +78,8 @@ export default function NodesPage() {
   const updatesById = new Map(summary?.nodes.map((node) => [node.id, node.systemUpdates]));
   const tailscaleById = new Map(tailscale.data?.data.nodes.map((node) => [node.id, node.tailscale]));
   const list = rows ?? [];
+  const showCredentials = list.some((node) => node.nodeCredential);
+  const pendingByNode = new Map<string, PendingBinding>((pendingBindings.data ?? []).map((binding) => [binding.nodeId, binding]));
   return (
     <div className="page-stack">
       <PageItem>
@@ -129,7 +140,7 @@ export default function NodesPage() {
                 <table>
                   <thead>
                     <tr>
-                      {['Name', 'Host', 'Address', 'Status', 'Agent', 'Role', 'CPU', 'Memory', 'Persistent disk', 'Updates', 'Tailscale key', 'Last heartbeat'].map((heading) => <th key={heading}>{heading}</th>)}
+                      {['Name', 'Host', 'Address', 'Status', 'Agent', ...(showCredentials ? ['Node key'] : []), 'Role', 'CPU', 'Memory', 'Persistent disk', 'Updates', 'Tailscale key', 'Last heartbeat'].map((heading) => <th key={heading}>{heading}</th>)}
                       {canWrite || canDelete ? <th><span className="sr-only">Actions</span></th> : null}
                     </tr>
                   </thead>
@@ -141,6 +152,8 @@ export default function NodesPage() {
                         health={node.health}
                         updates={updatesById.get(node.id) ?? null}
                         tailscale={tailscaleById.get(node.id) ?? null}
+                        showCredential={showCredentials}
+                        pendingBinding={pendingByNode.get(node.id) ?? null}
                         canWrite={canWrite}
                         canDelete={canDelete}
                         onEdit={setEditing}
@@ -155,6 +168,17 @@ export default function NodesPage() {
           )}
         </FxPanel>
       </PageItem>
+      {credentialSummary ? (
+        <PageItem>
+          <NodeCredentialsPanel
+            summary={credentialSummary}
+            pending={canDelete ? pendingBindings.data : undefined}
+            pendingError={pendingBindings.error}
+            canDecide={canDelete}
+            onChanged={refreshAll}
+          />
+        </PageItem>
+      ) : null}
       <AgentUpgradeDrawer open={upgradeOpen} onClose={closeUpgrade} onFinished={refreshAll} />
       <RegisterNodeDrawer open={registerOpen} onClose={() => setRegisterOpen(false)} onRegistered={refreshAll} />
       <EditNodeDrawer node={editing} onClose={() => setEditing(null)} onSaved={refreshAll} />
@@ -199,11 +223,13 @@ function TailscaleBadge({ tailscale }: { tailscale: Tailscale }) {
   return <Badge tone={tailscale.requiresRenewal ? 'warning' : 'success'}>{tailscale.daysRemaining}d</Badge>;
 }
 
-function NodeTableRow({ node, health, updates, tailscale, canWrite, canDelete, onEdit, onAssign, onDelete }: {
+function NodeTableRow({ node, health, updates, tailscale, showCredential, pendingBinding, canWrite, canDelete, onEdit, onAssign, onDelete }: {
   node: NodeRow;
   health: NodeRow['health'];
   updates: Updates;
   tailscale: Tailscale;
+  showCredential: boolean;
+  pendingBinding: PendingBinding | null;
   canWrite: boolean;
   canDelete: boolean;
   onEdit: (node: NodeRow) => void;
@@ -237,6 +263,7 @@ function NodeTableRow({ node, health, updates, tailscale, canWrite, canDelete, o
         {node.agent ? `v${node.agent.version}` : '—'}
         {node.agent?.status === 'UPDATING' ? <Loader2 aria-hidden="true" className="ml-1.5 inline size-3 animate-spin text-info" /> : null}
       </td>
+      {showCredential ? <td className="whitespace-nowrap">{node.nodeCredential ? <NodeCredentialBadge credential={node.nodeCredential} pending={pendingBinding} /> : <span className="text-text-muted">—</span>}</td> : null}
       <td>
         {canWrite ? (
           <button type="button" className="role-chip role-chip--button whitespace-nowrap" title={node.role ? 'Change role' : 'Assign a role'} onClick={() => onAssign(node)}>

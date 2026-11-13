@@ -21,6 +21,8 @@ import { LiveEventList } from '../../../live/live-list';
 import Link from '../../../navigation';
 import { hasRoute } from '../../../routes';
 import { useMagnusSession, WRITE_ROLES } from '../../../session';
+import { readCredentialSummary } from '../node-credentials/api';
+import { NodeCredentialsAlert } from '../node-credentials/fleet-panel';
 import { TailscaleExpiryAlert } from '../shared/tailscale-alert';
 
 type Insight = z.output<typeof aiInsightsResponseSchema>['data']['insights'][number];
@@ -30,6 +32,9 @@ const INSIGHTS_POLL_MS = 5 * 60_000;
 export default function FleetOverviewPage() {
   const stats = useMagnusResource((signal) => magnus.get('/stats/overview', statsOverviewResponseSchema, { signal }), [], { pollMs: POLL_MS });
   const tailscale = useMagnusResource((signal) => magnus.get('/nodes/tailscale/summary', tailscaleSummaryResponseSchema, { signal }));
+  // Read by the roles that may act on it; a Magnus without per-node credentials answers 404, read as null.
+  const canReadCredentials = useMagnusSession().can(WRITE_ROLES);
+  const credentials = useMagnusResource((signal) => readCredentialSummary(signal), [], { enabled: canReadCredentials, pollMs: INSIGHTS_POLL_MS });
   const data = stats.data?.data;
   const samples = useSessionSamples(
     'magnus:overview',
@@ -60,6 +65,7 @@ export default function FleetOverviewPage() {
         />
       </PageItem>
       {tailscale.data ? <PageItem><TailscaleExpiryAlert summary={tailscale.data.data} /></PageItem> : null}
+      {canReadCredentials && credentials.data ? <PageItem><NodeCredentialsAlert summary={credentials.data} /></PageItem> : null}
       <PageItem>
         <FxPanel hero fxTone={panelTone} aria-label="Fleet status">
           {!data && stats.loading ? (

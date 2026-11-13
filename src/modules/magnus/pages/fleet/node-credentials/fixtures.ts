@@ -1,0 +1,57 @@
+// Test fixtures for per-node credentials, in the shapes of the Magnus browser contract. Tests only.
+export const AT = '2026-11-05T12:00:00.000Z';
+
+export const credential = (overrides: Record<string, unknown> = {}) => ({
+  state: 'active',
+  origin: 'LEGACY_UPGRADE',
+  boundAt: AT,
+  lastUsedAt: AT,
+  keyFingerprint: 'abababababababab',
+  evidenceSigning: true,
+  legacyUse: { request: null, evidence: null, outbound: null, lastUsedAt: null },
+  ...overrides,
+});
+
+export const summary = (overrides: Record<string, unknown> = {}) => ({
+  mode: 'warn',
+  serverKey: { keyId: 'f'.repeat(64), keyFingerprint: 'ffffffffffffffff' },
+  legacyUpgrade: { open: true, until: '2026-12-05T12:00:00.000Z' },
+  nodes: { total: 3, active: 1, none: 2, revoked: 0, evidenceSigning: 1 },
+  pendingBindings: 1,
+  legacyUse: { windowHours: 24, nodes: 1, request: 4, evidence: 0, outbound: 2, lastUsedAt: AT, unattributedSinceStart: 0 },
+  enforceReady: false,
+  blockers: [
+    { code: 'NODES_WITHOUT_KEY', count: 2, nodes: [{ id: 'node-2', name: 'node two' }, { id: 'node-3', name: 'node three' }] },
+    { code: 'PENDING_BINDINGS', count: 1, nodes: [{ id: 'node-2', name: 'node two' }] },
+  ],
+  generatedAt: AT,
+  ...overrides,
+});
+
+export const binding = (overrides: Record<string, unknown> = {}) => ({
+  id: 'pb-1',
+  nodeId: 'node-2',
+  nodeName: 'node two',
+  keyId: 'c'.repeat(64),
+  keyFingerprint: 'cccccccccccccccc',
+  fqdn: 'node-2.example.com',
+  peerAddress: '198.51.100.7',
+  recordedAddress: '192.0.2.12',
+  status: 'PENDING',
+  attempts: 3,
+  createdAt: AT,
+  lastSeenAt: new Date().toISOString(),
+  decidedAt: null,
+  decidedBy: null,
+  decisionReason: null,
+  ...overrides,
+});
+
+export const node = (id: string, name: string, nodeCredential?: Record<string, unknown>) => ({
+  id, name, hostname: `${id}.example.com`, ipAddress: '192.0.2.10', port: 4100, status: 'ONLINE', os: 'linux', arch: 'x64', tags: '[]', metadata: '{}', roleId: null,
+  lastHeartbeatAt: AT, createdAt: AT, updatedAt: AT, role: null, upgradeReadiness: null, health: null,
+  agent: { id: `agent-${id}`, nodeId: id, version: '2.10.0', status: 'RUNNING', pid: 1, startedAt: AT, lastCheckIn: AT, capabilities: '{}' },
+  ...(nodeCredential ? { nodeCredential } : {}),
+});
+
+export const session = (role: string) => ({ success: true, data: { userId: 'alice', role, capabilities: { hermes: false, terminal: false, agentVersion: '2.10.0', magnusVersion: '2.10.0', securityConsoleUrl: null } } });
