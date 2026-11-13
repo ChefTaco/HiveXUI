@@ -10,6 +10,7 @@ import { useMagnusResource } from '../../../api/use-resource';
 import { FxPanel, Gauge, PageItem } from '../../../effects';
 import Link, { useParams, useRouter } from '../../../navigation';
 import { ADMIN_ONLY, useMagnusSession, WRITE_ROLES } from '../../../session';
+import { NodeCredentialCard } from '../node-credentials/node-credential';
 import { AssignRoleDrawer, EditNodeDrawer } from '../nodes/node-actions';
 import { nodeError, parseDisks, parseTags } from '../nodes/nodes-api';
 import type { AskRequest } from './ask';
@@ -253,6 +254,8 @@ export default function NodeDetailPage() {
                 <Row label="Last health sample"><span className="num">{formatTime(health?.timestamp)}</span></Row>
               </dl>
             </FxPanel>
+            {/* Absent on a Magnus older than per-node credentials: then there is nothing to show. */}
+            {node.nodeCredential ? <NodeCredentialCard nodeId={node.id} credential={node.nodeCredential} agentVersion={node.agent?.version ?? null} onChanged={refreshNode} /> : null}
             {hermes ? <HermesCard installation={installation} skills={skills} onShowSkills={() => setSkillsOpen(true)} /> : null}
             <ServiceChecksCard services={parseServices(health?.services)} />
           </div>

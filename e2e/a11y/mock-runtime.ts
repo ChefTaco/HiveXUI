@@ -287,6 +287,37 @@ const UPGRADE_ELIGIBILITY = {
   },
 };
 
+// Per-node credentials (Magnus 2.10): one node with its own key, one waiting for an administrator to
+// approve the binding its agent asked for from another address, one with a revoked key.
+const nodeCredential = (state: string, extra: Record<string, unknown> = {}) => ({
+  state, origin: state === 'none' ? null : 'LEGACY_UPGRADE', boundAt: state === 'none' ? null : T0, lastUsedAt: state === 'none' ? null : T1,
+  keyFingerprint: state === 'none' ? null : '9999999988888888', evidenceSigning: state === 'active',
+  legacyUse: { request: null, evidence: null, outbound: null, lastUsedAt: null }, ...extra,
+});
+/** Served by the node credentials test only: the setup checklist reads the same list and expects no node. */
+export const CREDENTIAL_NODES = [
+  { ...AGENT_NODE, health: null, agent: { ...AGENT_NODE.agent, version: '2.10.0' }, nodeCredential: nodeCredential('active') },
+  { ...AGENT_NODE, health: null, id: 'node-2', name: 'node-2', hostname: 'node-2.example.internal', ipAddress: '192.0.2.12', nodeCredential: nodeCredential('none', { legacyUse: { request: { count: 12, lastUsedAt: T1 }, evidence: null, outbound: { count: 3, lastUsedAt: T1 }, lastUsedAt: T1 } }) },
+  { ...AGENT_NODE, health: null, id: 'node-3', name: 'node-3', hostname: 'node-3.example.internal', ipAddress: '192.0.2.13', nodeCredential: nodeCredential('revoked') },
+];
+const NODE_CREDENTIAL_SUMMARY = {
+  mode: 'warn', serverKey: { keyId: 'e'.repeat(64), keyFingerprint: 'eeeeeeeeeeeeeeee' }, legacyUpgrade: { open: true, until: '2026-12-01T09:00:00.000Z' },
+  nodes: { total: 3, active: 1, none: 1, revoked: 1, evidenceSigning: 1 }, pendingBindings: 1,
+  legacyUse: { windowHours: 24, nodes: 1, request: 12, evidence: 0, outbound: 3, lastUsedAt: T1, unattributedSinceStart: 0 },
+  enforceReady: false,
+  blockers: [
+    { code: 'NODES_WITHOUT_KEY', count: 1, nodes: [{ id: 'node-2', name: 'node-2' }] },
+    { code: 'NODES_REVOKED', count: 1, nodes: [{ id: 'node-3', name: 'node-3' }] },
+    { code: 'PENDING_BINDINGS', count: 1, nodes: [{ id: 'node-2', name: 'node-2' }] },
+  ],
+  generatedAt: T1,
+};
+const PENDING_BINDING = {
+  id: 'pb-1', nodeId: 'node-2', nodeName: 'node-2', keyId: 'd'.repeat(64), keyFingerprint: 'dddddddddddddddd', fqdn: 'node-2.example.internal',
+  peerAddress: '198.51.100.7', recordedAddress: '192.0.2.12', status: 'PENDING', attempts: 4, createdAt: T1, lastSeenAt: T1,
+  decidedAt: null, decidedBy: null, decisionReason: null,
+};
+
 // The inbox: the Hive Registry announces three feeds (events.v1); HiveSkills's feed fails, so the
 // "couldn't reach" row shows beside the others' events.
 const registryProduct = (id: string, displayName: string) => ({
@@ -398,6 +429,8 @@ export const ROUTES: Array<[string, RegExp, Answer]> = [
   ['GET', /^\/api\/magnus\/orchestra\/profiles$/, magnusOk(HERMES_PROFILES)],
   ['POST', /^\/api\/memory\/memories\/search\?workspace_id=\*$/, (_match: RegExpMatchArray, _url: URL, request: Request) => memorySearch(request)],
   ['GET', /^\/api\/magnus\/nodes\?page=1&pageSize=\d+$/, { success: true, data: [], meta: { total: 0, page: 1, pageSize: 100, hasMore: false } }],
+  ['GET', /^\/api\/magnus\/node-credentials\/summary$/, magnusOk(NODE_CREDENTIAL_SUMMARY)],
+  ['GET', /^\/api\/magnus\/node-credentials\/pending-bindings\?status=PENDING$/, magnusOk([PENDING_BINDING])],
   ['GET', /^\/api\/magnus\/nodes\/system-updates\/summary$/, magnusOk({ total: 0, reporting: 0, enabled: 0, actionNeeded: 0, rebootRequired: 0, nodes: [] })],
   ['GET', /^\/api\/magnus\/nodes\/tailscale\/summary$/, magnusOk({ total: 0, reporting: 0, expiryEnabled: 0, expiringSoon: 0, expired: 0, warningDays: 14, nodes: [] })],
   ['GET', /^\/api\/magnus\/agents\/upgrade\/eligibility$/, magnusOk(UPGRADE_ELIGIBILITY)],

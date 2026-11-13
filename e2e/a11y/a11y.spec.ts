@@ -2,7 +2,7 @@
 // serious or critical WCAG 2.1 A/AA violation that axe finds on these pages.
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { FIXED_NOW, installMocks } from './mock-runtime';
+import { CREDENTIAL_NODES, FIXED_NOW, installMocks } from './mock-runtime';
 
 const PAGES = [
   { name: 'Emberpath routers', path: '/?page=routers' },
@@ -101,6 +101,30 @@ test('the Magnus agent upgrade drawer has no serious or critical accessibility v
   await page.waitForTimeout(500);
   const results = await new AxeBuilder({ page }).include('[role="dialog"]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
   expect(results.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical').map((violation) => violation.id)).toEqual([]);
+});
+
+test('the Magnus node credentials panel and its approval have no serious or critical accessibility violations', async ({ page }) => {
+  await page.clock.setFixedTime(FIXED_NOW);
+  await installMocks(page);
+  await page.route(/\/api\/magnus\/nodes\?page=1&pageSize=\d+$/, (route) => route.fulfill({ json: { success: true, data: CREDENTIAL_NODES, meta: { total: CREDENTIAL_NODES.length, page: 1, pageSize: 100, hasMore: false } } }));
+  await page.goto('/fleet/nodes', { waitUntil: 'networkidle' });
+  const panel = page.locator('#node-credentials');
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText('Not ready for enforce: 3 things block it');
+  await expect(panel).toContainText('Nodes whose keys were revoked');
+  await expect(page.getByRole('region', { name: 'Fleet nodes' }).getByText('awaiting approval')).toBeVisible();
+  await page.waitForTimeout(500);
+  const scan = await new AxeBuilder({ page }).include('#node-credentials').include('[aria-label="Fleet nodes"]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  expect(scan.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical').map((violation) => violation.id)).toEqual([]);
+  await panel.getByRole('button', { name: 'Approve the key for node-2' }).click();
+  const dialog = page.getByRole('alertdialog', { name: 'Approve this key binding?' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('Key fingerprint: dddddddddddddddd');
+  await expect(dialog).toContainText('Address it called from: 198.51.100.7');
+  const results = await new AxeBuilder({ page }).include('[role="alertdialog"]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  expect(results.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical').map((violation) => violation.id)).toEqual([]);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
 });
 
 test('the inbox drawer has no serious or critical accessibility violations', async ({ page }) => {
