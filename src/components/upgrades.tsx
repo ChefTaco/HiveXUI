@@ -1,5 +1,6 @@
 import { browserIdentity, productEnabled } from "../lib/runtime";
 import { apiFetch } from "../lib/transport";
+import { safeExternalUrl } from "../lib/external-url";
 import { useEffect, useState } from "react";
 import { Button, Panel } from "./ui";
 
@@ -254,6 +255,7 @@ function LegacyUpgradesPanel({ canUpgrade }: { canUpgrade: boolean }) {
       );
     }
   }
+  const notesUrl = safeExternalUrl(notice?.notesUrl);
   return (
     <Panel title="Hive updates" eyebrow="Installed services">
       <p>
@@ -268,9 +270,9 @@ function LegacyUpgradesPanel({ canUpgrade }: { canUpgrade: boolean }) {
         </p>
       )}
       {notice?.summary && <p>{notice.summary}</p>}
-      {notice?.notesUrl && (
+      {notesUrl && (
         <p>
-          <a href={notice.notesUrl} target="_blank" rel="noreferrer">
+          <a href={notesUrl} target="_blank" rel="noreferrer">
             Release notes
           </a>
         </p>

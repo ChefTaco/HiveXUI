@@ -6,6 +6,7 @@ import { can } from '../lib/permissions';
 import type { AdminUser, CodexOAuthCheck, CodexOAuthStart, CodexOAuthStatus, Provider } from '../lib/types';
 import { AUTH_MODES, PROVIDER_KINDS } from '../lib/constants';
 import { relativeTime } from '../lib/format';
+import { safeExternalUrl } from '../lib/external-url';
 import { emptyForm, formFromProvider, providerFormForWrite, type ProviderForm } from './provider-form';
 import {
   Badge,
@@ -43,6 +44,8 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
   const [codexBusy, setCodexBusy] = useState(false);
   const [codexStatus, setCodexStatus] = useState<CodexOAuthStatus | null>(null);
   const [codexFlow, setCodexFlow] = useState<CodexOAuthStart | null>(null);
+  // The page address comes from Emberpath: only an http(s) one becomes a link.
+  const codexVerificationUrl = safeExternalUrl(codexFlow?.verificationUrl);
   const [codexCheck, setCodexCheck] = useState<CodexOAuthCheck | null>(null);
 
   const patch = (changes: Partial<ProviderForm>) => setForm((current) => ({ ...current, ...changes }));
@@ -403,9 +406,13 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
                   </Badge>
                 </div>
                 <CopyField value={codexFlow.userCode} label="Copy Codex code" />
-                <a className={buttonClass({ variant: 'primary' })} href={codexFlow.verificationUrl} target="_blank" rel="noreferrer">
-                  Open authorization link
-                </a>
+                {codexVerificationUrl ? (
+                  <a className={buttonClass({ variant: 'primary' })} href={codexVerificationUrl} target="_blank" rel="noreferrer">
+                    Open authorization link
+                  </a>
+                ) : (
+                  <span className="text-sm text-warning">Emberpath gave no usable authorization page.</span>
+                )}
                 <span className="field-hint">Expires {relativeTime(codexFlow.expiresAt)}. This modal checks automatically every {codexFlow.intervalSeconds}s.</span>
                 {codexCheck?.message ? <div className="error-banner"><Icon.Alert />{codexCheck.message}</div> : null}
               </div>

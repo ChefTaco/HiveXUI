@@ -12,14 +12,7 @@ export function authTone(status: string): Tone {
 }
 
 /** A device code's page comes from the node. Only http(s) may become a link the operator clicks. */
-export function safeExternalUrl(value: string): string | null {
-  try {
-    const url = new URL(value);
-    return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : null;
-  } catch {
-    return null;
-  }
-}
+export { safeExternalUrl } from '../../../../../lib/external-url';
 
 export function summarize(installations: readonly CodexInstallation[]) {
   const installed = installations.filter((item) => item.installed && item.reachable);
