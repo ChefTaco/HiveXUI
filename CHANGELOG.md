@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- Providers: keep stored credentials with the server they were entered for. When the base URL of a provider is changed to another server (a different scheme, host or port), the form says so in plain words and asks for the auth secret and any hidden default header values again before it saves; a path change on the same server asks for nothing. Emberpath enforces the same rule from its next release, and its refusal codes (`provider_origin_change_requires_secret` and related) are shown as operator messages. The check also runs against older Emberpath releases, which did not enforce it.
+- Providers: handle default headers Emberpath no longer shows. Values that may be credentials arrive as `[redacted]`; leaving one in place keeps the stored value, and the form refuses to send `[redacted]` for a header that has no stored value, so a stand-in is never saved as if it were real. The Auth Secret hint says whether a secret is stored.
+- Settings: after a configuration import, name the default headers whose values the file did not contain and that have to be entered again.
+- Read the stable `code` Emberpath sends beside a text error message; it was reported as the status default.
+- Update the vendored Emberpath model administration contract (hidden-credential read fields, write refusal codes, import result, base URLs without user info, the `v1.decisions` route kind, trace paging). Providers that list `v1.decisions` among their routes, as `OPENAI` providers do since Emberpath 2.4.0, can be read again.
 - Report a success answer HiveXUI cannot read as one operator message ("Emberpath answered in a format this version of HiveXUI cannot read.") with its request ID, instead of the schema library's issue list or a JSON parser error. This covers the Emberpath, Oathweave, HiveSkills, HiveMem dashboard, Embermend and incident-summary clients, which now raise the shared `HiveContractError`; after a change it says the change was sent and to refresh.
 - Report a gateway error page at sign-in by its status ("Oathweave could not be reached (HTTP 502). Try again in a moment.") instead of "Unexpected token '<'".
 - Link the Codex device authorization page on Providers, and release notes on the legacy update panel, only when the address the product sent is http or https; anything else is not rendered as a link.
