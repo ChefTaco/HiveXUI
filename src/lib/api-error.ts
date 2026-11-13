@@ -195,10 +195,20 @@ function sentCode(hive: HiveError, body: unknown): boolean {
   return isRecord(inner) ? typeof inner['code'] === 'string' || typeof inner['type'] === 'string' : typeof body['code'] === 'string';
 }
 
+/**
+ * Emberpath's `{error: "human text", code: "stable_code"}`: hive-common reads the text and fills in
+ * the status default for the code, so the code the product sent beside it is taken from the body.
+ */
+function siblingCode(hive: HiveError, body: unknown): string | undefined {
+  if (hive.shape !== 'string' || !isRecord(body)) return undefined;
+  const code = body['code'];
+  return typeof code === 'string' && /^[A-Za-z0-9._:-]{1,128}$/.test(code) ? code : undefined;
+}
+
 function toFailure(status: number, hive: HiveError, body: unknown, requestId: string | undefined, retryAfter: string | null, options: FailureOptions): ApiFailure {
   // hive-common fills a missing code or message with the status default; the clients keep their
   // own fallbacks and treat a code as absent unless the product sent one.
-  const remoteCode = sentCode(hive, body) ? hive.code : undefined;
+  const remoteCode = sentCode(hive, body) ? siblingCode(hive, body) ?? hive.code : undefined;
   const remoteMessage = hive.message !== defaultMessageForStatus(hive.status) ? hive.message : undefined;
   const fallback = typeof options.fallback === 'function' ? options.fallback(status) : options.fallback ?? hive.message;
   const message = options.trustMessage === false ? fallback : remoteMessage ?? fallback;
