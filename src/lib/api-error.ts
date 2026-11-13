@@ -90,6 +90,41 @@ export class HiveContractError extends HiveApiError {
   }
 }
 
+const unreadable = (product: string, applied: boolean): string =>
+  applied
+    ? `The change was sent, but ${product} answered in a format this version of HiveXUI cannot read. Refresh to confirm the result.`
+    : `${product} answered in a format this version of HiveXUI cannot read.`;
+
+/** Anything with zod's `safeParse`. Kept structural so this module needs no schema library. */
+export interface AnswerSchema<T> {
+  safeParse(value: unknown): { success: true; data: T } | { success: false };
+}
+
+/**
+ * A success answer, checked against its contract. A mismatch is a HiveContractError written for
+ * the operator, never the schema library's issue list. `applied` is true for a method that changes
+ * state: the change went through even though its result could not be read.
+ */
+export function parseAnswer<T>(schema: AnswerSchema<T>, value: unknown, product: string, applied = false): T {
+  const parsed = schema.safeParse(value);
+  if (parsed.success) return parsed.data;
+  throw new HiveContractError(unreadable(product, applied), applied);
+}
+
+/**
+ * The JSON body of a success answer. A body that is not JSON (a page served in the product's
+ * place, an empty answer) is a HiveContractError, not the parser's syntax error.
+ */
+export async function readJsonAnswer(response: Response, product: string, applied = false): Promise<unknown> {
+  try {
+    return (await response.json()) as unknown;
+  } catch (cause) {
+    // An aborted read is the caller's own doing and keeps its reason.
+    if (cause instanceof DOMException && cause.name === 'AbortError') throw cause;
+    throw new HiveContractError(unreadable(product, applied), applied, response.status, { requestId: responseRequestId(response), cause });
+  }
+}
+
 /** The request ID this client sent, per response, for answers that do not echo one. */
 const sentRequestIds = new WeakMap<Response, string>();
 export function rememberSentRequestId(response: Response, requestId: string): void {

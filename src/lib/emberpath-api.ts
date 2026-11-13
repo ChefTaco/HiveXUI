@@ -1,11 +1,12 @@
 import {z} from 'zod';
 import * as contracts from '@contracts/emberpath-model-admin.generated';
+import {parseAnswer} from './api-error';
 
 // The transport supplies authentication and errors; all model-plane payloads are owned by Emberpath.
 export function createEmberpathApi(request: (path: string, options?: {method?: string; body?: object}) => Promise<unknown>) {
   const id = encodeURIComponent;
   const read = async <T>(path: string, schema: z.ZodType<T>, method = 'GET', body?: object): Promise<T> =>
-    schema.parse(await request(path, {method, ...(body === undefined ? {} : {body})}));
+    parseAnswer(schema, await request(path, {method, ...(body === undefined ? {} : {body})}), 'Emberpath', method !== 'GET');
   const schema = contracts.modelConsoleSchemas;
   return {
     emberpathMe: () => read('/api/auth/me', contracts.adminMeSchema),

@@ -1,7 +1,7 @@
 import {z} from 'zod';
 import * as owner from '../../contracts/oathweave-browser.generated';
 import {apiFetch} from './transport';
-import {apiFailureFromBody, failureMeta, HiveApiError, type ApiFailure} from './api-error';
+import {apiFailureFromBody, failureMeta, HiveApiError, parseAnswer, readJsonAnswer, type ApiFailure} from './api-error';
 const identityFailure=(failure:ApiFailure):Error=>new HiveApiError(failure.status,failure.message,{...failureMeta(failure),code:failure.code});
 export function createIamApi(send:typeof apiFetch=apiFetch,fail:(failure:ApiFailure)=>Error=identityFailure) {
   async function call<T>(path:string,schema:z.ZodType<T>,method='GET',body?:object):Promise<T>{
@@ -12,8 +12,8 @@ export function createIamApi(send:typeof apiFetch=apiFetch,fail:(failure:ApiFail
       const failure=apiFailureFromBody(response.status,value,{fallback:'Identity request failed',response});
       throw fail({...failure,message:failure.remoteMessage??failure.code??failure.message});
     }
-    const value:unknown=await response.json();
-    return schema.parse(value);
+    const value=await readJsonAnswer(response,'Oathweave',method!=='GET');
+    return parseAnswer(schema,value,'Oathweave',method!=='GET');
   }
   const id=(value:string)=>encodeURIComponent(value);
   return {

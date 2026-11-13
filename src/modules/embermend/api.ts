@@ -1,6 +1,6 @@
 // Embermend's browser API, over the shared transport. Embermend answers a refusal with a bare code
 // ({error:"CODE"}), so the operator sees the message for its status and the code stays on the error.
-import { hiveApiError, type HiveApiError } from '../../lib/api-error';
+import { hiveApiError, readJsonAnswer, type HiveApiError } from '../../lib/api-error';
 import { apiFetch } from '../../lib/transport';
 
 export const EMBERMEND_API = '/api/embermend/api/v1/';
@@ -25,5 +25,5 @@ export async function embermendRequest(path: string, body?: unknown, signal?: Ab
     ...(signal ? { signal } : {}),
   });
   if (!response.ok) throw await embermendFailure(response);
-  return response.json();
+  return readJsonAnswer(response, 'Embermend', body !== undefined);
 }

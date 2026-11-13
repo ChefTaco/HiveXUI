@@ -189,3 +189,44 @@ describe('the error classes share one base', () => {
     expect(studio.message).toBe('The Studio service answered in an unexpected format.');
   });
 });
+
+describe('success answers that cannot be read', () => {
+  it('turns a contract mismatch into an operator message, never the schema issue list', async () => {
+    const { parseAnswer } = await import('./api-error');
+    const { z } = await import('zod');
+    const schema = z.object({ data: z.array(z.object({ id: z.string() })) });
+    expect(parseAnswer(schema, { data: [{ id: 'a', extra: true }] }, 'Emberpath')).toEqual({ data: [{ id: 'a' }] });
+    let caught: unknown;
+    try {
+      parseAnswer(schema, { data: [{ id: 1 }] }, 'Emberpath');
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(HiveContractError);
+    expect((caught as HiveContractError).applied).toBe(false);
+    expect((caught as Error).message).toBe('Emberpath answered in a format this version of HiveXUI cannot read.');
+    expect((caught as Error).message).not.toContain('invalid_type');
+    expect(() => parseAnswer(schema, null, 'Emberpath', true)).toThrow(/change was sent.*Refresh/);
+  });
+
+  it('reports a page served in place of JSON as a contract error with the request ID', async () => {
+    const { readJsonAnswer } = await import('./api-error');
+    const page = new Response('<!doctype html><title>HiveXUI</title>', { status: 200, headers: { 'content-type': 'text/html', 'x-request-id': 'req-html-1' } });
+    const error = await readJsonAnswer(page, 'HiveMem').catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(HiveContractError);
+    expect((error as HiveContractError).requestId).toBe('req-html-1');
+    expect((error as Error).message).not.toMatch(/Unexpected token|JSON/);
+    await expect(readJsonAnswer(Response.json({ ok: true }), 'HiveMem')).resolves.toEqual({ ok: true });
+  });
+
+  it('gives the shared clients that operator message for a mismatched answer', async () => {
+    const { createIamApi } = await import('./iam-api');
+    const { createEmberpathApi } = await import('./emberpath-api');
+    const iam = createIamApi(vi.fn<typeof fetch>(async () => Response.json({ users: 'nope' })));
+    await expect(iam.iamUsers()).rejects.toThrow('Oathweave answered in a format this version of HiveXUI cannot read.');
+    await expect(createIamApi(vi.fn<typeof fetch>(async () => new Response('<html>', { status: 200 }))).iamUsers()).rejects.toBeInstanceOf(HiveContractError);
+    const emberpath = createEmberpathApi(vi.fn().mockResolvedValue({ data: 'nope' }));
+    await expect(emberpath.providers()).rejects.toThrow('Emberpath answered in a format this version of HiveXUI cannot read.');
+    await expect(emberpath.deleteProvider('fixture')).rejects.toMatchObject({ applied: true });
+  });
+});

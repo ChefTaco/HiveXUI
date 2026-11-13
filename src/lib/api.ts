@@ -2,7 +2,7 @@ import {createEmberpathApi} from './emberpath-api';
 import { memoryDashboardApi } from './memory-dashboard-api';
 import { readConsoleIncidents } from './console-incidents';
 import { apiFetch, clearAccess } from './transport';
-import { failureMeta, HiveApiError, readApiFailure, type HiveApiErrorOptions } from './api-error';
+import { failureMeta, HiveApiError, readApiFailure, readJsonAnswer, type HiveApiErrorOptions } from './api-error';
 import {createIamApi} from './iam-api';
 import { browserIdentity, enrollmentInstallationId } from './runtime';
 import { readConsoleHealth } from './suite-health';
@@ -63,7 +63,7 @@ async function request<T, TBody extends JsonRequestBody = JsonRequestBody>(
   if (response.status === 204) {
     return undefined as T;
   }
-  return (await response.json()) as T;
+  return (await readJsonAnswer(response, 'The product', (options.method ?? 'GET') !== 'GET')) as T;
 }
 
 export const adminApi = {
