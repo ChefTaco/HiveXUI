@@ -7,7 +7,8 @@ import type { AdminUser, CodexOAuthCheck, CodexOAuthStart, CodexOAuthStatus, Pro
 import { AUTH_MODES, PROVIDER_KINDS } from '../lib/constants';
 import { relativeTime } from '../lib/format';
 import { safeExternalUrl } from '../lib/external-url';
-import { emptyForm, formFromProvider, providerFormForWrite, type ProviderForm } from './provider-form';
+import { emptyForm, formFromProvider, hasStoredSecret, providerCredentialProblem, providerFormForWrite, providerSaveRefusal, type ProviderForm } from './provider-form';
+import { providerRedactedValue } from '@contracts/emberpath-model-admin.generated';
 import {
   Badge,
   Button,
@@ -49,6 +50,9 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
   const [codexCheck, setCodexCheck] = useState<CodexOAuthCheck | null>(null);
 
   const patch = (changes: Partial<ProviderForm>) => setForm((current) => ({ ...current, ...changes }));
+  // Stored credentials stay with the server they were entered for; see provider-form.ts.
+  const credentialProblem = drawerOpen ? providerCredentialProblem(editing, form) : null;
+  const hiddenHeaders = editing?.redactedDefaultHeaders ?? [];
 
   function openCreate() {
     setEditing(null);
@@ -68,6 +72,10 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
   }
 
   async function handleSave() {
+    if (credentialProblem) {
+      toast.error('Save failed', credentialProblem.message);
+      return;
+    }
     setSaving(true);
     try {
       const body = providerFormForWrite(form);
@@ -82,7 +90,7 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
       await refresh();
     } catch (caught) {
       const message =
-        caught instanceof ApiError ? caught.message : caught instanceof Error ? caught.message : 'Could not save provider';
+        caught instanceof ApiError ? providerSaveRefusal(caught.code) ?? caught.message : caught instanceof Error ? caught.message : 'Could not save provider';
       toast.error('Save failed', message);
     } finally {
       setSaving(false);
@@ -298,12 +306,31 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
           </Field>
         </div>
 
-        <Field label="Auth Secret" hint={editing ? 'Leave blank to keep the current secret' : 'Stored encrypted at rest'}>
+        {credentialProblem ? (
+          <p role="status" className="warning-banner">
+            <Icon.Alert />
+            {credentialProblem.message}
+          </p>
+        ) : null}
+
+        <Field
+          label="Auth Secret"
+          hint={
+            credentialProblem?.secret
+              ? 'Needed again: the base URL points to a different server'
+              : editing
+                ? hasStoredSecret(editing)
+                  ? 'Leave blank to keep the current secret'
+                  : 'No secret is stored'
+                : 'Stored encrypted at rest'
+          }
+        >
           <TextInput
             type="password"
             value={form.authSecret}
             onChange={(v) => patch({ authSecret: v })}
             placeholder={editing && editing.authSecretMasked ? editing.authSecretMasked : 'sk-...'}
+            aria-invalid={credentialProblem?.secret ? true : undefined}
           />
         </Field>
 
@@ -328,8 +355,18 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
           </Field>
         </div>
 
-        <Field label="Default Headers (JSON object)">
-          <TextArea value={form.defaultHeaders} onChange={(v) => patch({ defaultHeaders: v })} spellCheck={false} />
+        <Field
+          label="Default Headers (JSON object)"
+          {...(hiddenHeaders.length > 0
+            ? { hint: `Emberpath does not show stored values that may be credentials. Leave ${providerRedactedValue} in place to keep a stored value, or type a new one.` }
+            : {})}
+        >
+          <TextArea
+            value={form.defaultHeaders}
+            onChange={(v) => patch({ defaultHeaders: v })}
+            spellCheck={false}
+            aria-invalid={credentialProblem && credentialProblem.headers.length > 0 ? true : undefined}
+          />
         </Field>
         <Field label="Capabilities (JSON object)">
           <TextArea value={form.capabilities} onChange={(v) => patch({ capabilities: v })} spellCheck={false} />

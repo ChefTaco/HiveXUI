@@ -87,8 +87,11 @@ export function SettingsPage({ currentUser }: { currentUser: AdminUser | null })
     }
     setImporting(true);
     try {
-      await adminApi.importConfig(payload);
-      toast.success('Config imported', 'Settings reconciled from payload.');
+      const result = await adminApi.importConfig(payload);
+      // An export holds no credentials; hidden header values this installation does not store are left out.
+      const leftOut = (result.redactedHeadersNotImported ?? []).map((entry) => `${entry.provider}: ${entry.headers.join(', ')}`);
+      if (leftOut.length > 0) toast.info('Config imported', `Enter these default headers again on Providers (${leftOut.join('; ')}). The file did not contain their values.`);
+      else toast.success('Config imported', 'Settings reconciled from payload.');
       setImportText('');
       await refresh();
     } catch (caught) {

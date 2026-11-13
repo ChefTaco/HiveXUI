@@ -46,6 +46,6 @@ export function createEmberpathApi(request: (path: string, options?: {method?: s
     rollbackRoutingRevision: (revision: string, baseRevision: string) => read('/api/routing/revisions/' + id(revision) + '/rollback', schema.routingSnapshot, 'POST', contracts.routingRollbackRequestSchema.parse({baseRevision})),
     previewRouting: (body: unknown) => read('/api/testing/preview', schema.routingPreview, 'POST', contracts.routingPreviewRequestSchema.parse(body)),
     exportConfig: () => read('/api/config/export', contracts.configExportSchema),
-    importConfig: (body: contracts.ConfigImportRequest) => read('/api/config/import', contracts.okSchema, 'POST', contracts.configImportSchema.parse(body)),
+    importConfig: (body: contracts.ConfigImportRequest) => read('/api/config/import', contracts.configImportResultSchema, 'POST', contracts.configImportSchema.parse(body)),
   };
 }

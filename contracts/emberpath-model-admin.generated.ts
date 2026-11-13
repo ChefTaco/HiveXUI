@@ -13,6 +13,7 @@ export const endpointKindSchema = z.enum([
   'v1.audio.translations',
   'v1.images.generations',
   'v1.moderations',
+  'v1.decisions',
   'ollama.native',
   'vllm.native',
 ]);
@@ -45,11 +46,40 @@ export const providerModelSchema = z.object({
   capabilityJson: providerCapabilitySchema.default({}),
 }).strict();
 
+/**
+ * Providers are only ever called over HTTP(S). Other schemes (`file:`, `ftp:`,
+ * `javascript:` and so on) are rejected when the record is written rather than
+ * failing later on every request.
+ */
+const providerBaseUrlSchema = z.url({ protocol: /^https?$/, error: 'baseUrl must be an http(s) URL' })
+  // `user:password@host` never reached a provider (the HTTP client refuses such URLs) and would
+  // put a credential in a field that is shown to every reader.
+  .refine((value) => { try { const url = new URL(value); return url.username === '' && url.password === ''; } catch { return false; } }, { error: 'baseUrl must not contain a user name or password; use the auth secret or a default header' });
+
+/**
+ * Stand-in for a stored value the API does not return: a default header that may carry a
+ * credential. Sending it back unchanged keeps the stored value; it is never stored itself.
+ */
+export const providerRedactedValue = '[redacted]';
+
+/** Stable `code` values on refused provider writes (`PUT /api/providers/{id}`, `POST /api/config/import`). */
+export const providerWriteErrorCodes = {
+  /** The base URL moved to another origin and a stored secret or header was not supplied again. */
+  originChangeRequiresSecret: 'provider_origin_change_requires_secret',
+  /** The same, for an OAuth-authorized provider: it must be authorized again instead. */
+  originChangeRequiresReauthorization: 'provider_origin_change_requires_reauthorization',
+  /** A header value was the redaction stand-in, but no stored value exists for that header. */
+  redactedValueNotStored: 'provider_redacted_value_not_stored',
+  /** The provider's destination or credentials changed while this request was being checked. */
+  changedConcurrently: 'provider_changed_concurrently',
+} as const;
+export type ProviderWriteErrorCode = (typeof providerWriteErrorCodes)[keyof typeof providerWriteErrorCodes];
+
 export const providerSchema = z.object({
   slug: z.string().min(2),
   name: z.string().min(2),
   kind: z.enum(['OPENAI', 'CODEX', 'OPENAI_GENERIC', 'OPENROUTER', 'ANTHROPIC', 'OLLAMA', 'LLAMACPP', 'VLLM']),
-  baseUrl: z.url(),
+  baseUrl: providerBaseUrlSchema,
   authMode: z.enum(['NONE', 'BEARER', 'API_KEY', 'HEADER']).default('BEARER'),
   authHeaderName: z.string().default('Authorization'),
   authSecret: z.string().optional(),
@@ -89,6 +119,8 @@ export const providerReadSchema = z.object({
   id: z.string(), slug: z.string(), name: z.string(), kind: providerSchema.shape.kind,
   baseUrl: z.string(), authMode: z.enum(['NONE', 'BEARER', 'API_KEY', 'HEADER']), authHeaderName: z.string(),
   authSecretMasked: z.string().nullable(), defaultHeaders: z.record(z.string(), z.string()),
+  // Optional: absent from releases that returned every default header in clear.
+  hasAuthSecret: z.boolean().optional(), redactedDefaultHeaders: z.array(z.string()).optional(),
   capabilities: providerCapabilityReadSchema, timeoutMs: z.number(), maxRetries: z.number(), concurrency: z.number(),
   priority: z.number(), weight: z.number(), failoverGroup: z.string().nullable(), enabled: z.boolean(),
   lastHealthStatus: z.string().nullable(), lastHealthError: z.string().nullable(), lastHealthAt: z.string().nullable(),
@@ -100,7 +132,7 @@ export const modelAliasReadSchema = z.object({
   enabled: z.boolean(), description: z.string().nullable(), createdAt: z.string(), updatedAt: z.string(),
   provider: providerSummarySchema.nullable().optional(),
 });
-export const modelAdminErrorSchema = z.object({error: z.string(), issues: z.array(z.unknown()).optional()});
+export const modelAdminErrorSchema = z.object({error: z.string(), code: z.string().optional(), issues: z.array(z.unknown()).optional()});
 export type ProviderWriteRequest = z.input<typeof providerSchema>;
 export type ProviderModelWriteRequest = z.input<typeof providerModelSchema>;
 export type ModelAliasWriteRequest = z.input<typeof modelAliasSchema>;
@@ -176,7 +208,7 @@ const importProviderSchema = z.object({
   slug: z.string().min(2),
   name: z.string().min(2),
   kind: providerSchema.shape.kind,
-  baseUrl: z.url(),
+  baseUrl: providerBaseUrlSchema,
   authMode: z.enum(['NONE', 'BEARER', 'API_KEY', 'HEADER']).optional(),
   authHeaderName: z.string().optional(),
   encryptedAuthSecret: z.string().nullable().optional(),
@@ -352,6 +384,14 @@ const timestamp = z.string(); // Wire dates remain strings; legacy records are n
 const nullableText = z.string().nullable();
 const timestamps = {createdAt: timestamp, updatedAt: timestamp};
 export const okSchema = z.object({ok: z.boolean()});
+/**
+ * `POST /api/config/import`. An archive carries the redaction stand-in instead of credential
+ * header values; where the destination has no stored value to keep, the header is left out and
+ * named here so it can be entered again.
+ */
+export const configImportResultSchema = okSchema.extend({
+  redactedHeadersNotImported: z.array(z.object({provider: z.string(), headers: z.array(z.string())})).optional(),
+});
 export const routeRuleReadSchema = z.object({id: z.string(), name: z.string(), kind: routeRuleSchema.shape.kind,
   priority: z.number(), enabled: z.boolean(), matchJson: z.string(), actionJson: z.string(), ...timestamps});
 export const heuristicReadSchema = z.object({id: z.string(), name: z.string(), category: z.string(), pattern: z.string(),
@@ -373,6 +413,7 @@ export const traceEventSchema = z.object({id: z.string(), traceId: z.string(), t
 export const traceReadSchema = z.object({id: z.string(), requestId: z.string(), method: z.string(), path: z.string(),
   endpointKind: z.string(), routeKey: z.string(), statusCode: z.number().nullable(), outcome: z.string(), estimatedUsage: z.boolean(),
   providerId: nullableText, providerKind: nullableText, providerModel: nullableText, clientApiKeyId: nullableText,
+  actorId: nullableText.optional(),
   decisionJson: z.string(), requestHeadersJson: nullableText, responseHeadersJson: nullableText, requestMetaJson: nullableText,
   responseMetaJson: nullableText, usageJson: nullableText, retentionJson: nullableText, requestBodyPath: nullableText,
   responseBodyPath: nullableText, reasoningBodyPath: nullableText, startedAt: timestamp, endedAt: timestamp.nullable(),
@@ -380,6 +421,22 @@ export const traceReadSchema = z.object({id: z.string(), requestId: z.string(), 
   provider: providerSummarySchema.nullable().optional(), clientApiKey: clientKeyReadSchema.nullable().optional(),
   events: z.array(traceEventSchema).optional(),
 });
+export const traceListDefaultLimit = 50;
+export const traceListMaxLimit = 200;
+/**
+ * Optional `GET /api/traces` filters. Passing any of them selects the paginated
+ * `{data, nextCursor}` response; passing none keeps the original latest-100 list.
+ * `cursor` is opaque: send back the previous page's `nextCursor` unchanged.
+ */
+export const traceListQuerySchema = z.object({
+  actorId: z.string().regex(/^[a-z0-9_-]{2,32}$/u).optional(),
+  clientKeyId: z.string().min(1).max(128).optional(),
+  since: z.iso.datetime({offset: true}).optional(),
+  cursor: z.string().min(1).max(512).regex(/^[A-Za-z0-9_-]+$/u).optional(),
+  limit: z.coerce.number().int().min(1).max(traceListMaxLimit).optional(),
+});
+export const traceListQueryKeys = ['actorId', 'clientKeyId', 'since', 'cursor', 'limit'] as const;
+export const tracePageSchema = z.object({data: z.array(traceReadSchema), nextCursor: z.string().nullable()});
 export const telemetrySchema = z.object({totals: z.object({traces: z.number(), failures: z.number(), failovers: z.number()}), latestTrace: traceReadSchema.nullable()});
 export const adminUserReadSchema = z.object({id: z.string(), username: z.string(), displayName: nullableText, ...timestamps});
 export const auditReadSchema = z.object({id: z.string(), actorType: z.string(), adminUserId: nullableText, action: z.string(),
@@ -420,7 +477,7 @@ export const modelConsoleSchemas = {
   heuristics: dataSchema(z.array(heuristicReadSchema)), heuristic: dataSchema(heuristicReadSchema),
   clientKeys: dataSchema(z.array(clientKeyReadSchema)), clientKey: dataSchema(clientKeyReadSchema),
   createdClientKey: dataSchema(clientKeyCreatedSchema), rotatedClientKey: dataSchema(clientKeyRotatedSchema),
-  clientKeyUsage: dataSchema(clientKeyUsageSchema), traces: dataSchema(z.array(traceReadSchema)), telemetry: telemetrySchema,
+  clientKeyUsage: dataSchema(clientKeyUsageSchema), traces: dataSchema(z.array(traceReadSchema)), tracePage: tracePageSchema, telemetry: telemetrySchema,
   audit: dataSchema(z.array(auditReadSchema)), runtimeSettings: dataSchema(z.array(runtimeSettingReadSchema)),
   routingObjective: dataSchema(z.object({config: routingObjectiveReadSchema})), routingTest: dataSchema(routingTestResultSchema),
   routingRevisions: routingRevisionsSchema, routingApplied: routingAppliedSchema, routingSnapshot: routingSnapshotSchema,
@@ -437,6 +494,8 @@ export type ClientKeyUpdateRequest = z.input<typeof clientKeyUpdateSchema>;
 export type ClientKey = z.infer<typeof clientKeyReadSchema>;
 export type Telemetry = z.infer<typeof telemetrySchema>;
 export type Trace = z.infer<typeof traceReadSchema>;
+export type TraceListQuery = z.input<typeof traceListQuerySchema>;
+export type TracePage = z.infer<typeof tracePageSchema>;
 export type AuditEvent = z.infer<typeof auditReadSchema>;
 export type RuntimeSetting = z.infer<typeof runtimeSettingReadSchema>;
 export type RoutingObjectiveConfig = z.input<typeof routingObjectiveSchema>;

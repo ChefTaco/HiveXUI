@@ -48,7 +48,9 @@ const provider = (id: string, slug: string, name: string, kind: string, baseUrl:
   models: models.map((m, i) => model(id, m, i)), ...extra,
 });
 const PROVIDERS = [
-  provider('prv_a', 'router-a', 'Router A', 'OPENAI_GENERIC', 'https://router-a.example.com/v1', 'healthy', ['model-large', 'model-small']),
+  // As Emberpath returns stored credentials: the secret masked, a credential header hidden.
+  provider('prv_a', 'router-a', 'Router A', 'OPENAI_GENERIC', 'https://router-a.example.com/v1', 'healthy', ['model-large', 'model-small'],
+    { hasAuthSecret: true, defaultHeaders: { 'x-api-token': '[redacted]', 'x-title': 'Hive' }, redactedDefaultHeaders: ['x-api-token'] }),
   provider('prv_b', 'router-b', 'Router B', 'OLLAMA', 'http://router-b.example.internal:11434', 'healthy', ['local-7b']),
   provider('prv_c', 'router-c', 'Router C', 'ANTHROPIC', 'https://router-c.example.com', 'unhealthy', ['model-chat'], { priority: 50 }),
   provider('prv_d', 'router-d', 'Router D', 'VLLM', 'http://router-d.example.internal:8000', 'unknown', ['vision-1'], { enabled: false }),

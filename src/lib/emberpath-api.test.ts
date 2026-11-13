@@ -1,5 +1,7 @@
 import {expect, it, vi} from 'vitest';
 import {createEmberpathApi} from './emberpath-api';
+import * as contracts from '@contracts/emberpath-model-admin.generated';
+import {apiFailureFromBody} from './api-error';
 
 it('uses native defaults and rejects invalid or unknown writes before transport', async () => {
   const request = vi.fn().mockResolvedValue({data: {id: 'rule', name: 'Fixture', kind: 'SAFETY', priority: 100,
@@ -67,4 +69,24 @@ it('sends metadata-only trace controls through the released key contract', async
   const api = createEmberpathApi(request);
   await api.createClientKey({name: 'Fixture', metadata: {tracePrivacy: 'metadata-only', owner: 'fixture', environment: 'test'}});
   expect(request).toHaveBeenCalledExactlyOnceWith('/api/client-keys', {method: 'POST', body: {name: 'Fixture', metadata: {tracePrivacy: 'metadata-only', owner: 'fixture', environment: 'test'}}});
+});
+
+it('reads providers from Emberpath with and without the hidden-credential fields, and the import result with and without left-out headers', async () => {
+  const older = {id: 'provider', slug: 'fixture', name: 'Fixture', kind: 'OPENAI', baseUrl: 'https://provider.example.com/v1', authMode: 'BEARER',
+    authHeaderName: 'Authorization', authSecretMasked: 'masked-only', defaultHeaders: {'x-fixture': 'synthetic'},
+    capabilities: {supportedRoutes: ['v1.responses', 'v1.decisions']}, timeoutMs: 120000, maxRetries: 1, concurrency: 16, priority: 100, weight: 100,
+    failoverGroup: null, enabled: true, lastHealthStatus: null, lastHealthError: null, lastHealthAt: null, models: []};
+  const newer = {...older, hasAuthSecret: true, defaultHeaders: {'x-fixture': contracts.providerRedactedValue}, redactedDefaultHeaders: ['x-fixture']};
+  const request = vi.fn().mockResolvedValue({data: [older, newer]});
+  const api = createEmberpathApi(request);
+  expect((await api.providers()).data).toEqual([older, newer]);
+  request.mockResolvedValue({ok: true});
+  expect(await api.importConfig({data: {}})).toEqual({ok: true});
+  request.mockResolvedValue({ok: true, redactedHeadersNotImported: [{provider: 'fixture', headers: ['x-fixture']}]});
+  expect((await api.importConfig({data: {}})).redactedHeadersNotImported).toEqual([{provider: 'fixture', headers: ['x-fixture']}]);
+});
+
+it('keeps the code of a refused provider save next to its message', () => {
+  const failure = apiFailureFromBody(422, {error: 'The base URL now points to a different server.', code: contracts.providerWriteErrorCodes.originChangeRequiresSecret});
+  expect(failure).toMatchObject({code: 'provider_origin_change_requires_secret', remoteMessage: 'The base URL now points to a different server.'});
 });
