@@ -193,10 +193,89 @@ export const upgradeReadinessSchema = z.object({
 });
 
 // services/control-api/src/routes/nodes.ts (include agent and role; readiness is null when it cannot be computed)
+// services/control-api/src/services/node-credential-service.ts (credentialView). `none`: the node still
+// authenticates with the shared node secret; `active`: it has its own Ed25519 key and the shared secret is
+// refused for it; `revoked`: its keys were revoked and it must be enrolled again. `keyFingerprint` is ADMIN only.
+// Since phase 2: `evidenceSigning` (its agent signs evidence with the active key, so HMAC-only evidence is refused)
+// and `legacyUse` (per channel, how often and when last the shared credentials were still used for this node:
+// `request` shared secret accepted from it, `evidence` evidence accepted on the shared result key, `outbound`
+// shared secret still sent to it). Both are absent on a phase-1 server.
+export const nodeLegacyChannelUseSchema = z.object({ count: z.number().int().nonnegative(), lastUsedAt: z.string() });
+export const nodeLegacyUseSchema = z.object({
+  request: nodeLegacyChannelUseSchema.nullable(),
+  evidence: nodeLegacyChannelUseSchema.nullable(),
+  outbound: nodeLegacyChannelUseSchema.nullable(),
+  lastUsedAt: z.string().nullable(),
+});
+export const nodeCredentialSchema = z.object({
+  state: z.enum(['none', 'active', 'revoked']),
+  origin: z.enum(['ENROLLMENT_TOKEN', 'LEGACY_UPGRADE', 'ROTATION']).nullable(),
+  boundAt: z.string().nullable(),
+  lastUsedAt: z.string().nullable(),
+  keyFingerprint: z.string().nullable().optional(),
+  evidenceSigning: z.boolean().optional(),
+  legacyUse: nodeLegacyUseSchema.nullable().optional(),
+});
+
+// services/control-api/src/routes/nodes.ts GET /nodes/{nodeId}/credentials (ADMIN): every key of the node, newest first.
+export const nodeCredentialDetailSchema = z.object({
+  keyId: z.string(), keyFingerprint: z.string(), status: z.enum(['ACTIVE', 'RETIRING', 'REVOKED']),
+  origin: z.enum(['ENROLLMENT_TOKEN', 'LEGACY_UPGRADE', 'ROTATION']), boundFqdn: z.string(),
+  evidenceSigning: z.boolean().optional(), evidenceSigningAt: z.string().nullable().optional(),
+  createdAt: z.string(), lastUsedAt: z.string().nullable(), retireAt: z.string().nullable(), revokedAt: z.string().nullable(), revokedBy: z.string().nullable(),
+});
+export const nodeCredentialsResponseSchema = ok(z.array(nodeCredentialDetailSchema));
+export const nodeEnrollmentTokenRequestSchema = z.object({ ttlSeconds: z.number().int().min(60).max(86_400).optional() }).strict();
+// The token is shown once (Cache-Control: no-store) and never stored by the server in clear.
+export const nodeEnrollmentTokenResponseSchema = ok(z.object({ token: z.string(), expiresAt: z.string() }));
+export const nodeCredentialRevokeRequestSchema = z.object({ keyId: z.string().regex(/^[a-f0-9]{64}$/).optional() }).strict();
+export const nodeCredentialRevokeResponseSchema = ok(z.object({ revoked: z.number().int() }));
+export const nodeCredentialResetResponseSchema = ok(z.object({ removed: z.number().int() }));
+// GET /node-credentials/downgrade-check?nodeId=<id>&to=<version>: what installing an older agent needs first.
+export const nodeCredentialDowngradeQuerySchema = z.object({ nodeId: z.string().min(1).max(128), to: z.string().min(1).max(64) });
+export const nodeCredentialDowngradeCheckSchema = z.object({
+  nodeId: z.string(), to: z.string(), targetKnowsNodeKeys: z.boolean(), nodeHasCredentials: z.boolean(),
+  action: z.enum(['none', 'reset-credentials', 'enroll-instead']), resetPath: z.string().nullable(), detail: z.string(),
+});
+export const nodeCredentialDowngradeCheckResponseSchema = ok(nodeCredentialDowngradeCheckSchema);
+
+// services/control-api/src/routes/node-credentials.ts: the fleet's progress towards NODE_AUTH_MODE=enforce.
+export const nodeAuthModeSchema = z.enum(['compat', 'warn', 'enforce']);
+export const enforceBlockerSchema = z.object({
+  code: z.enum(['SERVER_KEY_UNAVAILABLE', 'NODES_WITHOUT_KEY', 'NODES_REVOKED', 'NODES_NOT_SIGNING_EVIDENCE', 'RECENT_SHARED_SECRET_USE', 'PENDING_BINDINGS']),
+  count: z.number().int(),
+  nodes: z.array(z.object({ id: z.string(), name: z.string() })),
+});
+export const nodeCredentialFleetSummarySchema = z.object({
+  mode: nodeAuthModeSchema,
+  serverKey: z.object({ keyId: z.string(), keyFingerprint: z.string() }).nullable(),
+  legacyUpgrade: z.object({ open: z.boolean(), until: z.string() }),
+  nodes: z.object({ total: z.number().int(), active: z.number().int(), none: z.number().int(), revoked: z.number().int(), evidenceSigning: z.number().int() }),
+  pendingBindings: z.number().int(),
+  legacyUse: z.object({ windowHours: z.number(), nodes: z.number().int(), request: z.number().int(), evidence: z.number().int(), outbound: z.number().int(),
+    lastUsedAt: z.string().nullable(), unattributedSinceStart: z.number().int() }),
+  enforceReady: z.boolean(),
+  blockers: z.array(enforceBlockerSchema),
+  generatedAt: z.string(),
+});
+export const nodeCredentialFleetSummaryResponseSchema = ok(nodeCredentialFleetSummarySchema);
+// Automatic bindings refused because the agent called from an address other than the node's recorded one.
+export const pendingBindingSchema = z.object({
+  id: z.string(), nodeId: z.string(), nodeName: z.string().nullable(), keyId: z.string(), keyFingerprint: z.string(), fqdn: z.string(),
+  peerAddress: z.string(), recordedAddress: z.string(), status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'EXPIRED']), attempts: z.number().int(),
+  createdAt: z.string(), lastSeenAt: z.string(), decidedAt: z.string().nullable(), decidedBy: z.string().nullable(), decisionReason: z.string().nullable(),
+});
+export const pendingBindingsQuerySchema = z.object({ status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional(), nodeId: z.string().optional() });
+export const pendingBindingsResponseSchema = ok(z.array(pendingBindingSchema));
+export const pendingBindingDecisionResponseSchema = ok(pendingBindingSchema);
+export const pendingBindingRejectRequestSchema = z.object({ reason: z.string().min(1).max(500).optional() }).strict();
+
 export const nodeWithRelationsSchema = nodeSchema.extend({
   agent: nodeAgentSchema.nullable(),
   role: z.object({ id: z.string(), name: z.string() }).nullable(),
   upgradeReadiness: upgradeReadinessSchema.nullable(),
+  // Absent on a server older than per-node credentials.
+  nodeCredential: nodeCredentialSchema.optional(),
 });
 
 // services/control-api/src/routes/nodes.ts (pageSize clamped to 100; status upper-cased server-side, an unknown value answers 400).
@@ -254,10 +333,12 @@ export const registerNodeRequestSchema = z.object({
   agentVersion: z.string().optional(),
 });
 
-// services/control-api/src/routes/nodes.ts (the raw body also carries the node token, once, with Cache-Control: no-store)
+// services/control-api/src/routes/nodes.ts (the raw body also carries the node token and a one-time
+// enrollmentToken for `magnus-agent enroll --token`, once, with Cache-Control: no-store)
 export const registerNodeResponseSchema = ok(z.object({
   nodeId: z.string(),
   controlApiUrl: z.string(),
+  enrollmentTokenExpiresAt: z.string().optional(),
 }));
 
 // services/control-api/src/schemas/nodes.ts (the server uppercases status; a non-enum value answers 400)
@@ -2414,6 +2495,44 @@ export const updateNotificationPreferencesRequestSchema = z.object({
   })).min(1).max(100),
 });
 
+// ── Suite event feed ──
+// services/control-api/src/routes/hive-events.ts (HiveEvent v1 from @hivemagnus/hive-common; no success envelope)
+export const hiveEventFeedQuerySchema = z.object({
+  /** The nextCursor of a previous page; omit it to start at the oldest event of the last 14 days. */
+  after: z.string().regex(/^[A-Za-z0-9._~:-]{1,512}$/u).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+});
+
+const hiveIdentifier = z.string().regex(/^[a-z0-9_-]{2,32}$/u);
+
+// services/control-api/src/services/hive-events.ts
+export const hiveEventSchema = z.object({
+  /** `magnus:notification:<notificationId>`, stable for the record. */
+  id: z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/u),
+  product: z.literal('magnus'),
+  /** The Magnus notification type, such as `node.offline`. */
+  type: z.string().min(1).max(100).regex(/^[a-z][a-z0-9_-]*(?:\.[a-z][a-z0-9_-]*)*$/u),
+  severity: z.enum(['info', 'warning', 'critical']),
+  title: z.string().min(1).max(200),
+  summary: z.string().max(2000),
+  occurredAt: isoDate,
+  subject: z.object({
+    actorId: hiveIdentifier.optional(),
+    agentRef: z.string().regex(/^[a-z0-9_-]{2,32}~[a-z0-9_-]{2,32}$/u).optional(),
+    nodeId: hiveIdentifier.optional(),
+  }).optional(),
+  /** A HiveXUI path: the node, the Ardent profile or the notifications page. */
+  link: z.object({ product: z.literal('magnus'), path: z.string().regex(/^\/(?![/\\])\S*$/u).max(1024) }),
+  /** The notification ID. */
+  sourceRef: z.string().min(1).max(256).optional(),
+});
+
+// services/control-api/src/routes/hive-events.ts
+export const hiveEventFeedResponseSchema = z.object({
+  data: z.array(hiveEventSchema),
+  nextCursor: z.string().nullable(),
+});
+
 // ── Data retention ──
 // services/control-api/src/services/ops-service.ts (cutoffs names differ by table, and some tables have none)
 export const retentionTableSchema = z.object({
@@ -3033,6 +3152,14 @@ export const magnusBrowserRoutes: readonly MagnusBrowserRoute[] = [
   { method: 'DELETE', path: '/nodes/{nodeId}', response: deleteNodeResponseSchema, roles: ADMIN_ONLY },
   { method: 'POST', path: '/nodes/{nodeId}/system-updates/enable', response: enableSystemUpdatesResponseSchema, roles: WRITE_ROLES, note: 'The node must be ONLINE, otherwise 409 INVALID_STATE.' },
   { method: 'GET', path: '/nodes/{nodeId}/gpu', query: nodeGpuQuerySchema, response: nodeGpuResponseSchema, roles: ANY_ROLE },
+
+  // Per-node credentials (docs/NODE_CREDENTIALS.md). The key administration routes under /nodes/{nodeId}/credentials and
+  // /nodes/{nodeId}/enrollment-token are not browser routes yet (docs/console-api.md); their schemas are exported above.
+  { method: 'GET', path: '/node-credentials/downgrade-check', query: nodeCredentialDowngradeQuerySchema, response: nodeCredentialDowngradeCheckResponseSchema, roles: WRITE_ROLES, note: 'Ask before installing an older agent: an agent older than 2.10.0 is refused for a node with a key until its credentials are reset.' },
+  { method: 'GET', path: '/node-credentials/summary', response: nodeCredentialFleetSummaryResponseSchema, roles: WRITE_ROLES, note: 'In NODE_AUTH_MODE=warn the readiness probe reports a failing non-critical node-credentials check while blockers is not empty.' },
+  { method: 'GET', path: '/node-credentials/pending-bindings', query: pendingBindingsQuerySchema, response: pendingBindingsResponseSchema, roles: ADMIN_ONLY },
+  { method: 'POST', path: '/node-credentials/pending-bindings/{id}/approve', request: z.object({}).strict(), response: pendingBindingDecisionResponseSchema, roles: ADMIN_ONLY, note: 'Compare keyFingerprint with `magnus-agent identity show` on the host first. 409 when the node has a key by now or in enforce mode, 410 after seven days without a request.' },
+  { method: 'POST', path: '/node-credentials/pending-bindings/{id}/reject', request: pendingBindingRejectRequestSchema, response: pendingBindingDecisionResponseSchema, roles: ADMIN_ONLY },
   { method: 'GET', path: '/nodes/{nodeId}/health', response: nodeHealthResponseSchema, roles: ANY_ROLE, note: '404 when the node has no snapshot. For a list, read health from GET /nodes.' },
   { method: 'GET', path: '/nodes/{nodeId}/health/history', query: nodeHealthHistoryQuerySchema, response: nodeHealthHistoryResponseSchema, roles: ANY_ROLE },
   { method: 'GET', path: '/nodes/{nodeId}/health/timeseries', query: nodeHealthTimeseriesQuerySchema, response: nodeHealthTimeseriesResponseSchema, roles: ANY_ROLE },
@@ -3123,6 +3250,7 @@ export const magnusBrowserRoutes: readonly MagnusBrowserRoute[] = [
   { method: 'POST', path: '/notifications/read-all', response: notificationsMarkedResponseSchema, roles: ANY_ROLE },
   { method: 'GET', path: '/notifications/preferences', response: notificationPreferencesResponseSchema, roles: ANY_ROLE, note: "The caller's own preferences." },
   { method: 'PUT', path: '/notifications/preferences', request: updateNotificationPreferencesRequestSchema, response: notificationPreferencesResponseSchema, roles: ANY_ROLE, note: 'An upsert: categories not sent keep their values.' },
+  { method: 'GET', path: '/hive/events', query: hiveEventFeedQuerySchema, response: hiveEventFeedResponseSchema, roles: ANY_ROLE, note: 'HiveEvent v1 feed of notifications from the last 14 days, oldest first. Pass nextCursor as after; null means caught up. limit is 1-200 (default 50); a malformed limit or cursor answers 400. Ardent notifications are listed for ADMIN only.' },
 
   // Data retention
   { method: 'GET', path: '/ops/retention', response: retentionSummaryResponseSchema, roles: ANY_ROLE },
