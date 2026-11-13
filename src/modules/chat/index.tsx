@@ -22,6 +22,7 @@ import type {
   MattermostCommand,
 } from "../../../contracts/chattermost.generated";
 import { productPrefix } from "../../lib/transport";
+import { HiveApiError } from "../../lib/api-error";
 import { productEnabled } from "../../lib/runtime";
 import { chat, chatResource, json, safeId } from "./api";
 import ChatAdministration from "./admin";
@@ -418,9 +419,12 @@ function ConnectedChat() {
   useEffect(() => {
     if (!me) return;
     const timer = setInterval(() => {
-      void chat("/users/me").catch(() =>
-        setError("Sign in again to continue this conversation"),
-      );
+      // Only a refusal means the chat session is gone. A request that did not get through
+      // (a sleeping laptop, a restart) is asked again on the next tick.
+      void chat("/users/me").catch((reason: unknown) => {
+        if (HiveApiError.is(reason) && (reason.status === 401 || reason.status === 403))
+          setError("Sign in again to continue this conversation");
+      });
     }, 60000);
     return () => clearInterval(timer);
   }, [me]);

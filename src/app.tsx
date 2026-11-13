@@ -296,8 +296,8 @@ function LoginScreen({ onSuccess, authorization = false }: { onSuccess: (user: A
           </p>
 
           {error ? (
-            <div className="error-banner">
-              <Icon.Alert />
+            <div className="error-banner" role="alert">
+              <Icon.Alert aria-hidden="true" />
               {error}
             </div>
           ) : null}
