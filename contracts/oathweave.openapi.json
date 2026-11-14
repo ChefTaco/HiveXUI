@@ -305,6 +305,154 @@
         ],
         "type": "object"
       },
+      "BrowserOpenIdConfiguration": {
+        "additionalProperties": false,
+        "properties": {
+          "authorization_endpoint": {
+            "format": "uri",
+            "type": "string"
+          },
+          "claims_supported": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "code_challenge_methods_supported": {
+            "items": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "S256"
+                  ],
+                  "type": "string"
+                }
+              ]
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array"
+          },
+          "grant_types_supported": {
+            "items": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "authorization_code"
+                  ],
+                  "type": "string"
+                }
+              ]
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array"
+          },
+          "id_token_signing_alg_values_supported": {
+            "items": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "RS256"
+                  ],
+                  "type": "string"
+                }
+              ]
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array"
+          },
+          "issuer": {
+            "format": "uri",
+            "type": "string"
+          },
+          "jwks_uri": {
+            "format": "uri",
+            "type": "string"
+          },
+          "response_types_supported": {
+            "items": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "code"
+                  ],
+                  "type": "string"
+                }
+              ]
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array"
+          },
+          "scopes_supported": {
+            "items": {
+              "enum": [
+                "openid",
+                "profile",
+                "email"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "subject_types_supported": {
+            "items": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "public"
+                  ],
+                  "type": "string"
+                }
+              ]
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array"
+          },
+          "token_endpoint": {
+            "format": "uri",
+            "type": "string"
+          },
+          "token_endpoint_auth_methods_supported": {
+            "items": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "none"
+                  ],
+                  "type": "string"
+                }
+              ]
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array"
+          },
+          "userinfo_endpoint": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "issuer",
+          "authorization_endpoint",
+          "token_endpoint",
+          "userinfo_endpoint",
+          "jwks_uri",
+          "response_types_supported",
+          "grant_types_supported",
+          "subject_types_supported",
+          "id_token_signing_alg_values_supported",
+          "scopes_supported",
+          "token_endpoint_auth_methods_supported",
+          "code_challenge_methods_supported",
+          "claims_supported"
+        ],
+        "type": "object"
+      },
       "BrowserResourceUserResponse": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "properties": {
@@ -4298,7 +4446,7 @@
   "info": {
     "description": "Centralized Identity & Access Management API for the Hive platform. Handles authentication (RS256 JWT), authorization (RBAC), user management, service accounts, audit logging, MFA, and password policies.",
     "title": "Hive IAM Core API",
-    "version": "1.2.2"
+    "version": "2.3.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -6638,6 +6786,10 @@
               "application/json": {
                 "schema": {
                   "properties": {
+                    "authLimitsRelaxed": {
+                      "description": "True while RELAX_AUTH_LIMITS testing mode raises sign-in throttles and disables failure lockout",
+                      "type": "boolean"
+                    },
                     "checks": {
                       "items": {
                         "type": "object"
@@ -6673,6 +6825,10 @@
               "application/json": {
                 "schema": {
                   "properties": {
+                    "authLimitsRelaxed": {
+                      "description": "True while RELAX_AUTH_LIMITS testing mode raises sign-in throttles and disables failure lockout",
+                      "type": "boolean"
+                    },
                     "checks": {
                       "items": {
                         "type": "object"
@@ -6708,6 +6864,10 @@
               "application/json": {
                 "schema": {
                   "properties": {
+                    "authLimitsRelaxed": {
+                      "description": "True while RELAX_AUTH_LIMITS testing mode raises sign-in throttles and disables failure lockout",
+                      "type": "boolean"
+                    },
                     "checks": {
                       "items": {
                         "type": "object"
@@ -6743,6 +6903,10 @@
               "application/json": {
                 "schema": {
                   "properties": {
+                    "authLimitsRelaxed": {
+                      "description": "True while RELAX_AUTH_LIMITS testing mode raises sign-in throttles and disables failure lockout",
+                      "type": "boolean"
+                    },
                     "checks": {
                       "items": {
                         "type": "object"
@@ -7093,6 +7257,54 @@
         ]
       }
     },
+    "/api/v1/oauth/.well-known/openid-configuration": {
+      "get": {
+        "operationId": "discoverOpenIdConfiguration",
+        "parameters": [
+          {
+            "description": "Explicit IAM_BROWSER_CLIENT_POLICIES client identifier; never inferred from headers",
+            "in": "query",
+            "name": "client_id",
+            "required": false,
+            "schema": {
+              "pattern": "^hivexui-[a-z0-9-]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/BrowserOpenIdConfiguration"
+                    },
+                    {
+                      "additionalProperties": true,
+                      "description": "Retained native discovery metadata",
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Without client_id the native discovery document is unchanged. With client_id this is BrowserOpenIdConfiguration, with no-store caching."
+          },
+          "400": {
+            "description": "Unknown, inactive, non-public, empty or repeated browser client selection"
+          },
+          "503": {
+            "description": "Explicit browser issuer, authorization portal and API base are not configured"
+          }
+        },
+        "summary": "Native discovery by default; select an active registered public browser client for configured interactive metadata",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
     "/api/v1/oauth/authorize": {
       "get": {
         "operationId": "oauthAuthorize",
@@ -7297,6 +7509,7 @@
     },
     "/api/v1/oauth/token": {
       "post": {
+        "description": "An authorization_code exchange is always bound to the client the code was issued to. A confidential client must authenticate with its client secret (client_secret in the body, or HTTP Basic) and, when it started the flow with a PKCE challenge, also send the code_verifier. A public client has no secret: it must have started the flow with an S256 code_challenge and must send the matching code_verifier. A missing, unknown or wrong client credential answers 401 invalid_client; a missing or wrong code_verifier, a code issued to another client and a used or expired code answer 400 invalid_grant.",
         "operationId": "oauthToken",
         "requestBody": {
           "content": {

@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.8.0] - 2026-11-14
 
 - Magnus: administrators can list, revoke and reset a node's keys on node detail (Magnus `c158e8c` and later, which publishes these as browser routes). The Node credential card lists every key with its fingerprint, status, origin, creation and last use. Revoke and Reset open the shared confirmation, which says in plain words what follows before anything is sent (revoke: the agent is refused until the node is enrolled again or reset; reset: the node is accepted with the shared secret again and binds a new key by itself while the automatic upgrade window is open), and takes an optional reason (up to 500 characters, counted) for Magnus's audit log. Each confirmation sends one request with its own idempotency key. Magnus's answer stays on the card, and the node, its keys and the summary are read again. Reset is not offered in enforce mode, and Magnus's refusal codes (`NODE_CREDENTIAL_NOT_FOUND`, `NODE_AUTH_ENFORCED`, `DUPLICATE_REQUEST`, `VALIDATION_ERROR`, `FORBIDDEN`) are shown as operator messages. Rotating a key and issuing an enrollment token stay CLI and API steps. Operators and viewers see no key buttons, and the key list is not requested for them.
 - Magnus: rejecting a pending key binding takes the same optional reason, sent to Magnus with the rejection.
@@ -25,6 +25,7 @@
 - Announce a failed sign-in to screen readers (`role="alert"`).
 - Keep a copy button quiet when the browser has no clipboard or refuses the write, instead of raising an unhandled error.
 - Show "Sign in again to continue this conversation" in chat only when the session check is refused, not when one check fails to get through.
+- Pin the vendored contracts to released product tags: the Magnus browser contract to Magnus 2.10.0 (`32417a3`) and the Emberpath model administration contract to Emberpath 2.5.0 (`b9c7568`), both with the same bytes as before; the Oathweave browser contract and OpenAPI reference to Oathweave 2.3.0 (`d2ac3c0`), whose browser schemas are unchanged and whose OpenAPI document adds the browser OpenID discovery route and schema, the `authLimitsRelaxed` flag and a description of the code exchange rules.
 
 ## [0.7.0] - 2026-11-12
 

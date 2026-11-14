@@ -2,9 +2,9 @@
   "schema": 1,
   "product": "emberpath-model-admin",
   "contractVersion": 1,
-  "productVersion": "2.4.0",
+  "productVersion": "2.5.0",
   "repository": "https://github.com/ChefTaco/Emberpath",
-  "revision": "54be9492b01771fcfd8e814d0806ce3d1ead3673",
+  "revision": "b9c7568c4af0d2a687774b2ade2cf5eb3046677a",
   "source": "src/contracts/model-admin.ts",
   "sha256": "001d29f24bc5dc41296a4a96996ece6a749c5f766fdb4526004f380bd24093ee"
 }
