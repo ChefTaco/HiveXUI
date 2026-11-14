@@ -360,9 +360,10 @@ export interface CredentialTask {
 }
 /**
  * The steps to show as text. With `inBrowser`, the card offers the list, revoke and reset itself, so only
- * the steps the browser cannot take remain.
+ * the steps the browser cannot take remain. `resetInBrowser: false` keeps the reset step as text when the
+ * card holds Reset back because it could not read the server's node-auth mode.
  */
-export function credentialTasks(nodeId: string, { inBrowser = false }: { inBrowser?: boolean } = {}): CredentialTask[] {
+export function credentialTasks(nodeId: string, { inBrowser = false, resetInBrowser = inBrowser }: { inBrowser?: boolean; resetInBrowser?: boolean } = {}): CredentialTask[] {
   const node = encodeURIComponent(nodeId);
   const auth = '-H "Authorization: Bearer $TOKEN"';
   const json = `-H 'content-type: application/json' -d '{}'`;
@@ -373,7 +374,8 @@ export function credentialTasks(nodeId: string, { inBrowser = false }: { inBrows
     { id: 'reenroll', title: 'Enroll it again with a token', where: 'server', roles: ['ADMIN'], commands: [`curl -X POST ${auth} ${json} ${API}/api/v1/nodes/${node}/enrollment-token`, "magnus-agent enroll --token-file /run/magnus/enrollment-token   # on the node"], effect: 'The token works once, for one hour. A new key replaces the old ones. The UI does not issue tokens: the answer is a secret.', browserRoute: null },
     { id: 'reset', title: 'Move it back to the shared secret', where: 'server', roles: ['ADMIN'], commands: [`curl -X POST ${auth} ${json} ${API}/api/v1/nodes/${node}/credentials/reset`, 'magnus-agent identity reset   # then, on the node'], effect: 'Both sides forget the key: reset the server first. Not available in enforce mode.', browserRoute: 'POST /nodes/{nodeId}/credentials/reset' },
   ];
-  return inBrowser ? tasks.filter((task) => task.browserRoute === null) : tasks;
+  if (!inBrowser) return tasks;
+  return tasks.filter((task) => task.browserRoute === null || (task.id === 'reset' && !resetInBrowser));
 }
 
 const KEY_STATUSES: Record<NodeKey['status'], { label: string; tone: Tone }> = {
@@ -417,8 +419,18 @@ export function resetMessage(nodeName: string, keyCount: number, window: Credent
   ].join('\n');
 }
 
-/** Why Reset is not offered, or null when it is. */
-export function resetUnavailable(keys: readonly NodeKey[], credential: NodeCredential, summary: CredentialSummary | null | undefined): string | null {
+/** Reset is held back while the fleet summary, which says whether the server runs enforce, is being read. */
+export const RESET_CHECKING_MODE = 'Checking node-auth mode…';
+/** Reset is held back when the fleet summary could not be read: the server may run enforce, which refuses it. */
+export const RESET_MODE_UNKNOWN = 'The node-auth mode could not be read, so Reset is not offered here: Magnus refuses it in enforce mode. To move the node back to the shared secret, use the reset step under “Rotate or enroll this node’s key”.';
+
+/**
+ * Why Reset is not offered, or null when it is. `summary` is undefined until the fleet summary has been
+ * read (`summaryFailed` when that read failed), and null on a Magnus without a summary route.
+ */
+export function resetUnavailable(keys: readonly NodeKey[], credential: NodeCredential, summary: CredentialSummary | null | undefined, { summaryFailed = false }: { summaryFailed?: boolean } = {}): string | null {
+  // Without the summary the mode is unknown, and the server may be in enforce: hold Reset back.
+  if (summary === undefined) return summaryFailed ? RESET_MODE_UNKNOWN : RESET_CHECKING_MODE;
   if (summary?.mode === 'enforce') {
     // Magnus 3.0.0 says whether enforce is the default; its rollback is an explicit compat on the server.
     if (summary.modeExplicit === undefined) return 'The server runs NODE_AUTH_MODE=enforce, which has no credential reset.';

@@ -19,6 +19,8 @@ import {
   readinessText,
   resetMessage,
   resetUnavailable,
+  RESET_CHECKING_MODE,
+  RESET_MODE_UNKNOWN,
   revocableKeys,
   revokeMessage,
   rotationPinsText,
@@ -238,6 +240,16 @@ describe('keys', () => {
     expect(resetUnavailable([], cred({ state: 'none' }), fleet())).toContain('no key');
     expect(resetUnavailable(keys, cred(), fleet())).toBeNull();
     expect(resetUnavailable(keys, cred(), null)).toBeNull();
+  });
+  it('holds Reset back while the node-auth mode is unknown: the summary is being read, or its read failed', () => {
+    expect(resetUnavailable(keys, cred(), undefined)).toBe(RESET_CHECKING_MODE);
+    expect(resetUnavailable(keys, cred(), undefined, { summaryFailed: true })).toBe(RESET_MODE_UNKNOWN);
+    expect(RESET_MODE_UNKNOWN).toContain('Magnus refuses it in enforce mode');
+    // A summary from an earlier read still decides, even after a later read failed.
+    expect(resetUnavailable(keys, cred(), fleet(), { summaryFailed: true })).toBeNull();
+  });
+  it('keeps the reset step as text when the card holds Reset back', () => {
+    expect(credentialTasks('node 1', { inBrowser: true, resetInBrowser: false }).map((task) => task.id)).toEqual(['rotate', 'reenroll', 'reset']);
   });
   it('reads Magnus’s answer after a revoke or reset', () => {
     expect(keyActionOutcome('revoke', nodeCredentialRevokeResultSchema.parse(revokeResult()))).toMatchObject({ tone: 'danger', title: '1 key revoked: the agent is refused until it is enrolled again or reset' });
