@@ -2,7 +2,7 @@
 // serious or critical WCAG 2.1 A/AA violation that axe finds on these pages.
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { CREDENTIAL_NODES, FIXED_NOW, installMocks } from './mock-runtime';
+import { CREDENTIAL_NODES, FIXED_NOW, installMocks, NODE_CREDENTIAL_SUMMARY_V3 } from './mock-runtime';
 
 const PAGES = [
   { name: 'Emberpath routers', path: '/?page=routers' },
@@ -125,6 +125,27 @@ test('the Magnus node credentials panel and its approval have no serious or crit
   expect(results.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical').map((violation) => violation.id)).toEqual([]);
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
+});
+
+test('the Magnus 3.0.0 deprecation warning and server key rotation have no serious or critical accessibility violations', async ({ page }) => {
+  await page.clock.setFixedTime(FIXED_NOW);
+  await installMocks(page);
+  await page.route(/\/api\/magnus\/nodes\?page=1&pageSize=\d+$/, (route) => route.fulfill({ json: { success: true, data: CREDENTIAL_NODES, meta: { total: CREDENTIAL_NODES.length, page: 1, pageSize: 100, hasMore: false } } }));
+  await page.route(/\/api\/magnus\/node-credentials\/summary$/, (route) => route.fulfill({ json: { success: true, data: NODE_CREDENTIAL_SUMMARY_V3 } }));
+  await page.goto('/fleet/nodes', { waitUntil: 'networkidle' });
+  const panel = page.locator('#node-credentials');
+  await expect(panel).toBeVisible();
+  const warning = panel.getByRole('group', { name: 'NODE_AUTH_MODE=warn is deprecated' });
+  await expect(warning).toBeVisible();
+  await expect(warning).toContainText('the shared node secret is removed in the next major release');
+  await expect(panel).toContainText('mode: warn (set)');
+  await expect(panel).toContainText('Upgrade these agents to 2.10.2 or later.');
+  await expect(panel.getByRole('list', { name: 'Server key rotation status' })).toContainText('0 of 1 keyed node');
+  await panel.getByText('Rotate the server key', { exact: true }).click();
+  await expect(panel).toContainText('magnus-server node-auth server-key promote --force --grace-hours 168');
+  await page.waitForTimeout(500);
+  const scan = await new AxeBuilder({ page }).include('#node-credentials').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  expect(scan.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical').map((violation) => violation.id)).toEqual([]);
 });
 
 test('the Magnus node key list and its revoke dialog have no serious or critical accessibility violations', async ({ page }) => {

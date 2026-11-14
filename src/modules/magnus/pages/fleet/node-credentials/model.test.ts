@@ -1,30 +1,36 @@
 import { describe, expect, it } from 'vitest';
 import { magnusBrowserRoutes, nodeCredentialDetailSchema, nodeCredentialFleetSummarySchema, nodeCredentialResetResultSchema, nodeCredentialRevokeResultSchema, nodeCredentialSchema, pendingBindingSchema, nodeCredentialDowngradeCheckSchema } from '@contracts/magnus/browser';
-import { binding, credential, nodeKey, resetResult, revokeResult, summary } from './fixtures';
+import { binding, credential, nodeKey, resetResult, revokeResult, summary, summaryV3 } from './fixtures';
 import {
   approvalMessage,
   bindingIsStale,
   blockerView,
   credentialStateView,
   credentialTasks,
+  deprecationView,
   downgradeView,
   evidenceSigningText,
   keyActionOutcome,
   keyStatusView,
   legacyUseRows,
   looksLikeVersion,
+  modeSourceText,
   originLabel,
   readinessText,
   resetMessage,
   resetUnavailable,
   revocableKeys,
   revokeMessage,
+  rotationPinsText,
+  rotationStatus,
+  serverKeyRunbook,
   summaryNeedsAttention,
   upgradeWindowText,
 } from './model';
 
 const cred = (overrides: Record<string, unknown> = {}) => nodeCredentialSchema.parse(credential(overrides));
 const fleet = (overrides: Record<string, unknown> = {}) => nodeCredentialFleetSummarySchema.parse(summary(overrides));
+const fleetV3 = (overrides: Record<string, unknown> = {}) => nodeCredentialFleetSummarySchema.parse(summaryV3(overrides));
 const pending = (overrides: Record<string, unknown> = {}) => pendingBindingSchema.parse(binding(overrides));
 const check = (action: string, overrides: Record<string, unknown> = {}) => nodeCredentialDowngradeCheckSchema.parse({
   nodeId: 'node-1', to: '2.9.1', targetKnowsNodeKeys: action === 'none', nodeHasCredentials: action !== 'none', action, resetPath: action === 'reset-credentials' ? '/api/v1/nodes/node-1/credentials/reset' : null, detail: 'Magnus says so', ...overrides,
@@ -63,7 +69,7 @@ describe('a node credential state', () => {
 
 describe('the fleet summary', () => {
   it('gives each blocker a title and what to do, and keeps an unknown one readable', () => {
-    for (const code of ['SERVER_KEY_UNAVAILABLE', 'NODES_WITHOUT_KEY', 'NODES_REVOKED', 'NODES_NOT_SIGNING_EVIDENCE', 'RECENT_SHARED_SECRET_USE', 'PENDING_BINDINGS'] as const) {
+    for (const code of ['SERVER_KEY_UNAVAILABLE', 'NODES_WITHOUT_KEY', 'NODES_REVOKED', 'NODES_NOT_SIGNING_EVIDENCE', 'AGENTS_NEED_UPGRADE', 'RECENT_SHARED_SECRET_USE', 'PENDING_BINDINGS'] as const) {
       const view = blockerView({ code, count: 1, nodes: [] });
       expect(view.title).not.toBe(code);
       expect(view.whatToDo.length).toBeGreaterThan(20);
@@ -84,6 +90,67 @@ describe('the fleet summary', () => {
     expect(summaryNeedsAttention(fleet({ pendingBindings: 0, nodes: { total: 3, active: 1, none: 0, revoked: 2, evidenceSigning: 1 } }))).toEqual(['2 nodes have their keys revoked and are refused until enrolled again']);
     expect(summaryNeedsAttention(fleet({ pendingBindings: 0, blockers: [{ code: 'NODES_WITHOUT_KEY', count: 2, nodes: [] }] }))).toEqual([]);
     expect(summaryNeedsAttention(fleet({ pendingBindings: 0, blockers: [{ code: 'SERVER_KEY_UNAVAILABLE', count: 1, nodes: [] }] }))).toEqual(['the server signing key cannot be read']);
+  });
+});
+
+describe('the fleet summary from Magnus 3.0.0', () => {
+  const format = (value: string) => value.slice(0, 10);
+  it('tells agents 2.10.0 and 2.10.1 to upgrade to 2.10.2 or later', () => {
+    const view = blockerView({ code: 'AGENTS_NEED_UPGRADE', count: 1, nodes: [{ id: 'node-1', name: 'node one' }] });
+    expect(view.title).toContain('2.10.0 or 2.10.1');
+    expect(view.whatToDo).toMatch(/^Upgrade these agents to 2\.10\.2 or later\./u);
+  });
+  it('says whether the mode is set or the default, and nothing for an older Magnus', () => {
+    expect(modeSourceText(fleetV3())).toBe("Set explicitly: NODE_AUTH_MODE=warn in the server's environment.");
+    expect(modeSourceText(fleetV3({ mode: 'enforce', modeExplicit: false, modeDeprecated: false, deprecationNotice: null }))).toBe('The default: NODE_AUTH_MODE is not set, so the server runs in enforce mode.');
+    expect(modeSourceText(fleet())).toBeNull();
+  });
+  it('warns about a deprecated mode with Magnus’s notice, and has its own words when Magnus sends none', () => {
+    expect(deprecationView(fleetV3())).toEqual({ title: 'NODE_AUTH_MODE=warn is deprecated', notice: 'NODE_AUTH_MODE=warn is deprecated and is removed in the next major release.' });
+    expect(deprecationView(fleetV3({ deprecationNotice: null }))?.notice).toContain('the next major removes it');
+    expect(deprecationView(fleetV3({ modeDeprecated: false }))).toBeNull();
+    expect(deprecationView(fleet())).toBeNull();
+  });
+  it('says enforce is reached by removing the mode, and keeps the older wording for an older Magnus', () => {
+    expect(readinessText(fleetV3()).text).toContain('Keep NODE_AUTH_MODE set on the server while any remains');
+    expect(readinessText(fleetV3({ enforceReady: true, blockers: [] })).text).toContain('removing NODE_AUTH_MODE from the server');
+    expect(readinessText(fleet()).text).toContain('Do not set NODE_AUTH_MODE=enforce');
+  });
+  it('reads a rotation: staged key not pinned by every agent, replaced key in its grace', () => {
+    const rotation = fleetV3().serverKeyRotation!;
+    expect(rotationStatus(rotation, format)).toEqual([
+      { tone: 'info', text: expect.stringContaining('2 of 3 keyed nodes\' agents pin it') },
+      { tone: 'info', text: 'The replaced key is still accepted until 2026-11-12; retire it after that.' },
+    ]);
+    expect(rotationPinsText(rotation)).toBe('3 of 3 keyed nodes reported in the last ten minutes; 3 pin the active key; 2 pin the staged key.');
+  });
+  it('says when the staged key can be promoted, the replaced key retired, or nothing is in progress', () => {
+    const base = fleetV3().serverKeyRotation!;
+    expect(rotationStatus({ ...base, previous: null, agents: { ...base.agents, pinningNext: 3 } }, format)).toEqual([{ tone: 'success', text: expect.stringContaining('it can be promoted') }]);
+    expect(rotationStatus({ ...base, next: null, previous: { ...base.previous!, inGrace: false } }, format)).toEqual([{ tone: 'warning', text: expect.stringContaining(': retire it.') }]);
+    expect(rotationStatus({ ...base, next: null, previous: null }, format)).toEqual([{ tone: 'neutral', text: expect.stringContaining('No rotation in progress') }]);
+    expect(rotationPinsText({ ...base, next: null })).not.toContain('staged');
+  });
+  it('gives the rotation as API and command-line steps, since its routes are not browser routes', () => {
+    const steps = serverKeyRunbook();
+    expect(steps.map((step) => step.title)).toEqual(['Stage a next key', 'Promote it once every keyed agent pins it', 'Retire the replaced key after its grace period', 'Back up the key file and check']);
+    const commands = steps.flatMap((step) => step.commands).join('\n');
+    for (const route of ['stage', 'promote', 'retire']) {
+      expect(commands).toContain(`/api/v1/node-credentials/server-key/${route}`);
+      expect(magnusBrowserRoutes.some((browser) => browser.path === `/node-credentials/server-key/${route}`)).toBe(false);
+    }
+    expect(commands).toContain('magnus-server node-auth server-key promote --force --grace-hours 168');
+  });
+  it('explains a reset refused in enforce mode, with Revoke still available', () => {
+    const keys = [nodeCredentialDetailSchema.parse(nodeKey())];
+    expect(resetUnavailable(keys, cred(), fleetV3({ mode: 'enforce', modeExplicit: false, modeDeprecated: false, deprecationNotice: null }))).toContain('enforce mode (the default), which has no credential reset: Magnus refuses it. Revoke still works.');
+    expect(resetUnavailable(keys, cred(), fleet({ mode: 'enforce' }))).toBe('The server runs NODE_AUTH_MODE=enforce, which has no credential reset.');
+  });
+  it('reads a 3.0.0 summary in the vendored contract, and an older one without the new fields', () => {
+    expect(fleetV3().serverKeyRotation?.agents.keyedNodes).toBe(3);
+    const older = fleet();
+    expect(older.modeExplicit).toBeUndefined();
+    expect(older.serverKeyRotation).toBeUndefined();
   });
 });
 

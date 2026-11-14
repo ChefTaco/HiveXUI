@@ -312,6 +312,24 @@ const NODE_CREDENTIAL_SUMMARY = {
   ],
   generatedAt: T1,
 };
+/**
+ * The same fleet on Magnus 3.0.0 with an explicit, deprecated NODE_AUTH_MODE=warn, a server key being
+ * rotated and an agent enforce mode cannot reach. Served by the deprecation test only.
+ */
+export const NODE_CREDENTIAL_SUMMARY_V3 = {
+  ...NODE_CREDENTIAL_SUMMARY,
+  modeExplicit: true,
+  modeDeprecated: true,
+  deprecationNotice: 'NODE_AUTH_MODE=warn is deprecated: the shared node secret is removed in the next major release. Clear the blockers, then remove NODE_AUTH_MODE so the server runs in enforce mode.',
+  serverKeyRotation: {
+    active: { keyId: 'e'.repeat(64), keyFingerprint: 'eeeeeeeeeeeeeeee', createdAt: T0 },
+    next: { keyId: '6'.repeat(64), keyFingerprint: '6666666666666666', createdAt: T1 },
+    previous: null,
+    retired: [],
+    agents: { keyedNodes: 1, reporting: 1, pinningActive: 1, pinningNext: 0 },
+  },
+  blockers: [...NODE_CREDENTIAL_SUMMARY.blockers, { code: 'AGENTS_NEED_UPGRADE', count: 1, nodes: [{ id: 'node-1', name: 'node-1' }] }],
+};
 /** Every key of node-1, for an administrator on a Magnus that offers key administration to the browser. */
 const nodeKey = (n: string, status: string, origin: string, extra: Record<string, unknown> = {}) => ({
   keyId: n.repeat(64), keyFingerprint: n.repeat(16), status, origin, boundFqdn: 'node-1.example.internal', evidenceSigning: status === 'ACTIVE', evidenceSigningAt: status === 'ACTIVE' ? T1 : null,

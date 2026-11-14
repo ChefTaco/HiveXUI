@@ -6,7 +6,7 @@ import { button, click, dialog, mount, settle, stubApi, stubBrowser, type, type 
 import NodeDetailPage from '../node-detail/page';
 import NodesPage from '../nodes/page';
 import FleetOverviewPage from '../overview/page';
-import { binding, credential, node, nodeKey, resetResult, revokeResult, session, summary } from './fixtures';
+import { binding, credential, node, nodeKey, resetResult, revokeResult, session, summary, summaryV3 } from './fixtures';
 
 vi.mock('@xterm/xterm', () => ({ Terminal: class {} }));
 vi.mock('@xterm/addon-fit', () => ({ FitAddon: class {} }));
@@ -91,6 +91,39 @@ describe('the nodes page with per-node credentials', () => {
     expect(panel.textContent).toContain('Nodes still on the shared secret');
     expect(panel.textContent).toContain('Not ready for enforce: 2 things block it');
     expect(panel.querySelector('table')?.textContent).toContain('198.51.100.7');
+    await mounted.unmount();
+  });
+  it('shows Magnus 3.0.0’s deprecated mode, server key rotation and the agents to upgrade', async () => {
+    const { stub, mounted } = await open(<NodesPage />, { role: 'ADMIN', nodes: FLEET, summary: summaryV3(), pending: [binding()] });
+    const panel = document.getElementById('node-credentials')!;
+    expect(panel.textContent).toContain('mode: warn (set)');
+    const warning = panel.querySelector('[role="group"][aria-labelledby="node-credentials-deprecated"]');
+    expect(warning?.textContent).toContain('NODE_AUTH_MODE=warn is deprecated');
+    expect(warning?.textContent).toContain('is removed in the next major release.');
+    expect(panel.textContent).toContain("Set explicitly: NODE_AUTH_MODE=warn in the server's environment.");
+    expect(panel.textContent).toContain('Server key rotation');
+    expect(panel.textContent).toContain('eeeeeeeeeeeeeeee');
+    expect(panel.textContent).toContain('dddddddddddddddd');
+    expect(panel.textContent).toContain('9999999999999999');
+    expect(panel.querySelector('[aria-label="Server key rotation status"]')?.textContent).toContain('2 of 3 keyed nodes\' agents pin it');
+    expect(panel.textContent).toContain('magnus-server node-auth server-key stage');
+    expect(panel.textContent).toContain('Agents enforce mode cannot reach (2.10.0 or 2.10.1)');
+    expect(panel.textContent).toContain('Upgrade these agents to 2.10.2 or later.');
+    // Rotation stays with the API and the command line: the UI offers no button and sends nothing.
+    expect(button('Stage', panel)).toBeUndefined();
+    expect(button('Promote', panel)).toBeUndefined();
+    expect(stub.mutations()).toEqual([]);
+    await mounted.unmount();
+  });
+  it('adds nothing new against a Magnus before 3.0.0', async () => {
+    const { mounted } = await open(<NodesPage />, { role: 'ADMIN', nodes: FLEET, summary: summary(), pending: [binding()] });
+    const panel = document.getElementById('node-credentials')!;
+    expect(panel.textContent).toContain('mode: warn');
+    expect(panel.textContent).not.toContain('(set)');
+    expect(panel.textContent).not.toContain('(default)');
+    expect(panel.textContent).not.toContain('deprecated');
+    expect(panel.textContent).not.toContain('Server key rotation');
+    expect(panel.textContent).toContain('Do not set NODE_AUTH_MODE=enforce');
     await mounted.unmount();
   });
   it('approves a binding behind the shared confirmation, then reads the summary and the list again', async () => {
@@ -328,6 +361,15 @@ describe('node key administration', () => {
     expect(text()).toContain('The credentials could not be reset');
     expect(text()).toContain('Keep an agent of 2.10.0 or later on the node, or enroll it again with a token');
     expect(card()!.querySelector('[role="status"]')).toBeNull();
+    await mounted.unmount();
+  });
+
+  it('offers no reset on a Magnus 3.0.0 in its default enforce mode, says why, and keeps Revoke', async () => {
+    const { mounted } = await open(<NodeDetailPage />, { role: 'ADMIN', nodes: [node('node-1', 'node one', credential())], summary: summaryV3({ mode: 'enforce', modeExplicit: false, modeDeprecated: false, deprecationNotice: null, enforceReady: true, blockers: [] }), keys: KEYS }, { nodeId: 'node-1' });
+    expect(button('Reset', card())?.disabled).toBe(true);
+    expect(button('Reset', card())?.title).toContain('enforce mode (the default)');
+    expect(card()!.textContent).toContain('which has no credential reset: Magnus refuses it. Revoke still works.');
+    expect(button('Revoke', card())?.disabled).toBe(false);
     await mounted.unmount();
   });
 

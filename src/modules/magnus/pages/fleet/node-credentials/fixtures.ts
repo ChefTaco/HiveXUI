@@ -28,6 +28,25 @@ export const summary = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+/** The same summary from Magnus 3.0.0: an explicit, deprecated warn mode and a server key being rotated. */
+export const summaryV3 = (overrides: Record<string, unknown> = {}) => summary({
+  modeExplicit: true,
+  modeDeprecated: true,
+  deprecationNotice: 'NODE_AUTH_MODE=warn is deprecated and is removed in the next major release.',
+  serverKeyRotation: {
+    active: { keyId: 'f'.repeat(64), keyFingerprint: 'ffffffffffffffff', createdAt: AT },
+    next: { keyId: 'e'.repeat(64), keyFingerprint: 'eeeeeeeeeeeeeeee', createdAt: AT },
+    previous: { keyId: 'd'.repeat(64), keyFingerprint: 'dddddddddddddddd', createdAt: AT, promotedAt: AT, retireAfter: '2026-11-12T12:00:00.000Z', inGrace: true },
+    retired: [{ keyId: '9'.repeat(64), keyFingerprint: '9999999999999999', createdAt: null, retiredAt: AT }],
+    agents: { keyedNodes: 3, reporting: 3, pinningActive: 3, pinningNext: 2 },
+  },
+  blockers: [
+    { code: 'AGENTS_NEED_UPGRADE', count: 1, nodes: [{ id: 'node-1', name: 'node one' }] },
+    { code: 'PENDING_BINDINGS', count: 1, nodes: [{ id: 'node-2', name: 'node two' }] },
+  ],
+  ...overrides,
+});
+
 export const binding = (overrides: Record<string, unknown> = {}) => ({
   id: 'pb-1',
   nodeId: 'node-2',
