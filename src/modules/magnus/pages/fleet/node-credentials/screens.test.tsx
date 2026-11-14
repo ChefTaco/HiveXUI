@@ -20,13 +20,15 @@ interface Fleet {
   nodes: unknown[];
   /** Absent: the summary route answers 404, as on an older Magnus. */
   summary?: unknown;
+  /** Answer the summary read with this instead (a failure, or a promise that never settles). */
+  summaryAnswer?: () => Response | Promise<Response>;
   pending?: unknown[];
   decision?: (request: RecordedRequest) => unknown;
   /** Absent: the key list answers 404, as on a Magnus that keeps key administration out of the browser. */
   keys?: unknown[];
   keyAction?: (request: RecordedRequest) => unknown;
 }
-function serve({ role, nodes, summary: fleetSummary, pending = [], decision, keys, keyAction }: Fleet) {
+function serve({ role, nodes, summary: fleetSummary, summaryAnswer, pending = [], decision, keys, keyAction }: Fleet) {
   const stub = stubApi((request) => {
     const { method, path } = request;
     if (path === '/console/session') return session(role);
@@ -40,7 +42,15 @@ function serve({ role, nodes, summary: fleetSummary, pending = [], decision, key
     if (method === 'GET' && path.startsWith('/node-credentials/downgrade-check')) return ok({ nodeId: 'node-1', to: '2.9.1', targetKnowsNodeKeys: false, nodeHasCredentials: true, action: 'reset-credentials', resetPath: '/api/v1/nodes/node-1/credentials/reset', detail: 'magnus-agent 2.9.1 only knows the shared node secret' });
     return undefined;
   });
-  vi.stubGlobal('fetch', stub.request);
+  const request: typeof fetch = (input, init) => {
+    const path = new URL(String(input), 'https://console.example.com').pathname;
+    if (summaryAnswer && path.endsWith('/node-credentials/summary')) {
+      stub.requests.push({ method: 'GET', path: '/node-credentials/summary', body: null });
+      return Promise.resolve(summaryAnswer());
+    }
+    return stub.request(input, init);
+  };
+  vi.stubGlobal('fetch', request);
   return stub;
 }
 async function open(element: React.ReactElement, fleet: Fleet, params: Record<string, string> = {}) {
@@ -370,6 +380,35 @@ describe('node key administration', () => {
     expect(button('Reset', card())?.title).toContain('enforce mode (the default)');
     expect(card()!.textContent).toContain('which has no credential reset: Magnus refuses it. Revoke still works.');
     expect(button('Revoke', card())?.disabled).toBe(false);
+    await mounted.unmount();
+  });
+
+  it('holds Reset back while the node-auth mode is being read, and keeps Revoke', async () => {
+    const { stub, mounted } = await open(<NodeDetailPage />, { role: 'ADMIN', nodes: [node('node-1', 'node one', credential())], summaryAnswer: () => new Promise<Response>(() => {}), keys: KEYS }, { nodeId: 'node-1' });
+    expect(stub.of('/node-credentials/summary')).toHaveLength(1);
+    expect(button('Reset', card())?.disabled).toBe(true);
+    expect(button('Reset', card())?.title).toBe('Checking node-auth mode…');
+    expect(card()!.textContent).toContain('Checking node-auth mode…');
+    expect(button('Revoke', card())?.disabled).toBe(false);
+    await click(button('Reset', card()));
+    expect(dialog()).toBeNull();
+    expect(stub.mutations()).toEqual([]);
+    await mounted.unmount();
+  });
+
+  it('holds Reset back when the node-auth mode could not be read, and shows the reset step as text', async () => {
+    const { stub, mounted } = await open(<NodeDetailPage />, {
+      role: 'ADMIN', nodes: [node('node-1', 'node one', credential())], keys: KEYS,
+      summaryAnswer: () => Response.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'boom' } }, { status: 500 }),
+    }, { nodeId: 'node-1' });
+    expect(button('Reset', card())?.disabled).toBe(true);
+    expect(card()!.textContent).toContain('The node-auth mode could not be read, so Reset is not offered here: Magnus refuses it in enforce mode.');
+    expect(button('Revoke', card())?.disabled).toBe(false);
+    const steps = card()!.querySelector('details:last-of-type')!.textContent ?? '';
+    expect(steps).toContain('/credentials/reset');
+    expect(steps).toContain('magnus-agent identity reset');
+    expect(steps).not.toContain('/credentials/revoke');
+    expect(stub.mutations()).toEqual([]);
     await mounted.unmount();
   });
 

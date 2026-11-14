@@ -38,13 +38,15 @@ const KEY_COLUMNS: ReadonlyArray<DataTableColumn<NodeKey>> = [
  * is sent. Each confirmation sends one request with its own idempotency key; Magnus's answer stays on
  * the card, and the caller reads the node, the list and the summary again in `onChanged`.
  */
-export function NodeKeyAdministration({ nodeId, nodeName, credential, keys, summary, onChanged }: {
+export function NodeKeyAdministration({ nodeId, nodeName, credential, keys, summary, summaryFailed = false, onChanged }: {
   nodeId: string;
   nodeName: string;
   credential: NodeCredential;
   keys: readonly NodeKey[];
-  /** The fleet summary, for enforce mode and the upgrade window; null on a Magnus without one. */
+  /** The fleet summary, for enforce mode and the upgrade window; null on a Magnus without one, undefined until read. */
   summary: CredentialSummary | null | undefined;
+  /** The summary read failed, so the server's node-auth mode is unknown. */
+  summaryFailed?: boolean;
   onChanged: () => void;
 }) {
   const toast = useToast();
@@ -55,7 +57,9 @@ export function NodeKeyAdministration({ nodeId, nodeName, credential, keys, summ
   // Set before the first await, so a second click on Confirm cannot send a second request.
   const sending = useRef(false);
   const valid = revocableKeys(keys);
-  const resetBlocked = resetUnavailable(keys, credential, summary);
+  const resetBlocked = resetUnavailable(keys, credential, summary, { summaryFailed });
+  // The mode decides it (unknown, or enforce): say why next to the button, not only on hover.
+  const modeBlocked = resetBlocked !== null && (summary === undefined || summary?.mode === 'enforce');
 
   function ask(kind: Kind) {
     setReason('');
@@ -87,7 +91,7 @@ export function NodeKeyAdministration({ nodeId, nodeName, credential, keys, summ
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" variant="danger" icon={<Ban className="size-4" />} disabled={valid.length === 0 || busy !== null} loading={busy === 'revoke'} title={valid.length === 0 ? 'No valid key is left to revoke.' : undefined} onClick={() => ask('revoke')}>Revoke</Button>
         <Button size="sm" variant="warning" icon={<RotateCcw className="size-4" />} disabled={resetBlocked !== null || busy !== null} loading={busy === 'reset'} title={resetBlocked ?? undefined} onClick={() => ask('reset')}>Reset</Button>
-        {resetBlocked && summary?.mode === 'enforce' ? <span className="text-xs text-text-muted">{resetBlocked}</span> : null}
+        {modeBlocked ? <span className="text-xs text-text-muted">{resetBlocked}</span> : null}
       </div>
       {outcome ? (
         <div role="status" className="grid gap-1 rounded-control border border-border px-3 py-2">

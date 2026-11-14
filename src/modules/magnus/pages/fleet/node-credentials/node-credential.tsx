@@ -39,6 +39,8 @@ export function NodeCredentialCard({ nodeId, nodeName, credential, agentVersion,
   const evidence = evidenceSigningText(credential);
   // Null: this Magnus answers the key list with 404, so its key administration is not a browser route.
   const inBrowser = isAdmin && Boolean(keys.data);
+  // No summary and a failed read: the card holds Reset back, so its step stays here as text.
+  const summaryFailed = summary.data === undefined && summary.error !== undefined;
   // After a decision: the node (its credential state), its keys, the summary and its waiting binding.
   const changed = () => {
     if (isAdmin) {
@@ -85,10 +87,10 @@ export function NodeCredentialCard({ nodeId, nodeName, credential, agentVersion,
             <PendingBindingsTable bindings={[waiting]} canDecide={isAdmin} showNode={false} onDecided={changed} />
           </div>
         ) : null}
-        {inBrowser && keys.data ? <NodeKeyAdministration nodeId={nodeId} nodeName={nodeName ?? nodeId} credential={credential} keys={keys.data} summary={summary.data} onChanged={changed} /> : null}
+        {inBrowser && keys.data ? <NodeKeyAdministration nodeId={nodeId} nodeName={nodeName ?? nodeId} credential={credential} keys={keys.data} summary={summary.data} summaryFailed={summaryFailed} onChanged={changed} /> : null}
         {isAdmin && !keys.data && keys.error ? <ResourceError error={keys.error} title="The node's keys could not be read" onRetry={() => void keys.refresh()} /> : null}
         {can(WRITE_ROLES) ? <DowngradeCheckTool nodeId={nodeId} agentVersion={agentVersion} /> : null}
-        <CredentialInstructions nodeId={nodeId} inBrowser={inBrowser} />
+        <CredentialInstructions nodeId={nodeId} inBrowser={inBrowser} resetInBrowser={inBrowser && !summaryFailed} />
       </div>
     </FxPanel>
   );
@@ -150,8 +152,8 @@ export function DowngradeCheckTool({ nodeId, agentVersion }: { nodeId: string; a
  * The key administration steps as text. With `inBrowser`, the card already offers the list, revoke and
  * reset, so only rotating (on the node) and enrolling again with a token remain.
  */
-export function CredentialInstructions({ nodeId, inBrowser = false }: { nodeId: string; inBrowser?: boolean }) {
-  const tasks = credentialTasks(nodeId, { inBrowser });
+export function CredentialInstructions({ nodeId, inBrowser = false, resetInBrowser = inBrowser }: { nodeId: string; inBrowser?: boolean; resetInBrowser?: boolean }) {
+  const tasks = credentialTasks(nodeId, { inBrowser, resetInBrowser });
   return (
     <details className="grid gap-2">
       <summary className="cursor-pointer font-medium">{inBrowser ? 'Rotate or enroll this node’s key' : 'Manage this node’s key'}</summary>
