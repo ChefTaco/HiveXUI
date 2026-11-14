@@ -25,6 +25,7 @@
 - Announce a failed sign-in to screen readers (`role="alert"`).
 - Keep a copy button quiet when the browser has no clipboard or refuses the write, instead of raising an unhandled error.
 - Show "Sign in again to continue this conversation" in chat only when the session check is refused, not when one check fails to get through.
+- Pin the vendored contracts to released product tags: the Magnus browser contract to Magnus 2.10.0 (`32417a3`) and the Emberpath model administration contract to Emberpath 2.5.0 (`b9c7568`), both with the same bytes as before; the Oathweave browser contract and OpenAPI reference to Oathweave 2.3.0 (`d2ac3c0`), whose browser schemas are unchanged and whose OpenAPI document adds the browser OpenID discovery route and schema, the `authLimitsRelaxed` flag and a description of the code exchange rules.
 
 ## [0.7.0] - 2026-11-12
 
