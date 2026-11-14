@@ -6,8 +6,15 @@ import type { CredentialSummary, DowngradeCheck, EnforceBlocker, NodeCredential,
 
 /** The first agent release that has a node key. An older agent only knows the shared node secret. */
 export const NODE_KEYS_SINCE = '2.10.0';
+/**
+ * The first agent release a server in enforce mode reaches: 2.10.0 and 2.10.1 refuse every signed managed
+ * request (Magnus 3.0.0 reports them as AGENTS_NEED_UPGRADE).
+ */
+export const ENFORCE_REACHES_AGENTS_SINCE = '2.10.2';
 /** Magnus refuses to approve a binding whose agent has not asked for this long. */
 export const PENDING_BINDING_STALE_MS = 7 * 24 * 60 * 60 * 1000;
+/** The server's address in the CLI steps the UI shows as text. */
+const API = '"$MAGNUS_URL"';
 
 export type CredentialState = NodeCredential['state'] | 'pending';
 
@@ -109,11 +116,47 @@ export function upgradeWindowText(window: CredentialSummary['legacyUpgrade'], fo
     : `Closed since ${format(window.until)}: a node without a key needs an enrollment token, or extend NODE_AUTH_LEGACY_UPGRADE_UNTIL on the server.`;
 }
 
+/**
+ * Where the mode comes from, from Magnus 3.0.0 on (`modeExplicit`): set in the server's environment, or the
+ * default. Null for an older Magnus, which does not say.
+ */
+export function modeSourceText(summary: CredentialSummary): string | null {
+  if (summary.modeExplicit === undefined) return null;
+  return summary.modeExplicit
+    ? `Set explicitly: NODE_AUTH_MODE=${summary.mode} in the server's environment.`
+    : `The default: NODE_AUTH_MODE is not set, so the server runs in ${summary.mode} mode.`;
+}
+
+/**
+ * The warning for a deprecated explicit compat or warn mode (Magnus 3.0.0 `modeDeprecated`), with Magnus's
+ * own notice. Null when the mode is not deprecated or this Magnus does not say.
+ */
+export function deprecationView(summary: CredentialSummary): { title: string; notice: string } | null {
+  if (!summary.modeDeprecated) return null;
+  return {
+    title: `NODE_AUTH_MODE=${summary.mode} is deprecated`,
+    notice: summary.deprecationNotice?.trim()
+      || 'An explicit compat or warn mode keeps the shared node secret working for this major release only; the next major removes it. Clear the blockers below, then remove NODE_AUTH_MODE from the server\'s environment so it runs in enforce mode.',
+  };
+}
+
 export function readinessText(summary: CredentialSummary): { tone: Tone; text: string } {
   if (summary.mode === 'enforce') return { tone: 'success', text: 'The server runs in enforce mode.' };
-  if (summary.enforceReady) return { tone: 'success', text: 'Ready for enforce: switching the server to NODE_AUTH_MODE=enforce would refuse no node that works today.' };
+  // From 3.0.0 enforce is the default: the switch is removing the explicit mode, not setting one.
+  const defaultsToEnforce = summary.modeExplicit !== undefined;
+  if (summary.enforceReady) {
+    return {
+      tone: 'success',
+      text: defaultsToEnforce
+        ? 'Ready for enforce: removing NODE_AUTH_MODE from the server\'s environment (enforce is the default) would refuse no node that works today.'
+        : 'Ready for enforce: switching the server to NODE_AUTH_MODE=enforce would refuse no node that works today.',
+    };
+  }
   const count = summary.blockers.length;
-  return { tone: 'warning', text: `Not ready for enforce: ${count} ${count === 1 ? 'thing blocks' : 'things block'} it. Do not set NODE_AUTH_MODE=enforce on the server while any remains.` };
+  const advice = defaultsToEnforce
+    ? 'Keep NODE_AUTH_MODE set on the server while any remains: without it the server runs in enforce mode, and refuses to start.'
+    : 'Do not set NODE_AUTH_MODE=enforce on the server while any remains.';
+  return { tone: 'warning', text: `Not ready for enforce: ${count} ${count === 1 ? 'thing blocks' : 'things block'} it. ${advice}` };
 }
 
 export interface BlockerView {
@@ -140,6 +183,10 @@ const BLOCKERS: Record<EnforceBlocker['code'], { title: string; whatToDo: string
     title: 'Agents that do not sign their evidence with their key yet',
     whatToDo: 'Upgrade them to the current agent. An agent with a key starts signing once a heartbeat reply tells it the server verifies node evidence.',
   },
+  AGENTS_NEED_UPGRADE: {
+    title: 'Agents enforce mode cannot reach (2.10.0 or 2.10.1)',
+    whatToDo: `Upgrade these agents to ${ENFORCE_REACHES_AGENTS_SINCE} or later. They refuse every signed managed request (agent upgrades, Embermend, skills), so in enforce mode nothing reaches them. While the server runs compat or warn, it upgrades them from the Nodes page with the shared secret; in enforce mode, switch the server to compat for the upgrade or upgrade them on the host.`,
+  },
   RECENT_SHARED_SECRET_USE: {
     title: 'Shared node secret or result key used in the last 24 hours',
     whatToDo: 'Upgrade or enroll the nodes listed. The count clears 24 hours after their last use of a shared credential.',
@@ -152,6 +199,78 @@ const BLOCKERS: Record<EnforceBlocker['code'], { title: string; whatToDo: string
 export function blockerView(blocker: EnforceBlocker): BlockerView {
   const known = BLOCKERS[blocker.code] ?? { title: blocker.code, whatToDo: 'See docs/NODE_CREDENTIALS.md in Magnus.' };
   return { code: blocker.code, count: blocker.count, nodes: blocker.nodes, ...known };
+}
+
+export type ServerKeyRotation = NonNullable<CredentialSummary['serverKeyRotation']>;
+
+export interface RotationStatusLine {
+  tone: Tone;
+  text: string;
+}
+/**
+ * Where a server-key rotation stands (Magnus 3.0.0 `serverKeyRotation`) and the next step, in plain words.
+ * `pinningNext` counts keyed nodes whose agents reported pinning the staged key in the last ten minutes.
+ */
+export function rotationStatus(rotation: ServerKeyRotation, format: (value: string) => string): RotationStatusLine[] {
+  const { agents } = rotation;
+  const lines: RotationStatusLine[] = [];
+  if (rotation.next) {
+    lines.push(agents.pinningNext >= agents.keyedNodes
+      ? { tone: 'success', text: `Every keyed agent pins the staged key (${agents.pinningNext} of ${agents.keyedNodes}): it can be promoted.` }
+      : { tone: 'info', text: `A next key is staged. ${agents.pinningNext} of ${agents.keyedNodes} keyed ${agents.keyedNodes === 1 ? 'node\'s agent pins' : 'nodes\' agents pin'} it; promote once all do (a few heartbeats). Magnus refuses an earlier promote with SERVER_KEY_NOT_PINNED.` });
+  }
+  if (rotation.previous) {
+    lines.push(rotation.previous.inGrace
+      ? { tone: 'info', text: `The replaced key is still accepted until ${format(rotation.previous.retireAfter)}; retire it after that.` }
+      : { tone: 'warning', text: `The grace period of the replaced key ended ${format(rotation.previous.retireAfter)}: retire it.` });
+  }
+  if (lines.length === 0) lines.push({ tone: 'neutral', text: 'No rotation in progress. To replace the server key, stage a next key (steps below).' });
+  return lines;
+}
+
+/** The pin counts for the active key, from the agents that reported in the last ten minutes. */
+export function rotationPinsText(rotation: ServerKeyRotation): string {
+  const { agents } = rotation;
+  const parts = [`${agents.reporting} of ${agents.keyedNodes} keyed ${agents.keyedNodes === 1 ? 'node' : 'nodes'} reported in the last ten minutes`, `${agents.pinningActive} pin the active key`];
+  if (rotation.next) parts.push(`${agents.pinningNext} pin the staged key`);
+  return `${parts.join('; ')}.`;
+}
+
+export interface RunbookStep {
+  title: string;
+  commands: string[];
+  effect: string;
+}
+/**
+ * Rotating the server key, from Magnus's docs/NODE_CREDENTIALS.md ("Rotating the server key"). Its routes
+ * are not browser routes, so the UI shows them as text: the Magnus API with an administrator's token, or
+ * magnus-server on the server host.
+ */
+export function serverKeyRunbook(): RunbookStep[] {
+  const auth = '-H "Authorization: Bearer $TOKEN" -H \'content-type: application/json\'';
+  const route = (step: string) => `${API}/api/v1/node-credentials/server-key/${step}`;
+  return [
+    {
+      title: 'Stage a next key',
+      commands: [`curl -X POST ${auth} -d '{}' ${route('stage')}`, 'magnus-server node-auth server-key stage   # or, on the server host'],
+      effect: 'Agents pin it from their next heartbeat. The server signs nothing with it yet.',
+    },
+    {
+      title: 'Promote it once every keyed agent pins it',
+      commands: [`curl -X POST ${auth} -d '{"graceHours":168}' ${route('promote')}`, 'magnus-server node-auth server-key promote --force --grace-hours 168   # or, on the server host'],
+      effect: 'Wait until this panel shows every keyed agent pinning the staged key. The API refuses earlier with SERVER_KEY_NOT_PINNED; the command line cannot see the pins and always needs --force. The new key signs from then on, and the replaced key stays accepted for the grace period (default 7 days).',
+    },
+    {
+      title: 'Retire the replaced key after its grace period',
+      commands: [`curl -X POST ${auth} -d '{}' ${route('retire')}`, 'magnus-server node-auth server-key retire   # or, on the server host'],
+      effect: 'Its private part is destroyed. Its public key is kept, so decisions it signed still verify.',
+    },
+    {
+      title: 'Back up the key file and check',
+      commands: ['magnus-server node-auth server-key status   # on the server host', 'magnus-agent identity show   # on a node'],
+      effect: 'Each step changes $MAGNUS_HOME/state/node-auth/server-signing-key.json: back it up with the database. The server\'s start-up line shows the new fingerprint, and a node lists it first among its pinned server keys.',
+    },
+  ];
 }
 
 /** Whether the overview should raise the summary: something needs a person now, not just a migration step. */
@@ -194,7 +313,6 @@ export interface DowngradeView {
   /** The server-side command, when there is one. */
   command: string | null;
 }
-const API = '"$MAGNUS_URL"';
 export function downgradeView(check: DowngradeCheck): DowngradeView {
   if (check.action === 'none') return { tone: 'success', title: `Nothing to do for the node key: install ${check.to} as usual`, detail: check.detail, steps: [], command: null };
   if (check.action === 'enroll-instead') {
@@ -301,7 +419,11 @@ export function resetMessage(nodeName: string, keyCount: number, window: Credent
 
 /** Why Reset is not offered, or null when it is. */
 export function resetUnavailable(keys: readonly NodeKey[], credential: NodeCredential, summary: CredentialSummary | null | undefined): string | null {
-  if (summary?.mode === 'enforce') return 'The server runs NODE_AUTH_MODE=enforce, which has no credential reset.';
+  if (summary?.mode === 'enforce') {
+    // Magnus 3.0.0 says whether enforce is the default; its rollback is an explicit compat on the server.
+    if (summary.modeExplicit === undefined) return 'The server runs NODE_AUTH_MODE=enforce, which has no credential reset.';
+    return `The server runs in enforce mode${summary.modeExplicit ? '' : ' (the default)'}, which has no credential reset: Magnus refuses it. Revoke still works. Moving a node back to the shared secret needs an explicit NODE_AUTH_MODE=compat on the server first (deprecated).`;
+  }
   if (keys.length === 0 && credential.state === 'none') return 'The node has no key: it already uses the shared secret.';
   return null;
 }

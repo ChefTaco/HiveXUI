@@ -1,4 +1,4 @@
-import { KeyRound, ShieldAlert } from 'lucide-react';
+import { KeyRound, ShieldAlert, TriangleAlert } from 'lucide-react';
 import { Badge, Panel, ResourceError, buttonClass } from '@ui';
 import { formatTime, relativeTime } from '@lib/format';
 import { segment } from '../../../api/client';
@@ -7,7 +7,7 @@ import Link from '../../../navigation';
 import { hasRoute } from '../../../routes';
 import { Figure } from '../shared/figure';
 import type { CredentialSummary, PendingBinding } from './api';
-import { blockerView, MODES, readinessText, summaryNeedsAttention, upgradeWindowText } from './model';
+import { blockerView, deprecationView, MODES, modeSourceText, readinessText, rotationPinsText, rotationStatus, serverKeyRunbook, summaryNeedsAttention, upgradeWindowText, type ServerKeyRotation } from './model';
 import { PendingBindingsTable } from './pending-bindings';
 
 export const CREDENTIALS_ANCHOR = 'node-credentials';
@@ -26,6 +26,8 @@ export function NodeCredentialsPanel({ summary, pending, pendingError, canDecide
   onChanged: () => void;
 }) {
   const mode = MODES[summary.mode];
+  const modeSource = modeSourceText(summary);
+  const deprecation = deprecationView(summary);
   const readiness = readinessText(summary);
   const { nodes, legacyUse } = summary;
   return (
@@ -35,10 +37,16 @@ export function NodeCredentialsPanel({ summary, pending, pendingError, canDecide
         interactive={false}
         title={<span id={`${CREDENTIALS_ANCHOR}-title`} className="flex items-center gap-2"><KeyRound aria-hidden="true" className="size-4" />Node credentials</span>}
         description="Each node is moving from the fleet-wide shared secret to its own signing key."
-        actions={<Badge tone={mode.tone}>mode: {mode.label}</Badge>}
+        actions={<Badge tone={deprecation ? 'warning' : mode.tone}>mode: {mode.label}{summary.modeExplicit === undefined ? '' : summary.modeExplicit ? ' (set)' : ' (default)'}</Badge>}
       >
         <div className="grid gap-4 text-sm">
-          <p className="m-0 text-text-muted">{mode.explanation}</p>
+          {deprecation ? (
+            <div className="grid gap-1 rounded-control border border-warning bg-warning-soft px-3 py-2" aria-labelledby={`${CREDENTIALS_ANCHOR}-deprecated`} role="group">
+              <p id={`${CREDENTIALS_ANCHOR}-deprecated`} className="m-0 flex items-center gap-2 font-semibold text-warning"><TriangleAlert aria-hidden="true" className="size-4 shrink-0" />{deprecation.title}</p>
+              <p className="m-0">{deprecation.notice}</p>
+            </div>
+          ) : null}
+          <p className="m-0 text-text-muted">{mode.explanation}{modeSource ? ` ${modeSource}` : ''}</p>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <Figure label="Own key" value={nodes.active} sublabel={`of ${nodes.total} nodes`} tone={nodes.active === nodes.total ? 'success' : 'accent'} />
             <Figure label="Shared secret only" value={nodes.none} tone={nodes.none ? 'warning' : 'success'} />
@@ -64,6 +72,7 @@ export function NodeCredentialsPanel({ summary, pending, pendingError, canDecide
               </dd>
             </div>
           </dl>
+          {summary.serverKeyRotation ? <ServerKeyRotationState rotation={summary.serverKeyRotation} /> : null}
           <EnforceReadiness summary={summary} />
           {canDecide && pending !== null ? (
             <div className="grid gap-2">
@@ -75,6 +84,69 @@ export function NodeCredentialsPanel({ summary, pending, pendingError, canDecide
         </div>
       </FxPanel>
     </section>
+  );
+}
+
+const STATUS_TEXT: Record<string, string> = { success: 'text-success', info: 'text-info', warning: 'text-warning', danger: 'text-danger', neutral: 'text-text-muted', accent: 'text-accent' };
+
+/**
+ * Server-key rotation (Magnus 3.0.0): the active, staged, replaced and retired keys by fingerprint, how many
+ * keyed agents pin each, and the next step. Rotation is not a browser route, so its steps are text.
+ */
+function ServerKeyRotationState({ rotation }: { rotation: ServerKeyRotation }) {
+  const status = rotationStatus(rotation, formatTime);
+  const fingerprint = (value: string) => <span className="num break-all">{value}</span>;
+  return (
+    <div className="grid gap-2">
+      <h4 className="m-0 text-sm font-semibold">Server key rotation</h4>
+      <dl className="m-0 grid gap-2">
+        <div className="grid gap-0.5 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-3">
+          <dt className="text-text-muted">Active key</dt>
+          <dd className="m-0">{fingerprint(rotation.active.keyFingerprint)}{rotation.active.createdAt ? <span className="block text-xs text-text-muted">Created {formatTime(rotation.active.createdAt)}</span> : null}</dd>
+        </div>
+        <div className="grid gap-0.5 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-3">
+          <dt className="text-text-muted">Staged next key</dt>
+          <dd className="m-0">{rotation.next ? fingerprint(rotation.next.keyFingerprint) : <span className="text-text-muted">none</span>}</dd>
+        </div>
+        <div className="grid gap-0.5 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-3">
+          <dt className="text-text-muted">Agents pinning</dt>
+          <dd className="m-0 text-text-muted">{rotationPinsText(rotation)}</dd>
+        </div>
+        {rotation.previous ? (
+          <div className="grid gap-0.5 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-3">
+            <dt className="text-text-muted">Replaced key</dt>
+            <dd className="m-0">{fingerprint(rotation.previous.keyFingerprint)}<span className="block text-xs text-text-muted">Replaced {formatTime(rotation.previous.promotedAt)}; {rotation.previous.inGrace ? 'accepted until' : 'its grace ended'} {formatTime(rotation.previous.retireAfter)}</span></dd>
+          </div>
+        ) : null}
+        {rotation.retired.length ? (
+          <div className="grid gap-0.5 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-3">
+            <dt className="text-text-muted">Retired keys</dt>
+            <dd className="m-0">
+              <ul className="m-0 grid list-none gap-0.5 p-0">
+                {rotation.retired.map((key) => <li key={key.keyId}>{fingerprint(key.keyFingerprint)} <span className="text-xs text-text-muted">retired {formatTime(key.retiredAt)}</span></li>)}
+              </ul>
+              <span className="block text-xs text-text-muted">Their public keys are kept, so decisions they signed still verify.</span>
+            </dd>
+          </div>
+        ) : null}
+      </dl>
+      <ul className="m-0 grid list-none gap-1 p-0" aria-label="Server key rotation status">
+        {status.map((line) => <li key={line.text} className={STATUS_TEXT[line.tone] ?? 'text-text-muted'}>{line.text}</li>)}
+      </ul>
+      <details className="grid gap-2">
+        <summary className="cursor-pointer font-medium">Rotate the server key</summary>
+        <p className="m-0 mt-2 text-text-muted">The UI does not rotate the server key. An administrator runs these against the Magnus API with an administrator&apos;s token ($MAGNUS_URL is the server&apos;s address), or with magnus-server on the server host. Rotate once the agents run 3.0.0 or later: a 2.10.2 agent pins a staged key only when it restarts.</p>
+        <ol className="m-0 mt-2 grid list-decimal gap-3 pl-5">
+          {serverKeyRunbook().map((step) => (
+            <li key={step.title} className="grid gap-1">
+              <p className="m-0 font-medium">{step.title}</p>
+              <pre className="m-0 overflow-x-auto rounded-control bg-surface-raised p-2 font-mono text-xs whitespace-pre-wrap break-all">{step.commands.join('\n')}</pre>
+              <p className="m-0 text-text-muted">{step.effect}</p>
+            </li>
+          ))}
+        </ol>
+      </details>
+    </div>
   );
 }
 
