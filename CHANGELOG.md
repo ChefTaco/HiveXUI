@@ -1,13 +1,14 @@
 # Changelog
 
-## Unreleased
+## [0.9.0] - 2026-11-14
 
 - Magnus: read Magnus 3.0.0's fleet summary (per-node credentials, phase 3: enforce by default). The Node credentials panel says whether the mode is set in the server's environment or the default (`modeExplicit`), and the mode badge reads "(set)" or "(default)". An explicit `compat` or `warn` that Magnus marks deprecated (`modeDeprecated`) shows a warning at the top of the panel with Magnus's own `deprecationNotice`. The readiness line says that enforce is reached by removing `NODE_AUTH_MODE` (enforce is the default), and to keep it set while a blocker remains.
 - Magnus: show the server key rotation from the summary (`serverKeyRotation`): the active and staged key fingerprints, how many keyed agents pin each, the replaced key with the end of its grace period, the retired keys, and the next step (wait for the pins, promote, retire). Rotating the server key is not a browser route, so the panel shows the API and `magnus-server node-auth server-key` steps as text, with no buttons.
 - Magnus: name the new enforce blocker `AGENTS_NEED_UPGRADE` in plain words: upgrade these agents (2.10.0 or 2.10.1) to 2.10.2 or later.
 - Magnus: in enforce mode, Reset on node detail stays disabled and says why: Magnus 3.0.0 refuses it (also in its default enforce mode), Revoke still works, and moving a node back to the shared secret needs an explicit `NODE_AUTH_MODE=compat` on the server first.
 - Magnus: against a Magnus before 3.0.0, which sends none of these fields, the panel and node detail read as before.
-- Update the vendored Magnus browser contract to Magnus main `dbef84d` (the 3.0.0 summary fields, the server key rotation read model and the `AGENTS_NEED_UPGRADE` blocker). It is re-pointed at the Magnus 3.0.0 tag when HiveXUI is released.
+- Magnus: node detail holds Reset back until it knows the server's node-auth mode. While the fleet summary is being read, Reset is disabled with "Checking node-auth mode…"; if the summary cannot be read, Reset stays disabled, says that Magnus refuses it in enforce mode, and the reset step is shown as CLI and API text. Revoke is unchanged.
+- Update the vendored Magnus browser contract to Magnus 3.0.0 (`2474701`): the 3.0.0 summary fields, the server key rotation read model and the `AGENTS_NEED_UPGRADE` blocker. The contract has the same bytes as the Magnus main `dbef84d` export used during development.
 
 ## [0.8.0] - 2026-11-14
 
