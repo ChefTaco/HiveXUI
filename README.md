@@ -208,8 +208,8 @@ explicitly rotating a replacement and updating the owning agent's protected conf
 With `magnus` in `products`, the fleet pages are the module at `/fleet`, signed in through Oathweave
 like every other product. See `src/modules/magnus/PORTING.md`.
 
-The module reads Magnus 3.0.x per-node credentials (its vendored browser contract is Magnus 3.0.0,
-and 3.0.1 and 3.0.2 changed nothing it reads about node keys). Nodes has a Node key column and, for
+The module reads Magnus 3.x per-node credentials (its vendored browser contract is Magnus 3.1.0).
+Nodes has a Node key column and, for
 administrators and operators, a Node credentials panel: the `NODE_AUTH_MODE` in force and whether it
 was set or is the default (`enforce` since Magnus 3.0.0), a warning for an explicit, deprecated
 `compat` or `warn`, the server key and its rotation, and each blocker of enforce with what to do.
@@ -217,6 +217,13 @@ Node detail has a Node credential card where administrators list and revoke a no
 administrators can approve or reject a key binding Magnus refused for its address. Reset stays disabled in enforce mode,
 because Magnus refuses it there. Against a Magnus without per-node credentials all of this stays
 hidden.
+
+Node detail's Software revisions card reads Magnus 3.1.0's read-only software status
+(`GET /api/v1/nodes/:nodeId/software`) when you press **Check versions** or **Read update cache**:
+installed versions and the pending updates in the node's existing APT cache, with its refresh time.
+It runs no command on the node. Against a Magnus server without the route (404) or a node agent
+older than 3.1.0 (`SOFTWARE_STATUS_UNAVAILABLE`), the card says the status is unavailable and to
+update Magnus and the agent; it never falls back to a shell command.
 
 ### Ardent Project Studio
 
@@ -235,7 +242,8 @@ area's workflows, the room's agent states, the keyboard map, accessibility and k
 #### End-to-end tests
 
 `npm run e2e` runs the Studio acceptance scenarios (`e2e/studio/*.spec.ts`: an adventure and a
-research project, through the Studio API and in the browser, and an agent's fleet lifecycle) against
+research project, through the Studio API and in the browser, an agent's fleet lifecycle, and the
+node software card) against
 a real stack built from the product checkouts next to this one: Oathweave, HiveMem, HiveSkills,
 Magnus (server, PostgreSQL, Redis and one node agent in a systemd container that manages Ardent
 gateways), ArdentStudio and the UI behind Hive's ingress configuration
