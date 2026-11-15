@@ -263,11 +263,15 @@ directory of checkouts, `STUDIO_E2E_MAGNUS_DIR` at another Magnus checkout,
 `../Ardent`, `STUDIO_E2E_REBUILD=1` rebuilds the images and `STUDIO_E2E_TAG` names their tag (default
 `local`), so stacks built from different checkouts keep their own images. `STUDIO_E2E_KEEP=1` keeps a
 stack the specs started. The bootstrap activates the node's Ardent-only scope over the evidence Magnus's
-ADMIN API reports (`GET /resource-leases/enrollment/:nodeId/ardent-scope/evidence`). The stack still
-writes the deprecated shared keys (`NODE_MANAGER_SECRET`, `RESULT_SIGNING_SECRET`,
-`COMMAND_RECONCILIATION_SECRET`) into the Magnus server's and the node agent's environment; Magnus
-3.0.x in its default enforce mode does not need them, and signs the decision that reconciles an Ardent
-action whose outcome is unknown (from the Ardent installations page) with its server key. The node container runs systemd and
+ADMIN API reports (`GET /resource-leases/enrollment/:nodeId/ardent-scope/evidence`). The stack needs
+Magnus 3.0.0 or later and writes no shared node key (`NODE_MANAGER_SECRET`, `RESULT_SIGNING_SECRET`,
+`COMMAND_RECONCILIATION_SECRET`) into the Magnus server's or the node agent's environment. The
+bootstrap registers the node, and the stack binds the node's key with the one-time enrollment token
+(`magnus-agent enroll --token-file -` in the node container, the token on standard input only).
+Magnus starts with `NODE_AUTH_MODE` unset, so its start-up guard runs on every start, including the
+restart in the lifecycle spec; the bootstrap checks that the node-credentials summary reports the
+default enforce mode with no blocker. Magnus signs the decision that reconciles an Ardent action whose
+outcome is unknown (from the Ardent installations page) with its server key. The node container runs systemd and
 needs `CAP_SYS_ADMIN` in a private cgroup namespace; it never touches the host's cgroups.
 
 ### Sign-in portal

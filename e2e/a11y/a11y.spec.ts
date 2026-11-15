@@ -2,7 +2,7 @@
 // serious or critical WCAG 2.1 A/AA violation that axe finds on these pages.
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { CREDENTIAL_NODES, FIXED_NOW, installMocks, NODE_CREDENTIAL_SUMMARY_V3 } from './mock-runtime';
+import { CREDENTIAL_NODES, FIXED_NOW, installMocks, MAGNUS_SESSION_V3, NODE_CREDENTIAL_SUMMARY_V3, UPGRADE_ELIGIBILITY_V3 } from './mock-runtime';
 
 const PAGES = [
   { name: 'Emberpath routers', path: '/?page=routers' },
@@ -101,6 +101,31 @@ test('the Magnus agent upgrade drawer has no serious or critical accessibility v
   await page.waitForTimeout(500);
   const results = await new AxeBuilder({ page }).include('[role="dialog"]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
   expect(results.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical').map((violation) => violation.id)).toEqual([]);
+});
+
+test('Allow major upgrade, its confirmation and the agents it holds back have no serious or critical accessibility violations', async ({ page }) => {
+  await page.clock.setFixedTime(FIXED_NOW);
+  await installMocks(page);
+  await page.route(/\/api\/magnus\/console\/session$/, (route) => route.fulfill({ json: { success: true, data: MAGNUS_SESSION_V3 } }));
+  await page.route(/\/api\/magnus\/agents\/upgrade\/eligibility$/, (route) => route.fulfill({ json: { success: true, data: UPGRADE_ELIGIBILITY_V3 } }));
+  await page.goto('/fleet/nodes?upgrade=agents', { waitUntil: 'networkidle' });
+  const drawer = page.getByRole('dialog', { name: 'Upgrade agents' });
+  await expect(drawer.getByText('2 agents are on another major version than 3.0.2')).toBeVisible();
+  const axe = async () => {
+    await page.waitForTimeout(500);
+    const results = await new AxeBuilder({ page }).include('[role="dialog"], [role="alertdialog"]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+    expect(results.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical').map((violation) => violation.id)).toEqual([]);
+  };
+  await axe();
+  await drawer.getByRole('checkbox', { name: 'Allow major upgrade' }).click();
+  const confirm = page.getByRole('alertdialog');
+  await expect(confirm).toContainText('2.10.x → 2.10.3 → 3.x');
+  await expect(confirm).toContainText('valid for one hour');
+  await axe();
+  await confirm.getByRole('button', { name: 'Allow major upgrade' }).click();
+  await expect(drawer.getByRole('note', { name: 'Agents a major upgrade holds back' })).toContainText('MAJOR_NEEDS_STEPPING_STONE: node-2');
+  await expect(drawer.getByRole('checkbox', { name: 'Allow major upgrade' })).toBeChecked();
+  await axe();
 });
 
 test('the Magnus node credentials panel and its approval have no serious or critical accessibility violations', async ({ page }) => {

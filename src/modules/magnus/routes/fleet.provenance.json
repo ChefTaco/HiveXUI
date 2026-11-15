@@ -228,10 +228,6 @@
       "sha256": "edf507778165e050066b0c3a195f9b8d2fb53571ffbaa49faf3ca5b9b3c313ac"
     },
     {
-      "source": "packages/contracts/src/upgrade-remedies.ts",
-      "sha256": "ba983b6d5544ea92ae489aaaad1e94fefde1206e725eea29059ad3fcefd6cbfa"
-    },
-    {
       "source": "services/control-api/src/services/topology-service.ts",
       "sha256": "42610c1f06f6082183c6d4de91ea34f83a82de2066d384b92ea293d2b2b0203e"
     }
