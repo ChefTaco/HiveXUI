@@ -1,7 +1,7 @@
 // New Agent: creates an Ardent agent on a fleet node through Magnus (POST /ardent/agents) and follows
 // the deploy operation step by step. The fleet profiles page shows it inline; the Studio can host the
 // same component in a Drawer and hear the new agent through onDone.
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, Brain, ExternalLink, Rocket, RotateCcw } from 'lucide-react';
 import { Badge, Button, Field, Select, TextArea, TextInput, Toggle } from '@ui';
 import { cn } from '@lib/cn';
@@ -42,6 +42,8 @@ export interface NewAgentWizardProps {
   onCancel?: (() => void) | undefined;
   /** The deploy was accepted and is running, for a host that shows the agent as being created. */
   onDeployStarted?: ((agentRef: string) => void) | undefined;
+  /** A completed deploy, before the operator chooses to leave the wizard. */
+  onDeployed?: ((agentRef: string) => void) | undefined;
   /** The label of the button that calls onDone after a successful deploy. */
   doneLabel?: string | undefined;
   className?: string | undefined;
@@ -231,7 +233,7 @@ interface StepProps {
   errors: StepErrors;
 }
 
-function Wizard({ installations: given, onDone, onCancel, onDeployStarted, doneLabel = 'Open profile', className }: NewAgentWizardProps) {
+function Wizard({ installations: given, onDone, onCancel, onDeployStarted, onDeployed, doneLabel = 'Open profile', className }: NewAgentWizardProps) {
   const loaded = useMagnusResource((signal) => listInstallations(signal), [], { enabled: !given });
   const installations = given ?? loaded.data;
   const choices = useMemo(() => nodeChoices(installations ?? []), [installations]);
@@ -242,6 +244,7 @@ function Wizard({ installations: given, onDone, onCancel, onDeployStarted, doneL
   const [problem, setProblem] = useState('');
   const [operationId, setOperationId] = useState<string | null>(null);
   const { operation, note, follow } = useAgentOperation();
+  const notified = useRef<string | null>(null);
   const installation = installations?.find((item) => item.nodeId === draft.nodeId);
   const update = (patch: Partial<NewAgentDraft>) => setDraft((current) => ({ ...current, ...patch }));
 
@@ -250,6 +253,12 @@ function Wizard({ installations: given, onDone, onCancel, onDeployStarted, doneL
   useEffect(() => {
     if (first && !draft.nodeId) update({ nodeId: first.nodeId, apiPort: String(suggestPort(first) ?? '') });
   }, [first?.nodeId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (operation?.status !== 'succeeded' || notified.current === operation.id) return;
+    notified.current = operation.id;
+    onDeployed?.(agentRef(operation.nodeId, operation.profile));
+  }, [operation, onDeployed]);
 
   function next() {
     const found = validateStep(step, draft, choices);

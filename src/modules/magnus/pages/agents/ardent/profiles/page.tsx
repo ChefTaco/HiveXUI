@@ -41,6 +41,8 @@ export default function ArdentProfilesPage() {
                   <NewAgentWizard
                     installations={data.installations}
                     onCancel={() => setCreating(false)}
+                    onDeployStarted={() => setCreating(true)}
+                    onDeployed={() => void inventory.refresh()}
                     onDone={(ref) => {
                       const parsed = parseProfileRef(ref);
                       if (parsed) router.push(profileHref(parsed.nodeId, parsed.profileId));

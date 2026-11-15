@@ -77,6 +77,10 @@ describe('the Studio page', () => {
     expect(button('Close Studio', root)).toBeDefined();
     expect(document.querySelector('.app-shell, .sidebar, #product-navigation')).toBeNull();
     expect(text(root)).toContain('Ardent Project Studio');
+    const mark = root.querySelector('.studio-mark')!;
+    const visibleName = [...mark.querySelectorAll('.studio-mark__text > span')].map((part) => part.textContent).join(' ');
+    const accessibleName = mark.getAttribute('aria-label') ?? mark.textContent?.replace(/\s+/g, ' ').trim();
+    expect(accessibleName).toContain(visibleName);
   });
 
   it('closes back to the console page it was opened from', async () => {

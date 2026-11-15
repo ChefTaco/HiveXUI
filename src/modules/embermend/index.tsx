@@ -104,7 +104,7 @@ export default function EmbermendModule() {
     />
     {error ? <p role="alert" className="warning-banner">{error}</p> : null}
     {loaded && recommendations.length === 0 ? <Panel><h3>No recommendations yet</h3><p>Assign an assessment profile and an eligible Magnus target through your coordinator. Recommendations appear here when there is security work to review.</p></Panel> : null}
-    <div className="space-y-4" aria-label="Security recommendations">{recommendations.map(row => {
+    <section className="space-y-4" aria-label="Security recommendations">{recommendations.map(row => {
       const published = row.publications.some(item => item.revision === row.plan.revision && item.digest === row.digest);
       const awaiting = row.status === 'explained';
       const source = outcomeForScope(row, findings, 'source'); const runtime = outcomeForScope(row, findings, 'runtime');
@@ -118,7 +118,7 @@ export default function EmbermendModule() {
         <p className="whitespace-pre-wrap">{row.plan.explanation}</p>
         <p><strong>Service impact:</strong> {row.plan.impact}</p>
         {row.plan.uncertainty.length ? <p><strong>Uncertainty:</strong> {row.plan.uncertainty.join('; ')}</p> : null}
-        <div className="flex flex-wrap gap-2 py-3" aria-label="Remediation progress"><Badge>Explained: {published ? 'published' : 'pending'}</Badge>{row.jobs.map(job => <Badge key={job.id}>Work: {job.status} · {Math.round(job.progress * 100)}%</Badge>)}<Badge>Execution: {row.executions.length ? row.executions.map(item => item.state).join(', ') : 'not dispatched'}</Badge><Badge>Ownership: {ownership}</Badge><Badge>Source outcome: {source}</Badge><Badge>Runtime outcome: {runtime}</Badge><Badge>Security outcome: {verified ? 'verified for recorded scope' : 'verification outstanding'}</Badge></div>
+        <div role="group" className="flex flex-wrap gap-2 py-3" aria-label="Remediation progress"><Badge>Explained: {published ? 'published' : 'pending'}</Badge>{row.jobs.map(job => <Badge key={job.id}>Work: {job.status} · {Math.round(job.progress * 100)}%</Badge>)}<Badge>Execution: {row.executions.length ? row.executions.map(item => item.state).join(', ') : 'not dispatched'}</Badge><Badge>Ownership: {ownership}</Badge><Badge>Source outcome: {source}</Badge><Badge>Runtime outcome: {runtime}</Badge><Badge>Security outcome: {verified ? 'verified for recorded scope' : 'verification outstanding'}</Badge></div>
         {settledUnknown ? <p role="status">Ownership is settled. The original outcome remains unknown; findings require separate verification.</p> : null}
         {canRecover && access?.permissions.includes('evidence') ? row.jobs.filter(job => job.status === 'unknown').map(job => {
           const observation = observations[job.id];
@@ -130,7 +130,7 @@ export default function EmbermendModule() {
         {access?.permissions.includes('execute') ? <Button disabled={busy} onClick={() => void pause(row)}>{row.campaign?.paused ? 'Resume dispatch' : 'Pause further dispatch'}</Button> : null}
         <details className="mt-4"><summary>Actions and supporting evidence</summary>{row.jobs.map(job => <p key={job.id}>Job {job.id} · {job.status}{job.error ? ` · ${job.error}` : ''}</p>)}{row.jobs.map(job => observations[job.id]).filter(job => job !== undefined).map(job => <p key={job.id}>Observation job {job.id} · {job.status}{job.error ? ` · ${job.error}` : ''}</p>)}<ul>{row.plan.actions.map(action => <li key={action.id}>{action.version} · {action.targetId} · {row.executions.find(item => item.actionId === action.id)?.state ?? 'planned'}<p>Recovery: {action.recovery}</p></li>)}</ul><div className="flex flex-wrap gap-2">{row.plan.evidenceIds.map(id => <Button key={id} onClick={() => void showEvidence(id)}>Open evidence {id.slice(0, 12)}</Button>)}</div><p>Pausing prevents future dispatch. Already admitted operations retain their recorded state.</p></details>
       </Panel>;
-    })}</div>
+    })}</section>
     {evidence ? <Panel className="mt-4"><div className="flex justify-between gap-3"><h3>Evidence · {evidence.method}</h3><Button onClick={() => setEvidence(null)}>Close evidence</Button></div><p>Observed {new Date(evidence.observedAt).toLocaleString()} · {evidence.source}</p><pre className="max-h-96 overflow-auto whitespace-pre-wrap">{JSON.stringify(evidence.content, null, 2)}</pre><p className="font-mono break-all">SHA-256 {evidence.digest}</p></Panel> : null}
     <Panel className="mt-6"><h3>Remaining security work</h3><p>Source correction, deployed correction, and accepted risk are tracked separately.</p>{loaded && findings.length === 0 ? <p>No findings are recorded. This does not establish assessment coverage.</p> : null}{findings.map(({ finding, occurrences }) => <details key={finding.id} className="py-3"><summary>{finding.title} · {finding.severity} · {finding.validity}</summary><p>{finding.rationale}</p>{occurrences.map(item => <p key={item.id}>Source: {item.sourceState} · Runtime: {item.runtimeState} · Coverage: {item.coverage.status}</p>)}</details>)}</Panel>
   </>;

@@ -48,10 +48,10 @@ function StudioBar({ match, connection }: { match: StudioMatch | null; connectio
   return (
     <header className="topbar studio-bar">
       <h1 className="sr-only">Ardent Project Studio</h1>
-      <StudioLink href={STUDIO_PREFIX} className="studio-mark text-text-strong no-underline" aria-label="Ardent Project Studio home">
+      <StudioLink href={STUDIO_PREFIX} className="studio-mark text-text-strong no-underline" title="Ardent Project Studio home">
         <Workflow className="studio-mark__icon text-accent glow-text-accent" aria-hidden="true" />
         <span className="studio-mark__text">
-          <span className="font-display text-lg">Studio</span>
+          <span className="font-display text-lg">Studio</span>{' '}
           <span className="studio-mark__sub text-xs text-text-muted">Ardent Project Studio</span>
         </span>
       </StudioLink>

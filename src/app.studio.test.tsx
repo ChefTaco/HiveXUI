@@ -41,7 +41,9 @@ afterEach(async () => {
 });
 
 async function until(found: () => unknown) {
-  for (let attempt = 0; attempt < 50 && !found(); attempt += 1) await settle(10);
+  // A cold lazy route also waits for module transforms in the full parallel suite.
+  const deadline = Date.now() + 3_000;
+  while (!found() && Date.now() < deadline) await settle(10);
   expect(found()).toBeTruthy();
 }
 

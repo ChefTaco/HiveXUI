@@ -6,6 +6,7 @@ import { button, click, mount, settle, stubApi, stubBrowser, type, type Mounted,
 import type { ArdentInstallation } from '../schemas';
 import { DEPLOY_STEPS, type AgentOperation, type AgentStep } from './new-agent-logic';
 import { NewAgentWizard } from './new-agent';
+import ArdentProfilesPage from './page';
 
 const INSTALLATIONS: ArdentInstallation[] = [
   { nodeId: 'node-1', nodeName: 'alpha', hostname: 'alpha.example.com', reachable: true, error: null, installed: true, version: '2.2.0', owner: 'operator', checkedAt: '2026-11-08T00:00:00.000Z',
@@ -36,27 +37,32 @@ interface Answers {
   resume?: () => unknown;
   installation?: ArdentInstallation;
   streams?: Response[];
+  profilesPage?: boolean;
 }
 let view: Mounted | undefined;
 async function load(role: string, answers: Answers = {}) {
   const streams = [...(answers.streams ?? [])];
+  let deploymentStarted = false;
   const stub = stubApi((request) => {
     const { method, path } = request;
     if (path === '/console/session') return { success: true, data: { userId: 'alice', role, capabilities: { hermes: false, terminal: false, agentVersion: '1.2.0', magnusVersion: '1.2.0', securityConsoleUrl: null } } };
+    if (method === 'GET' && path === '/ardent/installations') return { success: true, data: INSTALLATIONS };
+    if (method === 'GET' && path === '/ardent/profiles') return { success: true, data: deploymentStarted ? [{ ...INSTALLATIONS[0]!.profiles[0]!, id: 'scout', name: 'scout', nodeId: 'node-1', nodeName: 'alpha', hostname: 'alpha.example.com', installationVersion: '2.2.0', reachable: true }] : [] };
     if (method === 'GET' && path === '/ardent/installations/node-1/profiles/lead/skills') return { success: true, data: { skills: [{ name: 'research', description: 'Finds sources', hash: 'h', enabled: true }] } };
     if (method === 'POST' && path === '/ardent/agents') return answers.deploy?.(request) ?? new Response(JSON.stringify({ success: true, data: { operationId: 'op-1' } }), { status: 202, headers: { 'content-type': 'application/json' } });
     if (method === 'GET' && path === '/ardent/installations/node-1' && answers.installation) return { success: true, data: answers.installation };
     if (method === 'POST' && path === '/ardent/agents/operations/op-1/resume' && answers.resume) return answers.resume();
     if (method === 'POST' && path === '/ardent/agents/operations/op-1/resume') return new Response(JSON.stringify({ success: true, data: { operationId: 'op-1' } }), { status: 202, headers: { 'content-type': 'application/json' } });
-    if (method === 'GET' && path === '/ardent/agents/operations/op-1/stream') return streams.shift() ?? sse([['done', SUCCEEDED]]);
+    if (method === 'GET' && path === '/ardent/agents/operations/op-1/stream') { deploymentStarted = true; return streams.shift() ?? sse([['done', SUCCEEDED]]); }
     return undefined;
   });
   vi.stubGlobal('fetch', stub.request);
   await sessionStore.load();
   const onDone = vi.fn();
-  view = await mount(<NewAgentWizard installations={INSTALLATIONS} onDone={onDone} />);
+  const onDeployed = vi.fn();
+  view = await mount(answers.profilesPage ? <ArdentProfilesPage /> : <NewAgentWizard installations={INSTALLATIONS} onDone={onDone} onDeployed={onDeployed} />);
   await settle(5);
-  return { stub, onDone };
+  return { stub, onDone, onDeployed };
 }
 const input = (label: string) => [...document.querySelectorAll('label.field')].find((item) => item.querySelector('.field-label')?.textContent === label)?.querySelector('input, textarea');
 
@@ -84,6 +90,20 @@ afterEach(async () => {
 });
 
 describe('the New Agent wizard', () => {
+  it('refreshes the fleet collection after success while keeping the completed wizard open', async () => {
+    const { stub } = await load('ADMIN', { profilesPage: true });
+    expect(document.body.textContent).toContain('No Ardent profiles reported');
+    await walkToReview();
+    await click(button('Deploy'));
+    await settle(20);
+    expect(stub.of('/ardent/profiles')).toHaveLength(2);
+    expect(stub.of('/ardent/installations')).toHaveLength(2);
+    expect(document.body.textContent).toContain('1 profiles reported by managed nodes');
+    expect(document.body.textContent).not.toContain('No Ardent profiles reported');
+    expect(button('Open profile')).toBeDefined();
+    expect(document.querySelector('a[href="/fleet/ardent/profiles/node-1~scout"]')).not.toBeNull();
+  });
+
   it('offers only bridge-capable nodes, suggests the next free port and validates before moving on', async () => {
     await load('ADMIN');
     const radios = [...document.querySelectorAll<HTMLInputElement>('input[name="new-agent-node"]')];
@@ -120,7 +140,7 @@ describe('the New Agent wizard', () => {
 
   it('renders each step from the operation stream, then resumes a failed deploy and opens the profile', async () => {
     const running = operation('running', { 'profile-create': { status: 'succeeded', receipt: { apiPort: 9911, version: '2.2.0' } }, 'service-start': { status: 'running' } });
-    const { stub, onDone } = await load('ADMIN', { streams: [sse([['operation', running], ['operation', FAILED], ['done', FAILED]]), sse([['operation', SUCCEEDED], ['done', SUCCEEDED]])] });
+    const { stub, onDone, onDeployed } = await load('ADMIN', { streams: [sse([['operation', running], ['operation', FAILED], ['done', FAILED]]), sse([['operation', SUCCEEDED], ['done', SUCCEEDED]])] });
     await walkToReview();
     await click(button('Deploy'));
     await settle(10);
@@ -134,6 +154,7 @@ describe('the New Agent wizard', () => {
     expect(document.querySelector('[role="alert"]')?.textContent).toContain('Stopped at "Write SOUL.md".');
     expect(button('Open profile')).toBeUndefined();
     expect(button('Back')).toBeUndefined();
+    expect(onDeployed).not.toHaveBeenCalled();
 
     await click(button('Resume'));
     await settle(10);
@@ -141,6 +162,7 @@ describe('the New Agent wizard', () => {
     expect(stub.of('/ardent/agents/operations/op-1/stream')).toHaveLength(2);
     expect(DEPLOY_STEPS.map(state)).toEqual(DEPLOY_STEPS.map(() => 'done'));
     expect(document.body.textContent).toContain('HiveMem ready');
+    expect(onDeployed).toHaveBeenCalledExactlyOnceWith('node-1~scout');
     await click(button('Open profile'));
     expect(onDone).toHaveBeenCalledWith('node-1~scout');
   });

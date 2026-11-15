@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Magnus: refresh the Ardent profile list when New Agent finishes successfully. The completed wizard stays open with its **Open profile** button, and the new profile appears below it without navigating away or showing a stale empty-list warning.
+- Studio: let the visible brand text label the home link, so speech control can identify the link by what it says on screen.
+- Recommendations: give the labeled recommendation list and remediation progress valid semantic roles for assistive technology.
+
 ## [0.9.1] - 2026-11-15
 
 - Magnus: Upgrade agents offers **Allow major upgrade** (`allowMajor`, Magnus 3.0.1) to ADMIN against a Magnus that reports 3.0.1 or later. Turning it on asks first, and the confirmation explains the stepping stone (2.10.x → 2.10.3 → 3.x, with `magnus-server agents upgrade --to 2.10.3` for the first step) and the major-upgrade authorization the server signs with its server key for each node, version change and tarball, valid for one hour, which the agent verifies against a server key it pins (so the node needs a bound node key). The drawer then reads eligibility with `allowMajor=true`, sends `allowMajor` with Check and with the run, says in the run confirmation how many selected agents cross a major, and marks a rollout that allowed it ("major upgrades allowed"). The option resets each time the drawer opens; turning it off needs no confirmation.

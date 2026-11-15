@@ -37,6 +37,12 @@ afterEach(async () => { await clearView(); api.mockReset(); });
 async function clearView() { await view?.unmount(); view = undefined; }
 async function ready() { view = await mount(<EmbermendModule />); for (let i = 0; i < 20 && !document.body.textContent?.includes(row.plan.objective); i++) await settle(10); }
 describe('Embermend recommendation decisions', () => {
+  it('exposes named recommendation and progress groups to assistive technology', async () => {
+    await ready();
+    const recommendations = document.querySelector('section[aria-label="Security recommendations"]');
+    expect(recommendations?.textContent).toContain(row.plan.objective);
+    expect(recommendations?.querySelector('[role="group"][aria-label="Remediation progress"]')?.textContent).toContain('verification outstanding');
+  });
   it('observes an original held job only under operator recovery authority without repeating dispatch', async () => {
     accessPermissions.push('recover'); row.status = 'authorized';
     row.jobs = [{ id: 'fixture-held-job', kind: 'campaign', status: 'unknown', progress: 0, deadline: row.plan.expiresAt, cancelRequested: false, result: null, error: 'ORIGINAL_OUTCOME_UNKNOWN' }];
