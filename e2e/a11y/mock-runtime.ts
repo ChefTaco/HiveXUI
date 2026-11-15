@@ -242,6 +242,8 @@ const memorySearch = (request: Request) => {
 // Magnus (logical paths under /api/magnus, relative to its /api/v1)
 const magnusOk = (data: unknown) => ({ success: true, data });
 const MAGNUS_SESSION = { userId: 'usr_admin', role: 'ADMIN', capabilities: { hermes: true, terminal: false, agentVersion: '2.0.0', magnusVersion: '2.0.0', securityConsoleUrl: null } };
+/** A Magnus 3.0.2 session: the upgrade drawer offers Allow major upgrade (allowMajor, Magnus 3.0.1). */
+export const MAGNUS_SESSION_V3 = { ...MAGNUS_SESSION, capabilities: { ...MAGNUS_SESSION.capabilities, agentVersion: '3.0.2', magnusVersion: '3.0.2' } };
 const timelineItem = (type: string, severity: string, title: string, minutesAgo: number, href: string, node: string | null = null) => ({
   type, severity, title, node, timestamp: new Date(NOW_MS - minutesAgo * 60_000).toISOString(), href,
 });
@@ -285,6 +287,25 @@ const UPGRADE_ELIGIBILITY = {
       { nodeId: 'node-2', name: 'node-2', from: '1.9.0', state: 'confirmed', requestId: 'req-2', detail: null },
     ],
   },
+};
+
+// Magnus 3.0.2's targets for a fleet still on 2.10.x: within the major, and with allowMajor, where a 2.10.3
+// agent with a node key is eligible and the others say what they need first.
+export const UPGRADE_ELIGIBILITY_V3 = {
+  ...UPGRADE_ELIGIBILITY, version: '3.0.2', serverVersion: '3.0.2', latestRun: null,
+  nodes: [
+    upgradeCandidate('node-1', '2.10.3', false, 'MAJOR_VERSION', '2.10.3 -> 3.0.2 crosses a major version; pass --allow-major (allowMajor) to authorize it, or upgrade this node by hand'),
+    upgradeCandidate('node-2', '2.10.2', false, 'MAJOR_VERSION', '2.10.2 -> 3.0.2 crosses a major version; pass --allow-major (allowMajor) to authorize it, or upgrade this node by hand'),
+    upgradeCandidate('node-3', '3.0.1', true, null, null),
+  ],
+};
+const UPGRADE_ELIGIBILITY_V3_MAJOR = {
+  ...UPGRADE_ELIGIBILITY_V3,
+  nodes: [
+    upgradeCandidate('node-1', '2.10.3', true, null, null),
+    upgradeCandidate('node-2', '2.10.2', false, 'MAJOR_NEEDS_STEPPING_STONE', 'magnus-agent 2.10.2 cannot verify a major-upgrade authorization; upgrade it to 2.10.3 first'),
+    upgradeCandidate('node-3', '3.0.1', true, null, null),
+  ],
 };
 
 // Per-node credentials (Magnus 2.10): one node with its own key, one waiting for an administrator to
@@ -458,6 +479,7 @@ export const ROUTES: Array<[string, RegExp, Answer]> = [
   ['GET', /^\/api\/magnus\/nodes\/system-updates\/summary$/, magnusOk({ total: 0, reporting: 0, enabled: 0, actionNeeded: 0, rebootRequired: 0, nodes: [] })],
   ['GET', /^\/api\/magnus\/nodes\/tailscale\/summary$/, magnusOk({ total: 0, reporting: 0, expiryEnabled: 0, expiringSoon: 0, expired: 0, warningDays: 14, nodes: [] })],
   ['GET', /^\/api\/magnus\/agents\/upgrade\/eligibility$/, magnusOk(UPGRADE_ELIGIBILITY)],
+  ['GET', /^\/api\/magnus\/agents\/upgrade\/eligibility\?allowMajor=true$/, magnusOk(UPGRADE_ELIGIBILITY_V3_MAJOR)],
   ['GET', /^\/api\/magnus\/agents\/node-1~lead\/identity$/, magnusOk(AGENT_IDENTITY)],
   ['GET', /^\/api\/magnus\/nodes\/node-1$/, magnusOk(AGENT_NODE)],
   ['GET', /^\/api\/magnus\/nodes\/node-1\/credentials$/, magnusOk(NODE_KEYS)],

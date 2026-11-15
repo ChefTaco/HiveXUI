@@ -9,7 +9,7 @@ import { MagnusApiError } from '../../../api/errors';
 import { useMagnusResource } from '../../../api/use-resource';
 import { ADMIN_ONLY, useMagnusSession } from '../../../session';
 import { ActionConfirm } from '../../../ui/action-confirm';
-import { failureBudget, majorUpgradeCount, nodeDetail, remedyText, retryCount, runHeadline, targetDescription, upgradeErrorMessage, type UpgradeEligibility, type UpgradeRun } from './agent-upgrade-view';
+import { ALLOW_MAJOR_MESSAGE, crossesMajor, failureBudget, majorBlockers, majorUpgradeCount, nodeDetail, remedyText, retryCount, runHeadline, serverAllowsMajor, targetDescription, upgradeErrorMessage, type UpgradeEligibility, type UpgradeRun } from './agent-upgrade-view';
 
 const RUN_POLL_MS = 5000;
 
@@ -35,6 +35,7 @@ const isRun = (data: StartAnswer): data is UpgradeRun => !('dryRun' in data);
  * report a heartbeat in time, and Check shows every node's full report before anything starts. A problem of
  * one node never stops the run. Reopening shows the last run, each node needing attention with what to do,
  * and Retry for those nodes. Reading is open to every role; only ADMIN sees what would change anything.
+ * Against Magnus 3.0.1 or later, ADMIN can also allow major upgrades (allowMajor), after a confirmation.
  */
 interface UpgradeConfirmation {
   title: string;
@@ -44,8 +45,10 @@ interface UpgradeConfirmation {
 }
 
 export function AgentUpgradeDrawer({ open, onClose, onFinished }: { open: boolean; onClose: () => void; onFinished?: () => void }) {
-  const { can } = useMagnusSession();
+  const { can, session } = useMagnusSession();
   const canRun = can(ADMIN_ONLY);
+  const majorSupported = serverAllowsMajor(session?.capabilities.magnusVersion);
+  const [allowMajor, setAllowMajor] = useState(false);
   const [eligibility, setEligibility] = useState<UpgradeEligibility | null>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [run, setRun] = useState<UpgradeRun | null>(null);
@@ -56,6 +59,11 @@ export function AgentUpgradeDrawer({ open, onClose, onFinished }: { open: boolea
   const [maxFailures, setMaxFailures] = useState('');
   const [confirming, setConfirming] = useState<UpgradeConfirmation | null>(null);
 
+  // Each opening starts within the major again: crossing it is chosen every time.
+  useEffect(() => {
+    if (!open) setAllowMajor(false);
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const controller = new AbortController();
@@ -64,7 +72,7 @@ export function AgentUpgradeDrawer({ open, onClose, onFinished }: { open: boolea
     setCheck(null);
     setError(null);
     magnus
-      .get('/agents/upgrade/eligibility', upgradeEligibilityResponseSchema, { signal: controller.signal })
+      .get('/agents/upgrade/eligibility', upgradeEligibilityResponseSchema, { signal: controller.signal, ...(allowMajor ? { query: { allowMajor: 'true' } } : {}) })
       .then(({ data }) => {
         setEligibility(data);
         setSelected(new Set(data.nodes.filter((node) => node.eligible).map((node) => node.nodeId)));
@@ -74,7 +82,7 @@ export function AgentUpgradeDrawer({ open, onClose, onFinished }: { open: boolea
         if (!controller.signal.aborted) setError(upgradeErrorMessage(cause));
       });
     return () => controller.abort();
-  }, [open]);
+  }, [open, allowMajor]);
 
   const running = open && run?.status === 'running';
   const runId = run?.id;
@@ -98,6 +106,10 @@ export function AgentUpgradeDrawer({ open, onClose, onFinished }: { open: boolea
 
   const eligibleCount = useMemo(() => eligibility?.nodes.filter((node) => node.eligible).length ?? 0, [eligibility]);
   const majorCount = majorUpgradeCount(eligibility);
+  const blockers = allowMajor ? majorBlockers(eligibility) : [];
+  const offerMajor = canRun && majorSupported && (majorCount > 0 || allowMajor);
+  const majorBody = allowMajor ? { allowMajor: true } : {};
+  const crossing = allowMajor && eligibility ? eligibility.nodes.filter((node) => selected.has(node.nodeId) && crossesMajor(node.version, eligibility.version)).length : 0;
   const showCandidates = eligibility !== null && run?.status !== 'running';
   const canStart = canRun && eligibility?.upgradesEnabled === true;
   const retries = retryCount(run);
@@ -116,7 +128,7 @@ export function AgentUpgradeDrawer({ open, onClose, onFinished }: { open: boolea
   const startUpgrade = () =>
     act(async () => {
       const { data } = await magnus.post('/agents/upgrade', startUpgradeResponseSchema, {
-        body: { nodeIds: [...selected], version: eligibility?.version, ...(eligibility?.prerelease ? { allowPrerelease: true } : {}), ...failureBudget(maxFailures) },
+        body: { nodeIds: [...selected], version: eligibility?.version, ...(eligibility?.prerelease ? { allowPrerelease: true } : {}), ...majorBody, ...failureBudget(maxFailures) },
       });
       if (!isRun(data)) throw new Error('The server answered with a report, not a run. Refresh to confirm.');
       return data;
@@ -125,7 +137,7 @@ export function AgentUpgradeDrawer({ open, onClose, onFinished }: { open: boolea
     setChecking(true);
     setError(null);
     try {
-      const { data } = await magnus.post('/agents/upgrade', startUpgradeResponseSchema, { body: { dryRun: true, version: eligibility?.version, ...(selected.size ? { nodeIds: [...selected] } : {}) } });
+      const { data } = await magnus.post('/agents/upgrade', startUpgradeResponseSchema, { body: { dryRun: true, version: eligibility?.version, ...majorBody, ...(selected.size ? { nodeIds: [...selected] } : {}) } });
       if (!isRun(data)) setCheck(data);
     } catch (cause) {
       setError(upgradeErrorMessage(cause));
@@ -153,7 +165,7 @@ export function AgentUpgradeDrawer({ open, onClose, onFinished }: { open: boolea
       ) : null}
       {showCandidates && canRun ? <Button size="sm" onClick={() => void runCheck()} disabled={busy} loading={checking} icon={<ClipboardCheck className="size-4" />}>Check</Button> : null}
       {showCandidates && canRun ? (
-        <Button size="sm" variant="primary" onClick={() => setConfirming({ title: 'Upgrade these agents?', message: `Upgrade the agent on ${selected.size} node${selected.size === 1 ? '' : 's'} to version ${eligibility?.version ?? 'the target'}? Each agent restarts as it upgrades.`, label: `Upgrade ${selected.size} agent${selected.size === 1 ? '' : 's'}`, action: startUpgrade })} disabled={selected.size === 0 || !eligibility?.upgradesEnabled} loading={busy} icon={<ArrowUpCircle className="size-4" />}>
+        <Button size="sm" variant="primary" onClick={() => setConfirming({ title: 'Upgrade these agents?', message: `Upgrade the agent on ${selected.size} node${selected.size === 1 ? '' : 's'} to version ${eligibility?.version ?? 'the target'}? Each agent restarts as it upgrades.${crossing > 0 ? ` ${crossing} of them cross${crossing === 1 ? 'es' : ''} a major version, each with a major-upgrade authorization the server signs for that node, valid for one hour.` : ''}`, label: `Upgrade ${selected.size} agent${selected.size === 1 ? '' : 's'}`, action: startUpgrade })} disabled={selected.size === 0 || !eligibility?.upgradesEnabled} loading={busy} icon={<ArrowUpCircle className="size-4" />}>
           Upgrade {selected.size || eligibleCount} agent{(selected.size || eligibleCount) === 1 ? '' : 's'}
         </Button>
       ) : null}
@@ -175,10 +187,27 @@ export function AgentUpgradeDrawer({ open, onClose, onFinished }: { open: boolea
         {showCandidates ? (
           <p className="m-0 font-semibold">Target {eligibility.version}: {eligibleCount} ready, {eligibility.nodes.length - eligibleCount} unavailable</p>
         ) : null}
-        {showCandidates && majorCount > 0 ? (
+        {showCandidates && majorCount > 0 && !majorSupported ? (
           <div role="note" className="grid gap-1 rounded-control border border-warning bg-warning-soft px-3 py-2 text-warning">
             <p className="m-0">{majorCount} agent{majorCount === 1 ? ' requires' : 's require'} a manual major-version upgrade to {eligibility.version}. This dialog only upgrades agents within their current major version.</p>
             <p className="m-0">Read the agents section of Magnus&apos;s UPGRADING.md, then upgrade each affected node using its installation method. A successful rollout to an older version does not complete this upgrade.</p>
+          </div>
+        ) : null}
+        {showCandidates && majorCount > 0 && majorSupported ? (
+          <div role="note" className="grid gap-1 rounded-control border border-warning bg-warning-soft px-3 py-2 text-warning">
+            <p className="m-0">{majorCount} agent{majorCount === 1 ? ' is' : 's are'} on another major version than {eligibility.version} (<span className="num">MAJOR_VERSION</span>). A run moves agents across a major only when asked to.</p>
+            <p className="m-0">{canRun ? 'Allow major upgrade below includes them, after reading the release notes.' : 'An ADMIN can include them with Allow major upgrade.'} See Magnus&apos;s docs/NODE_CREDENTIALS.md, &quot;Moving agents across a major version&quot;.</p>
+          </div>
+        ) : null}
+        {showCandidates && blockers.length > 0 ? (
+          <div role="note" aria-label="Agents a major upgrade holds back" className="grid gap-2 rounded-control border border-warning bg-warning-soft px-3 py-2">
+            {blockers.map((blocker) => (
+              <div key={blocker.code} className="grid gap-1">
+                <p className="m-0 font-medium text-warning"><span className="num">{blocker.code}</span>: {blocker.names.join(', ')}</p>
+                <p className="m-0 text-text-muted">{blocker.cause}</p>
+                <p className="m-0">{blocker.remedy}</p>
+              </div>
+            ))}
           </div>
         ) : null}
         {showCandidates && eligibleCount === 0 ? <p className="m-0 text-text-muted">No agents can be upgraded from this dialog right now. Review the reasons below{canRun ? '; Check refreshes the readiness report' : ''}.</p> : null}
@@ -198,6 +227,20 @@ export function AgentUpgradeDrawer({ open, onClose, onFinished }: { open: boolea
           </ul>
         ) : null}
         <p className="m-0 text-xs text-text-muted">The first agent is a canary. Each agent switches back by itself if the new version does not report a heartbeat in time. Only evidence about the release stops the run: a failure on the canary, an integrity mismatch, or too many reverts. A problem of one node is recorded and the run goes on.</p>
+        {showCandidates && offerMajor ? (
+          <label className="flex items-center gap-2 text-xs" title="Moves agents on an older major version across it, with an authorization the server signs for each node.">
+            <input
+              type="checkbox"
+              checked={allowMajor}
+              disabled={busy || checking}
+              onChange={() => {
+                if (allowMajor) setAllowMajor(false);
+                else setConfirming({ title: 'Allow major upgrades?', message: ALLOW_MAJOR_MESSAGE, label: 'Allow major upgrade', action: () => setAllowMajor(true) });
+              }}
+            />
+            Allow major upgrade
+          </label>
+        ) : null}
         {showCandidates && canRun ? (
           <label className="flex items-center gap-2 text-xs text-text-muted" title="Reverts or failed installs that stop the run after its canary. Empty: the server's setting.">
             Stop after
@@ -232,7 +275,7 @@ function RunReport({ run }: { run: UpgradeRun }) {
       {/* A finished run starts folded, so the candidates for the next one come first. */}
       <details open={run.status === 'running'} className="grid gap-2">
       <summary className="cursor-pointer text-text-muted">
-        {run.status === 'running' ? 'Current rollout' : 'Previous rollout'} to {run.version} · {run.nodes.length} agent{run.nodes.length === 1 ? '' : 's'}
+        {run.status === 'running' ? 'Current rollout' : 'Previous rollout'} to {run.version} · {run.nodes.length} agent{run.nodes.length === 1 ? '' : 's'}{run.allowMajor ? ' · major upgrades allowed' : ''}
       </summary>
       <ul className="m-0 mt-2 max-h-80 list-none divide-y divide-border overflow-y-auto rounded-control border border-border p-0">
         {run.nodes.map((node) => {
