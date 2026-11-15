@@ -1,11 +1,11 @@
 # HiveXUI theme
 
-HiveXUI is the single console for Hive:Magnus products, so every page shares one set of
+HiveXUI is the single UI for Hive:Magnus products, so every page shares one set of
 tokens and components. This is how a page, new or ported, adopts them.
 
 There is one theme for now: the Magnus look. Near-black surfaces, neon cyan and magenta,
 saturated status colors that glow, a faint grid, terminal breadcrumbs, and display headings in
-uppercase mono. `tokens.css` has a single `:root` block, the console sets `color-scheme: dark`,
+uppercase mono. `tokens.css` has a single `:root` block, the UI sets `color-scheme: dark`,
 and nothing follows the operating system or reads a stored preference. Body text stays in the
 sans and meets WCAG AA: drama belongs in headings, status, data and focal widgets, not paragraphs.
 
@@ -23,7 +23,7 @@ theme switches until then, so remove that check with it.
 | Tokens, Tailwind theme mapping | `src/styles/tokens.css` |
 | Layer order and imports | `src/styles/index.css` |
 | Element defaults: links, form controls, tables | `src/styles/base.css` |
-| Shared component classes and the console shell | `src/styles/app.css` |
+| Shared component classes and the UI shell | `src/styles/app.css` |
 | Shared React components | `src/components/ui.tsx`, imported as `@ui` |
 | Focal widgets | `src/components/gauge.tsx`, `radar.tsx`, `sparkline.tsx`, `tones.ts` |
 | Guard tests | `src/styles/tokens.test.ts`, `src/styles/theme-guard.test.ts`, `src/styles/consistency-guard.test.ts` |

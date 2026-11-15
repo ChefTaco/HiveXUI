@@ -115,8 +115,8 @@ Say you are porting `/rollouts`, in the `operations` package.
 
 | Old | Here |
 | --- | --- |
-| `next/link` | `import Link from '../../../navigation'`. `href` stays console-relative: `/nodes`. |
-| `next/navigation` | `usePathname`, `useSearchParams`, `useParams`, `useRouter`, `notFound`, `redirect` from `navigation`. Paths are console-relative, and `usePathname` gives `/nodes`, never `/fleet/nodes`. |
+| `next/link` | `import Link from '../../../navigation'`. `href` stays module-relative: `/nodes`. |
+| `next/navigation` | `usePathname`, `useSearchParams`, `useParams`, `useRouter`, `notFound`, `redirect` from `navigation`. Paths are module-relative, and `usePathname` gives `/nodes`, never `/fleet/nodes`. |
 | `next/dynamic` | `React.lazy`, as in `effects/charts/lazy-area-chart.tsx`. |
 | A link to a page that may not be ported yet | Wrap it in `hasRoute('/rollouts')` from `routes`. It appears on its own once the page is. |
 | An `href` from API data | `Link` handles it. It maps the path under `/fleet` and renders plain text for anything unsafe. For your own markup, use `toFleetHref`. |

@@ -1,6 +1,6 @@
 # HiveXUI
 
-HiveXUI is the single browser console for the Hive:Magnus suite: one sign-in and one navigation
+HiveXUI is the single browser UI for the Hive:Magnus suite: one sign-in and one navigation
 across every installed product. It is a static React application. Every operation goes to the
 owning product's API with the signed-in user's own credentials. Products keep their independent
 APIs and can still run without it.
@@ -32,8 +32,8 @@ The sidebar has one section per installed product, plus Hive and System.
 
 Cindertrace's [investigation lab](https://github.com/ChefTaco/cindertrace/blob/main/docs/INVESTIGATION-LAB.md)
 is a separate disposable installation with its own console and local sign-in. Lab startup rejects
-Oathweave settings, and HiveXUI reaches Cindertrace with Oathweave sign-in, so a suite console
-never shows a lab. The section adds a Lab tab only when the connected Cindertrace reports its lab
+Oathweave settings, and HiveXUI reaches Cindertrace with Oathweave sign-in, so the UI never
+shows a lab. The section adds a Lab tab only when the connected Cindertrace reports its lab
 enabled, which an Oathweave-connected Cindertrace does not.
 
 `src/modules/magnus/PORTING.md` lists what the Magnus module leaves out on purpose, such as its own
@@ -46,7 +46,7 @@ renders do not establish backend authorization or workflow parity. See the
 
 ## Theme
 
-There is one dark theme for now, and the console does not follow the operating system or keep a
+There is one dark theme for now, and the UI does not follow the operating system or keep a
 preference. Tokens stay semantic so a light theme can return without touching components.
 [docs/THEME.md](docs/THEME.md) describes the tokens and components, and how a page adopts them.
 
@@ -107,7 +107,7 @@ ignored for one release.
 There are sections only for installed products. The Hive Registry, one installation's install
 catalog, is the source of which products those are when it is reachable. `runtime.json` stays the
 bootstrap, with API prefixes and OAuth clients, so a section shows only for a product that it
-configures and the Registry lists. The console reads the Registry's public `/api/registry` routes
+configures and the Registry lists. The UI reads the Registry's public `/api/registry` routes
 anonymously. If they fail, send something unreadable or list no configured product, it follows
 `runtime.json` and warns on the overview. The Hive overview, Incidents, API Docs and Settings cover
 and call only installed products. A bookmark to an absent product opens the overview.
@@ -155,7 +155,7 @@ The original Apache license and notice are retained in `notices/`.
 
 Memory browsing sends the native `offset` query parameter. Every dashboard response is validated
 before browser aggregation. Memory writes, queue administration and workspace ownership are checked
-independently; the owning API enforces them when console controls are bypassed. Archived workspace
+independently; the owning API enforces them when UI controls are bypassed. Archived workspace
 IDs remain reserved, and restoration preserves existing ownership, membership and stored memories.
 
 Open **Memories → Open memory operations** for session creation, metadata editing, current memory
@@ -181,9 +181,9 @@ production migration or enable cutover.
 
 ### Chat
 
-Chat invites are redeemed at `/signup`, the one console page that needs no sign-in. It creates a
+Chat invites are redeemed at `/signup`, the one page that needs no sign-in. It creates a
 native ChatterMost account for Mattermost-compatible apps through the product's public signup route.
-Using chat in this console also needs an Oathweave account with `chattermost:session` and a reviewed
+Using chat in the UI also needs an Oathweave account with `chattermost:session` and a reviewed
 entry in `OATHWEAVE_CHAT_IDENTITIES_JSON`; redeeming an invite creates neither, and nothing matches
 accounts by name or email.
 
@@ -205,16 +205,26 @@ explicitly rotating a replacement and updating the owning agent's protected conf
 
 ### Magnus
 
-With `magnus` in `products`, the fleet console is the module at `/fleet`, signed in through Oathweave
+With `magnus` in `products`, the fleet pages are the module at `/fleet`, signed in through Oathweave
 like every other product. See `src/modules/magnus/PORTING.md`.
+
+The module reads Magnus 3.0.x per-node credentials (its vendored browser contract is Magnus 3.0.0,
+and 3.0.1 and 3.0.2 changed nothing it reads about node keys). Nodes has a Node key column and, for
+administrators and operators, a Node credentials panel: the `NODE_AUTH_MODE` in force and whether it
+was set or is the default (`enforce` since Magnus 3.0.0), a warning for an explicit, deprecated
+`compat` or `warn`, the server key and its rotation, and each blocker of enforce with what to do.
+Node detail has a Node credential card where administrators list and revoke a node's keys, and
+administrators can approve or reject a key binding Magnus refused for its address. Reset stays disabled in enforce mode,
+because Magnus refuses it there. Against a Magnus without per-node credentials all of this stays
+hidden.
 
 ### Ardent Project Studio
 
 With `ardentstudio` in `products`, the Studio entries open `/studio/*` as a fullscreen page outside
-the console shell, with its own top bar. You write a project brief, design a team and bind each role
+the UI shell, with its own top bar. You write a project brief, design a team and bind each role
 to a Magnus-managed Ardent agent, talk to the team in a Conversation Room where replies stream live,
 tune each agent in Agent Studio and review what it delivers. **Close Studio** (✕) returns to the
-console page it was opened from, kept in `history.state`, or to the suite home; Escape does not close
+UI page it was opened from, kept in `history.state`, or to the suite home; Escape does not close
 it. Each area has a **?** guide in the top bar.
 
 Studio needs the ArdentStudio service at `/api/ardentstudio`, Magnus with at least one reachable
@@ -228,9 +238,9 @@ area's workflows, the room's agent states, the keyboard map, accessibility and k
 research project, through the Studio API and in the browser, and an agent's fleet lifecycle) against
 a real stack built from the product checkouts next to this one: Oathweave, HiveMem, HiveSkills,
 Magnus (server, PostgreSQL, Redis and one node agent in a systemd container that manages Ardent
-gateways), ArdentStudio and this console behind Hive's ingress configuration
+gateways), ArdentStudio and the UI behind Hive's ingress configuration
 (`../Hive/deployment/Caddyfile`). The lifecycle spec deploys an agent with New Agent in the Magnus
-console, which Magnus enrolls in HiveMem as its own Oathweave service identity (the stack gives Magnus
+module, which Magnus enrolls in HiveMem as its own Oathweave service identity (the stack gives Magnus
 no HiveMem token), installs the synthetic HiveSkills skill the bootstrap publishes from Agent Studio,
 applies a model change from Agent Studio's draft, and watches Magnus renew the agent's HiveMem
 credential: the stack issues one-hour credentials (`STUDIO_E2E_HIVEMEM_HOURS`), and the spec makes
@@ -246,16 +256,18 @@ npm run e2e:stack -- down    # remove the stack's containers, volumes and run di
 
 Docker with Compose is required; without it the specs are skipped, so `npm run e2e` stays green
 where Docker is unavailable. The stack uses the compose project `studio-e2e`, publishes only the
-console on a free loopback port and keeps its state in `output/studio-e2e/`; screenshots go to
+UI on a free loopback port and keeps its state in `output/studio-e2e/`; screenshots go to
 `output/studio-e2e-shots/` (or `STUDIO_E2E_SHOTS`). `STUDIO_E2E_PRODUCTS_ROOT` points at another
 directory of checkouts, `STUDIO_E2E_MAGNUS_DIR` at another Magnus checkout,
 `STUDIO_E2E_ARDENT_TGZ` at an Ardent package to stage on the node instead of one packed from
 `../Ardent`, `STUDIO_E2E_REBUILD=1` rebuilds the images and `STUDIO_E2E_TAG` names their tag (default
 `local`), so stacks built from different checkouts keep their own images. `STUDIO_E2E_KEEP=1` keeps a
 stack the specs started. The bootstrap activates the node's Ardent-only scope over the evidence Magnus's
-ADMIN API reports (`GET /resource-leases/enrollment/:nodeId/ardent-scope/evidence`), and the stack sets
-`COMMAND_RECONCILIATION_SECRET` on Magnus and the node agent, so an Ardent action whose outcome is
-unknown can be reconciled from the Ardent installations page. The node container runs systemd and
+ADMIN API reports (`GET /resource-leases/enrollment/:nodeId/ardent-scope/evidence`). The stack still
+writes the deprecated shared keys (`NODE_MANAGER_SECRET`, `RESULT_SIGNING_SECRET`,
+`COMMAND_RECONCILIATION_SECRET`) into the Magnus server's and the node agent's environment; Magnus
+3.0.x in its default enforce mode does not need them, and signs the decision that reconciles an Ardent
+action whose outcome is unknown (from the Ardent installations page) with its server key. The node container runs systemd and
 needs `CAP_SYS_ADMIN` in a private cgroup namespace; it never touches the host's cgroups.
 
 ### Sign-in portal
@@ -266,5 +278,5 @@ configured issuer, and returns only the backend-issued code to the exact registe
 The requesting application's backend retains its verifier and performs token exchange. Unknown or
 repeated parameters, unsafe callbacks and declined access remain local errors; the portal does not
 redirect errors to unvalidated targets. Authorization requests and one-use continuations live only in
-memory and are invalidated on logout or session invalidation. Existing suite sign-in and console deep
+memory and are invalidated on logout or session invalidation. Existing suite sign-in and UI deep
 links retain their original behavior.
