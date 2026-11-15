@@ -84,8 +84,10 @@ export function SoftwareCard({ nodeId, nodeName, online, canRun, ask }: { nodeId
     <FxPanel
       title="Software revisions"
       description="Installed versions and cached package update status"
-      actions={<Button size="sm" className="whitespace-nowrap" disabled={!online} loading={versionsLoading} icon={<RotateCw className="size-4" />} onClick={() => void readSoftware('versions')}>Check versions</Button>}
     >
+      <div className="mb-3 flex">
+        <Button size="sm" className="whitespace-nowrap" disabled={!online} loading={versionsLoading} icon={<RotateCw className="size-4" />} onClick={() => void readSoftware('versions')}>Check versions</Button>
+      </div>
       <dl className="m-0 grid gap-2 text-sm">
         {SOFTWARE_NAMES.map((name) => (
           <div key={name} className="flex items-start justify-between gap-2">

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Magnus: keep the software card's description readable in narrow columns by placing **Check versions** below the heading.
 - Magnus: **Check versions** and **Read update cache** use the node's bounded read-only software diagnostic. Pending updates show their cached source and repository refresh time; unsupported servers or agents show update guidance. Reading either status is available to node viewers.
 - Import the Magnus browser contract from `390fdb2`, including the typed software metadata response and read-only route.
 - Magnus: refresh the Ardent profile list when New Agent finishes successfully. The completed wizard stays open with its **Open profile** button, and the new profile appears below it without navigating away or showing a stale empty-list warning.
