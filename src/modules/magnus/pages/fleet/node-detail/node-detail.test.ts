@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cockpitUrl, detectedPlugins, detectedSkills, findInstallation, findPluginLabel, formatBytes, hermesDashboardAddress, parseAptCount, parseRoleSteps, parseServices, parseSystemUpdates, parseVersions, parseWazuh, selfUpgradeReport, skillSummary, VERSION_COMMAND, type HermesInstallation } from './node-data';
+import { cockpitUrl, detectedPlugins, detectedSkills, findInstallation, findPluginLabel, formatBytes, hermesDashboardAddress, parseRoleSteps, parseServices, parseSystemUpdates, parseWazuh, selfUpgradeReport, skillSummary, type HermesInstallation } from './node-data';
 import { computePersonality } from './personality';
 
 describe('values a node reports as JSON', () => {
@@ -72,21 +72,6 @@ describe('Hermes', () => {
     expect(hermesDashboardAddress(installation({}))).toBe('h:9119');
     expect(hermesDashboardAddress(installation({ dashboardHost: '[::1]' }))).toBe('h:9119');
     expect(hermesDashboardAddress(installation({ dashboardHost: 'dash.example' }))).toBe('dash.example:9119');
-  });
-});
-
-describe('software probes', () => {
-  it('quotes the script for a login shell', () => {
-    expect(VERSION_COMMAND.startsWith("bash -lc 'version_or_na()")).toBe(true);
-    expect(VERSION_COMMAND).toContain("'\\''process.stdout");
-  });
-  it('reads versions, keeping = inside a value', () => {
-    expect(parseVersions('motd\nnode=v22\nredis=redis-cli a=b\nnpm=\n')).toEqual({ node: 'v22', redis: 'redis-cli a=b', npm: 'unknown' });
-  });
-  it('reads the count from the last line', () => {
-    expect(parseAptCount('welcome\n12\n')).toBe(12);
-    expect(parseAptCount('')).toBeNull();
-    expect(parseAptCount('nothing')).toBeNull();
   });
 });
 

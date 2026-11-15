@@ -34,10 +34,15 @@ const JOB = {
 };
 const LISTING = 'CWD:/opt/app\ntotal 4\n-rw-r--r-- 1 deploy deploy 8 2026-02-13 10:30 app.conf\n';
 const quickResult = (stdout: string) => ({ success: true, data: { commandId: 'command-1', exitCode: 0, stdout, stderr: '', durationMs: 5, truncated: false, signature: 'a'.repeat(64) } });
+const SOFTWARE = { success: true, data: { checkedAt: AT,
+  versions: { node: 'v24.22.3', npm: '11.0.0', python3: null, redis: null, docker: '29.0.0', tailscale: null, 'magnus-agent': '3.0.3' },
+  packageUpdates: { supported: true, pending: 3, source: 'local-package-cache', cacheRefreshedAt: '2026-11-04T10:00:00.000Z' },
+} };
 
-function route({ method, path, body }: RecordedRequest, role: string): unknown {
+function route({ method, path, body }: RecordedRequest, role: string, software: unknown): unknown {
   if (path === '/console/session') return { success: true, data: { userId: 'alice', role, capabilities: { hermes: false, terminal: false, agentVersion: '1.1.1', magnusVersion: '1.1.1', securityConsoleUrl: null } } };
   if (method === 'GET' && path === '/nodes/node-1') return { success: true, data: NODES[0] };
+  if (method === 'GET' && path === '/nodes/node-1/software') return software;
   if (method === 'GET' && path.startsWith('/nodes?')) return { success: true, data: NODES, meta: { total: 2, page: 1, pageSize: 100, hasMore: false } };
   if (method === 'GET' && path === '/cron') return { success: true, data: [JOB] };
   if (method === 'GET' && path === '/skills') return { success: true, data: [] };
@@ -53,14 +58,15 @@ function route({ method, path, body }: RecordedRequest, role: string): unknown {
   if (method === 'POST' && path === '/scan/skills') return { success: true, data: [] };
   return undefined;
 }
-async function start(role = 'ADMIN') {
-  const stub = stubApi((request) => route(request, role));
+async function start(role = 'ADMIN', software: unknown = SOFTWARE) {
+  const stub = stubApi((request) => route(request, role, software));
   vi.stubGlobal('fetch', stub.request);
   await sessionStore.load();
   return stub;
 }
 const textarea = () => document.querySelector('textarea');
 const checkbox = (name: string) => [...document.querySelectorAll('label')].find((label) => label.textContent?.includes(name))?.querySelector('input');
+const softwareAlert = () => button('Check versions')?.closest('section')?.querySelector('[role="alert"]');
 
 beforeEach(() => {
   stubBrowser();
@@ -120,15 +126,20 @@ describe('viewing a page dispatches nothing', () => {
 });
 
 describe('checking versions on node detail', () => {
-  it('runs one probe on a click, and shows when it was checked', async () => {
-    const stub = await start();
+  it.each(['ADMIN', 'OPERATOR', 'VIEWER'])('reads version metadata on a click as %s without dispatching a command', async (role) => {
+    const stub = await start(role);
     const mounted = await mount(<NodeDetailPage />, { nodeId: 'node-1' });
     await settle(5);
-    expect(document.body.textContent).toContain('Not checked yet. Checking runs a command on the node.');
+    expect(document.body.textContent).toContain('Not checked yet. Reads installed version information.');
+    expect(stub.of('/nodes/node-1/software')).toHaveLength(0);
     await click(button('Check versions'));
     await settle(5);
-    expect(stub.mutations().map((request) => request.path)).toEqual(['/quick-command/node-1/exec']);
+    expect(stub.of('/nodes/node-1/software')).toHaveLength(1);
+    expect(stub.mutations()).toEqual([]);
+    expect(document.body.textContent).toContain('v24.22.3');
+    expect(document.body.textContent).toContain('Not reported');
     expect(document.body.textContent).toContain('Last checked:');
+    if (role === 'VIEWER') expect(button('APT upgrade')).toBeUndefined();
     await mounted.unmount();
   });
   it('coming back shows the last answer without asking the node again', async () => {
@@ -138,21 +149,85 @@ describe('checking versions on node detail', () => {
     await click(button('Check versions'));
     await settle(5);
     await first.unmount();
-    const count = stub.mutations().length;
+    const count = stub.of('/nodes/node-1/software').length;
     const second = await mount(<NodeDetailPage />, { nodeId: 'node-1' });
     await settle(5);
     expect(document.body.textContent).toContain('Last checked:');
-    expect(stub.mutations()).toHaveLength(count);
+    expect(stub.of('/nodes/node-1/software')).toHaveLength(count);
+    expect(stub.mutations()).toEqual([]);
     await second.unmount();
   });
-  it('checks apt updates only on its own button', async () => {
-    const stub = await start();
+  it('reads the existing package cache with its source and refresh time', async () => {
+    const stub = await start('VIEWER');
     const mounted = await mount(<NodeDetailPage />, { nodeId: 'node-1' });
     await settle(5);
-    await click(button('Check for updates'));
+    await click(button('Read update cache'));
     await settle(5);
-    expect(stub.mutations()).toHaveLength(1);
-    expect(String(stub.mutations()[0]!.body!.command)).toContain('apt');
+    expect(stub.of('/nodes/node-1/software')).toHaveLength(1);
+    expect(stub.mutations()).toEqual([]);
+    expect(document.body.textContent).toContain('3 pending');
+    expect(document.body.textContent).toContain("Pending updates from the node's last repository refresh.");
+    expect(document.body.textContent).toContain('Cache refreshed:');
+    expect(document.body.textContent).toContain('Read at:');
+    await mounted.unmount();
+  });
+  it('keeps unsupported or missing package metadata explicit', async () => {
+    const stub = await start('ADMIN', { ...SOFTWARE, data: { ...SOFTWARE.data,
+      packageUpdates: { supported: false, pending: null, source: 'local-package-cache', cacheRefreshedAt: null },
+    } });
+    const mounted = await mount(<NodeDetailPage />, { nodeId: 'node-1' });
+    await settle(5);
+    await click(button('Read update cache'));
+    await settle(5);
+    expect(document.body.textContent).toContain('Unavailable');
+    expect(document.body.textContent).toContain('Repository refresh time not reported.');
+    expect(document.body.textContent).not.toContain('0 pending');
+    expect(stub.mutations()).toEqual([]);
+    await mounted.unmount();
+  });
+  it.each([404, 409])('shows update guidance for unsupported diagnostics (HTTP %s) without a shell fallback', async (status) => {
+    const stub = await start('ADMIN', Response.json({ success: false, error: { code: status === 404 ? 'NOT_FOUND' : 'SOFTWARE_STATUS_UNAVAILABLE', message: 'Diagnostic unavailable' } }, { status }));
+    const mounted = await mount(<NodeDetailPage />, { nodeId: 'node-1' });
+    await settle(5);
+    await click(button('Check versions'));
+    await settle(5);
+    expect(softwareAlert()?.textContent).toContain('Update Magnus and the node agent');
+    expect(stub.of('/nodes/node-1/software')).toHaveLength(1);
+    expect(stub.mutations()).toEqual([]);
+    await mounted.unmount();
+  });
+  it('reports a temporary read failure without treating it as an unsupported version', async () => {
+    const stub = await start('ADMIN', Response.json({ success: false, error: { code: 'SOFTWARE_STATUS_UNAVAILABLE', message: 'The node could not be reached. Try again in a moment.' } }, { status: 503 }));
+    const mounted = await mount(<NodeDetailPage />, { nodeId: 'node-1' });
+    await settle(5);
+    await click(button('Read update cache'));
+    await settle(5);
+    expect(softwareAlert()?.textContent).toContain('Try again in a moment');
+    expect(document.body.textContent).not.toContain('Update Magnus and the node agent');
+    expect(stub.mutations()).toEqual([]);
+    await mounted.unmount();
+  });
+  it.each([401, 403])('keeps a refused software read refused (HTTP %s)', async (status) => {
+    const stub = await start('ADMIN', Response.json({ success: false, error: { code: 'FORBIDDEN', message: 'Software read refused' } }, { status }));
+    const mounted = await mount(<NodeDetailPage />, { nodeId: 'node-1' });
+    await settle(5);
+    await click(button('Check versions'));
+    await settle(5);
+    expect(softwareAlert()?.textContent).toContain('Software read refused');
+    expect(document.body.textContent).not.toContain('Update Magnus and the node agent');
+    expect(stub.mutations()).toEqual([]);
+    await mounted.unmount();
+  });
+  it('refuses an invalid software response without dispatching a probe', async () => {
+    const stub = await start('ADMIN', { ...SOFTWARE, data: { ...SOFTWARE.data, versions: { ...SOFTWARE.data.versions, node: 24 } } });
+    const mounted = await mount(<NodeDetailPage />, { nodeId: 'node-1' });
+    await settle(5);
+    await click(button('Check versions'));
+    await settle(5);
+    expect(softwareAlert()).toBeDefined();
+    expect(softwareAlert()).not.toBeNull();
+    expect(document.body.textContent).not.toContain('Last checked:');
+    expect(stub.mutations()).toEqual([]);
     await mounted.unmount();
   });
 });

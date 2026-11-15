@@ -118,37 +118,4 @@ const stepSchema = z.object({ name: z.string(), status: z.enum(['pending', 'runn
 export type RoleStep = z.output<typeof stepSchema>;
 export const parseRoleSteps = (steps: readonly unknown[]): RoleStep[] => each(stepSchema, steps);
 
-const VERSION_PROBE = [
-  'version_or_na() { local cmd="$1"; shift; if command -v "$cmd" >/dev/null 2>&1; then ("$@" 2>/dev/null || "$cmd" --version 2>/dev/null || "$cmd" -v 2>/dev/null || echo "unknown") | head -n 1; else echo "not installed"; fi; }',
-  'echo "node=$(version_or_na node node --version)"',
-  'echo "npm=$(version_or_na npm npm --version)"',
-  'echo "python3=$(version_or_na python3 python3 --version)"',
-  'echo "redis=$(version_or_na redis-cli redis-cli --version)"',
-  'echo "docker=$(version_or_na docker docker --version)"',
-  'echo "tailscale=$(version_or_na tailscale tailscale version)"',
-  'agent_manifest=/opt/magnus-agent/node_modules/@hivemagnus/magnus-agent/package.json; [ -f "$agent_manifest" ] || agent_manifest=/opt/magnus-agent/package.json; if [ -f "$agent_manifest" ]; then echo "magnus-agent=$(node -e \'process.stdout.write(require(process.argv[1]).version)\' "$agent_manifest" 2>/dev/null || echo unknown)"; else echo "magnus-agent=not installed"; fi',
-].join('; ');
-const APT_PROBE = ['set -euo pipefail', '(sudo apt-get update -qq || apt-get update -qq) >/dev/null 2>&1', "apt list --upgradable 2>/dev/null | sed '1d' | sed '/^Listing/d' | wc -l"].join('; ');
-const inBash = (script: string) => `bash -lc '${script.replace(/'/g, "'\\''")}'`;
-export const VERSION_COMMAND = inBash(VERSION_PROBE);
-export const APT_COMMAND = inBash(APT_PROBE);
-export const SOFTWARE_NAMES = ['node', 'npm', 'python3', 'redis', 'docker', 'tailscale', 'magnus-agent'];
-
-export function parseVersions(stdout: string): Record<string, string> {
-  return Object.fromEntries(
-    stdout
-      .trim()
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line.includes('='))
-      .map((line) => {
-        const [name = '', ...rest] = line.split('=');
-        return [name, rest.join('=').trim() || 'unknown'];
-      }),
-  );
-}
-/** The last line counts, because a login shell may print before the script runs. */
-export function parseAptCount(stdout: string): number | null {
-  const count = Number.parseInt(stdout.trim().split('\n').at(-1) ?? '', 10);
-  return Number.isFinite(count) ? count : null;
-}
+export const SOFTWARE_NAMES = ['node', 'npm', 'python3', 'redis', 'docker', 'tailscale', 'magnus-agent'] as const;
