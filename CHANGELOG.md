@@ -1,10 +1,12 @@
 # Changelog
 
-## Unreleased
+## [0.9.2] - 2026-11-15
 
 - Magnus: keep the software card's description readable in narrow columns by placing **Check versions** below the heading.
-- Magnus: **Check versions** and **Read update cache** use the node's bounded read-only software diagnostic. Pending updates show their cached source and repository refresh time; unsupported servers or agents show update guidance. Reading either status is available to node viewers.
-- Import the Magnus browser contract from `390fdb2`, including the typed software metadata response and read-only route.
+- Magnus: **Check versions** and **Read update cache** use the node's bounded read-only software diagnostic (Magnus 3.1.0, `GET /api/v1/nodes/:nodeId/software`) instead of dispatching shell commands. Pending updates show their cached source and repository refresh time. Reading either status is available to node viewers.
+- Magnus: against a Magnus server without the route (404) or a node agent older than 3.1.0 (Magnus answers `409 SOFTWARE_STATUS_UNAVAILABLE`), the card says the software status is unavailable and to update Magnus and the node agent, and sends nothing else. A node that cannot be read for the moment (`503`) shows Magnus's own message instead. A mixed fleet therefore shows older agents as unavailable rather than failing.
+- Update the vendored Magnus browser contract to Magnus 3.1.0 (`49f720d`), including the typed software metadata response and read-only route. The file has the same bytes as the `390fdb2` export used during development.
+- End-to-end: a node software spec reads the software status through the console ingress, checks it against the contract, presses **Check versions** on node detail, and confirms that neither read dispatched a command.
 - Magnus: refresh the Ardent profile list when New Agent finishes successfully. The completed wizard stays open with its **Open profile** button, and the new profile appears below it without navigating away or showing a stale empty-list warning.
 - Studio: let the visible brand text label the home link, so speech control can identify the link by what it says on screen.
 - Recommendations: give the labeled recommendation list and remediation progress valid semantic roles for assistive technology.
