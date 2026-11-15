@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Security fixes are released for the latest `1.x` version.
+Security fixes are released for the latest `0.x` version of HiveXUI.
 
 ## Reporting a vulnerability
 
@@ -12,7 +12,7 @@ Report them privately through
 [GitHub private vulnerability reporting](https://github.com/ChefTaco/HiveXUI/security/advisories/new).
 Please include:
 
-- the affected component (Router, IAM, HiveMem, Skills, or an SDK) and version or commit
+- the affected module (for example Magnus, Studio, chat or sign-in) and version or commit
 - steps to reproduce, or a proof of concept
 - the impact you expect
 
@@ -21,6 +21,8 @@ advisory will credit you unless you ask not to be named.
 
 ## Hardening notes for operators
 
-- Run every service over TLS in production, and keep admin listeners on a private network.
-- Keep `.env` files, IAM signing keys, and TLS keys readable only by root or the service user.
-- Rotate secrets with `npm run rotate:secrets` (see [docs/SECRET_ROTATION.md](docs/SECRET_ROTATION.md)).
+- Serve the UI and every product API over TLS, through a same-origin ingress.
+- `runtime.json` holds public endpoints and OAuth client identifiers only. Never put bearer
+  credentials, infrastructure keys or passwords in it.
+- The web container serves compiled assets only; it holds no backend, database client or signing
+  keys. Each product's API enforces authorization on its own.

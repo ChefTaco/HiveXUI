@@ -1,43 +1,38 @@
-# Contributing to Hive
+# Contributing to HiveXUI
 
-Thanks for your interest in improving Hive! Bug reports, documentation fixes, and pull requests are
-all welcome.
+Thanks for your interest in improving HiveXUI! Bug reports, documentation fixes, and pull requests
+are all welcome.
 
 ## Getting set up
 
+HiveXUI is a single static React application (Vite). CI and the container build use Node.js
+24.22.3.
+
 ```bash
-nvm use               # Node.js version from .nvmrc
-npm run bootstrap     # install every workspace and the git hooks
-npm run dev:hive      # run the full stack locally
+npm ci
+git config core.hooksPath .githooks   # privacy and secret checks on commit and push
+npm run dev                           # Vite dev server on 127.0.0.1
 ```
 
-The repository is a monorepo of independently locked workspaces:
-
-| Path | Workspace |
-|---|---|
-| `services/hive-router` | Model gateway and Hive console |
-| `services/hive-iam` | IAM service and `@hivemagnus/hive-iam-sdk` |
-| `services/hive-mem` | HiveMem core, SDKs, and Hermes plugin |
-| `services/hive-skills` | Skills registry |
-| `packages/hive` | The `hive` launcher (`@hivemagnus/hive`) |
+Each product module lives in `src/modules/<product>`, with shared code in `src/lib` and
+`src/components`. The vendored product contracts are in `contracts/`, each with its provenance, and
+`npm run check:contracts` checks them.
 
 ## Before opening a pull request
 
 Run the same gates that CI runs:
 
 ```bash
-npm run typecheck
+npm run build            # typecheck and production build
 npm test
-npm run check:openapi
+npm run check:contracts
 npm run scan:secrets
 npm run check:private
+npm run e2e:a11y         # needs a Playwright Chromium: npx playwright install chromium
 ```
 
 - Keep TypeScript strict and follow the style of the surrounding code.
 - Add or update tests for behaviour changes.
-- If you change an HTTP route or schema, run `npm run generate:openapi` and commit the updated
-  snapshot.
-- If you change IAM request schemas, run `npm --prefix services/hive-router run contracts:generate`.
 - Never commit `.env` files, keys, certificates, databases, or other credentials, or details of
   private infrastructure (real hostnames, IPs, usernames, home paths). The git hooks in `.githooks/`
   enforce this. See [AGENTS.md](AGENTS.md) for the full rules, which apply to people and AI agents
@@ -46,11 +41,11 @@ npm run check:private
 ## Commit messages
 
 Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`,
-`chore:` and so on), with an optional scope such as `fix(router): ...`.
+`chore:` and so on), with an optional scope such as `fix(magnus): ...`.
 
 ## Reporting bugs and requesting features
 
-Open a GitHub issue using one of the templates. For security issues, follow
+Open a GitHub issue. For security issues, follow
 [SECURITY.md](SECURITY.md) and do **not** open a public issue.
 
 By contributing, you agree that your contributions are licensed under the

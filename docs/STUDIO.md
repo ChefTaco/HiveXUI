@@ -6,7 +6,7 @@ Room, tune each agent in Agent Studio and review what it delivers. A project out
 session or run: it holds many conversations, tasks, team revisions and deliverable revisions.
 
 HiveXUI is the browser side. The records live in the ArdentStudio service; the agents live in
-Ardent, managed through Magnus. This page describes the console as it is in this repository. The
+Ardent, managed through Magnus. This page describes the UI as it is in this repository. The
 in-product **?** guides in the Studio top bar are short versions of the sections below; their text
 is in `src/modules/studio/help/guides.ts`.
 
@@ -29,7 +29,7 @@ an agent from Agent Studio. Magnus checks this for the signed-in person, not for
 
 ## The fullscreen page
 
-Studio opens as a fullscreen page under `/studio`, outside the console's sidebar and top bar. Its
+Studio opens as a fullscreen page under `/studio`, outside the UI's sidebar and top bar. Its
 own top bar has:
 
 - the Studio mark, which goes to the Projects home;
@@ -40,9 +40,9 @@ own top bar has:
 - a **?** button that opens the guide for the area you are in;
 - **✕ Close Studio**.
 
-✕ returns to the console page Studio was opened from. That address travels in `history.state` with
+✕ returns to the UI page Studio was opened from. That address travels in `history.state` with
 every Studio page, so it survives a reload, Back and Forward. Without a stored origin, or with one
-that is not a console page, ✕ goes to the suite home. **Escape does not close Studio**, so a stray
+that is not a UI page, ✕ goes to the suite home. **Escape does not close Studio**, so a stray
 key cannot throw away a room or a review in progress; Escape only closes the drawer, dialog, menu
 or card that has focus.
 
@@ -234,7 +234,7 @@ shows **Live**, **Connecting**, **Reconnecting** or **Offline**.
 The header shows the agent's name and portrait, its profile and node, the Ardent version and
 backend, runtime status, HiveMem status, the projects using it, and **Fleet details**. Opened from
 the room, it also has **Back to the room**. The other way, each Ardent profile page in Fleet has
-**Open in Studio** when this console has Ardent Project Studio; Studio's ✕ returns to that page.
+**Open in Studio** when this UI has Ardent Project Studio; Studio's ✕ returns to that page.
 
 1. **Identity.** Name and portrait (**Global**), the **Project role** (**This project only**), and
    `SOUL.md` and `IDENTITY.md` with history and restore.
