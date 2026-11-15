@@ -2,7 +2,9 @@
 # built from a Magnus checkout (the build context) running as a root system service, and an
 # unprivileged `ardent` account whose systemd user manager runs the Ardent gateways the
 # agent creates. The container needs CAP_SYS_ADMIN in a private cgroup namespace so systemd
-# can manage its own cgroup subtree; it never touches the host's.
+# can manage its own cgroup subtree; it never touches the host's. The agent stages an Ardent package
+# beside its install directory (~/.local/share/ardent) without creating parents, so the account has
+# ~/.local/share before the first install.
 ARG NODE_IMAGE=node:24.22.3-bookworm-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54
 
 FROM ${NODE_IMAGE} AS builder
@@ -25,6 +27,7 @@ RUN apt-get update \
   && ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/bin/npm \
   && useradd --create-home --home-dir /var/lib/ardent --shell /bin/bash ardent \
   && install -d -o ardent -g ardent /var/lib/ardent/.config /var/lib/ardent/.config/environment.d \
+     /var/lib/ardent/.local /var/lib/ardent/.local/share \
   && mkdir -p /var/lib/systemd/linger && touch /var/lib/systemd/linger/ardent
 WORKDIR /opt/magnus-agent
 COPY --from=builder /packages/ /tmp/packages/

@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 // Ardent Project Studio end-to-end stack: build every service from sibling checkouts, start it
 // with throwaway secrets and certificates, and bootstrap a fleet node with Ardent agents.
+// The node binds its own key with a one-time enrollment token: neither Magnus nor the agent
+// gets a shared node secret, and Magnus starts with NODE_AUTH_MODE unset (enforce, behind its
+// start-up guard), as a Magnus 3 installation does.
 //
 //   node e2e/stack/stack.mjs up        build (if needed), start, bootstrap; prints the console URL
 //   node e2e/stack/stack.mjs down      remove this stack's containers, volumes and run directory
@@ -79,6 +82,20 @@ function buildImages() {
   }
 }
 
+const AGENT_CLI = '/opt/magnus-agent/node_modules/@hivemagnus/magnus-agent/dist/index.js';
+const packageVersion = (image, path) => sh('docker', ['run', '--rm', '--entrypoint', 'node', image, '-p', `require(${JSON.stringify(path)}).version`]);
+
+/** The Magnus server and agent versions the images hold. Enrolling with a token and no shared secret needs Magnus 3. */
+function magnusVersions() {
+  const server = packageVersion(`studio-e2e-magnus:${tag}`, '/opt/magnus-server/node_modules/@hivemagnus/magnus-server/package.json');
+  const agent = packageVersion(`studio-e2e-node:${tag}`, '/opt/magnus-agent/node_modules/@hivemagnus/magnus-agent/package.json');
+  for (const [name, version] of [['server', server], ['agent', agent]]) {
+    const major = Number(/^(\d+)\./.exec(version)?.[1]);
+    if (!(major >= 3)) throw new Error(`The stack needs Magnus 3.0.0 or later; the ${name} image holds ${version || 'no version'}. Point STUDIO_E2E_MAGNUS_DIR at a Magnus 3 checkout and set STUDIO_E2E_REBUILD=1`);
+  }
+  return { server, agent };
+}
+
 function ardentTarball() {
   if (process.env.STUDIO_E2E_ARDENT_TGZ) return resolve(process.env.STUDIO_E2E_ARDENT_TGZ);
   const ardent = join(root, 'Ardent');
@@ -127,8 +144,8 @@ function configure(port) {
   const magnusHivememScopes = ['admin:agents', 'workspaces:write', 'memories:read', 'memories:write', 'sessions:read', 'sessions:write'];
   const credentialHours = process.env.STUDIO_E2E_HIVEMEM_HOURS ?? '1';
   const s = Object.fromEntries(['oathCookie', 'oathAgent', 'oathRedis', 'nativeHive', 'nativeRouter', 'memJwt', 'memRenewal', 'magnusDb', 'magnusRedis',
-    'magnusApi', 'magnusJwt', 'magnusManager', 'magnusAudit', 'magnusResult', 'magnusLog', 'magnusRotation', 'magnusMetrics', 'magnusWebhook',
-    'magnusReconcile', 'magnusCommandReconcile', 'studioMagnus', 'studioHivemem', 'magnusHivemem', 'skillsSession'].map(name => [name, secret()]));
+    'magnusApi', 'magnusJwt', 'magnusAudit', 'magnusLog', 'magnusRotation', 'magnusMetrics', 'magnusWebhook',
+    'magnusReconcile', 'studioMagnus', 'studioHivemem', 'magnusHivemem', 'skillsSession'].map(name => [name, secret()]));
   const config = join(run, 'config');
   const redirect = `${origin}/auth/callback`;
   const clients = [
@@ -184,13 +201,15 @@ function configure(port) {
   write(join(config, 'magnus-postgres.env'), line('POSTGRES_DB', 'magnus') + line('POSTGRES_USER', 'magnus') + line('POSTGRES_PASSWORD', s.magnusDb));
   write(join(config, 'magnus-redis.conf'), `bind 0.0.0.0\nprotected-mode yes\nrequirepass ${s.magnusRedis}\n`, 0o644);
   const hivememAdminToken = hivememToken(s.memJwt);
+  // No NODE_MANAGER_SECRET, RESULT_SIGNING_SECRET or COMMAND_RECONCILIATION_SECRET, and no NODE_AUTH_MODE:
+  // Magnus runs in its default enforce mode, so every start passes its start-up guard first.
   write(join(config, 'magnus.env'), line('NODE_ENV', 'production') + line('NODE_EXTRA_CA_CERTS', '/config/authority.pem') + identity
     + line('MAGNUS_HOME', '/var/lib/magnus') + line('MAGNUS_AUTO_MIGRATE', 'true') + line('MAGNUS_UPDATE_CHECK', 'false') + line('MAGNUS_AGENT_UPGRADES', 'false')
     + line('DATABASE_URL', `postgresql://magnus:${s.magnusDb}@magnus-postgres:5432/magnus`) + line('REDIS_URL', `redis://:${s.magnusRedis}@magnus-redis:6379`)
-    + line('API_SECRET', s.magnusApi) + line('JWT_SECRET', s.magnusJwt) + line('NODE_MANAGER_SECRET', s.magnusManager)
-    + line('AUDIT_HMAC_SECRET', s.magnusAudit) + line('RESULT_SIGNING_SECRET', s.magnusResult) + line('LOG_INGEST_SIGNING_SECRET', s.magnusLog)
+    + line('API_SECRET', s.magnusApi) + line('JWT_SECRET', s.magnusJwt)
+    + line('AUDIT_HMAC_SECRET', s.magnusAudit) + line('LOG_INGEST_SIGNING_SECRET', s.magnusLog)
     + line('CREDENTIAL_ROTATION_KEY', s.magnusRotation) + line('METRICS_TOKEN', s.magnusMetrics) + line('WEBHOOK_ENCRYPTION_KEY', s.magnusWebhook)
-    + line('RESOURCE_PARTICIPANT_RECONCILIATION_SECRET', s.magnusReconcile) + line('COMMAND_RECONCILIATION_SECRET', s.magnusCommandReconcile)
+    + line('RESOURCE_PARTICIPANT_RECONCILIATION_SECRET', s.magnusReconcile)
     + line('TLS_CERT_PATH', '/config/tls.crt') + line('TLS_KEY_PATH', '/config/tls.key') + line('CONTROL_API_BIND_HOST', '0.0.0.0') + line('CONTROL_API_PORT', '4000')
     + line('CONTROL_API_URL', 'https://magnus:4000') + line('CORS_ORIGIN', origin) + line('DASHBOARD_PUBLIC_ORIGIN', origin)
     + line('SECURITY_FUSION_MODE', 'off') + line('ENABLE_AGENT_DISCOVERY', 'false') + line('AGENT_TLS_DOMAIN_SUFFIX', 'studio.test')
@@ -204,10 +223,10 @@ function configure(port) {
     + line('MAGNUS_ARDENT_HIVEMEM_CREDENTIAL_HOURS', credentialHours)
     + line('MAGNUS_ARDENT_HIVESKILLS_URL', 'https://hiveskills:4030'));
 
+  // The agent holds no shared key: it signs with the node key it binds at enrollment, and Magnus signs the
+  // decision that reconciles an Ardent action whose outcome is unknown with its server key.
   write(join(config, 'agent.env'), line('NODE_ENV', 'production') + line('CONTROL_API_URL', 'https://magnus:4000') + line('HOST_FQDN', 'node1.studio.test')
-    + line('NODE_MANAGER_SECRET', s.magnusManager) + line('RESULT_SIGNING_SECRET', s.magnusResult) + line('NODE_MANAGER_PORT', '4100')
-    // The same independent key on both sides lets an ADMIN reconcile an Ardent action whose outcome is unknown.
-    + line('COMMAND_RECONCILIATION_SECRET', s.magnusCommandReconcile)
+    + line('NODE_MANAGER_PORT', '4100')
     + line('TLS_CERT_PATH', '/etc/magnus-agent/tls.crt') + line('TLS_KEY_PATH', '/etc/magnus-agent/tls.key') + line('NODE_EXTRA_CA_CERTS', '/etc/studio-e2e/ca.pem')
     + line('MAGNUS_AGENT_PRIVILEGED', 'true') + line('MAGNUS_AGENT_SELF_UPGRADE', 'false') + line('MAGNUS_EXECUTION_SUPERVISOR_ENABLED', 'true')
     + line('AGENT_INSTALL_DIR', '/var/lib/magnus-agent') + line('ARDENT_OWNER_USER', 'ardent') + line('ARDENT_STAGED_PACKAGE', '/opt/ardent-stage/ardent-package.tgz'));
@@ -256,10 +275,25 @@ function stageArdent(tarball) {
   return { name: name.name, version: name.version };
 }
 
-function bootstrap(phase, port) {
+function bootstrap(phase, port, { capture = false } = {}) {
   const result = spawnSync('docker', ['compose', '-p', project, '-f', join(stack, 'compose.yml'), 'run', '--rm', '-T', 'tools', 'node', '/stack/bootstrap.mjs', phase],
-    { env: composeEnv(port), stdio: ['ignore', 'inherit', 'inherit'] });
+    { env: composeEnv(port), stdio: ['ignore', capture ? 'pipe' : 'inherit', 'inherit'], encoding: 'utf8', maxBuffer: 1024 * 1024 });
   if (result.status !== 0) throw new Error(`Bootstrap ${phase} failed; inspect with: docker compose -p ${project} logs`);
+  return capture ? result.stdout.trim() : '';
+}
+
+/**
+ * Bind the node's key with the one-time token the register phase printed, as `magnus-agent enroll --token-file -`
+ * on the host: the token goes to the agent on standard input only, never into a file or an argument. The
+ * running agent picks the identity up by itself.
+ */
+function enrollAgent(token, port) {
+  if (!/^mne_[A-Za-z0-9_-]{43}$/.test(token)) throw new Error('The register phase did not hand over an enrollment token');
+  const output = execFileSync('docker', ['compose', '-p', project, '-f', join(stack, 'compose.yml'), 'exec', '-T', '-w', '/var/lib/magnus-agent',
+    '-e', 'NODE_EXTRA_CA_CERTS=/etc/studio-e2e/ca.pem', 'node1', '/usr/bin/node', AGENT_CLI, '--env-file', '/etc/magnus-agent/agent.env', 'enroll', '--token-file', '-'],
+  { env: composeEnv(port), input: token, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+  if (output.includes(token)) throw new Error('magnus-agent enroll echoed its token');
+  say('node key bound with a one-time enrollment token');
 }
 
 async function up() {
@@ -268,15 +302,18 @@ async function up() {
   rmSync(run, { recursive: true, force: true });
   mkdirSync(run, { recursive: true, mode: 0o700 });
   buildImages();
+  const magnusVersion = magnusVersions();
+  say(`Magnus server ${magnusVersion.server}, agent ${magnusVersion.agent}`);
   const port = Number(process.env.STUDIO_E2E_PORT ?? await freePort());
   const tarball = ardentTarball();
   const settings = configure(port);
   certificates(settings.origin);
   const ardent = stageArdent(tarball);
-  write(statePath, JSON.stringify({ project, ...settings, ardent, phase: 'starting' }, null, 2));
+  write(statePath, JSON.stringify({ project, ...settings, ardent, magnusVersion, phase: 'starting' }, null, 2));
   say(`starting ${project} on ${settings.origin}`);
   compose(['up', '-d', '--quiet-pull'], port, { stdio: ['ignore', 'inherit', 'inherit'] });
   say('bootstrapping the fleet node and agents');
+  enrollAgent(bootstrap('register', port, { capture: true }), port);
   bootstrap('enroll', port);
   bootstrap('agents', port);
   say(`ready: ${settings.origin} (state in ${statePath})`);

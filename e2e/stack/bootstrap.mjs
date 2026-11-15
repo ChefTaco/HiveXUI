@@ -1,12 +1,16 @@
-// Runs inside the stack network (compose `tools` service). Phase "enroll" waits for the stack,
-// publishes the synthetic HiveSkills catalog skill and starts the Magnus resource enrollment of the
+// Runs inside the stack network (compose `tools` service). Phase "register" waits for the stack,
+// publishes the synthetic HiveSkills catalog skill, registers the fleet node with Magnus and prints its
+// one-time enrollment token on standard output, the only thing written there, for stack.mjs to hand to
+// `magnus-agent enroll --token-file -` on the node; phase "enroll" waits for the node to report with its
+// key, checks that Magnus runs in its default enforce mode with nothing its start-up guard would refuse,
+// and starts the Magnus resource enrollment of the
 // fleet node (Magnus itself creates the agents' HiveMem workspace as its Oathweave service); phase "agents"
 // activates the reviewed Ardent-only scope (over the evidence Magnus's ADMIN API reports: the drain
 // receipt digests and scheduler snapshot), installs the staged Ardent package and deploys the first
 // agents through Magnus's New Agent operation, signed in as the seeded operator through the console
 // ingress.
 import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto';
-import { lookup as dnsLookup } from 'node:dns';
+import { lookup as dnsLookup, promises as dns } from 'node:dns';
 import { readFileSync, writeFileSync } from 'node:fs';
 import https from 'node:https';
 import { join } from 'node:path';
@@ -16,7 +20,8 @@ const stateDir = process.env.STUDIO_E2E_STATE ?? '/state';
 const statePath = join(stateDir, 'state.json');
 const state = JSON.parse(readFileSync(statePath, 'utf8'));
 const save = () => writeFileSync(statePath, JSON.stringify(state, null, 2), { mode: 0o600 });
-const say = message => process.stdout.write(`[bootstrap] ${message}\n`);
+// Progress goes to standard error: standard output carries the register phase's token alone.
+const say = message => process.stderr.write(`[bootstrap] ${message}\n`);
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 export function canonical(value) {
@@ -135,16 +140,39 @@ async function publishSkill() {
   say(`HiveSkills publishes ${slug} ${version} on stable`);
 }
 
-async function enroll() {
+const NODE_FQDN = 'node1.studio.test';
+
+/** Register the node (enforce mode adds no node on its own) and print its one-time enrollment token. */
+async function register() {
   await waitForStack();
   await publishSkill();
-  const node = await until('the node heartbeat', async () => {
-    const nodes = await magnus('/nodes');
-    const list = Array.isArray(nodes) ? nodes : nodes.nodes ?? nodes.items ?? [];
-    return list.find(item => item.hostname === 'node1.studio.test' && item.status !== 'OFFLINE');
-  }, { timeoutMs: 240_000 });
-  state.node = { id: node.id, hostname: node.hostname };
-  say(`node ${node.hostname} is ${node.status} (${node.id})`);
+  const { address } = await dns.lookup(NODE_FQDN, { family: 4 });
+  const registered = await magnus('/nodes/register', { method: 'POST', body: { name: 'node1', hostname: NODE_FQDN, ipAddress: address, port: 4100, os: 'linux',
+    ...(state.magnusVersion?.agent ? { agentVersion: state.magnusVersion.agent } : {}) } });
+  if (!/^mne_[A-Za-z0-9_-]{43}$/.test(registered.enrollmentToken ?? '')) throw new Error('Magnus registered the node without an enrollment token');
+  state.node = { id: registered.nodeId, hostname: NODE_FQDN };
+  save();
+  say(`node ${NODE_FQDN} registered (${registered.nodeId}); its token expires ${registered.enrollmentTokenExpiresAt}`);
+  process.stdout.write(registered.enrollmentToken + '\n');
+}
+
+const nodeList = async () => { const nodes = await magnus('/nodes'); return Array.isArray(nodes) ? nodes : nodes.nodes ?? nodes.items ?? []; };
+
+async function enroll() {
+  const node = await until('the node heartbeat with its own key', async () =>
+    (await nodeList()).find(item => item.id === state.node.id && item.status === 'ONLINE' && item.nodeCredential?.state === 'active'), { timeoutMs: 240_000 });
+  say(`node ${node.hostname} is ${node.status} with an active node key (${node.id})`);
+  if ((await nodeList()).filter(item => item.hostname === NODE_FQDN).length !== 1) throw new Error(`More than one ${NODE_FQDN} in the inventory`);
+  // NODE_AUTH_MODE is unset: Magnus runs in its default enforce mode, and the start-up guard that let it start
+  // would let it start again. The agent says it signs its evidence in a later heartbeat (every 30 seconds).
+  const summary = await until('a node-credentials summary with no enforce blocker', async () => {
+    const value = await magnus('/node-credentials/summary');
+    if (value.mode !== 'enforce' || value.modeExplicit !== false) throw Object.assign(new Error(`Magnus runs in ${value.mode} mode (explicit: ${value.modeExplicit}); the stack sets no NODE_AUTH_MODE`), { fatal: true });
+    return value.enforceReady === true ? value : null;
+  }, { timeoutMs: 120_000 });
+  state.nodeAuth = { mode: summary.mode, modeExplicit: summary.modeExplicit, enforceReady: summary.enforceReady };
+  save();
+  say('Magnus runs in its default enforce mode with no blocker');
   const id = node.id;
   const drain = await magnus(`/resource-leases/enrollment/${id}/begin`, { method: 'POST', body: {} });
   const prepared = await magnus(`/resource-leases/enrollment/${id}/refresh`, { method: 'POST', body: { participant: 'api' } });
@@ -210,9 +238,10 @@ async function agents() {
 
 const phase = process.argv[2];
 try {
-  if (phase === 'enroll') await enroll();
+  if (phase === 'register') await register();
+  else if (phase === 'enroll') await enroll();
   else if (phase === 'agents') await agents();
-  else throw new Error('Usage: bootstrap.mjs enroll|agents');
+  else throw new Error('Usage: bootstrap.mjs register|enroll|agents');
 } catch (error) {
   process.stderr.write(`[bootstrap] ${error instanceof Error ? error.message : String(error)}\n`);
   process.exitCode = 1;
