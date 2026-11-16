@@ -18,12 +18,13 @@ The sidebar has one section per installed product, plus Hive and System.
 
 | Section | Runtime key | What it covers |
 | --- | --- | --- |
-| Hive | | Installation overview, and Incidents across Emberpath, Oathweave and HiveMem |
+| Hive | | Installation overview; Inbox, the HiveEvent feeds of every installed product (also the header bell); Incidents across Emberpath, Oathweave and HiveMem; the setup checklist for administrators (opened from the header nudge); and Agent 360 at `/agents`, one agent's view across Magnus, HiveMem, Studio, Cindertrace, Emberpath and HiveSkills (opened from agent links) |
 | Oathweave | `oathweave` | Overview, account security (passkeys, MFA, recovery, consent and step-up), users, roles, service accounts, clients, sessions, system users, security and audit |
 | Oathweave: Actors | `oathweave`, `emberpath`, `hivemem` | Agent enrollment. Needs all three products, because each enrollment links all three |
 | Emberpath | `emberpath` | Routers, providers, routing, testing, traces, API keys and audit log |
 | HiveMem | `hivemem` | Memories, memory operations and workspaces |
 | HiveSkills | `hiveskills` | Skills catalogue, immutable releases, assignments, agent targets, distribution receipts, deployment jobs and registry audit |
+| Embermend | `embermend` | Recommendations, with their findings, evidence and jobs |
 | Cindertrace | `cindertrace` | Security cases, entities, events, evidence, sources, policies, audit and approval controls. Not the investigation lab, which keeps its own console |
 | ChatterMost | `chattermost` | Channels, DMs, threads, files, search, message editing, reactions, realtime refresh and administration. Invite redemption is at `/signup` |
 | Magnus | `magnus` | Fleet, operations, provisioning, Hermes Agent, Ardent and Codex pages at `/fleet`, and a web terminal on node detail where a fleet gateway is deployed |
@@ -40,8 +41,9 @@ enabled, which an Oathweave-connected Cindertrace does not.
 sign-in, federation across control nodes and the embedded Hermes dashboard. Every other page of the old
 Magnus dashboard has an equivalent here.
 
-Native frontends and clients stay available until each module passes acceptance. Synthetic browser
-renders do not establish backend authorization or workflow parity. See the
+The products' own web UIs are retired, except Magnus's standalone console for installations
+without the suite. Every product API stays usable on its own, by native clients and scripts.
+Synthetic browser renders do not establish backend authorization or workflow parity. See the
 [releases](https://github.com/ChefTaco/HiveXUI/releases) for what has been published.
 
 ## Theme
@@ -71,7 +73,9 @@ Mount a public `/usr/share/nginx/html/runtime.json` in the static container:
     "hiveskills": "/api/hiveskills",
     "cindertrace": "/api/cindertrace",
     "chattermost": "/api/chattermost",
-    "magnus": "/api/magnus"
+    "magnus": "/api/magnus",
+    "ardentstudio": "/api/ardentstudio",
+    "embermend": "/api/embermend"
   },
   "identity": {
     "issuer": "https://identity.example.com",
@@ -83,15 +87,19 @@ Mount a public `/usr/share/nginx/html/runtime.json` in the static container:
       "hiveskills": "hivexui-hiveskills",
       "cindertrace": "hivexui-cindertrace",
       "chattermost": "hivexui-chattermost",
-      "magnus": "hivexui-magnus"
+      "magnus": "hivexui-magnus",
+      "ardentstudio": "hivexui-ardentstudio",
+      "embermend": "hivexui-embermend"
     }
   }
 }
 ```
 
 Register every selected public client and its exact
-`https://console.example.com/auth/callback` redirect URI in Oathweave. Configure
+`https://hivexui.example.com/auth/callback` redirect URI in Oathweave. Configure
 resource permission ceilings and reviewed product-account links in each backend.
+List only the products the installation has; every key is optional. The optional
+`enrollmentInstallationId` is sent as `installationId` on Actors enrollment requests.
 Runtime JSON contains public endpoint/client identifiers only. Never put bearer
 credentials, infrastructure keys or passwords in it.
 
