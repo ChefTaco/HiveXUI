@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.10.0] - 2026-11-17
 
 - Cindertrace sign-in without Oathweave. A `mode: "local"` runtime (Cindertrace only, no identity) signs in with Cindertrace's own API sign-in and shows only Cindertrace's pages, including the investigation lab. On a suite installation with Cindertrace, the sign-in page offers a Cindertrace recovery sign-in for when Oathweave is unavailable; the choice lasts for the tab. Requests to products the runtime does not configure are refused in the browser.
 - Cindertrace: label the four suite audit exports Cindertrace collects (HiveMem, HiveSkills, Ardent Studio, Embermend) and attribute them to their products on the Sources page.
