@@ -25,25 +25,23 @@ The sidebar has one section per installed product, plus Hive and System.
 | HiveMem | `hivemem` | Memories, memory operations and workspaces |
 | HiveSkills | `hiveskills` | Skills catalogue, immutable releases, assignments, agent targets, distribution receipts, deployment jobs and registry audit |
 | Embermend | `embermend` | Recommendations, with their findings, evidence and jobs |
-| Cindertrace | `cindertrace` | Security cases, entities, events, evidence, sources, policies, audit and approval controls. Not the investigation lab, which keeps its own console |
+| Cindertrace | `cindertrace` | Security cases, entities, events, evidence, sources, policies, audit and approval controls, and the investigation lab when HiveXUI is a lab's UI (see Cindertrace sign-in below) |
 | ChatterMost | `chattermost` | Channels, DMs, threads, files, search, message editing, reactions, realtime refresh and administration. Invite redemption is at `/signup` |
 | Magnus | `magnus` | Fleet, operations, provisioning, Hermes Agent, Ardent and Codex pages at `/fleet`, and a web terminal on node detail where a fleet gateway is deployed |
 | Studio | `ardentstudio` | Ardent Project Studio: Projects and Gallery open a fullscreen page at `/studio`. Needs at least one Ardent agent in Magnus |
 | System | | API docs and settings |
 
 Cindertrace's [investigation lab](https://github.com/ChefTaco/cindertrace/blob/main/docs/INVESTIGATION-LAB.md)
-is a separate disposable installation with its own console and local sign-in. Lab startup rejects
-Oathweave settings, and HiveXUI reaches Cindertrace with Oathweave sign-in, so the UI never
-shows a lab. The section adds a Lab tab only when the connected Cindertrace reports its lab
-enabled, which an Oathweave-connected Cindertrace does not.
+is a separate disposable installation that rejects Oathweave settings. HiveXUI serves it in local
+mode (below) and adds the Lab tab only when the connected Cindertrace reports its lab enabled.
 
 `src/modules/magnus/PORTING.md` lists what the Magnus module leaves out on purpose, such as its own
 sign-in, federation across control nodes and the embedded Hermes dashboard. Every other page of the old
 Magnus dashboard has an equivalent here.
 
 The products' own web UIs are retired, with two exceptions: Magnus's standalone console for
-installations without the suite, and Cindertrace's console, which stays for standalone installs,
-local recovery sign-in and the investigation lab until its replacement parity gates pass. Every
+installations without the suite, and Cindertrace's console, which stays until Cindertrace ships
+HiveXUI in local mode for standalone installs and the lab and restored-data acceptance passes. Every
 product API stays usable on its own, by native clients and scripts.
 Synthetic browser renders do not establish backend authorization or workflow parity. See the
 [releases](https://github.com/ChefTaco/HiveXUI/releases) for what has been published.
@@ -111,6 +109,23 @@ sign-in. Explicit `mode: "legacy"` is reserved for standalone recovery against
 the retained native console API; suite installations never select it implicitly.
 That mode keeps its unfiltered navigation. The legacy `links.magnus` runtime key is accepted and
 ignored for one release.
+
+### Cindertrace sign-in (local mode and recovery)
+
+Cindertrace's API has its own sign-in (`/api/v1/auth/local/*`, an HttpOnly `cindertrace_session`
+cookie, its local administrator). HiveXUI uses it in two cases, and then shows only Cindertrace's
+pages; no other product is reachable, and requests to unconfigured products are refused in the
+browser:
+
+- **Local mode**, for a standalone Cindertrace or its investigation lab:
+  `{"schema": 1, "mode": "local", "products": {"cindertrace": "/api/cindertrace"}}`. It must name
+  only Cindertrace and no `identity`. The page's origin must be Cindertrace's
+  `DASHBOARD_PUBLIC_ORIGIN`, and `/api/cindertrace/*` must reach the API's `/api/v1/*`.
+- **Recovery** on a suite installation with Cindertrace: the sign-in page offers **Oathweave
+  unavailable? Cindertrace recovery sign-in**. The choice lasts for the tab (session storage holds
+  the choice, never a credential) until **Return to Oathweave sign-in**. Cindertrace needs
+  `CINDERTRACE_BROWSER_AUTH_ENABLED=true` and its local administrator, which the suite controller
+  configures.
 
 ### Installed products
 

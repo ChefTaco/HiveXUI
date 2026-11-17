@@ -3,12 +3,12 @@
   "product": "cindertrace-browser",
   "version": 1,
   "repository": "https://github.com/ChefTaco/cindertrace",
-  "revision": "54fa032cba1eedf58ad5f63768558f2ff85457fd",
+  "revision": "1b4920c1aa06c326bff1355a6021d285c18bea61",
   "files": [
     {
       "path": "index.ts",
       "source": "packages/contracts/src/index.ts",
-      "sha256": "721c3e600e23dc4a8139041bc1dbd9a7deb0c740502827c4325bd1bf9cb0cf69"
+      "sha256": "68af07abfe6d6935d408f550a6bb14b508dfdf11c88248e2293db628bef36ace"
     },
     {
       "path": "lab.ts",
@@ -18,12 +18,17 @@
     {
       "path": "browser-auth.ts",
       "source": "packages/contracts/src/browser-auth.ts",
-      "sha256": "896f0af4c2ff826255f9cdee3c52d9e533b41888e077d67f088e7c75eff78b26"
+      "sha256": "1563e1fc6d2f385829ca8947ee314f0064cad80fa1ec528ff6107ccbfd3c5126"
     },
     {
       "path": "browser.ts",
       "source": "packages/contracts/src/browser.ts",
-      "sha256": "e6906fdab9671b857b251e824c4c68fa4aa3650da5ed32e237ab4f192c735137"
+      "sha256": "0ed22304af190c8ab43f504b33496d3156d8eb34065f47e0bd5b4884bce16df0"
+    },
+    {
+      "path": "hive-audit.ts",
+      "source": "packages/contracts/src/hive-audit.ts",
+      "sha256": "b348d899f439c0ec0d38ff3d23aeed2d8835ec4e0b451c2e5cc584c0907d975a"
     }
   ]
 }

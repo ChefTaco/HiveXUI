@@ -4,7 +4,8 @@ import { readConsoleIncidents } from './console-incidents';
 import { apiFetch, clearAccess } from './transport';
 import { failureMeta, HiveApiError, readApiFailure, readJsonAnswer, type HiveApiErrorOptions } from './api-error';
 import {createIamApi} from './iam-api';
-import { browserIdentity, enrollmentInstallationId } from './runtime';
+import { browserIdentity, enrollmentInstallationId, localSignIn } from './runtime';
+import { cindertraceLocalAuth } from './cindertrace-local-auth';
 import { readConsoleHealth } from './suite-health';
 import { EnrollmentInventorySchema, EnrollmentResultSchema, EnrollmentRequestSchema, LegacyEnrollmentReceiptSchema, EnrollmentInstallationsSchema, EnrollmentLifecycleRequestSchema, BrowserResourceUserResponseSchema } from '@contracts/oathweave-browser.generated';
 import type {
@@ -69,6 +70,7 @@ async function request<T, TBody extends JsonRequestBody = JsonRequestBody>(
 export const adminApi = {
   // ---- auth ----
   login(username: string, password: string) {
+    if (localSignIn()) return cindertraceLocalAuth.login(username, password);
     const identity = browserIdentity();
     if (identity) return identity.login(username, password);
     return request<{ ok: boolean; user: AdminUser }>('/api/auth/login', {
@@ -77,6 +79,7 @@ export const adminApi = {
     });
   },
   async logout() {
+    if (localSignIn()) return cindertraceLocalAuth.logout();
     const identity = browserIdentity();
     if (identity) {
       await identity.logout();
@@ -91,6 +94,7 @@ export const adminApi = {
     }
   },
   me() {
+    if (localSignIn()) return cindertraceLocalAuth.me();
     const identity = browserIdentity();
     if (identity) return identity.me();
     return request<{ user: AdminUser }>('/api/auth/me');

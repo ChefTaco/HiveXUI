@@ -31,6 +31,11 @@ let chatPending: Promise<void> | undefined;
 let generation = 0;
 let accessProvider: ((product: Product) => Promise<void>) | undefined;
 let stepUpProvider: (() => Promise<void>) | undefined;
+let configuredOnly = false;
+/** A local sign-in reaches only the products runtime.json names, never a legacy alias. */
+export function requireConfiguredProducts(): void {
+  configuredOnly = true;
+}
 export function setStepUpProvider(
   provider: (() => Promise<void>) | undefined,
 ): void {
@@ -194,7 +199,7 @@ export function createApiFetch(request: typeof fetch, options: { stepUp?: boolea
     }
     const product = productFor(path);
     const prefix = prefixes.get(product);
-    if (accessProvider && !prefix)
+    if ((accessProvider || configuredOnly) && !prefix)
       throw new Error('This product is not configured for this console');
     if (accessProvider) await accessProvider(product);
     const target = resolveApiPath(path);

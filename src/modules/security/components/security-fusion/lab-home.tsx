@@ -1,5 +1,5 @@
 import { securityPost } from '@security/lib/security-api';
-import type { LabStatus } from '@security/contracts/index';
+import type { LabStatus } from '@contracts/cindertrace/index';
 import { useState } from 'react';
 import { RouteLink } from '../../../../components/route-link';
 import { linkTo, navigateTo } from '../../../../lib/routes';

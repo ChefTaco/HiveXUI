@@ -36,9 +36,13 @@ import { type MagnusNavContext } from './modules/magnus/nav';
 import { isStudioPath, openStudio } from './modules/studio/paths';
 import {
   browserIdentity,
+  chooseLocalSignIn,
+  localSignIn,
+  localSignInOffered,
   productEnabled,
   productInstalled,
 } from './lib/runtime';
+import { LocalShell } from './components/local-shell';
 import { useRegistry } from './lib/registry';
 import type { AdminUser } from './lib/types';
 import { StoreProvider, useStore } from './lib/store';
@@ -113,6 +117,13 @@ function ConsoleApp() {
     );
   }
 
+  if (localSignIn())
+    return (
+      <>
+        <Background />
+        <LocalShell user={user} onLogout={handleAuthExpired} />
+      </>
+    );
   return <SignedIn user={user} onLogout={handleAuthExpired} />;
 }
 
@@ -198,6 +209,7 @@ function Background() {
 /* ===================== Login ===================== */
 
 function LoginScreen({ onSuccess, authorization = false }: { onSuccess: (user: AdminUser) => void; authorization?: boolean }) {
+  const local = localSignIn(), offered = localSignInOffered();
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
   const [challenge, setChallenge] = useState<MfaRequired | null>(null);
@@ -290,9 +302,15 @@ function LoginScreen({ onSuccess, authorization = false }: { onSuccess: (user: A
         <form className="login-card" onSubmit={submit}>
           <HiveSigil className="login-sigil" />
           <p className="login-eyebrow">Hive:Magnus</p>
-          <h1>{authorization ? 'Oathweave sign-in' : 'Control Plane Console'}</h1>
+          <h1>{authorization ? 'Oathweave sign-in' : local ? (offered ? 'Cindertrace recovery sign-in' : 'Cindertrace sign-in') : 'Control Plane Console'}</h1>
           <p className="login-sub">
-            {authorization ? 'Sign in to continue to your application.' : 'Authenticate to manage this installation.'}
+            {authorization
+              ? 'Sign in to continue to your application.'
+              : local
+                ? offered
+                  ? "Use Cindertrace's local administrator while Oathweave is unavailable. Only Cindertrace is reachable this way."
+                  : "Sign in with this installation's Cindertrace account."
+                : 'Authenticate to manage this installation.'}
           </p>
 
           {error ? (
@@ -442,6 +460,11 @@ function LoginScreen({ onSuccess, authorization = false }: { onSuccess: (user: A
                 </Button>
               )}
             </div>
+          )}
+          {!authorization && offered && mode === 'sign-in' && !challenge && (
+            <Button variant="ghost" type="button" onClick={() => chooseLocalSignIn(!local)}>
+              {local ? 'Return to Oathweave sign-in' : 'Oathweave unavailable? Cindertrace recovery sign-in'}
+            </Button>
           )}
           {!authorization && productEnabled('chattermost') && mode === 'sign-in' && !challenge && (
             <a className={buttonClass({ variant: 'ghost' })} href="/signup">Have a chat invite?</a>

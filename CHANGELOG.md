@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+- Cindertrace sign-in without Oathweave. A `mode: "local"` runtime (Cindertrace only, no identity) signs in with Cindertrace's own API sign-in and shows only Cindertrace's pages, including the investigation lab. On a suite installation with Cindertrace, the sign-in page offers a Cindertrace recovery sign-in for when Oathweave is unavailable; the choice lasts for the tab. Requests to products the runtime does not configure are refused in the browser.
+- Cindertrace: label the four suite audit exports Cindertrace collects (HiveMem, HiveSkills, Ardent Studio, Embermend) and attribute them to their products on the Sources page.
+- Cindertrace: one vendored browser contract. The lab pages read `contracts/cindertrace` instead of an older copy under `src/modules/security/contracts`, and the contract is refreshed to Cindertrace's current export, which adds the HiveAuditRecord schema.
+
 ## [0.9.2] - 2026-11-15
 
 - Magnus: keep the software card's description readable in narrow columns by placing **Check versions** below the heading.

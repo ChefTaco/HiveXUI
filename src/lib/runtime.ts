@@ -3,6 +3,7 @@ import { createBrowserAuth } from './browser-auth';
 import { registryAllows, startRegistry } from './registry';
 import {
   configureEndpoint,
+  requireConfiguredProducts,
   setAccessProvider,
   setStepUpProvider,
   type Product,
@@ -23,7 +24,7 @@ const prefix = z.string().regex(/^\/api\/[a-z][a-z0-9-]*$/);
 export const runtimeSchema = z
   .object({
     schema: z.literal(1),
-    mode: z.enum(['suite', 'legacy']).default('suite'),
+    mode: z.enum(['suite', 'legacy', 'local']).default('suite'),
     products: z.partialRecord(product, prefix),
     enrollmentInstallationId: z.string().regex(/^[a-z0-9][a-z0-9-]{0,63}$/).optional(),
     // Accepted and ignored for one release: Magnus now lives at /fleet, and older controllers
@@ -79,6 +80,11 @@ export const runtimeSchema = z
         code: 'custom',
         message: 'Legacy runtime cannot configure suite identity',
       });
+    if (config.mode === 'local' && (config.identity || Object.keys(config.products).join() !== 'cindertrace'))
+      context.addIssue({
+        code: 'custom',
+        message: 'Local runtime configures only Cindertrace, without suite identity',
+      });
     if (config.identity)
       for (const name of Object.keys(config.products) as Product[])
         if (!config.identity.clients[name])
@@ -88,6 +94,38 @@ export const runtimeSchema = z
           });
   });
 let identity: ReturnType<typeof createBrowserAuth> | undefined;
+let local = false;
+let recoveryOffered = false;
+/**
+ * The tab's choice of Cindertrace's own sign-in on a suite installation. It is a choice, not a
+ * credential: the session itself is Cindertrace's HttpOnly cookie.
+ */
+const LOCAL_SIGN_IN_KEY = 'hivexui.sign-in';
+function storedLocalChoice(): boolean {
+  try {
+    return sessionStorage.getItem(LOCAL_SIGN_IN_KEY) === 'cindertrace';
+  } catch {
+    return false;
+  }
+}
+/**
+ * Cindertrace's own sign-in instead of Oathweave: a local installation (the investigation lab or a
+ * standalone Cindertrace), or recovery on a suite installation while Oathweave is unavailable.
+ * Only Cindertrace's pages are offered, and Cindertrace checks every request itself.
+ */
+export const localSignIn = () => local;
+/** Whether a suite sign-in screen may offer Cindertrace's recovery sign-in. */
+export const localSignInOffered = () => recoveryOffered;
+/** Switches this tab between Oathweave and Cindertrace's recovery sign-in, starting afresh. */
+export function chooseLocalSignIn(on: boolean): void {
+  try {
+    if (on) sessionStorage.setItem(LOCAL_SIGN_IN_KEY, 'cindertrace');
+    else sessionStorage.removeItem(LOCAL_SIGN_IN_KEY);
+  } catch {
+    // Without session storage the choice cannot outlive this page; the suite sign-in stays.
+  }
+  location.assign('/');
+}
 const enabled = new Set<Product>();
 let enrollmentInstallation: string | undefined;
 let identityClients: readonly string[] = [];
@@ -106,7 +144,7 @@ export const browserIdentity = () => identity;
  * identity and talks to the retained native console API, so its surface stays unfiltered.
  */
 export const productInstalled = (product: Product) =>
-  !identity || productEnabled(product);
+  local ? enabled.has(product) : !identity || productEnabled(product);
 /**
  * Whether the console can show a Registry entry. One of its own products must be installed by the
  * rule above; the rest (the ingress, the Registry itself, external products) have no section.
@@ -126,6 +164,15 @@ export async function initializeRuntime(): Promise<void> {
   if (!response.ok)
     throw new Error('Console configuration could not be loaded');
   const config = runtimeSchema.parse(await response.json());
+  const cindertrace = config.products.cindertrace;
+  recoveryOffered = config.mode === 'suite' && !!cindertrace;
+  if (config.mode === 'local' || (recoveryOffered && storedLocalChoice())) {
+    local = true;
+    configureEndpoint('cindertrace', cindertrace!);
+    enabled.add('cindertrace');
+    requireConfiguredProducts();
+    return;
+  }
   enrollmentInstallation = config.enrollmentInstallationId;
   for (const [name, path] of Object.entries(config.products))
     if (path) {
