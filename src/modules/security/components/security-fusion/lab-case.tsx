@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { linkTo, navigateTo } from '../../../../lib/routes';
 import { useSecurityRefresh } from '@security/lib/page-data';
-import { labAssessmentSchema, type LabAssessment, type LabComparison, type LabRun } from '@security/contracts/index';
+import { labAssessmentSchema, type LabAssessment, type LabComparison, type LabRun } from '@contracts/cindertrace/index';
 import { Meter, Panel, TableFrame, Button } from '@ui';
 import { labPost, labButton } from './lab-home';
 

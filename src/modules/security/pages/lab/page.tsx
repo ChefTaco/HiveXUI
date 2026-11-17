@@ -1,4 +1,4 @@
-import type { LabStatus } from '@security/contracts/index';
+import type { LabStatus } from '@contracts/cindertrace/index';
 import { SecurityPage, SecurityRecordUnavailable, useSecurityData } from '@security/lib/page-data';
 import { FusionHeader } from '@security/components/security-fusion/fusion-ui';
 import { LabHome } from '@security/components/security-fusion/lab-home';

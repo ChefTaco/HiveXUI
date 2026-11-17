@@ -1,7 +1,7 @@
 import { Badge, Panel } from "@ui";
 import { checkRouteSegment } from "@security/lib/route-segment";
 import { LabCase } from "@security/components/security-fusion/lab-case";
-import type { LabRun, LabComparison } from "@security/contracts/index";
+import type { LabRun, LabComparison } from "@contracts/cindertrace/index";
 import {CaseWorkflow} from "@security/components/security-fusion/case-workflow";
 import {
   EvidenceBraid,

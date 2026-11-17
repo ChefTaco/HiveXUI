@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { hiveAuditProductSchema } from '../../../../contracts/cindertrace/index';
 vi.mock('@security/lib/security-api', () => ({ securityFetch: vi.fn() }));
 const { labEnabled, mergeSourceAliases, sourceLabel, sourceRelevant } = await import('./security-fusion');
 const { securityFetch } = await import('@security/lib/security-api');
@@ -28,6 +29,11 @@ it('labels every known feed by product and leaves its identifier alone', () => {
   const feeds = { unifi_dns: 'UniFi DNS', unifi_ids: 'UniFi IDS', netflow: 'NetFlow', wazuh: 'Wazuh', tailscale: 'Tailscale', magnus: 'Magnus fleet', hive: 'Hive security export', magnus_ui: 'Magnus console', chattermost: 'Mattermost-compatible audit', aegis_ui: 'Cindertrace console' };
   for (const [source, label] of Object.entries(feeds)) expect(sourceLabel(source)).toBe(label);
   expect(sourceLabel('future_feed')).toBe('future feed');
+});
+
+it('labels every suite audit export Cindertrace collects', () => {
+  for (const source of hiveAuditProductSchema.options) expect(sourceLabel(source)).not.toBe(source.replaceAll('_', ' '));
+  expect(sourceLabel('ardentstudio')).toBe('Ardent Studio audit');
   const rows = [{ source: 'unifi_dns', status: 'healthy' }];
   expect(mergeSourceAliases(rows)[0]!.source).toBe('unifi_dns');
 });

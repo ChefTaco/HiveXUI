@@ -1,7 +1,7 @@
 import type { Tone } from "@ui";
 import { securityFetch } from "@security/lib/security-api";
 import type { Product } from "@lib/transport";
-import type { LabStatus } from "@security/contracts/index";
+import type { LabStatus } from "@contracts/cindertrace/index";
 
 import type { SecurityFusionSeverity as FusionSeverity } from "../../../../contracts/cindertrace/index";
 import type { FusionCollector } from "../../../../contracts/cindertrace/browser";
@@ -37,6 +37,11 @@ const SOURCE_LABELS: Record<string, string> = {
   aegis_ui: "Cindertrace console",
   security_console: "Cindertrace console",
   cindertrace_ui: "Cindertrace console",
+  // Suite products whose audit exports the collector pulls (HiveAuditRecord v1).
+  hivemem: "HiveMem audit",
+  hiveskills: "HiveSkills audit",
+  ardentstudio: "Ardent Studio audit",
+  embermend: "Embermend audit",
 };
 /** Product labels do not alter historical source IDs or signed event contents. */
 export function sourceLabel(source: string): string {
@@ -54,6 +59,10 @@ const SOURCE_PRODUCTS: Record<string, Product> = {
   aegis_ui: "cindertrace",
   security_console: "cindertrace",
   cindertrace_ui: "cindertrace",
+  hivemem: "hivemem",
+  hiveskills: "hiveskills",
+  ardentstudio: "ardentstudio",
+  embermend: "embermend",
 };
 type SourceState = { source: string; status: string; lastEventAt?: string | null | undefined; lastSuccessAt?: string | null | undefined; lastError?: string | null | undefined };
 const reported = (source: SourceState) =>
