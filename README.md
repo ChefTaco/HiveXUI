@@ -41,8 +41,10 @@ enabled, which an Oathweave-connected Cindertrace does not.
 sign-in, federation across control nodes and the embedded Hermes dashboard. Every other page of the old
 Magnus dashboard has an equivalent here.
 
-The products' own web UIs are retired, except Magnus's standalone console for installations
-without the suite. Every product API stays usable on its own, by native clients and scripts.
+The products' own web UIs are retired, with two exceptions: Magnus's standalone console for
+installations without the suite, and Cindertrace's console, which stays for standalone installs,
+local recovery sign-in and the investigation lab until its replacement parity gates pass. Every
+product API stays usable on its own, by native clients and scripts.
 Synthetic browser renders do not establish backend authorization or workflow parity. See the
 [releases](https://github.com/ChefTaco/HiveXUI/releases) for what has been published.
 
