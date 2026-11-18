@@ -86,6 +86,20 @@ describe('every error shape in the suite through apiFetch', () => {
   });
 });
 
+describe('hostile error codes', () => {
+  // hive-common before 0.5.1 trimmed underscores from a remote code with a regex that was
+  // quadratic on `a___…a`, so one error answer could stall the tab for seconds.
+  it('cleans a code of many underscores between two letters quickly', async () => {
+    const code = 'a' + '_'.repeat(100_000) + 'a';
+    const started = performance.now();
+    const error = await failureOf(() => json({ error: { code, message: 'Refused' } }, 400));
+    expect(performance.now() - started).toBeLessThan(1000);
+    expect(error.status).toBe(400);
+    expect(error.code?.startsWith('a_')).toBe(true);
+    expect(error.code?.length).toBeLessThanOrEqual(128);
+  });
+});
+
 describe('request IDs', () => {
   it('sends a fresh x-request-id with every request and keeps one the caller set', async () => {
     const { send, sent } = answering(() => json({}, 200));
