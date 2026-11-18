@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.10.1] - 2026-11-18
 
 - Security: require `@hivemagnus/hive-common` 0.5.1. Its error reader cleaned a product's error code with a regex that was quadratic on a code of many underscores between two other characters (`a___…a`), so one hostile or broken error answer could stall the tab for seconds. The code is now cleaned in linear time; a regression test reads such a code of 100,000 underscores. A malformed request ID in an error body is now dropped in favour of the response header or the ID HiveXUI sent (hive-common 0.5.0).
 
