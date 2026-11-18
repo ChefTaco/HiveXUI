@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- Security: require `@hivemagnus/hive-common` 0.5.1. Its error reader cleaned a product's error code with a regex that was quadratic on a code of many underscores between two other characters (`a___…a`), so one hostile or broken error answer could stall the tab for seconds. The code is now cleaned in linear time; a regression test reads such a code of 100,000 underscores. A malformed request ID in an error body is now dropped in favour of the response header or the ID HiveXUI sent (hive-common 0.5.0).
+
 ## [0.10.0] - 2026-11-17
 
 - Cindertrace sign-in without Oathweave. A `mode: "local"` runtime (Cindertrace only, no identity) signs in with Cindertrace's own API sign-in and shows only Cindertrace's pages, including the investigation lab. On a suite installation with Cindertrace, the sign-in page offers a Cindertrace recovery sign-in for when Oathweave is unavailable; the choice lasts for the tab. Requests to products the runtime does not configure are refused in the browser.
