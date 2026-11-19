@@ -24,7 +24,7 @@ import type {
 import { productPrefix } from "../../lib/transport";
 import { HiveApiError } from "../../lib/api-error";
 import { productEnabled } from "../../lib/runtime";
-import { chat, chatResource, json, safeId } from "./api";
+import { chat, chatResource, json, reactionPath, safeId } from "./api";
 import ChatAdministration from "./admin";
 import {
   attachmentDrafts,
@@ -607,15 +607,7 @@ function ConnectedChat() {
         (value) => value.user_id === me.id && value.emoji_name === name,
       );
       if (own)
-        await chat(
-          "/users/" +
-            safeId(me.id) +
-            "/posts/" +
-            safeId(post.id) +
-            "/reactions/" +
-            safeId(name),
-          { method: "DELETE" },
-        );
+        await chat(reactionPath(me.id, post.id, name), { method: "DELETE" });
       else
         await chat(
           "/reactions",
