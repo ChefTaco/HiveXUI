@@ -7,10 +7,11 @@ RUN npm run build
 
 FROM nginxinc/nginx-unprivileged:1.30.6-alpine@sha256:f5116ed4606f3eb015dd4a8e28cb9b351476dc0ad4bc6e9f93b19cec130cdf03
 USER root
-# Take Alpine security fixes newer than the base image, and drop curl, which nothing here uses.
-RUN apk upgrade --no-cache \
- && apk add --no-cache --upgrade 'libxslt>=1.1.43-r4' \
- && apk del --no-cache curl
+# The console only serves static files. Remove unused modules tied to the base nginx version
+# so Alpine can supply the patched nginx package before a refreshed base image is available.
+RUN apk del --no-cache curl nginx-module-geoip nginx-module-image-filter nginx-module-njs nginx-module-xslt \
+ && apk upgrade --no-cache \
+ && apk add --no-cache --upgrade 'nginx>=1.30.7-r0'
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /build/dist /usr/share/nginx/html
 USER 101

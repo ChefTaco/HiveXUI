@@ -3,6 +3,7 @@
 ## [0.10.2] - 2026-11-18
 
 - Fleet: Submit test sends a UUID as the Ardent task ID. The task can run and use the profile's HiveMem tools.
+- Security: require nginx 1.30.7 or later in the console image and remove unused dynamic modules tied to the older base package.
 
 ## [0.10.1] - 2026-11-18
 
