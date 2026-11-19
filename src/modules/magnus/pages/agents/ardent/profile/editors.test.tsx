@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { button, click, mount, settle, stubApi, stubBrowser, type, type Mounted } from '../../../../test-dom';
 import type { ArdentProfileClient } from '../api';
-import { IdentityFile, MemoryPanel, SettingsForm, SkillList } from './editors';
+import { IdentityFile, MemoryPanel, SettingsForm, SkillList, TaskTest } from './editors';
 
 const REF = { nodeId: 'node-1', profileId: 'writer' };
 let view: Mounted | undefined;
@@ -27,6 +27,23 @@ function fakeClient(answer: (action: string) => unknown) {
 }
 
 describe('the reusable profile editors', () => {
+  it('submits Fleet test tasks with a UUID idempotency key', async () => {
+    const { client, calls } = fakeClient(() => ({ task_id: 'task-1', state: 'queued' }));
+    view = await mount(<TaskTest {...REF} client={client} />);
+    await type(view.container.querySelector('textarea'), '  Test memory recall.  ');
+    await click(button('Submit test'));
+
+    expect(calls).toEqual([{
+      action: 'task-submit',
+      options: {
+        body: {
+          prompt: 'Test memory recall.',
+          idempotency_key: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/),
+        },
+      },
+    }]);
+  });
+
   it('save an identity file through the client they are given and report the new revision', async () => {
     const { client, calls } = fakeClient(() => ({ text: 'A careful cartographer.', revision: 'rev-2' }));
     const onSaved = vi.fn();

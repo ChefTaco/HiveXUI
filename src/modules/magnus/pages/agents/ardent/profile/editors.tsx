@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { cn } from '@lib/cn';
 import { Badge, Button, Field, Select, TextArea, TextInput, Toggle, statusTone } from '@ui';
-import { randomId } from '../../../../api/client';
 import { errorMessage } from '../../../../api/errors';
 import { FxPanel } from '../../../../effects';
 import { ActionConfirm } from '../../../../ui/action-confirm';
@@ -497,7 +496,7 @@ export function TaskTest({ onSubmitted, ...editor }: EditorProps & { onSubmitted
     setError('');
     setAccepted('');
     try {
-      const result = await client.action('task-submit', taskAcceptedSchema, { body: { prompt: prompt.trim(), idempotency_key: randomId() } });
+      const result = await client.action('task-submit', taskAcceptedSchema, { body: { prompt: prompt.trim(), idempotency_key: crypto.randomUUID() } });
       setAccepted(`Task ${result.task_id.slice(0, 8)} accepted. Refresh the profile to inspect its result.`);
       setPrompt('');
       onSubmitted?.();
