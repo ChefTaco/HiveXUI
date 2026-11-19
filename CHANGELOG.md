@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Chat: vendor ChatterMost 0.7.1's browser conversation contract. Requests the product now refuses, such as reaction names with path, query or markup characters and over-long profile, channel and post fields, are stopped in the browser with the contract error. Reaction removal builds its path in one tested helper that encodes every segment.
+
 ## [0.10.2] - 2026-11-18
 
 - Fleet: Submit test sends a UUID as the Ardent task ID. The task can run and use the profile's HiveMem tools.

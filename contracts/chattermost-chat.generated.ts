@@ -239,30 +239,33 @@ export const webSocketEventEnvelopeSchema = z.object({
 });
 export type WebSocketEventEnvelope = z.infer<typeof webSocketEventEnvelopeSchema>;
 
+// Every persisted field is bounded: the store rewrites one document per write, so an
+// unbounded field lets a single signed-in user slow the service down for everyone.
+const boundedId = z.string().min(1).max(64);
 export const browserPatchUserSchema = z.object({
-  nickname: z.string().optional(),
-  first_name: z.string().optional(),
-  last_name: z.string().optional(),
-  position: z.string().optional(),
-  locale: z.string().optional()
+  nickname: z.string().max(64).optional(),
+  first_name: z.string().max(64).optional(),
+  last_name: z.string().max(64).optional(),
+  position: z.string().max(128).optional(),
+  locale: z.string().max(16).optional()
 });
 export const browserChannelCreateSchema = z.object({
-  team_id: z.string().default(''),
-  name: z.string().min(1),
-  display_name: z.string().min(1),
+  team_id: z.string().max(64).default(''),
+  name: z.string().min(1).max(64),
+  display_name: z.string().min(1).max(64),
   type: z.enum(['O', 'P', 'D', 'G']).default('O'),
-  header: z.string().optional().default(''),
-  purpose: z.string().optional().default('')
+  header: z.string().max(1024).optional().default(''),
+  purpose: z.string().max(250).optional().default('')
 });
 export const browserChannelPatchSchema = z.object({
-  display_name: z.string().optional(),
-  header: z.string().optional(),
-  purpose: z.string().optional(),
-  retention_days: z.number().int().positive().nullable().optional()
+  display_name: z.string().max(64).optional(),
+  header: z.string().max(1024).optional(),
+  purpose: z.string().max(250).optional(),
+  retention_days: z.number().int().positive().max(36_500).nullable().optional()
 });
-export const browserDirectSchema = z.array(z.string().min(1)).min(1);
+export const browserDirectSchema = z.array(boundedId).min(1).max(8);
 export const browserPostCreateSchema = z.object({
-  channel_id: z.string().min(1),
+  channel_id: boundedId,
   message: z
     .string()
     .max(16_383)
@@ -270,15 +273,17 @@ export const browserPostCreateSchema = z.object({
     .transform((value) => value ?? ''),
   root_id: z
     .string()
+    .max(64)
     .nullish()
     .transform((value) => value ?? ''),
   file_ids: z
-    .array(z.string())
+    .array(boundedId)
     .max(10)
     .nullish()
     .transform((value) => value ?? []),
   pending_post_id: z
     .string()
+    .max(128)
     .nullish()
     .transform((value) => value ?? ''),
   props: z
@@ -289,12 +294,18 @@ export const browserPostCreateSchema = z.object({
 export const browserPostPatchSchema = z.object({
   message: z.string().max(16_383).optional(),
   is_pinned: z.boolean().optional(),
-  file_ids: z.array(z.string()).optional()
+  file_ids: z.array(boundedId).max(10).optional()
 });
-export const browserPostSearchSchema = z.object({ terms: z.string().optional().default('') });
+export const browserPostSearchSchema = z.object({ terms: z.string().max(512).optional().default('') });
+// A reaction name is echoed into request paths by clients, so it must not carry path,
+// query or markup characters. Unicode emoji and Mattermost-style names both pass.
 export const browserReactionSchema = z.object({
-  post_id: z.string().min(1),
-  emoji_name: z.string().min(1)
+  post_id: boundedId,
+  emoji_name: z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(/^[^\s/\\?#%.:;<>"'&\p{Cc}]+$/u)
 });
 export const browserChatContractVersion = 1;
 const emoji = z.object({ id: z.string(), name: z.string(), emoji: z.string() });

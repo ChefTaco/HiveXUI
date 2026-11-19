@@ -24,6 +24,9 @@ export const json = (body: object, method = "POST"): RequestInit => ({
   body: JSON.stringify(body),
 });
 export const safeId = (id: string) => encodeURIComponent(id);
+// One member's reaction on a post. Every segment is encoded, so a name can never change the path.
+export const reactionPath = (userId: string, postId: string, emojiName: string) =>
+  "/users/" + safeId(userId) + "/posts/" + safeId(postId) + "/reactions/" + safeId(emojiName);
 // Native session cookies authorize these same-origin resources; URLs never carry tokens.
 export const chatResource = (path: string) =>
   (productPrefix("chattermost") ?? "/api/chat") + "/api/v4" + path;
