@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.10.2] - 2026-11-18
+
+- Fleet: Submit test sends a UUID as the Ardent task ID. The task can run and use the profile's HiveMem tools.
+- Security: require nginx 1.30.7 or later in the console image and remove unused dynamic modules tied to the older base package.
+
 ## [0.10.1] - 2026-11-18
 
 - Security: require `@hivemagnus/hive-common` 0.5.1. Its error reader cleaned a product's error code with a regex that was quadratic on a code of many underscores between two other characters (`a___…a`), so one hostile or broken error answer could stall the tab for seconds. The code is now cleaned in linear time; a regression test reads such a code of 100,000 underscores. A malformed request ID in an error body is now dropped in favour of the response header or the ID HiveXUI sent (hive-common 0.5.0).

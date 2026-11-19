@@ -19,12 +19,19 @@ jobs:
           node-version: 24.22.3
       - name: Configure bounded authenticated package downloads
         run: sudo env GITHUB_ACTIONS=true bash scripts/ci-apt-setup.sh
-      - run: sudo apt-get update -qq && sudo apt-get install -y ripgrep
+      - name: Install ripgrep
+        timeout-minutes: 5
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ripgrep
       - run: npm ci
       - run: npm run build
       - run: npm test
       - run: npm run check:contracts
       - run: npm run scan:secrets
       - run: npm run check:private
+      - name: Install Chromium and system dependencies
+        timeout-minutes: 8
+        run: npx playwright install --with-deps chromium
       - name: Accessibility check against a mocked runtime
-        run: npx playwright install --with-deps chromium && npm run e2e:a11y
+        run: npm run e2e:a11y
