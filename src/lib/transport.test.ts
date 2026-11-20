@@ -233,6 +233,23 @@ describe('Ardent Project Studio requests', () => {
   });
 });
 
+describe('Hive Registry requests', () => {
+  it('are their own product under /api/registry, never Emberpath', () => {
+    expect(productFor('/api/registry/v1/inventory')).toBe('hive-registry');
+    expect(productFor('/api/registryx/v1')).toBe('emberpath');
+  });
+  it('carry only the Registry token', async () => {
+    configureEndpoint('hive-registry', '/api/registry');
+    setAccessProvider(async () => {});
+    rememberAccess('hive-registry', 'obviously-fake-registry', Date.now() + 60000);
+    rememberAccess('emberpath', 'obviously-fake-emberpath', Date.now() + 60000);
+    const request = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ ok: true }));
+    await createApiFetch(request)('/api/registry/v1/inventory');
+    expect(request.mock.calls[0]![0]).toBe('/api/registry/v1/inventory');
+    expect(new Headers(request.mock.calls[0]![1]!.headers).get('authorization')).toBe('Bearer obviously-fake-registry');
+  });
+});
+
 describe('the end of a session', () => {
   it('tells long-lived readers on logout, but not on a same-session token refresh', () => {
     const listener = vi.fn();

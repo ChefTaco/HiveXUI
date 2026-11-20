@@ -365,6 +365,28 @@ const PENDING_BINDING = {
 
 // The inbox: the Hive Registry announces three feeds (events.v1); HiveSkills's feed fails, so the
 // "couldn't reach" row shows beside the others' events.
+const pinned = (repository: string, version: string, hex: string) => ({ version, image: `ghcr.io/example/${repository}@sha256:${hex.repeat(64 / hex.length)}`, imageDigest: `sha256:${hex.repeat(64 / hex.length)}` });
+const running = (service: string, image: string, extra: Record<string, unknown> = {}) => ({ service, image, runningImage: image, imageId: `sha256:${'1'.repeat(64)}`, imageMatches: true, state: 'running', health: 'healthy', ...extra });
+const INVENTORY_PINS = { oathweave: pinned('oathweave', '2.3.2', 'a1'), emberpath: pinned('emberpath', '2.5.4', 'b2'), hivexui: pinned('hivexui', '0.10.3', 'c3'), magnus: pinned('magnus-server', '3.1.5', 'd4') };
+const INVENTORY = {
+  schema: 1, installationId: 'lab-one', release: { version: '3.12.9', manifestDigest: 'e5'.repeat(32) },
+  components: [
+    { id: 'oathweave', displayName: 'Oathweave', kind: 'application', status: 'installed', pinned: INVENTORY_PINS.oathweave, inventoryHost: 'control' },
+    { id: 'emberpath', displayName: 'Emberpath', kind: 'application', status: 'installed', pinned: INVENTORY_PINS.emberpath, inventoryHost: 'control' },
+    { id: 'hivexui', displayName: 'HiveXUI', kind: 'static-ui', status: 'installed', pinned: INVENTORY_PINS.hivexui, inventoryHost: 'control' },
+    { id: 'magnus', displayName: 'Magnus', kind: 'application', status: 'external', pinned: INVENTORY_PINS.magnus, inventoryHost: null },
+  ],
+  hosts: [{ host: 'control', observedAt: '2026-11-12T11:00:00.000Z', receipt: { version: '3.12.9', digest: 'e5'.repeat(32) }, services: [
+    running('oathweave', INVENTORY_PINS.oathweave.image),
+    running('emberpath', pinned('emberpath', '2.5.3', 'f6').image),
+    running('hivexui', INVENTORY_PINS.hivexui.image),
+  ] }],
+};
+const MAGNUS_INSTALLATION = {
+  schema: 1, magnus: { version: '3.1.5', node: 'v24.22.3', layout: 'package' },
+  resolution: { reference: 'npm-shrinkwrap', referenceSha256: 'a'.repeat(64), checkedAt: '2026-11-12T11:30:00.000Z', checked: 412, truncated: false,
+    differences: [{ name: 'effect', path: 'node_modules/@prisma/config/node_modules/effect', expected: '3.22.1', actual: '3.20.0' }] },
+};
 const registryProduct = (id: string, displayName: string) => ({
   id, displayName, description: `${displayName} for the example installation.`,
   links: { repository: null, documentation: null, license: null, licenseSpdx: null },
@@ -499,6 +521,9 @@ export const ROUTES: Array<[string, RegExp, Answer]> = [
   ['GET', /^\/api\/emberpath\/traces\?actorId=ardent-lead&limit=50$/, { data: AGENT_TRACES, nextCursor: null }],
   ['GET', /^\/api\/skills\/admin\/targets\?nodeId=node-1$/, AGENT_TARGETS],
   ['GET', /^\/api\/skills\/admin\/targets\?nodeId=%21$/, refused({ error: 'Invalid target filter' })],
+  // Installed software: one image off its pin, and a native Magnus that resolved one dependency differently.
+  ['GET', /^\/api\/registry\/v1\/inventory$/, INVENTORY],
+  ['GET', /^\/api\/magnus\/system\/installation$/, MAGNUS_INSTALLATION],
   // Hive Registry and the inbox's feeds
   ['GET', /^\/api\/registry\/v1\/installation$/, INSTALLATION],
   ['GET', /^\/api\/registry\/v1\/products\?installed=true$/, { schema: 1, products: Object.entries(FEEDS).map(([id, [name]]) => registryProduct(id, name)) }],

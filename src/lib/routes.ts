@@ -166,6 +166,9 @@ export const ROUTES = [
   // opens it while a step is pending.
   { id: 'setup', product: 'hive', title: 'Setup', group: 'Hive', icon: 'Settings', nav: [],
     component: screen(() => import('../modules/setup'), (module) => module.default), loading: 'Loading the setup checklist…' },
+  // Pins beside what the hosts run, for administrators. No sidebar entry: the Installation overview links to it.
+  { id: 'software', product: 'hive', title: 'Installed software', group: 'Hive', icon: 'Server', nav: [],
+    component: screen(() => import('../modules/software'), (module) => module.default), loading: 'Reading the installed software…' },
   { id: 'magnus', product: 'magnus', title: 'Magnus', group: 'Magnus', icon: 'Radar', gate: { all: ['magnus'] },
     prefix: { path: FLEET_PREFIX, ownsQuery: true }, pageMovesToPrefix: true,
     navFor: (context) => (context ? visibleMagnusNav(context) : MAGNUS_NAV).flatMap((section) => section.items.map((item) => ({ label: item.label, icon: item.icon, path: item.path, section: section.label }))),

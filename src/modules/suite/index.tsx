@@ -12,6 +12,9 @@ import { browserIdentity } from '../../lib/runtime';
 import { useStore } from '../../lib/store';
 import { RegistryProducts } from '../../components/registry-products';
 import { UpgradesPanel } from '../../components/upgrades';
+import { isAdministrator } from '../../lib/permissions';
+import { productInstalled } from '../../lib/runtime';
+import type { ScreenProps } from '../../lib/routes';
 import { LegacyDetails, legacyRows } from './legacy';
 
 /** One product's answer, whichever way the installation reports it. */
@@ -32,11 +35,22 @@ const stateTone = (state: OverviewRow['state']): Tone => (state === 'ready' ? 's
  * The installation overview. A suite installation probes each product's readiness and reads the
  * Registry; a legacy recovery installation reports the same through its native status API.
  */
-export default function SuiteOverview() {
-  return browserIdentity() ? <SuiteReadiness /> : <LegacyReadiness />;
+export default function SuiteOverview({ currentUser, onNavigate }: Partial<Pick<ScreenProps, 'currentUser' | 'onNavigate'>>) {
+  const software = !!onNavigate && isAdministrator(currentUser ?? null) && productInstalled('hive-registry');
+  return browserIdentity() ? <SuiteReadiness onSoftware={software ? () => onNavigate('software') : undefined} /> : <LegacyReadiness />;
 }
 
-function SuiteReadiness() {
+/** Where an administrator compares the signed pins with what the hosts run. */
+function SoftwareLink({ onOpen }: { onOpen: () => void }) {
+  return (
+    <Panel title="Installed software" eyebrow="Pins and hosts">
+      <p>Compare the signed release's versions and image digests with what each host reports, and see where Magnus's npm install resolved a dependency differently.</p>
+      <div><Button onClick={onOpen}>Open installed software</Button></div>
+    </Panel>
+  );
+}
+
+function SuiteReadiness({ onSoftware }: { onSoftware?: (() => void) | undefined }) {
   const [rows, setRows] = useState<OverviewRow[]>([]),
     [busy, setBusy] = useState(false),
     [checked, setChecked] = useState(false);
@@ -75,6 +89,7 @@ function SuiteReadiness() {
       }
       notice={registryProblem ? <p role="status" className="warning-banner">{registryProblem}</p> : null}
     >
+      {onSoftware ? <SoftwareLink onOpen={onSoftware} /> : null}
       <RegistryProducts title="Installed products" />
       <UpgradesPanel canUpgrade={false} />
     </Overview>

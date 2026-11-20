@@ -19,6 +19,7 @@ const product = z.enum([
   'magnus',
   'ardentstudio',
   'embermend',
+  'hive-registry',
 ]);
 const prefix = z.string().regex(/^\/api\/[a-z][a-z0-9-]*$/);
 export const runtimeSchema = z

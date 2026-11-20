@@ -41,7 +41,7 @@ describe('the route table', () => {
       [
         'account', 'actors', 'agents', 'audit', 'chat', 'docs', 'embermend', 'hive', 'iam-audit', 'iam-clients', 'iam-overview', 'iam-roles',
         'iam-security', 'iam-service-accounts', 'iam-sessions', 'iam-system-users', 'iam-users', 'inbox', 'incidents', 'keys', 'magnus',
-        'memories', 'providers', 'routers', 'routing', 'security', 'settings', 'setup', 'skills', 'studio', 'testing', 'traces', 'workspaces',
+        'memories', 'providers', 'routers', 'routing', 'security', 'settings', 'setup', 'skills', 'software', 'studio', 'testing', 'traces', 'workspaces',
       ].sort(),
     );
   });
@@ -54,6 +54,7 @@ describe('the route table', () => {
       'iam-audit': 'Identity audit', memories: 'Memories', workspaces: 'Workspaces', skills: 'Skills and assignments', actors: 'Actors',
       routers: 'Routers', providers: 'Providers', routing: 'Routing', testing: 'Testing', traces: 'Traces', incidents: 'Hive incidents',
       keys: 'API Keys', audit: 'Routing audit', docs: 'API Docs', settings: 'Settings', agents: 'Agent 360', inbox: 'Inbox', setup: 'Setup',
+      software: 'Installed software',
     });
     expect(titleFor('agents', '/agents/node-1~lead')).toBe('Agent 360');
     expect(titleFor('magnus', '/nodes/abc')).toBe('Node');

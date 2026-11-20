@@ -19,7 +19,8 @@ export type Product =
   | 'chattermost'
   | 'magnus'
   | 'ardentstudio'
-  | 'embermend';
+  | 'embermend'
+  | 'hive-registry';
 interface Access {
   value: string;
   expiresAt: number;
@@ -151,6 +152,8 @@ const ROUTES: Record<Product, { ingress: string; alias: string }> = {
   magnus: { ingress: '/api/magnus', alias: '/api/magnus' },
   ardentstudio: { ingress: '/api/ardentstudio', alias: '/api/ardentstudio' },
   embermend: { ingress: '/api/embermend', alias: '/api/embermend' },
+  // Only the signed-in inventory read goes through apiFetch; the public reads in registry.ts are anonymous.
+  'hive-registry': { ingress: '/api/registry', alias: '/api/registry' },
 };
 const PRODUCTS = Object.keys(ROUTES) as Product[];
 const under = (path: string, base: string) => path.startsWith(base + '/');
