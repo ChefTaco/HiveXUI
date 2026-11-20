@@ -25,7 +25,7 @@ import {
   type ReleaseRow,
   type Verdict,
 } from './compare';
-import type { MagnusInstallation } from './magnus-report';
+import type { SystemInstallation as MagnusInstallation } from '@contracts/magnus/browser';
 
 type Read<T> = { state: 'loading' } | { state: 'ready'; value: T } | { state: 'failed'; error: unknown } | { state: 'absent' };
 

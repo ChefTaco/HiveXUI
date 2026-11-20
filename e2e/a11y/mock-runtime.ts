@@ -523,7 +523,7 @@ export const ROUTES: Array<[string, RegExp, Answer]> = [
   ['GET', /^\/api\/skills\/admin\/targets\?nodeId=%21$/, refused({ error: 'Invalid target filter' })],
   // Installed software: one image off its pin, and a native Magnus that resolved one dependency differently.
   ['GET', /^\/api\/registry\/v1\/inventory$/, INVENTORY],
-  ['GET', /^\/api\/magnus\/system\/installation$/, MAGNUS_INSTALLATION],
+  ['GET', /^\/api\/magnus\/system\/installation$/, { success: true, data: MAGNUS_INSTALLATION }],
   // Hive Registry and the inbox's feeds
   ['GET', /^\/api\/registry\/v1\/installation$/, INSTALLATION],
   ['GET', /^\/api\/registry\/v1\/products\?installed=true$/, { schema: 1, products: Object.entries(FEEDS).map(([id, [name]]) => registryProduct(id, name)) }],

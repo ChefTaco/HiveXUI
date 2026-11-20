@@ -2,7 +2,7 @@
 // are the public release manifests' (releases/3.12.9.json and 3.12.7.json in the Hive repository).
 // Tests only.
 import type { RegistryInventory } from '@contracts/hive-registry/inventory';
-import type { MagnusInstallation } from './magnus-report';
+import type { SystemInstallation as MagnusInstallation } from '@contracts/magnus/browser';
 
 export const MANIFEST_3129 = '227d003449ae500d6dbf5e20c2b7139c6a1af92a0e642c3a84a01a0093bd9824';
 export const MANIFEST_3127 = '1e7ad239ac6c64ff246a74291e032ec1071c9da4380b4272048ea64ce58000e9';

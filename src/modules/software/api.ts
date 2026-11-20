@@ -1,11 +1,10 @@
 // The page's three reads. Each fails on its own, so one product being down or older costs only
 // its own panel.
 import { registryInventorySchema, type RegistryInventory } from '@contracts/hive-registry/inventory';
-import { nodeListResponseSchema } from '@contracts/magnus/browser';
+import { nodeListResponseSchema, systemInstallationResponseSchema, type SystemInstallation as MagnusInstallation } from '@contracts/magnus/browser';
 import { failureMeta, HiveApiError, readApiFailure } from '../../lib/api-error';
 import { apiFetch } from '../../lib/transport';
 import { magnus } from '../magnus/api/client';
-import { magnusInstallationSchema, type MagnusInstallation } from './magnus-report';
 import type { AgentNode } from './compare';
 
 export const INVENTORY_PATH = '/api/registry/v1/inventory';
@@ -30,8 +29,8 @@ export async function readInventory(signal?: AbortSignal, request: typeof apiFet
   return parsed.data;
 }
 
-export const readMagnusInstallation = (signal?: AbortSignal): Promise<MagnusInstallation> =>
-  magnus.get('/system/installation', magnusInstallationSchema, { signal });
+export const readMagnusInstallation = async (signal?: AbortSignal): Promise<MagnusInstallation> =>
+  (await magnus.get('/system/installation', systemInstallationResponseSchema, { signal })).data;
 
 export async function readAgentNodes(signal?: AbortSignal): Promise<AgentNode[]> {
   const nodes: AgentNode[] = [];

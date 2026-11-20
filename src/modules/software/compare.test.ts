@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { registryInventorySchema } from '@contracts/hive-registry/inventory';
 import { attentionCount, compareComponents, compareMagnus, compareRelease, imageDigest, shortDigest, summarizeAgents } from './compare';
-import { magnusInstallationSchema } from './magnus-report';
+import { systemInstallationSchema as magnusInstallationSchema } from '@contracts/magnus/browser';
 import { IMAGES, MANIFEST_3127, fleet, inventory3129, nativeMagnus } from './test-fixtures';
 
 const byId = (rows: ReturnType<typeof compareComponents>) => Object.fromEntries(rows.map((row) => [row.id, row]));

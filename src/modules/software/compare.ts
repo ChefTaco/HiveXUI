@@ -3,7 +3,7 @@
 // (its own version and how npm resolved its dependencies) and the Magnus node list (agent
 // versions). The page only renders what these return.
 import type { RegistryInventory, RegistryInventoryComponent, RegistryInventoryService } from '@contracts/hive-registry/inventory';
-import type { MagnusInstallation } from './magnus-report';
+import type { SystemInstallation as MagnusInstallation } from '@contracts/magnus/browser';
 
 export type Verdict = 'matches' | 'differs' | 'not-running' | 'not-reported' | 'external' | 'unpinned';
 
