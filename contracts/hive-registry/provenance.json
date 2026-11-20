@@ -3,7 +3,7 @@
   "product": "hive-registry-browser",
   "version": 4,
   "repository": "https://github.com/ChefTaco/hive",
-  "revision": "f63523dc2f9e688799cab29cf701d1a6ca358cc7",
+  "revision": "11c7800d6b7b2a987e8ca384b36d98dde8b8b0b8",
   "files": [
     {
       "path": "browser.ts",
