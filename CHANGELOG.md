@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [0.10.3] - 2026-11-20
 
 - Chat: vendor ChatterMost 0.7.1's browser conversation contract. Requests the product now refuses, such as reaction names with path, query or markup characters and over-long profile, channel and post fields, are stopped in the browser with the contract error. Reaction removal builds its path in one tested helper that encodes every segment.
 
