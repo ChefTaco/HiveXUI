@@ -3,12 +3,12 @@
   "product": "magnus-browser",
   "version": 1,
   "repository": "https://github.com/ChefTaco/magnus",
-  "revision": "49f720d09930c98f6405aefcbda5b833d3181fd9",
+  "revision": "c2b34bae68e9fd4719f1d66df950e875490a8921",
   "files": [
     {
       "path": "browser.ts",
       "source": "packages/contracts/src/browser.ts",
-      "sha256": "5a090e7f9ab202ca86df5e12525d00dab513b39a92309d84355a623a24839b72"
+      "sha256": "93d0aaed77f76c98800bb8dfb5e35483ee011b1932db301eaf6cee0cdd710335"
     }
   ]
 }

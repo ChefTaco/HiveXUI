@@ -14,6 +14,7 @@ export const PRODUCT_NAME: Readonly<Record<Product, string>> = {
   oathweave: 'Oathweave',
   chattermost: 'ChatterMost',
   embermend: 'Embermend',
+  'hive-registry': 'Hive Registry',
 };
 
 export interface Load<T> {

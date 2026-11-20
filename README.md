@@ -137,6 +137,23 @@ anonymously. If they fail, send something unreadable or list no configured produ
 `runtime.json` and warns on the overview. The Hive overview, Incidents, API Docs and Settings cover
 and call only installed products. A bookmark to an absent product opens the overview.
 
+### Installed software
+
+`/?page=software`, for administrators, puts the signed release's pins beside what the hosts
+report: each host's activation receipt against the release and manifest digest, and each
+component's pinned version and image digest against the image its host last reported running
+(`hive.sh` records host observations in the Registry). A digest that differs is flagged whatever
+the version says. For Magnus it reads `GET /api/magnus/system/installation` (Magnus administrators):
+the running version against the pin, whether it is a native npm install, and every dependency npm
+resolved differently from the `npm-shrinkwrap.json` the Magnus package shipped. Host agents are
+counted against the pinned version; they report no installed integrity yet.
+
+The inventory is the Registry's only signed-in read. The UI enables it when the Registry's own
+public product entry announces `inventory.v1` (Hive Registry 1.4.0), with the fixed Oathweave client
+`hivexui-registry` and prefix `/api/registry`, so `runtime.json` does not name it (an older UI would
+refuse the key after a rollback). An upgraded installation adds the client with
+`./hive.sh console-clients add`.
+
 ## Credentials
 
 Access tokens live only in memory; replacement credentials use the server-owned SSO cookie. Chat
@@ -165,7 +182,8 @@ covers provenance and generated browser validators, including URL and array limi
 
 The Hive Registry uses Hive's own browser contract export (`services/hive-registry/src/browser-contract.ts`),
 vendored unchanged as `contracts/hive-registry/browser.ts` and pinned by source revision, version and
-checksum.
+checksum. Its administrator inventory contract (`services/hive-registry/src/inventory-contract.ts`)
+is vendored the same way as `contracts/hive-registry/inventory.ts`.
 
 Models, routing policies and revisions, inference tests and previews, client-key management and
 quota usage, telemetry and traces, audit, settings, API docs and Codex authorization use Emberpath's
@@ -233,7 +251,7 @@ explicitly rotating a replacement and updating the owning agent's protected conf
 With `magnus` in `products`, the fleet pages are the module at `/fleet`, signed in through Oathweave
 like every other product. See `src/modules/magnus/PORTING.md`.
 
-The module reads Magnus 3.x per-node credentials (its vendored browser contract is Magnus 3.1.0).
+The module reads Magnus 3.x per-node credentials (its vendored browser contract is Magnus 3.1.6 plus the unreleased installation report).
 Nodes has a Node key column and, for
 administrators and operators, a Node credentials panel: the `NODE_AUTH_MODE` in force and whether it
 was set or is the default (`enforce` since Magnus 3.0.0), a warning for an explicit, deprecated

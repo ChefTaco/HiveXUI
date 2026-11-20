@@ -17,6 +17,7 @@ const PAGES = [
   { name: 'Installation overview', path: '/' },
   { name: 'Inbox', path: '/?page=inbox' },
   { name: 'Setup checklist', path: '/?page=setup' },
+  { name: 'Installed software', path: '/?page=software' },
   { name: 'Cindertrace overview', path: '/security-fusion' },
   { name: 'Cindertrace cases', path: '/security-fusion/cases' },
   { name: 'Cindertrace case', path: '/security-fusion/cases/case-1' },
@@ -277,4 +278,10 @@ test('the setup checklist and its header nudge show what is pending, and pass ax
   await nudge.click();
   await expect(page).toHaveURL(/\?page=setup$/);
   await expect(page.getByRole('heading', { level: 2, name: 'Setup' })).toBeVisible();
+});
+
+test('installed software needs suite sign-in, so a legacy recovery console says it is not available', async ({ page }) => {
+  await installMocks(page);
+  await page.goto('/?page=software', { waitUntil: 'networkidle' });
+  await expect(page.getByText('Installed software is not available here')).toBeVisible();
 });
