@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { createBrowserAuth } from './browser-auth';
-import { registryAllows, startRegistry } from './registry';
+import { REGISTRY_PREFIX, registryAllows, startRegistry } from './registry';
 import {
   configureEndpoint,
   requireConfiguredProducts,
@@ -95,6 +95,7 @@ export const runtimeSchema = z
           });
   });
 let identity: ReturnType<typeof createBrowserAuth> | undefined;
+let identityConfig: { clients: Partial<Record<Product, string>> } | undefined;
 let local = false;
 let recoveryOffered = false;
 /**
@@ -181,6 +182,7 @@ export async function initializeRuntime(): Promise<void> {
       enabled.add(name as Product);
     }
   if (config.identity) {
+    identityConfig = config.identity;
     identityClients = [...new Set(Object.values(config.identity.clients).filter((id): id is string => !!id))].sort();
     identity = createBrowserAuth(config.identity);
     setAccessProvider(identity.ensure);
@@ -188,4 +190,19 @@ export async function initializeRuntime(): Promise<void> {
     // The authorization portal shows no sections and serves other applications' sign-ins.
     if (location.pathname !== '/auth/authorize') await startRegistry([...enabled]);
   }
+}
+
+/** The Oathweave browser client of the Registry's inventory read; fresh setup and console-clients create it. */
+export const REGISTRY_INVENTORY_CLIENT = 'hivexui-registry';
+/**
+ * Signs in to the Hive Registry, for its inventory read only, once the Registry announces it. The
+ * client and prefix are fixed, so runtime.json need not name them. A no-op without suite sign-in.
+ */
+export function enableRegistryInventory(): boolean {
+  if (local || !identityConfig) return false;
+  identityConfig.clients['hive-registry'] ??= REGISTRY_INVENTORY_CLIENT;
+  configureEndpoint('hive-registry', REGISTRY_PREFIX);
+  enabled.add('hive-registry');
+  identityClients = [...new Set([...identityClients, identityConfig.clients['hive-registry']])].sort();
+  return true;
 }

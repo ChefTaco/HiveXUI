@@ -29,6 +29,12 @@ describe('the Installed software page', () => {
     expect(text()).toContain('Only administrators see what the hosts run.');
   });
 
+  it('says it is not available without suite sign-in and a Registry that announces the inventory', async () => {
+    view = await mount(<SoftwareScreen currentUser={{ id: 'u1', username: 'alice', roles: ['SUITE_ADMIN'], permissions: [] }} />);
+    await settle();
+    expect(text()).toContain('Installed software is not available here');
+  });
+
   it('shows the 3.12.9 case: every image matches, but native Magnus resolved effect 3.20.0', async () => {
     view = await mount(<SoftwarePage sources={sources()} />);
     await settle();

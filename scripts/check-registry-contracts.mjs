@@ -4,8 +4,14 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
-export const NAMES = ['browser.ts'];
-const SOURCES = { 'browser.ts': 'services/hive-registry/src/browser-contract.ts' };
+export const NAMES = ['browser.ts', 'inventory.ts'];
+const SOURCES = {
+  'browser.ts': 'services/hive-registry/src/browser-contract.ts',
+  'inventory.ts': 'services/hive-registry/src/inventory-contract.ts',
+};
+/** Each file declares its own contract version; the browser contract's is the manifest's. */
+const VERSIONS = { 'browser.ts': /registryBrowserContractVersion\s*=\s*(\d+)/u, 'inventory.ts': /registryInventoryContractVersion\s*=\s*(\d+)/u };
+const INVENTORY_VERSION = 1;
 const IGNORED = new Set(['provenance.json']);
 
 export function verifyRegistryContracts(directory) {
@@ -31,8 +37,8 @@ export function verifyRegistryContracts(directory) {
     const text = bytes.toString('utf8');
     for (const match of text.matchAll(/\bfrom\s+['"]([^'"]+)['"]|\bimport\s*\(\s*['"]([^'"]+)['"]/gu))
       if ((match[1] ?? match[2]) !== 'zod') throw Error('Browser contract imports backend implementation');
-    const declared = /registryBrowserContractVersion\s*=\s*(\d+)/u.exec(text)?.[1];
-    if (Number(declared) !== manifest.version) throw Error('Hive Registry browser contract version drift');
+    const declared = Number(VERSIONS[file.path].exec(text)?.[1]);
+    if (declared !== (file.path === 'browser.ts' ? manifest.version : INVENTORY_VERSION)) throw Error('Hive Registry browser contract version drift');
   }
   return manifest;
 }

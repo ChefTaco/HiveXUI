@@ -280,19 +280,8 @@ test('the setup checklist and its header nudge show what is pending, and pass ax
   await expect(page.getByRole('heading', { level: 2, name: 'Setup' })).toBeVisible();
 });
 
-test('installed software shows a digest off its pin and the native Magnus dependency difference, and passes axe', async ({ page }) => {
-  await page.clock.setFixedTime(FIXED_NOW);
+test('installed software needs suite sign-in, so a legacy recovery console says it is not available', async ({ page }) => {
   await installMocks(page);
   await page.goto('/?page=software', { waitUntil: 'networkidle' });
-  await expect(page.getByRole('heading', { level: 2, name: 'Installed software' })).toBeVisible();
-  await expect(page.getByText('2 differences')).toBeVisible();
-  const components = page.getByRole('table').filter({ hasText: 'Signed pin' });
-  await expect(components.getByRole('row').filter({ hasText: 'Emberpath' })).toContainText('Differs');
-  await expect(components.getByRole('row').filter({ hasText: 'Oathweave' })).toContainText('Matches');
-  const dependency = page.getByRole('row').filter({ hasText: 'node_modules/@prisma/config/node_modules/effect' });
-  await expect(dependency).toContainText('3.22.1');
-  await expect(dependency).toContainText('3.20.0');
-  await page.waitForTimeout(300);
-  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
-  expect(results.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical').map((violation) => violation.id)).toEqual([]);
+  await expect(page.getByText('Installed software is not available here')).toBeVisible();
 });

@@ -284,3 +284,59 @@ describe('the setup checklist on the installation', () => {
     expect(state.pendingSetupItems(state.registryState())).toEqual([]);
   });
 });
+
+describe('the signed-in inventory read', () => {
+  const registryProduct = (capabilities?: Record<string, unknown>) => ({
+    id: 'hive-registry', displayName: 'Hive Registry', description: 'Install catalog and lookup API.',
+    links: { repository: null, documentation: null, license: null, licenseSpdx: null },
+    consoleSection: null, required: true, installed: true, dependencies: [], ...(capabilities ? { capabilities } : {}),
+  });
+  async function bootWith(product: () => Response) {
+    vi.resetModules();
+    const calls: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      calls.push(url);
+      if (url === '/runtime.json') return Response.json(runtimeJson(configured));
+      if (url === INSTALLATION) return installed('hive-registry', 'oathweave', 'emberpath', 'magnus');
+      if (url === '/api/registry/v1/products/hive-registry') return product();
+      return new Response('', { status: 404 });
+    }));
+    const runtime = await import('./runtime');
+    const state = await import('./registry');
+    const transport = await import('./transport');
+    const availability = await import('../modules/software/availability');
+    await runtime.initializeRuntime();
+    return { runtime, state, transport, availability, calls };
+  }
+
+  it('is off until the Registry announces it, and runtime.json never needs to name it', async () => {
+    const { runtime, transport, availability } = await bootWith(() => Response.json(registryProduct({ 'events.v1': { path: '/v1/events' } })));
+    await expect(availability.inventoryAvailable()).resolves.toBe(false);
+    expect(runtime.productEnabled('hive-registry')).toBe(false);
+    expect(transport.productPrefix('hive-registry')).toBeUndefined();
+    expect(runtime.browserClientIds()).not.toContain('hivexui-registry');
+  });
+  it('enables the Registry sign-in with its fixed client and prefix once announced', async () => {
+    const { runtime, transport, availability, calls } = await bootWith(() => Response.json(registryProduct({ 'inventory.v1': { path: '/v1/inventory' } })));
+    await expect(availability.inventoryAvailable()).resolves.toBe(true);
+    expect(runtime.productEnabled('hive-registry')).toBe(true);
+    expect(transport.productPrefix('hive-registry')).toBe('/api/registry');
+    expect(runtime.browserClientIds()).toContain('hivexui-registry');
+    // Asked once per page load.
+    await availability.inventoryAvailable();
+    expect(calls.filter((url) => url === '/api/registry/v1/products/hive-registry')).toHaveLength(1);
+  });
+  it('ignores an announced path other than the one the ingress forwards', async () => {
+    const { availability } = await bootWith(() => Response.json(registryProduct({ 'inventory.v1': { path: '/v1/products' } })));
+    await expect(availability.inventoryAvailable()).resolves.toBe(false);
+  });
+  it('asks again after a failed read', async () => {
+    let answer = (): Response => new Response('', { status: 503 });
+    const { availability, calls } = await bootWith(() => answer());
+    await expect(availability.inventoryAvailable()).resolves.toBe(false);
+    answer = () => Response.json(registryProduct({ 'inventory.v1': { path: '/v1/inventory' } }));
+    await expect(availability.inventoryAvailable()).resolves.toBe(true);
+    expect(calls.filter((url) => url === '/api/registry/v1/products/hive-registry')).toHaveLength(2);
+  });
+});

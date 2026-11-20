@@ -98,3 +98,29 @@ describe('digests', () => {
     expect(shortDigest(null)).toBe('—');
   });
 });
+
+describe('what the Registry records beyond running products', () => {
+  it('leaves out products the release offers but this installation did not select', () => {
+    const inventory = inventory3129();
+    inventory.components.push({ ...inventory.components[0]!, id: 'chattermost', displayName: 'ChatterMost', status: 'not-installed', inventoryHost: null });
+    expect(compareComponents(inventory).map((row) => row.id)).not.toContain('chattermost');
+  });
+  it('shows an operator-added product as external, with what the operator recorded', () => {
+    const inventory = inventory3129();
+    inventory.components.push({ id: 'legacy-tool', displayName: 'Legacy tool', kind: 'application', source: 'external', status: 'installed', inventoryHost: null, pinned: null, recorded: { version: '1.2.0', imageDigest: null } });
+    const row = compareComponents(inventory).find((item) => item.id === 'legacy-tool')!;
+    expect(row.verdict).toBe('external');
+    expect(row.reason).toBe('Added by an operator as 1.2.0; no signed release pins it.');
+  });
+  it('does not call a host it could not reach a match or a difference', () => {
+    const inventory = inventory3129();
+    inventory.hosts[0]!.unreachable = true;
+    expect(byId(compareComponents(inventory)).oathweave!.verdict).toBe('not-reported');
+    expect(compareRelease(inventory)[0]!.verdict).toBe('not-reported');
+  });
+  it('compares only hosts that run this installation', () => {
+    const inventory = inventory3129();
+    inventory.hosts.push({ ...inventory.hosts[0]!, host: 'spare', active: false, receipt: null, services: [] });
+    expect(compareRelease(inventory).map((row) => row.host)).toEqual(['control']);
+  });
+});

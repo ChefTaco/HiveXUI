@@ -13,7 +13,7 @@ import { useStore } from '../../lib/store';
 import { RegistryProducts } from '../../components/registry-products';
 import { UpgradesPanel } from '../../components/upgrades';
 import { isAdministrator } from '../../lib/permissions';
-import { productInstalled } from '../../lib/runtime';
+import { useInventoryAvailable } from '../software/availability';
 import type { ScreenProps } from '../../lib/routes';
 import { LegacyDetails, legacyRows } from './legacy';
 
@@ -36,8 +36,8 @@ const stateTone = (state: OverviewRow['state']): Tone => (state === 'ready' ? 's
  * Registry; a legacy recovery installation reports the same through its native status API.
  */
 export default function SuiteOverview({ currentUser, onNavigate }: Partial<Pick<ScreenProps, 'currentUser' | 'onNavigate'>>) {
-  const software = !!onNavigate && isAdministrator(currentUser ?? null) && productInstalled('hive-registry');
-  return browserIdentity() ? <SuiteReadiness onSoftware={software ? () => onNavigate('software') : undefined} /> : <LegacyReadiness />;
+  const software = useInventoryAvailable(!!onNavigate && isAdministrator(currentUser ?? null)) === true;
+  return browserIdentity() ? <SuiteReadiness onSoftware={software && onNavigate ? () => onNavigate('software') : undefined} /> : <LegacyReadiness />;
 }
 
 /** Where an administrator compares the signed pins with what the hosts run. */

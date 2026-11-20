@@ -12,6 +12,7 @@ import { isAdministrator } from '../../lib/permissions';
 import type { ScreenProps } from '../../lib/routes';
 import { productInstalled } from '../../lib/runtime';
 import { readAgentNodes, readInventory, readMagnusInstallation } from './api';
+import { useInventoryAvailable } from './availability';
 import {
   attentionCount,
   compareComponents,
@@ -40,18 +41,28 @@ const liveSources = (): SoftwareSources => {
 };
 
 export default function SoftwareScreen({ currentUser }: Pick<ScreenProps, 'currentUser'>) {
-  const sources = useMemo(liveSources, []);
-  if (!isAdministrator(currentUser))
+  const admin = isAdministrator(currentUser);
+  const available = useInventoryAvailable(admin);
+  const sources = useMemo(() => (available ? liveSources() : null), [available]);
+  const header = <PageHeader eyebrow="Hive · installation" title="Installed software" icon={<PackageCheck />} />;
+  if (!admin)
     return (
-      <Panel title="Access unavailable">
-        <p>Only administrators see what the hosts run.</p>
-      </Panel>
+      <>
+        {header}
+        <Panel title="Access unavailable">
+          <p>Only administrators see what the hosts run.</p>
+        </Panel>
+      </>
     );
-  if (!productInstalled('hive-registry'))
+  if (available === null) return <>{header}<Panel title="Checking the Hive Registry"><LoadingRows rows={2} /></Panel></>;
+  if (!sources)
     return (
-      <Panel title="Installed software is not available here">
-        <p>This UI has no Hive Registry sign-in. Upgrade the installation, then run <code>./hive.sh console-clients add</code> to add it.</p>
-      </Panel>
+      <>
+        {header}
+        <Panel title="Installed software is not available here">
+          <p>This installation's Hive Registry does not serve the installed software inventory, or this console has no suite sign-in. Upgrade the installation to a release with Hive Registry 1.4.0 or later, then run <code>./hive.sh console-clients add</code>.</p>
+        </Panel>
+      </>
     );
   return <SoftwarePage sources={sources} />;
 }
@@ -132,17 +143,19 @@ function ReleasePanel({ inventory, rows }: { inventory: RegistryInventory; rows:
   const columns: DataTableColumn<ReleaseRow>[] = [
     { key: 'host', header: 'Host', cell: (row) => <code className="font-mono">{row.host}</code> },
     { key: 'version', header: 'Activated release', cell: (row) => row.version ?? '—' },
-    { key: 'observed', header: 'Reported', cell: (row) => <time dateTime={row.observedAt} title={formatTime(row.observedAt)}>{relativeTime(row.observedAt)}</time> },
     { key: 'status', header: 'Status', cell: (row) => verdictBadge(row.verdict) },
   ];
   return (
     <Panel title="Signed release" eyebrow="Hive Registry">
+      {inventory.phase === 'activating' ? <p role="status" className="warning-banner">A lifecycle command is activating a release now, so hosts may report a mix of old and new images until it finishes.</p> : null}
       {inventory.release ? (
         <dl className="grid gap-1 sm:grid-cols-[max-content_1fr] sm:gap-x-6">
           <dt className="stat-label">Release</dt>
           <dd className="font-medium">{inventory.release.version}</dd>
           <dt className="stat-label">Manifest SHA-256</dt>
           <dd><code className="font-mono text-xs [overflow-wrap:anywhere]">{inventory.release.manifestDigest}</code></dd>
+          <dt className="stat-label">Hosts last reported</dt>
+          <dd>{inventory.observedAt ? <time dateTime={inventory.observedAt} title={formatTime(inventory.observedAt)}>{relativeTime(inventory.observedAt)}</time> : 'Not yet'}</dd>
         </dl>
       ) : (
         <p>The Hive Registry records no signed release for this installation.</p>
@@ -161,7 +174,7 @@ function ReleasePanel({ inventory, rows }: { inventory: RegistryInventory; rows:
 function ComponentsPanel({ rows }: { rows: ComponentRow[] }) {
   const columns: DataTableColumn<ComponentRow>[] = [
     { key: 'component', header: 'Component', cell: (row) => <span className="grid whitespace-nowrap"><span className="font-medium">{row.name}</span><span className="text-xs text-text-muted">{row.kind}</span></span> },
-    { key: 'pin', header: 'Signed pin', cell: (row) => row.pinned ? <span className="grid whitespace-nowrap"><span>{row.pinned.version}</span><Digest value={row.pinned.imageDigest} /></span> : <span className="text-text-muted">—</span> },
+    { key: 'pin', header: 'Signed pin', cell: (row) => row.pinned ? <span className="grid whitespace-nowrap"><span>{row.pinned.version ?? '—'}</span><Digest value={row.pinned.imageDigest} /></span> : <span className="text-text-muted">—</span> },
     {
       key: 'reported', header: 'Host reports', cell: (row) => row.reported ? (
         <span className="grid whitespace-nowrap">

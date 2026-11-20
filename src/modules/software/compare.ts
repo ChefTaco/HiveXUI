@@ -13,7 +13,7 @@ export interface ComponentRow {
   kind: string;
   pinned: RegistryInventoryComponent['pinned'];
   /** Where the host says it runs, and what it runs. Null: no host reported this component. */
-  reported: { host: string; observedAt: string; service: RegistryInventoryService; runningDigest: string | null } | null;
+  reported: { host: string; unreachable: boolean; service: RegistryInventoryService; runningDigest: string | null } | null;
   verdict: Verdict;
   /** One line on why, for anything other than a match. */
   reason: string | null;
@@ -36,7 +36,7 @@ function findReported(inventory: RegistryInventory, component: RegistryInventory
   const hosts = component.inventoryHost ? inventory.hosts.filter((host) => host.host === component.inventoryHost) : inventory.hosts;
   for (const host of hosts) {
     const service = host.services.find((candidate) => candidate.service === component.id);
-    if (service) return { host: host.host, observedAt: host.observedAt, service, runningDigest: imageDigest(service.runningImage) };
+    if (service) return { host: host.host, unreachable: host.unreachable, service, runningDigest: imageDigest(service.runningImage) };
   }
   return null;
 }
@@ -44,10 +44,15 @@ function findReported(inventory: RegistryInventory, component: RegistryInventory
 export function compareComponent(inventory: RegistryInventory, component: RegistryInventoryComponent): ComponentRow {
   const base = { id: component.id, name: component.displayName, kind: component.kind, pinned: component.pinned };
   const reported = findReported(inventory, component);
+  if (component.source === 'external') {
+    const version = component.recorded?.version;
+    return { ...base, reported, verdict: 'external', reason: `Added by an operator${version ? ` as ${version}` : ''}; no signed release pins it.` };
+  }
   if (component.status === 'external')
     return { ...base, reported, verdict: 'external', reason: 'Runs outside this installation; its own report is below when the UI can read it.' };
   if (!component.pinned) return { ...base, reported, verdict: 'unpinned', reason: 'The signed release pins no image for it.' };
   if (!reported) return { ...base, reported, verdict: 'not-reported', reason: 'No host has reported it. Run ./hive.sh doctor to record what the hosts run.' };
+  if (reported.unreachable) return { ...base, reported, verdict: 'not-reported', reason: `hive.sh could not reach ${reported.host} when it last looked.` };
   const { service, runningDigest } = reported;
   if (service.state === 'missing' || !service.runningImage)
     return { ...base, reported, verdict: 'not-running', reason: `${reported.host} has no container for it.` };
@@ -65,23 +70,23 @@ export function compareComponent(inventory: RegistryInventory, component: Regist
 const KIND_ORDER: Record<string, number> = { application: 0, 'static-ui': 1, ingress: 2, datastore: 3 };
 export function compareComponents(inventory: RegistryInventory): ComponentRow[] {
   return inventory.components
+    // Offered by the release but not selected here: nothing to compare.
+    .filter((component) => component.status !== 'not-installed')
     .map((component) => compareComponent(inventory, component))
     .sort((a, b) => (KIND_ORDER[a.kind] ?? 9) - (KIND_ORDER[b.kind] ?? 9) || a.name.localeCompare(b.name));
 }
 
 export interface ReleaseRow {
   host: string;
-  observedAt: string;
   version: string | null;
   verdict: 'matches' | 'differs' | 'not-reported';
 }
-/** Each host's activation receipt against the release the Registry records. */
+/** Each active host's activation receipt against the release the Registry records. */
 export function compareRelease(inventory: RegistryInventory): ReleaseRow[] {
-  return inventory.hosts.map((host) => ({
+  return inventory.hosts.filter((host) => host.active || host.unreachable).map((host) => ({
     host: host.host,
-    observedAt: host.observedAt,
     version: host.receipt?.version ?? null,
-    verdict: !host.receipt || !inventory.release
+    verdict: host.unreachable || !host.receipt || !inventory.release
       ? 'not-reported'
       : host.receipt.version === inventory.release.version && host.receipt.digest === inventory.release.manifestDigest
         ? 'matches'

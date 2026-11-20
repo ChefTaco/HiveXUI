@@ -3,7 +3,8 @@
 ## [Unreleased]
 
 - Installed software (`/?page=software`, linked from the Installation overview for administrators): the signed release's version and manifest digest beside each host's activation receipt, and every component's pinned version and image digest beside the image digest, state and health its host last reported (recorded by `hive.sh` in the Hive Registry). A digest that differs from the pin is flagged whatever the version label says. For Magnus, the page reads Magnus's installation report: its running version against the pin, whether it is a native npm install, and every dependency npm resolved differently from the lock the signed build used, such as `effect` 3.20.0 where the signed lock has 3.22.1. Host agents are counted against the pinned version.
-- The Hive Registry is a signed-in product (`hive-registry`, prefix `/api/registry`, client `hivexui-registry`) for the inventory read only; its public reads stay anonymous. Without that client in `runtime.json` the page says to upgrade and run `./hive.sh console-clients add`. Against a Magnus without the report (404) the Magnus panel says so and the rest of the page still shows.
+- The Hive Registry is a signed-in product (`hive-registry`, prefix `/api/registry`, Oathweave client `hivexui-registry`) for the inventory read only; its public reads stay anonymous. The UI enables it when the Registry's public product entry announces `inventory.v1` (Hive Registry 1.4.0), so `runtime.json` does not change. Without it the page says to upgrade and run `./hive.sh console-clients add`. Against a Magnus without the report (404) the Magnus panel says so and the rest of the page still shows.
+- Contracts: Hive Registry browser contract 4 (`inventory.v1` capability) and its new inventory contract; the Magnus browser contract gains the installation report (`GET /system/installation`).
 
 ## [0.10.3] - 2026-11-20
 

@@ -190,7 +190,10 @@ export const pendingSetupItems = (current: RegistryState): RegistrySetupItem[] =
  * A capability added to the contract later is read strictly until it is listed here too.
  */
 const lenientCapabilities = registryCapabilitiesSchema
-  .extend({ 'events.v1': registryCapabilitiesSchema.shape['events.v1'].catch(undefined) })
+  .extend({
+    'events.v1': registryCapabilitiesSchema.shape['events.v1'].catch(undefined),
+    'inventory.v1': registryCapabilitiesSchema.shape['inventory.v1'].catch(undefined),
+  })
   .optional()
   .catch(undefined);
 export const catalogProductSchema = registryProductSchema.extend({ capabilities: lenientCapabilities });
@@ -217,4 +220,23 @@ export async function readRegistryCatalog(presented: (id: string) => boolean): P
         connection: await read(`/v1/products/${encodeURIComponent(product.id)}/connection`, catalogConnectionSchema).catch(() => null),
       })),
   );
+}
+
+/** The one inventory path HiveXUI reads, and the one the ingress forwards. */
+export const REGISTRY_INVENTORY_PATH = '/v1/inventory';
+let inventoryAnnounced: Promise<boolean> | undefined;
+/**
+ * Whether this Registry serves the signed-in inventory read (`inventory.v1`, Registry 1.4.0). Its
+ * own public product entry announces it; runtime.json does not, because an older UI refuses an
+ * unknown product key after a rollback. Asked once per page load; a failed read is asked again.
+ */
+export function registryAnnouncesInventory(): Promise<boolean> {
+  inventoryAnnounced ??= read('/v1/products/hive-registry', catalogProductSchema).then(
+    (product) => product.capabilities?.['inventory.v1']?.path === REGISTRY_INVENTORY_PATH,
+    () => {
+      inventoryAnnounced = undefined;
+      return false;
+    },
+  );
+  return inventoryAnnounced;
 }

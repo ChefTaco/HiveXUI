@@ -29,16 +29,21 @@ export function inventory3129(overrides: { emberpathImage?: string; receipt?: { 
     installationId: 'example-suite',
     release: { version: '3.12.9', manifestDigest: MANIFEST_3129 },
     components: [
-      { id: 'oathweave', displayName: 'Oathweave', kind: 'application', status: 'installed', pinned: pin('2.3.2', IMAGES.oathweave), inventoryHost: 'control' },
-      { id: 'emberpath', displayName: 'Emberpath', kind: 'application', status: 'installed', pinned: pin('2.5.4', IMAGES.emberpath), inventoryHost: 'control' },
-      { id: 'hivexui', displayName: 'HiveXUI', kind: 'static-ui', status: 'installed', pinned: pin('0.10.3', IMAGES.hivexui), inventoryHost: 'control' },
-      { id: 'cindertrace-postgres', displayName: 'Cindertrace PostgreSQL', kind: 'datastore', status: 'installed', pinned: pin('18.7', IMAGES.postgres), inventoryHost: 'control' },
-      { id: 'magnus', displayName: 'Magnus', kind: 'application', status: 'external', pinned: pin('3.1.5', IMAGES.magnus), inventoryHost: null },
+      { id: 'oathweave', displayName: 'Oathweave', kind: 'application', source: 'release' as const, status: 'installed' as const, recorded: null, pinned: pin('2.3.2', IMAGES.oathweave), inventoryHost: 'control' },
+      { id: 'emberpath', displayName: 'Emberpath', kind: 'application', source: 'release' as const, status: 'installed' as const, recorded: null, pinned: pin('2.5.4', IMAGES.emberpath), inventoryHost: 'control' },
+      { id: 'hivexui', displayName: 'HiveXUI', kind: 'static-ui', source: 'release' as const, status: 'installed' as const, recorded: null, pinned: pin('0.10.3', IMAGES.hivexui), inventoryHost: 'control' },
+      { id: 'cindertrace-postgres', displayName: 'Cindertrace PostgreSQL', kind: 'datastore', source: 'release' as const, status: 'installed' as const, recorded: null, pinned: pin('18.7', IMAGES.postgres), inventoryHost: 'control' },
+      { id: 'magnus', displayName: 'Magnus', kind: 'application', source: 'release' as const, status: 'external' as const, recorded: null, pinned: pin('3.1.5', IMAGES.magnus), inventoryHost: null },
     ],
+    phase: 'complete',
+    observedAt: OBSERVED,
     hosts: [
       {
         host: 'control',
-        observedAt: OBSERVED,
+        active: true,
+        unreachable: false,
+        transactionPhase: 'complete',
+        catalog: null,
         receipt: overrides.receipt ?? { version: '3.12.9', digest: MANIFEST_3129 },
         services: [
           service('oathweave', IMAGES.oathweave),
