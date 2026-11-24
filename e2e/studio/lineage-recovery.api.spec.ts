@@ -74,7 +74,7 @@ test('3. transfer recovery: a rendition, a ranged original and its digest', asyn
   test.skip(!ctx.project, 'Needs the project from scenario 1');
   const deliverables = (await ctx.api.get(`/projects/${ctx.project.id}/deliverables`)).deliverables as any[];
   const revision = deliverables.flatMap((item) => item.revisions).find((item: any) => item.size > 1024);
-  test.skip(!revision, 'The research agents delivered no file large enough to range; a Nova map fixture is needed');
+  test.skip(!revision, 'The research agents delivered no file large enough to range; a large map fixture is needed');
   const whole = await ctx.api.blob(revision.blob_sha256);
   expect(whole.headers['accept-ranges']).toBe('bytes');
   expect(whole.headers['x-content-sha256']).toBe(revision.blob_sha256);

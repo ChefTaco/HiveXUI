@@ -46,7 +46,7 @@ async function open(capabilities: Record<string, number> | undefined, sha: strin
     if (path === '/ardent/installations/node-1') return { success: true, data: installation(capabilities) };
     const base = '/ardent/installations/node-1/profiles/lead';
     if (path === `${base}/status`) return { success: true, data: { backend: 'llamacpp' } };
-    if (path === `${base}/tasks`) return { success: true, data: { tasks: [{ id: TASK, state: 'completed', prompt: 'Draw the Nova map', created_ms: 1 }] } };
+    if (path === `${base}/tasks`) return { success: true, data: { tasks: [{ id: TASK, state: 'completed', prompt: 'Draw the world map', created_ms: 1 }] } };
     if (path === `${base}/tasks/${TASK}/events`)
       return { success: true, data: { events: [{ sequence: 1, kind: 'artifact_registered', created_ms: 1, detail: { artifact_id: 'f'.repeat(32), name: 'regions.json', mime: 'application/json', sha256: sha, size: BYTES.length, revision: 1, supersedes_sha256: null, manifest: {} } }] } };
     if (path === `${base}/artifacts/${sha}/content` || path === `${base}/artifacts/${sha}`) return content();

@@ -145,7 +145,7 @@ describe('renditions and provenance', () => {
   });
 
   it('reads manifest 1.1 provenance', () => {
-    const facts = provenanceOf(revision({ ardent: { agent_ref: 'node-1~world', task_id: 'task-9', manifest: { schema_version: '1.1', revision: 2, supersedes_sha256: 'c'.repeat(64), license: 'CC-BY-4.0', provenance: { producer: 'nova', producer_task_id: 'task-9', execution: { root: 'hx1:studio:i:request:m', step: 'hx1:ardent:n.p:step:task-9/3' } } } } }));
+    const facts = provenanceOf(revision({ ardent: { agent_ref: 'node-1~world', task_id: 'task-9', manifest: { schema_version: '1.1', revision: 2, supersedes_sha256: 'c'.repeat(64), license: 'CC-BY-4.0', provenance: { producer: 'world', producer_task_id: 'task-9', execution: { root: 'hx1:studio:i:request:m', step: 'hx1:ardent:n.p:step:task-9/3' } } } } }));
     expect(facts).toMatchObject({ schemaVersion: '1.1', agent: 'node-1~world', producerTask: 'task-9', executionRoot: 'hx1:studio:i:request:m', manifestRevision: 2, license: 'CC-BY-4.0' });
     expect(provenanceOf(revision({ ardent: null }))).toMatchObject({ schemaVersion: null, executionRoot: null });
   });
@@ -159,14 +159,14 @@ describe('the import strip', () => {
     view = undefined;
   });
   const item = (overrides: Partial<ArtifactImport> = {}): ArtifactImport => ({
-    artifact_id: 'f'.repeat(32), task_id: 'tsk_01HZX3K6Q1V8R2M4N6P8T0W001', agent_ref: 'node-1~world', name: 'nova-map.png', mime: 'image/png', size: 20 * 1024 * 1024,
+    artifact_id: 'f'.repeat(32), task_id: 'tsk_01HZX3K6Q1V8R2M4N6P8T0W001', agent_ref: 'node-1~world', name: 'world-map.png', mime: 'image/png', size: 20 * 1024 * 1024,
     sha256: 'a'.repeat(64), state: 'pending', attempts: 1, error: null, revision_id: null, updated_at: '2026-11-08T10:00:00.000Z', received_bytes: 10 * 1024 * 1024, transfer: 'range', resumes: 1, error_code: null, ...overrides,
   });
   it('shows a transfer resuming with its progress, and a failure with what it means', async () => {
     view = await mount(<ImportStrip imports={[item(), item({ artifact_id: 'e'.repeat(32), name: 'notes.md', state: 'failed', error: 'digest', error_code: 'DIGEST_MISMATCH' }), item({ artifact_id: 'd'.repeat(32), state: 'imported' })]} />);
     const text = view.container.textContent ?? '';
     expect(text).toContain('10.0 MB of 20.0 MB · resumed 1 time');
-    expect(view.container.querySelector('progress[aria-label="Receiving nova-map.png"]')?.getAttribute('value')).toBe(String(10 * 1024 * 1024));
+    expect(view.container.querySelector('progress[aria-label="Receiving world-map.png"]')?.getAttribute('value')).toBe(String(10 * 1024 * 1024));
     expect(text).toContain('Not received: the bytes did not match their recorded digest.');
     expect(view.container.querySelectorAll('[data-import]')).toHaveLength(2);
   });

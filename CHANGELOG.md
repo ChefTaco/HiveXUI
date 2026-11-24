@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.12.0] - 2026-11-24
 
 - Studio room: state chips for interrupted tasks. **Recovering** (Ardent continues the run under the same task), **Needs decision (effect unknown)** (held; counted among the blockers) and **Unknown outcome** (cannot be resumed), with paused, cancelled and failed unchanged.
 - Studio room: a recovery panel on held tasks that shows the reason and only the decisions the backend lists, each confirmed with what it does to the interrupted call, sent once with an idempotency key (`POST /tasks/{id}/recovery`). It is hidden for a Studio without recovery and explains when the agent cannot take decisions.
@@ -12,7 +12,7 @@
 - Fix: the Magnus Ardent profile page lists artifacts the agent registered (`artifact_registered`), not only research briefs, and downloads through artifact transfer v2 (`/content`, Magnus 3.3.0) with the real type and file name when the profile offers it, checking the digest before saving.
 - Magnus Ardent overview: the agent dependency report (`GET /ardent/dependencies`): HiveMem, HiveSkills and Emberpath as usable, missing, unsupported or awaiting configuration, with where each was found, and **Check again**.
 - The project stream reads Studio 0.5.0's `task.recovery` and `artifact.import.progress` events (in its contract).
-- Contracts: the Magnus browser contract at `4894bfb` (Magnus 3.3.0: agent dependency report, studio level 4), the Ardent Project Studio browser contract at `4e232cb` (Studio 0.5.0: workflow runs, task recovery and lineage, renditions, resumable imports, template definitions) and the Emberpath model administration contract at `689b513` (trace execution fields and attempts). The fields Studio 0.5.0 added to tasks, revisions and imports are read as optional, so the room and Review keep working against an older Studio. Ardent's task list, recovery and lineage, which no browser contract describes, are read leniently. `@hivemagnus/hive-common` ^0.6.0 (`/artifact` `selectRendition`, `/execution`).
+- Contracts: the Magnus browser contract at `4894bfb` (the contracts of Magnus 3.3.0: agent dependency report, studio level 4), the Ardent Project Studio browser contract of Studio 0.5.0 (`633b572`: workflow runs, task recovery and lineage, renditions, resumable imports, template definitions) and the Emberpath model administration contract of Emberpath 2.6.0 (`7cd32f8`: trace execution fields and attempts), with Emberpath 2.6.0's NOTICE in `notices/`. The Studio and Emberpath files have the same bytes as the `4e232cb` and `689b513` exports used during development. The fields Studio 0.5.0 added to tasks, revisions and imports are read as optional, so the room and Review keep working against an older Studio. Ardent's task list, recovery and lineage, which no browser contract describes, are read leniently. `@hivemagnus/hive-common` ^0.6.0 (`/artifact` `selectRendition`, `/execution`).
 - End-to-end: scenario stubs for build-plan verification 1-4 and 10 (`e2e/studio/lineage-recovery.api.spec.ts`), skipped on a stack whose agents run Ardent before 3.2.0.
 
 ## [0.11.0] - 2026-11-20
