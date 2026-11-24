@@ -1,10 +1,13 @@
 import type { ArdentInstallation, ArdentTaskEvent } from './schemas';
 
 export interface ArdentArtifact {
+  /** The SHA-256 of the bytes, which the download routes take. */
   id: string;
   name: string;
   bytes: number;
   media_type: string;
+  /** research: the research brief and its Markdown; registered: an artifact the agent registered (artifact_registered). */
+  source: 'research' | 'registered';
 }
 
 const NODE_ID = /^[A-Za-z0-9._-]{1,128}$/;
@@ -41,18 +44,48 @@ export function summarize(installations: readonly ArdentInstallation[]) {
 const isRecord = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 export const asRecord = (value: unknown): Record<string, unknown> => (isRecord(value) ? value : {});
 
-/** The artifacts a task's journal names. Only a well-formed id can become a download path. */
+/**
+ * The artifacts a task's journal names: the research brief (research_artifacts) and every artifact the
+ * agent registered (artifact_registered, which carries the manifest's digest, name, type and size).
+ * Only a well-formed digest can become a download path.
+ */
 export function taskArtifacts(events: readonly ArdentTaskEvent[]): ArdentArtifact[] {
   const found = new Map<string, ArdentArtifact>();
+  const digest = (value: unknown): value is string => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
   for (const event of events) {
-    if (event.kind !== 'research_artifacts') continue;
-    for (const raw of Object.values(asRecord(event.detail))) {
-      const item = asRecord(raw);
-      if (typeof item.id === 'string' && /^[a-f0-9]{64}$/.test(item.id) && typeof item.name === 'string' && typeof item.bytes === 'number' && typeof item.media_type === 'string')
-        found.set(item.id, { id: item.id, name: item.name, bytes: item.bytes, media_type: item.media_type });
+    if (event.kind === 'research_artifacts') {
+      for (const raw of Object.values(asRecord(event.detail))) {
+        const item = asRecord(raw);
+        if (digest(item.id) && typeof item.name === 'string' && typeof item.bytes === 'number' && typeof item.media_type === 'string')
+          found.set(item.id, { id: item.id, name: item.name, bytes: item.bytes, media_type: item.media_type, source: 'research' });
+      }
+    } else if (event.kind === 'artifact_registered') {
+      const item = asRecord(event.detail);
+      if (digest(item.sha256) && typeof item.name === 'string' && typeof item.size === 'number' && typeof item.mime === 'string')
+        found.set(item.sha256, { id: item.sha256, name: item.name, bytes: item.size, media_type: item.mime, source: 'registered' });
     }
   }
   return [...found.values()];
+}
+
+/**
+ * The file name in a Content-Disposition header (`filename*` first, then `filename`), reduced to a
+ * safe base name, or null when it names none.
+ */
+export function dispositionName(header: string | null): string | null {
+  if (!header) return null;
+  const extended = /filename\*\s*=\s*(?:UTF-8|utf-8)''([^;]+)/.exec(header)?.[1];
+  let name: string | undefined;
+  if (extended) {
+    try {
+      name = decodeURIComponent(extended.trim());
+    } catch {
+      name = undefined;
+    }
+  }
+  name ??= /filename\s*=\s*"((?:[^"\\]|\\.)*)"/.exec(header)?.[1]?.replace(/\\(.)/g, '$1') ?? /filename\s*=\s*([^;\s]+)/.exec(header)?.[1];
+  const base = name?.split(/[\\/]/).pop()?.trim();
+  return base && base !== '.' && base !== '..' ? base.slice(0, 200) : null;
 }
 
 const FINAL_TASK_STATES = new Set(['completed', 'partial', 'failed', 'cancelled', 'unknown']);

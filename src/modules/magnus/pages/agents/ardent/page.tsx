@@ -6,6 +6,7 @@ import { FxPanel, PageItem } from '../../../effects';
 import Link from '../../../navigation';
 import { PostureHero, StatTile } from '../shared/fx';
 import { listInstallations } from './api';
+import { DependencyReport } from './dependencies';
 import { channelSummary, profileHref, summarize } from './logic';
 
 export default function ArdentOverviewPage() {
@@ -28,6 +29,9 @@ export default function ArdentOverviewPage() {
           <StatTile icon={<Activity className="size-4" />} label="Running profiles" value={known ? running : null} tone="success" />
           <StatTile icon={<Radio className="size-4" />} label="Needs attention" value={known ? needsAttention : null} tone={needsAttention ? 'warning' : 'accent'} />
         </PostureHero>
+      </PageItem>
+      <PageItem>
+        <DependencyReport />
       </PageItem>
       <PageItem>
         <FxPanel title="Profiles" description="Current profile observations from managed nodes" interactive={false}>

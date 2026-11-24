@@ -1,13 +1,20 @@
 // A project's live event feed. Persisted events carry a per-project seq with no gaps, so the client
 // keeps the last one and resumes with ?after=. Anything it cannot account for (a reset from the
 // service, a skipped seq, a heartbeat ahead of it) means its copy may be stale: refetch the snapshot.
-import type { z } from 'zod';
-import { messageDeltaEventSchema, projectEventSchema, resetEventSchema, heartbeatEventSchema } from '@contracts/ardentstudio.generated';
+import { z } from 'zod';
+import { messageDeltaEventSchema, projectEventSchema, projectEventTypeSchema, resetEventSchema, heartbeatEventSchema } from '@contracts/ardentstudio.generated';
 import { openStream, type StreamHandle, type StreamState } from '../../magnus/api/stream';
 import type { SseEvent } from '../../magnus/api/sse';
 import { segment, studioPath } from './client';
 
-export type ProjectEvent = z.infer<typeof projectEventSchema>;
+/**
+ * Event types a newer Studio sends that the vendored contract does not list yet. Studio 0.5.0 adds
+ * task.recovery (a task's execution recovery changed) and artifact.import.progress (a transfer moved
+ * on). Without them a valid event would be unreadable, and the next one would look like a gap.
+ */
+export const NEWER_EVENT_TYPES = ['task.recovery', 'artifact.import.progress'] as const;
+const liveProjectEventSchema = projectEventSchema.extend({ type: z.union([projectEventTypeSchema, z.enum(NEWER_EVENT_TYPES)]) });
+export type ProjectEvent = z.infer<typeof liveProjectEventSchema>;
 export type MessageDelta = z.infer<typeof messageDeltaEventSchema>;
 
 export type StreamAction =
@@ -40,7 +47,7 @@ export function reduceStreamFrame(seq: number, frame: SseEvent): { seq: number; 
     const delta = parse(messageDeltaEventSchema, frame.data);
     return { seq, action: delta ? { kind: 'delta', delta } : { kind: 'ignore' } };
   }
-  const event = parse(projectEventSchema, frame.data);
+  const event = parse(liveProjectEventSchema, frame.data);
   if (!event) return { seq, action: { kind: 'ignore' } };
   if (event.seq <= seq) return { seq, action: { kind: 'ignore' } };
   if (event.seq !== seq + 1) return { seq, action: { kind: 'reset', reason: 'gap' } };

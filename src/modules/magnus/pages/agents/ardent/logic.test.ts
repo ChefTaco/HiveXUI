@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { channelSummary, parseIdList, parseProfileRef, profileHref, summarize, taskArtifacts, taskIsFinal } from './logic';
+import { channelSummary, dispositionName, parseIdList, parseProfileRef, profileHref, summarize, taskArtifacts, taskIsFinal } from './logic';
 import type { ArdentInstallation } from './schemas';
 
 const profile = (id: string, running: boolean, error: string | null = null) => ({ id, name: id, backend: 'llamacpp', apiPort: 9910, running, a2aEnabled: false, channels: {}, error });
@@ -42,7 +42,18 @@ describe('channelSummary', () => {
 describe('taskArtifacts', () => {
   const good = { id: 'a'.repeat(64), name: 'brief.md', bytes: 12, media_type: 'text/markdown' };
   it('reads artifacts from the research journal', () => {
-    expect(taskArtifacts([{ sequence: 1, kind: 'research_artifacts', detail: { markdown: good }, created_ms: 1 }])).toEqual([good]);
+    expect(taskArtifacts([{ sequence: 1, kind: 'research_artifacts', detail: { markdown: good }, created_ms: 1 }])).toEqual([{ ...good, source: 'research' }]);
+  });
+  it('lists the artifacts an agent registered, by their manifest digest, name, type and size', () => {
+    const registered = { artifact_id: 'f'.repeat(32), name: 'nova-map.png', mime: 'image/png', sha256: 'b'.repeat(64), size: 18_400_000, revision: 1, supersedes_sha256: null, manifest: {} };
+    expect(taskArtifacts([
+      { sequence: 1, kind: 'research_artifacts', detail: { markdown: good }, created_ms: 1 },
+      { sequence: 2, kind: 'artifact_registered', detail: registered, created_ms: 2 },
+      { sequence: 3, kind: 'artifact_registered', detail: { ...registered, sha256: '../../x' }, created_ms: 3 },
+    ])).toEqual([
+      { ...good, source: 'research' },
+      { id: 'b'.repeat(64), name: 'nova-map.png', bytes: 18_400_000, media_type: 'image/png', source: 'registered' },
+    ]);
   });
   it('ignores other events and any id that could not be a digest', () => {
     expect(taskArtifacts([
@@ -73,5 +84,15 @@ describe('parseIdList', () => {
     expect(() => parseIdList('-1')).toThrow(/integers/);
     expect(() => parseIdList('0')).toThrow(/range/);
     expect(() => parseIdList('99999999999999999999')).toThrow(/range/);
+  });
+});
+
+describe('dispositionName', () => {
+  it('reads the file name a content answer gives, never a path', () => {
+    expect(dispositionName('attachment; filename="nova-map.png"')).toBe('nova-map.png');
+    expect(dispositionName("attachment; filename*=UTF-8''r%C3%A9sum%C3%A9.pdf; filename=\"resume.pdf\"")).toBe('résumé.pdf');
+    expect(dispositionName('attachment; filename="../../etc/passwd"')).toBe('passwd');
+    expect(dispositionName('attachment')).toBeNull();
+    expect(dispositionName(null)).toBeNull();
   });
 });

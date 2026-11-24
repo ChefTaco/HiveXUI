@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased]
+
+- Studio room: state chips for interrupted tasks. **Recovering** (Ardent continues the run under the same task), **Needs decision (effect unknown)** (held; counted among the blockers) and **Unknown outcome** (cannot be resumed), with paused, cancelled and failed unchanged.
+- Studio room: a recovery panel on held tasks that shows the reason and only the decisions the backend lists, each confirmed with what it does to the interrupted call, sent once with an idempotency key (`POST /tasks/{id}/recovery`). It is hidden for a Studio without recovery and explains when the agent cannot take decisions.
+- Studio room: the lineage drawer (`?lineage=`), from the originating request through hand-offs, reassignments and workflow steps to each Ardent attempt's model attempts (linked to their Emberpath traces), tool calls and artifacts. Old tasks show "No execution history recorded". It reads again on `task.recovery` and task events and after a stream reset.
+- Studio room: a **Workflows** drawer for branch-and-join workflow runs: steps, needs, waiting and blocked reasons, and the node actions Studio offers (retry, skip, cancel run), live from `workflow.*` events.
+- Deliverable Review: preview renditions shown inline with "Preview · original … PNG"; **Download original** streams with progress, resumes with `Range` up to five times after a dropped connection and saves only after the SHA-256 matches; the Receiving strip shows import progress, resumes and why an import failed; a Provenance panel (manifest 1.1) links to the execution history.
+- Agent 360: an **Executions** tab with the profile's recent Ardent tasks through Magnus (state, recovery, root and parent), linked to the Magnus task view. Traffic gains an execution column and a **Linked to executions** view (Emberpath 2.6.0).
+- Fix: the Agent 360 Traffic outcome badge reads Emberpath's `SUCCEEDED`, `FAILED`, `DENIED` and `STREAM_FAILED` (every trace showed as failed before).
+- Fix: the Magnus Ardent profile page lists artifacts the agent registered (`artifact_registered`), not only research briefs, and downloads through artifact transfer v2 (`/content`, Magnus 3.3.0) with the real type and file name when the profile offers it, checking the digest before saving.
+- Magnus Ardent overview: the agent dependency report (`GET /ardent/dependencies`): HiveMem, HiveSkills and Emberpath as usable, missing, unsupported or awaiting configuration, with where each was found, and **Check again**.
+- The project stream accepts Studio 0.5.0's `task.recovery` and `artifact.import.progress` events instead of reading them as a gap.
+- Contracts: the Magnus browser contract at `e369e4f` (dependency report), the Ardent Project Studio browser contract at `f5f91fb` (workflow runs) and the Emberpath model administration contract at `689b513` (trace execution fields and attempts). Studio 0.5.0's recovery, lineage, rendition and import fields are read as optional extensions until its contract is released. `@hivemagnus/hive-common` ^0.6.0 (`/artifact` `selectRendition`, `/execution`).
+- End-to-end: scenario stubs for build-plan verification 1-4 and 10 (`e2e/studio/lineage-recovery.api.spec.ts`), skipped on a stack whose agents run Ardent before 3.2.0.
+
 ## [0.11.0] - 2026-11-20
 
 - Installed software (`/?page=software`, linked from the Installation overview for administrators): the signed release's version and manifest digest beside each host's activation receipt, and every component's pinned version and image digest beside the image digest, state and health its host last reported (recorded by `hive.sh` in the Hive Registry). A digest that differs from the pin is flagged whatever the version label says. For Magnus, the page reads Magnus's installation report: its running version against the pin, whether it is a native npm install, and every dependency npm resolved differently from the lock the signed build used, such as `effect` 3.20.0 where the signed lock has 3.22.1. Host agents are counted against the pinned version.

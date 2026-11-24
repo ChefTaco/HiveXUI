@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
+import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HiveApiError } from '../../lib/api-error';
 import type { Product } from '../../lib/transport';
 import { button, click, mount, settle, stubBrowser, type, type Mounted } from '../magnus/test-dom';
-import type { AgentIdentity, AgentSources, FleetTarget, FusionCase, MemoryRecord, ProjectSummary, Trace } from './api';
+import type { AgentIdentity, AgentSources, ArdentExecutionTask, FleetTarget, FusionCase, MemoryRecord, ProjectSummary, Trace } from './api';
 import { AgentPage, AgentSourcesContext, type AgentTab } from './page';
 import { parseAgentRef } from './paths';
 import { summary } from '../studio/test-fixtures';
@@ -59,6 +60,7 @@ function sources(overrides: Partial<AgentSources> = {}, missing: readonly Produc
     projects: async () => ({ supported: true, data: [project('Sunken Archive')] }),
     cases: async () => ({ supported: true, data: [fusionCase('case-1', 'Repeated sign-in failures')] }),
     traces: async () => ({ supported: true, data: { traces: [trace('tr_1')], nextCursor: null } }),
+    executions: async () => [],
     skillTargets: async () => ({ supported: true, data: [target('target-a', ['node-1~lead']), target('target-b')] }),
     profileSkills: async () => [{ name: 'summarize', description: 'Condense documents', hash: '', enabled: true }],
     ...overrides,
@@ -277,6 +279,42 @@ describe('the Cases tab', () => {
 });
 
 describe('the Traffic tab', () => {
+  it("colours each outcome by Emberpath's enum, not by a word it never sends", async () => {
+    const outcomes = ['SUCCEEDED', 'FAILED', 'DENIED', 'STREAM_FAILED'];
+    const panel = await open(sources({ traces: async () => ({ supported: true, data: { traces: outcomes.map((outcome, index) => ({ ...trace(`tr_${index}`), outcome })), nextCursor: null } }) }), 'traffic');
+    const badges = rows(panel).map((row) => row.querySelectorAll('td')[3]!.querySelector('.badge')!);
+    expect(badges.map((badge) => badge.className)).toEqual(['badge badge--success', 'badge badge--danger', 'badge badge--warning', 'badge badge--danger']);
+    expect(badges.map((badge) => badge.textContent)).toEqual(['Succeeded · 200', 'Failed · 200', 'Denied · 200', 'Stream failed · 200']);
+  });
+
+  it('lists the traffic linked to executions with the attempt each trace served', async () => {
+    const calls: unknown[][] = [];
+    const linked = { ...trace('tr_9'), outcome: 'SUCCEEDED', execution: { root: 'hx1:studio:inst:request:msg-1', self: 'hx1:ardent:node-1.lead:attempt:task-1/2/1', parent: null, clientRequestId: null, inboundTraceparent: null, attempt: 1, deadlineMs: null, assertedBy: null, context: null },
+      attempts: [{ providerId: 'p1', attempt: 1, status: 503, failover: true, outcome: 'http_error' as const }, { providerId: 'p2', attempt: 1, failover: false, outcome: 'succeeded' as const }] };
+    const panel = await open(sources({ traces: async (...args) => { calls.push(args); return { supported: true, data: { traces: args[2] ? [linked] : [trace('tr_1')], nextCursor: null } }; } }), 'traffic');
+    expect(text(rows(panel)[0]!)).not.toContain('hx1');
+    const select = panel.querySelector<HTMLSelectElement>('select[aria-label="Which traffic"]')!;
+    await act(async () => {
+      select.value = 'linked';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await settle();
+    expect(calls.at(-1)![2]).toBe(true);
+    expect(text(rows(panel)[0]!)).toContain('ardent:attempt:task-1/2/1');
+    expect(text(rows(panel)[0]!)).toContain('2 provider attempts, failover');
+  });
+
+  it('says when this Emberpath cannot link traffic to executions', async () => {
+    const panel = await open(sources({ traces: async (...args) => (args[2] ? { supported: false } : { supported: true, data: { traces: [trace('tr_1')], nextCursor: null } }) }), 'traffic');
+    const select = panel.querySelector<HTMLSelectElement>('select[aria-label="Which traffic"]')!;
+    await act(async () => {
+      select.value = 'linked';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await settle();
+    expect(text(panel)).toContain('does not link traces to executions');
+  });
+
   it('links each trace to Emberpath and says when there are older ones', async () => {
     const panel = await open(sources({ traces: async () => ({ supported: true, data: { traces: [trace('tr_1')], nextCursor: 'abc' } }) }), 'traffic');
     expect(hrefs(panel)).toContain('/?page=traces&trace=tr_1');
@@ -321,5 +359,33 @@ describe('the Skills tab (HiveSkills and Magnus)', () => {
 
   it('says neither product is installed', async () => {
     expect(text(await open(sources({}, ['hiveskills', 'magnus']), 'skills'))).toContain('HiveSkills is not installed');
+  });
+});
+
+describe('the Executions tab (Magnus)', () => {
+  const ardentTask = (id: string, overrides: Partial<ArdentExecutionTask> = {}): ArdentExecutionTask => ({ id, state: 'completed', prompt: `Task ${id}`, created_ms: Date.parse(T1), ...overrides });
+  it('lists the profile tasks with their recovery, root and parent, linked to the Magnus task view', async () => {
+    const panel = await open(sources({ executions: async () => [
+      ardentTask('t-held', { state: 'unknown', execution: { root: 'hx1:studio:inst:request:msg-1', parent: 'hx1:studio:inst:task:tsk_1' }, recovery: { status: 'awaiting_decision', reason: { code: 'UNSETTLED_EXTERNAL_WRITE', message: 'Confirm whether it applied.' }, attempt: 1, actions: ['mark_applied'] } }),
+      ardentTask('t-resume', { state: 'running', recovery: { status: 'ready', reason: { code: 'RESUME_FROM_CHECKPOINT', message: 'Resumes at its next step.' }, attempt: 1, actions: [] } }),
+      ardentTask('t-old'),
+    ] }), 'executions');
+    const [held, resume, old] = rows(panel);
+    expect(text(held!)).toContain('Needs decision (effect unknown)');
+    expect(text(held!)).toContain('Confirm whether it applied.');
+    expect(text(held!)).toContain('studio:request:msg-1');
+    expect(text(held!)).toContain('studio:task:tsk_1');
+    expect(text(resume!)).toContain('Recovering');
+    expect(text(old!)).toContain('completed');
+    expect(hrefs(held!)).toContain('/fleet/ardent/profiles/node-1~lead?tab=tasks&task=t-held');
+  });
+
+  it('says when the profile records no execution history', async () => {
+    const panel = await open(sources({ executions: async () => [ardentTask('t-old')] }), 'executions');
+    expect(text(panel)).toContain('No execution history recorded');
+  });
+
+  it('is for Ardent profiles, and for ADMIN in Magnus', async () => {
+    expect(text(await open(sources({ identity: async () => identity({ runtime: 'hermes' }) }), 'executions'))).toContain('Magnus reports executions for Ardent profiles only');
   });
 });

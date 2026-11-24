@@ -2,14 +2,17 @@
 // (its node, profile, runtime and HiveMem actor); the other products are asked about that name.
 import { createContext, useContext, useState, type FormEvent, type ReactNode } from 'react';
 import { ArrowUpRight, Bot } from 'lucide-react';
-import { Badge, Button, buttonClass, DataTable, EmptyState, LoadingRows, PageHeader, Panel, ResourceError, statusTone, TabPanel, Tabs, TextInput, type DataTableColumn } from '@ui';
+import { Badge, Button, buttonClass, DataTable, EmptyState, LoadingRows, PageHeader, Panel, ResourceError, Select, statusTone, TabPanel, Tabs, TextInput, type DataTableColumn } from '@ui';
 import { RouteLink } from '../../components/route-link';
 import { HiveApiError } from '../../lib/api-error';
 import { formatTime, relativeTime } from '../../lib/format';
 import { linkTo } from '../../lib/routes';
 import { openStudio } from '../studio/paths';
 import { projectHref } from '../studio/routes';
-import { liveSources, type AgentIdentity, type ArdentProfileSummary, type HermesProfile, type AgentSources, type FleetTarget, type FusionCase, type MemoryRecord, type ProjectSummary, type Trace } from './api';
+import { parseExecutionRef } from '@hivemagnus/hive-common/execution';
+import { recoveryChip } from '../../lib/execution';
+import { liveSources, type AgentIdentity, type ArdentExecutionTask, type ArdentProfileSummary, type HermesProfile, type AgentSources, type FleetTarget, type FusionCase, type MemoryRecord, type ProjectSummary, type Trace } from './api';
+import { traceOutcome } from './trace-outcome';
 import type { AgentRef } from './paths';
 import { Forbidden, isForbidden, Loaded, NotInstalled, NotLinked, Unsupported, useLoad } from './states';
 
@@ -20,6 +23,7 @@ export const AGENT_TABS = [
   { id: 'memories', label: 'Memories' },
   { id: 'projects', label: 'Projects' },
   { id: 'cases', label: 'Cases' },
+  { id: 'executions', label: 'Executions' },
   { id: 'traffic', label: 'Traffic' },
   { id: 'skills', label: 'Skills' },
 ] as const;
@@ -123,6 +127,7 @@ export function AgentPage({ agent }: { agent: AgentRef }) {
         {tab === 'memories' ? <MemoriesTab sources={sources} identity={identity} /> : null}
         {tab === 'projects' ? <ProjectsTab sources={sources} agent={agent} identity={identity} /> : null}
         {tab === 'cases' ? <CasesTab sources={sources} identity={identity} /> : null}
+        {tab === 'executions' ? <ExecutionsTab sources={sources} agent={agent} identity={identity} /> : null}
         {tab === 'traffic' ? <TrafficTab sources={sources} identity={identity} /> : null}
         {tab === 'skills' ? <SkillsTab sources={sources} agent={agent} identity={identity} /> : null}
       </TabPanel>
@@ -418,13 +423,94 @@ function Cases({ sources, actorId }: { sources: AgentSources; actorId: string })
   );
 }
 
+/* ===== Executions: Ardent tasks through Magnus ===== */
+
+/** A qualified reference as product, kind and id; the full reference is its title. */
+function RefText({ value }: { value: string | null | undefined }) {
+  if (!value) return none;
+  const parts = parseExecutionRef(value);
+  return (
+    <span className="font-mono text-xs" title={value}>
+      {parts ? `${parts.product}:${parts.kind}:${parts.id.length > 18 ? `${parts.id.slice(0, 18)}…` : parts.id}` : value}
+    </span>
+  );
+}
+
+function ExecutionState({ task }: { task: ArdentExecutionTask }) {
+  const chip = recoveryChip(task.state, task.recovery?.status);
+  return chip ? <Badge tone={chip.tone}>{chip.label}</Badge> : <Badge tone={statusTone(task.state)}>{task.state}</Badge>;
+}
+
+function ExecutionsTab({ sources, agent, identity }: { sources: AgentSources; agent: AgentRef; identity: IdentityState }) {
+  if (!sources.installed('magnus')) return <NotInstalled product="magnus" framed />;
+  if (identity.state === 'loading') return <LoadingRows />;
+  if (identity.state === 'hidden') return <Forbidden>Magnus shows Ardent tasks to its ADMIN role only.</Forbidden>;
+  if (identity.state !== 'resolved' || identity.identity.runtime !== 'ardent')
+    return <EmptyState framed title="No Ardent executions" message={identity.state === 'resolved' ? 'Magnus reports executions for Ardent profiles only.' : 'Magnus has not named this agent.'} />;
+  return <Executions sources={sources} agent={agent} />;
+}
+
+function Executions({ sources, agent }: { sources: AgentSources; agent: AgentRef }) {
+  const tasks = useLoad((signal) => sources.executions(agent.nodeId, agent.profile, signal), [agent.agentRef, sources]);
+  const taskHref = (task: ArdentExecutionTask) => linkTo('magnus', '/ardent/profiles/:id', { id: agent.agentRef, tab: 'tasks', task: task.id });
+  const columns: ReadonlyArray<DataTableColumn<ArdentExecutionTask>> = [
+    { key: 'started', header: 'Started', cell: (row) => <RouteLink href={taskHref(row)}>{formatTime(new Date(row.created_ms).toISOString())}</RouteLink> },
+    { key: 'prompt', header: 'Task', cell: (row) => <span className="line-clamp-2">{row.prompt}</span> },
+    { key: 'state', header: 'State', cell: (row) => <ExecutionState task={row} /> },
+    { key: 'recovery', header: 'Recovery', cell: (row) => (row.recovery ? <span className="text-xs">{row.recovery.reason.message}</span> : <span className="text-text-muted">none</span>) },
+    { key: 'root', header: 'Root', cell: (row) => <RefText value={row.execution?.root} /> },
+    { key: 'parent', header: 'Caused by', cell: (row) => <RefText value={row.execution?.parent} /> },
+  ];
+  return (
+    <Panel
+      title="Executions"
+      eyebrow="Magnus"
+      description="The newest Ardent tasks of this profile, with how a restart left them and the request each one belongs to. Open one for its journal, artifacts and recovery."
+      actions={<RouteLink href={linkTo('magnus', '/ardent/profiles/:id', { id: agent.agentRef, tab: 'tasks' })} className={buttonClass({ size: 'sm', className: 'no-underline' })}>Open tasks<ArrowUpRight className="btn-ico" aria-hidden="true" /></RouteLink>}
+    >
+      <Loaded load={tasks} product="magnus" what="this profile's tasks">
+        {(list) => (
+          <>
+            <DataTable label="This agent's executions" columns={columns} rows={list} rowKey={(row) => row.id} empty={<EmptyState compact title="This profile has run no tasks yet" />} />
+            {list.length && list.every((row) => row.execution === undefined) ? <p className="muted mt-2 text-sm">No execution history recorded: Ardent 3.2.0 or later records the request each task belongs to.</p> : null}
+          </>
+        )}
+      </Loaded>
+    </Panel>
+  );
+}
+
 /* ===== Traffic: Emberpath ===== */
 
 const traceColumns: ReadonlyArray<DataTableColumn<Trace>> = [
   { key: 'time', header: 'Started', cell: (row) => <RouteLink href={linkTo('emberpath', 'traces', { trace: row.id })}>{formatTime(row.startedAt)}</RouteLink> },
   { key: 'request', header: 'Request', className: 'cell-mono', cell: (row) => `${row.method} ${row.path}` },
   { key: 'model', header: 'Model', cell: (row) => row.providerModel ?? '—' },
-  { key: 'outcome', header: 'Outcome', cell: (row) => <Badge tone={row.outcome === 'success' ? 'success' : 'danger'} dot>{row.statusCode ?? row.outcome}</Badge> },
+  {
+    key: 'outcome',
+    header: 'Outcome',
+    cell: (row) => {
+      const outcome = traceOutcome(row.outcome);
+      return (
+        <Badge tone={outcome.tone} dot>
+          {row.statusCode ? `${outcome.label} · ${row.statusCode}` : outcome.label}
+        </Badge>
+      );
+    },
+  },
+  {
+    key: 'execution',
+    header: 'Execution',
+    cell: (row) =>
+      row.execution ? (
+        <span className="grid gap-0.5">
+          <RefText value={row.execution.self ?? row.execution.root} />
+          {row.attempts && row.attempts.length > 1 ? <span className="text-xs text-text-muted">{`${row.attempts.length} provider attempts${row.attempts.some((attempt) => attempt.failover) ? ', failover' : ''}`}</span> : null}
+        </span>
+      ) : (
+        <span className="text-text-muted">—</span>
+      ),
+  },
   { key: 'duration', header: 'Duration', className: 'cell-mono', cell: (row) => (row.durationMs === null ? '—' : `${row.durationMs} ms`) },
 ];
 
@@ -437,16 +523,26 @@ function TrafficTab({ sources, identity }: { sources: AgentSources; identity: Id
 }
 
 function Traffic({ sources, actorId }: { sources: AgentSources; actorId: string }) {
-  const traces = useLoad((signal) => sources.traces(actorId, signal), [actorId, sources]);
+  const [linked, setLinked] = useState(false);
+  const traces = useLoad((signal) => sources.traces(actorId, signal, linked), [actorId, sources, linked]);
   return (
-    <Panel title="Model traffic" eyebrow="Emberpath" description="The newest requests this agent sent through Emberpath.">
+    <Panel
+      title="Model traffic"
+      eyebrow="Emberpath"
+      description={linked ? 'Requests an Ardent execution of this agent attributed, with the task and attempt each one served.' : 'The newest requests this agent sent through Emberpath.'}
+      actions={<Select aria-label="Which traffic" value={linked ? 'linked' : 'all'} onChange={(value) => setLinked(value === 'linked')} options={[{ value: 'all', label: 'All traffic' }, { value: 'linked', label: 'Linked to executions' }]} />}
+    >
       <Loaded load={traces} product="emberpath" what="traces">
         {(answer) =>
           !answer.supported ? (
-            <Unsupported product="emberpath">This Emberpath release cannot list the traffic of one agent; it answers with everyone&apos;s, which is not shown here. A release after 2.1.0 attributes traces to agents.</Unsupported>
+            linked ? (
+              <Unsupported product="emberpath">This Emberpath release does not link traces to executions. Emberpath 2.6.0 or later records the execution each request served.</Unsupported>
+            ) : (
+              <Unsupported product="emberpath">This Emberpath release cannot list the traffic of one agent; it answers with everyone&apos;s, which is not shown here. A release after 2.1.0 attributes traces to agents.</Unsupported>
+            )
           ) : (
             <>
-              <DataTable label="This agent's traces" columns={traceColumns} rows={answer.data.traces} rowKey={(row) => row.id} empty={<EmptyState compact title="No traffic from this agent" />} />
+              <DataTable label="This agent's traces" columns={traceColumns} rows={answer.data.traces} rowKey={(row) => row.id} empty={<EmptyState compact title={linked ? 'No traffic of this agent is linked to an execution' : 'No traffic from this agent'} />} />
               {answer.data.nextCursor ? <p className="muted mt-2 text-sm">Showing the newest {answer.data.traces.length}. Older traces are in Emberpath.</p> : null}
             </>
           )

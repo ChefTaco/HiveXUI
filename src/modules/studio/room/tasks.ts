@@ -1,5 +1,7 @@
 // The room's task groups and task controls. Pure: the Tasks drawer, the activity strip and the
 // avatar popover read the same groups, and the words a control shows follow the task's real state.
+import type { Tone } from '@ui';
+import { recoveryChip } from '../../../lib/execution';
 import type { Task, TaskControl } from '../api/endpoints';
 
 export const TASK_GROUPS = ['assignments', 'blockers', 'questions', 'reviews', 'outcomes'] as const;
@@ -98,4 +100,17 @@ export function controlFeedback(requested: TaskControl | null, state: Task['stat
     default:
       return state === 'pausing' ? 'Pause requested…' : null;
   }
+}
+
+const STATE_TONE: Partial<Record<Task['state'], Tone>> = { running: 'info', completed: 'success', partial: 'warning', failed: 'danger', input_required: 'warning' };
+
+/**
+ * What a task's chip says, from its state and its execution recovery: Recovering, Needs decision
+ * (effect unknown) and Unknown outcome come from the recovery; paused, cancelled and failed keep their
+ * own words.
+ */
+export function taskChip(task: Task): { label: string; tone: Tone; recovery: 'recovering' | 'needs_decision' | 'unknown_outcome' | null } {
+  const chip = recoveryChip(task.state, task.recovery?.status);
+  if (chip) return { label: chip.label, tone: chip.tone, recovery: chip.kind };
+  return { label: TASK_STATE_LABEL[task.state], tone: STATE_TONE[task.state] ?? 'neutral', recovery: null };
 }

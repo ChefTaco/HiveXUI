@@ -219,6 +219,18 @@ export const task = (overrides: Partial<Task> = {}): Task => ({
   ...overrides,
 });
 
+/** Ardent's recovery of an interrupted task (C3) as Studio 0.5.0 reports it: held for a decision unless overridden. */
+export const recovery = (overrides: Partial<NonNullable<Task['recovery']>> = {}): NonNullable<Task['recovery']> => ({
+  status: 'awaiting_decision',
+  reason: { code: 'UNSETTLED_EXTERNAL_WRITE', message: 'A tool call with a possible external effect was dispatched but its outcome was not recorded.' },
+  attempt: 1,
+  checkpoint: { step: 3, completed_calls: 2, pending_calls: [{ call_id: 'call-1', tool: 'publish_post', effect: 'write', dispatched_at: AT, reconcilable: false }] },
+  actions: ['mark_applied', 'mark_not_applied', 'abandon'],
+  supported: true,
+  observed_at: AT,
+  ...overrides,
+});
+
 export const TEAM_CONVERSATION_ID = id('cnv', 1);
 export const conversation = (overrides: Partial<Conversation> = {}): Conversation => ({
   id: TEAM_CONVERSATION_ID,

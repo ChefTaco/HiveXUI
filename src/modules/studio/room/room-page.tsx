@@ -1,9 +1,9 @@
 // The Conversation Room: the visual room beside the transcript, over real records only. The room is
 // fed by stored activity and the live reply stream, the transcript by the open conversation's
 // messages, and both by the project stream. Deep links: ?c= conversation, ?m= message, ?task= task,
-// ?agent= avatar card.
+// ?agent= avatar card, ?lineage= a task's execution history.
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
-import { ListChecks, MessagesSquare, PencilRuler, Pin, Plus, Save, Square, X } from 'lucide-react';
+import { ListChecks, MessagesSquare, PencilRuler, Pin, Plus, Save, Square, Workflow, X } from 'lucide-react';
 import { Button, ConfirmDialog, Drawer, EmptyState, StatusDot, buttonClass } from '@ui';
 import { cn } from '@lib/cn';
 import { errorMessage } from '../../magnus/api/errors';
@@ -23,10 +23,13 @@ import { roomArcs, roomPresenceOf } from './room-presence';
 import { defaultPortrait, PORTRAIT_ACCENTS, PORTRAIT_EMBLEMS, PORTRAIT_PRESETS, type Portrait, type RoomLayout, type SceneAgent, type ShelfItem } from './scene/model';
 import { RoomStage } from './scene/stage';
 import { useRoomShortcuts, type RoomTarget } from './shortcuts';
+import { LineageDrawer } from './lineage/lineage-drawer';
 import { ActivityStrip, TaskGroups } from './task-list';
 import { groupTasks, type TaskGroup } from './tasks';
 import { authorOf, quote, Transcript, type TranscriptActions } from './transcript';
 import { readConversation, useDeliverables, useRoomPresence, useRoomTasks, useTranscript } from './use-room';
+import { useWorkflowRuns } from './workflow/use-workflows';
+import { WorkflowPanel } from './workflow/workflow-panel';
 import './room.css';
 
 type Mode = 'wide' | 'tabs' | 'compact';
@@ -109,12 +112,16 @@ function Room({ projectId, snapshot, stream }: { projectId: string; snapshot: Sn
   const highlight = search.get('m');
   const taskParam = search.get('task');
   const agentParam = search.get('agent');
+  const lineageParam = search.get('lineage');
 
   const { transcript, reload } = useTranscript(store, conversationId);
   const loadedDeliverables = useDeliverables(store);
   const deliverables = useMemo(() => loadedDeliverables ?? [], [loadedDeliverables]);
   const { presence, now } = useRoomPresence(store, snapshot, transcript, loadedDeliverables);
   const { tasks, error: tasksError, retry: retryTasks } = useRoomTasks(store, snapshot);
+  const tasksById = useMemo(() => new Map(tasks.map((item) => [item.id, item] as const)), [tasks]);
+  const workflows = useWorkflowRuns(store);
+  const activeRuns = workflows.state.status === 'ready' ? workflows.state.runs.filter((run) => run.state === 'running' || run.state === 'blocked').length : 0;
   const agentList = useMagnusResource((signal) => listAgents(signal), []);
 
   // Who sits in the room: each agent bound in the published team, once, with the roles it holds.
@@ -181,6 +188,11 @@ function Room({ projectId, snapshot, stream }: { projectId: string; snapshot: Sn
   const [split, setSplit] = useState(readSplit);
   const [tasksOpen, setTasksOpen] = useState<TaskGroup | 'all' | null>(taskParam ? 'all' : null);
   const [decisionsOpen, setDecisionsOpen] = useState(false);
+  const [workflowsOpen, setWorkflowsOpen] = useState(false);
+  const openLineage = useCallback((taskId: string) => {
+    setWorkflowsOpen(false);
+    setStudioQuery({ lineage: taskId }, 'replace');
+  }, []);
   const [form, setForm] = useState<Form | null>(null);
   const [reply, setReply] = useState<ReplyTarget | null>(null);
   const [stopping, setStopping] = useState(false);
@@ -342,7 +354,7 @@ function Room({ projectId, snapshot, stream }: { projectId: string; snapshot: Sn
     },
     [mode],
   );
-  useRoomShortcuts(focusTarget, !form && !tasksOpen && !decisionsOpen);
+  useRoomShortcuts(focusTarget, !form && !tasksOpen && !decisionsOpen && !workflowsOpen && !lineageParam);
 
   // The splitter between the room and the transcript, in steps of five percent.
   const onSplitKey = (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -423,6 +435,12 @@ function Room({ projectId, snapshot, stream }: { projectId: string; snapshot: Sn
           Decisions
           <span className="tab-count">{decisions.length}</span>
         </Button>
+        {workflows.state.status === 'ready' && workflows.state.runs.length ? (
+          <Button size="sm" variant="ghost" icon={<Workflow className="btn-ico" aria-hidden="true" />} onClick={() => setWorkflowsOpen(true)} aria-label={`Workflows, ${activeRuns} active`}>
+            Workflows
+            <span className="tab-count">{activeRuns}</span>
+          </Button>
+        ) : null}
         <span className="room-live text-xs text-text-muted" role="status">
           <StatusDot status={streamText.status} pulse={stream !== 'open' && stream !== 'stopped'} />
           {streamText.label}
@@ -586,7 +604,7 @@ function Room({ projectId, snapshot, stream }: { projectId: string; snapshot: Sn
   );
 
   const strip = <ActivityStrip tasks={tasks} decisions={decisions.length} onOpen={(group) => setTasksOpen(group)} onDecisions={() => setDecisionsOpen(true)} />;
-  const taskProps = { store, roles, deliverables, archived, onOpenMessage: (id: string, inConversation: string | null) => void jump(id, inConversation) };
+  const taskProps = { store, roles, deliverables, archived, onOpenMessage: (id: string, inConversation: string | null) => void jump(id, inConversation), onOpenLineage: openLineage };
 
   let body;
   if (mode === 'wide')
@@ -658,7 +676,7 @@ function Room({ projectId, snapshot, stream }: { projectId: string; snapshot: Sn
         {announcement}
       </p>
       <Drawer
-        open={tasksOpen !== null}
+        open={tasksOpen !== null && !lineageParam}
         title="Tasks"
         eyebrow={snapshot.project.name}
         onClose={() => {
@@ -667,6 +685,18 @@ function Room({ projectId, snapshot, stream }: { projectId: string; snapshot: Sn
         }}
       >
         <TaskGroups tasks={tasks} focus={tasksOpen && tasksOpen !== 'all' ? tasksOpen : null} highlightTask={taskParam} error={tasksError} onRetry={retryTasks} {...taskProps} />
+      </Drawer>
+      <LineageDrawer
+        taskId={lineageParam}
+        tasks={tasksById}
+        store={store}
+        archived={archived}
+        eyebrow={snapshot.project.name}
+        onClose={() => setStudioQuery({ lineage: null }, 'replace')}
+        onOpenTask={openLineage}
+      />
+      <Drawer open={workflowsOpen && !lineageParam} title="Workflows" eyebrow={snapshot.project.name} onClose={() => setWorkflowsOpen(false)}>
+        <WorkflowPanel projectId={projectId} state={workflows.state} roles={roles} archived={archived} onRetry={workflows.reload} onChanged={workflows.replace} onOpenTask={openLineage} />
       </Drawer>
       <Drawer open={decisionsOpen} title="Decisions" eyebrow={snapshot.project.name} onClose={() => setDecisionsOpen(false)}>
         <DecisionList

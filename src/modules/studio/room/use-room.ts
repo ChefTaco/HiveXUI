@@ -1,7 +1,9 @@
 // The room page's live data: the open conversation's transcript, agent presence, the project's tasks
 // and its deliverables, all read from the Studio service and kept current by the project stream.
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { messageSchema, taskSchema } from '@contracts/ardentstudio.generated';
+import { messageSchema } from '@contracts/ardentstudio.generated';
+import { studioTaskSchema } from '../api/execution';
+import { taskRecoverySchema } from '../../../lib/execution';
 import { listDeliverables, listMessages, listTasks, type Deliverable, type Message, type Snapshot, type Task } from '../api/endpoints';
 import type { ProjectStore } from '../state/project-store';
 import { emptyRoomPresence, nextRoomChange, pruneRoomPresence, reduceRoomPresence, type RoomPresenceState } from './room-presence';
@@ -160,14 +162,31 @@ export function useRoomTasks(store: ProjectStore, snapshot: Snapshot): { tasks: 
     return () => controller.abort();
   }, [store, generation]);
   useEffect(() => store.onReset(retry), [store, retry]);
-  // The snapshot drops a task when it finishes; its events keep the finished copy here.
+  // The snapshot drops a task when it finishes; its events keep the finished copy here. A recovery
+  // event carries the whole task, or only the task id and its new recovery.
   const [updates, setUpdates] = useState<ReadonlyMap<string, Task>>(new Map());
+  const [recoveries, setRecoveries] = useState<ReadonlyMap<string, Task['recovery']>>(new Map());
   useEffect(
     () =>
       store.onEvent((event) => {
-        if (event.type !== 'task.created' && event.type !== 'task.updated') return;
-        const parsed = taskSchema.safeParse(event.payload.task);
-        if (parsed.success) setUpdates((current) => new Map(current).set(parsed.data.id, parsed.data));
+        if (event.type !== 'task.created' && event.type !== 'task.updated' && event.type !== 'task.recovery') return;
+        const parsed = studioTaskSchema.safeParse(event.payload.task);
+        if (parsed.success) {
+          setUpdates((current) => new Map(current).set(parsed.data.id, parsed.data));
+          // The whole record supersedes a recovery-only patch.
+          setRecoveries((current) => {
+            if (!current.has(parsed.data.id)) return current;
+            const next = new Map(current);
+            next.delete(parsed.data.id);
+            return next;
+          });
+          return;
+        }
+        const recovery = taskRecoverySchema.nullable().safeParse(event.payload.recovery);
+        if (event.type === 'task.recovery' && typeof event.payload.task_id === 'string' && recovery.success) {
+          const id = event.payload.task_id;
+          setRecoveries((current) => new Map(current).set(id, recovery.data));
+        }
       }),
     [store],
   );
@@ -177,8 +196,12 @@ export function useRoomTasks(store: ProjectStore, snapshot: Snapshot): { tasks: 
       const known = byId.get(task.id);
       if (!known || known.updated_at <= task.updated_at) byId.set(task.id, task);
     }
+    for (const [id, recovery] of recoveries) {
+      const known = byId.get(id);
+      if (known) byId.set(id, { ...known, recovery });
+    }
     return [...byId.values()];
-  }, [history, snapshot.tasks, updates]);
+  }, [history, snapshot.tasks, updates, recoveries]);
   return { tasks, error, retry };
 }
 

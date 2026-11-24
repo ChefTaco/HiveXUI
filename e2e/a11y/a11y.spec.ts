@@ -33,7 +33,9 @@ const PAGES = [
   { name: 'Agent 360 memories', path: '/agents/node-1~lead?tab=memories' },
   { name: 'Agent 360 projects', path: '/agents/node-1~lead?tab=projects' },
   { name: 'Agent 360 cases', path: '/agents/node-1~lead?tab=cases' },
+  { name: 'Agent 360 executions', path: '/agents/node-1~lead?tab=executions' },
   { name: 'Agent 360 traffic', path: '/agents/node-1~lead?tab=traffic' },
+  { name: 'Magnus Ardent overview and agent dependencies', path: '/fleet/ardent' },
   { name: 'Agent 360 skills', path: '/agents/node-1~lead?tab=skills' },
 ];
 
@@ -284,4 +286,19 @@ test('installed software needs suite sign-in, so a legacy recovery console says 
   await installMocks(page);
   await page.goto('/?page=software', { waitUntil: 'networkidle' });
   await expect(page.getByText('Installed software is not available here')).toBeVisible();
+});
+
+test('Agent 360 executions and the Ardent dependency report show their states, and pass axe', async ({ page }) => {
+  await page.clock.setFixedTime(FIXED_NOW);
+  await installMocks(page);
+  await page.goto('/agents/node-1~lead?tab=executions', { waitUntil: 'networkidle' });
+  await expect(page.getByText('Needs decision (effect unknown)')).toBeVisible();
+  await expect(page.getByText('Recovering', { exact: true })).toBeVisible();
+  await page.goto('/fleet/ardent', { waitUntil: 'networkidle' });
+  const report = page.getByRole('list', { name: 'Agent dependencies' });
+  await expect(report.getByText('Awaiting configuration')).toBeVisible();
+  await expect(report.getByText('Unsupported')).toBeVisible();
+  await page.waitForTimeout(500);
+  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  expect(results.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical').map((violation) => violation.id)).toEqual([]);
 });

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { summary } from '../studio/test-fixtures';
-import { liveSources, resetSupportCache } from './api';
+import { executionTraces, liveSources, resetSupportCache } from './api';
 
 type Answer = { status?: number; body: unknown };
 let routes: Array<[RegExp, (url: URL, init: RequestInit | undefined) => Answer]>;
@@ -99,6 +99,37 @@ describe('Emberpath traffic', () => {
   it('never passes on the legacy list, which is everyone’s', async () => {
     routes.push([/^\/api\/traces/, () => ({ body: { data: [trace] } })]);
     await expect(liveSources.traces('ardent-lead', signal())).resolves.toEqual({ supported: false });
+  });
+
+  const execution = { root: 'hx1:studio:inst:request:m1', self: 'hx1:ardent:node-1.lead:attempt:t1/1/1', parent: null, clientRequestId: null, inboundTraceparent: null, attempt: 1, deadlineMs: null, assertedBy: null, context: null };
+  it('asks for the traffic Ardent executions attributed, and trusts only an answer that carries them', async () => {
+    routes.push([/executionTask=hx1%3Aardent%3A/, () => ({ body: { data: [{ ...trace, execution, attempts: [] }], nextCursor: null } })]);
+    await expect(liveSources.traces('ardent-lead', signal(), true)).resolves.toMatchObject({ supported: true, data: { traces: [{ id: 'tr_1', execution }] } });
+    routes.unshift([/executionTask=/, () => ({ body: { data: [trace], nextCursor: null } })]);
+    await expect(liveSources.traces('ardent-lead', signal(), true)).resolves.toEqual({ supported: false });
+  });
+
+  it("reads one execution's provider traces, unsupported before Emberpath 2.6.0", async () => {
+    routes.push([/^\/api\/traces\?limit=50&executionTask=hx1%3Aardent%3Anode-1.lead%3Atask%3At1$/, () => ({ body: { data: [{ ...trace, execution, attempts: [] }], nextCursor: null } })]);
+    await expect(executionTraces({ executionTask: 'hx1:ardent:node-1.lead:task:t1' }, signal())).resolves.toMatchObject({ supported: true, data: [{ id: 'tr_1' }] });
+    routes.unshift([/^\/api\/traces/, () => ({ body: { data: [trace] } })]);
+    await expect(executionTraces({ executionTask: 'hx1:ardent:node-1.lead:task:t1' }, signal())).resolves.toEqual({ supported: false });
+  });
+});
+
+describe('Ardent executions', () => {
+  it('reads the profile tasks through Magnus with their execution context and recovery', async () => {
+    routes.push([/^\/api\/magnus\/ardent\/installations\/node-1\/profiles\/lead\/tasks$/, () => ({ body: { success: true, data: { tasks: [
+      { id: 't1', state: 'unknown', prompt: 'Publish', created_ms: 1, execution: { v: 1, root: 'hx1:studio:inst:request:m1', parent: 'hx1:studio:inst:task:tsk_1', self: 'hx1:ardent:node-1.lead:task:t1' },
+        recovery: { status: 'awaiting_decision', reason: { code: 'UNSETTLED_EXTERNAL_WRITE', message: 'Confirm.' }, attempt: 1, actions: ['mark_applied', 'some_future_action'] } },
+      { id: 't0', state: 'completed', prompt: 'Old', created_ms: 0 },
+    ] } } })]);
+    const [held, old] = await liveSources.executions('node-1', 'lead', signal());
+    expect(held!.execution).toEqual({ root: 'hx1:studio:inst:request:m1', parent: 'hx1:studio:inst:task:tsk_1', self: 'hx1:ardent:node-1.lead:task:t1', inputs: undefined });
+    // An action this console does not know is never offered.
+    expect(held!.recovery?.actions).toEqual(['mark_applied']);
+    expect(old!.execution).toBeUndefined();
+    expect(old!.recovery).toBeUndefined();
   });
 });
 
