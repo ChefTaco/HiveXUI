@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- End-to-end: the ARDENT-06 acceptance through Magnus (`e2e/studio/ardent-client.api.spec.ts`). `@hivemagnus/ardent-client` 3.2.0 (a devDependency) with `viaMagnus` against the stack's Magnus and an Ardent 3.2.0 agent: submit, follow while a test proxy drops the task stream twice (every journaled event once and in order), lineage with the caller's execution context, recovery reads, a 3 MiB artifact download reset a third of the way in that resumes with `Range` and `If-Range` and matches its SHA-256, and the documented error for a route outside Magnus's allowlist. Two defects it found are pinned to their current refusals: `viaMagnus` cannot use the console's `/api/magnus` base, and a follow that starts without a cursor is refused through the console ingress (an empty `Last-Event-ID`). `stackFetch` in `e2e/studio/support/stack.ts` is a `fetch` that trusts the stack's authority only.
+
 ## [0.12.0] - 2026-11-24
 
 - Studio room: state chips for interrupted tasks. **Recovering** (Ardent continues the run under the same task), **Needs decision (effect unknown)** (held; counted among the blockers) and **Unknown outcome** (cannot be resumed), with paused, cancelled and failed unchanged.

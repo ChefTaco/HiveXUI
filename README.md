@@ -285,8 +285,8 @@ area's workflows, the room's agent states, the keyboard map, accessibility and k
 #### End-to-end tests
 
 `npm run e2e` runs the Studio acceptance scenarios (`e2e/studio/*.spec.ts`: an adventure and a
-research project, through the Studio API and in the browser, an agent's fleet lifecycle, and the
-node software card) against
+research project, through the Studio API and in the browser, an agent's fleet lifecycle, the
+node software card, and the Ardent client SDK through Magnus) against
 a real stack built from the product checkouts next to this one: Oathweave, HiveMem, HiveSkills,
 Magnus (server, PostgreSQL, Redis and one node agent in a systemd container that manages Ardent
 gateways), ArdentStudio and the UI behind Hive's ingress configuration
