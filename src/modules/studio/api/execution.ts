@@ -1,68 +1,63 @@
-// Execution ancestry, recovery and artifact delivery on the Studio service (Studio 0.5.0 and Ardent
-// 3.2.0). The vendored contract does not describe these fields and routes yet, so they are read here
-// as optional extensions of the released shapes, the way agents/api.ts reads newer HiveSkills fields:
-// a Studio that does not send them, or sends a shape this console does not know, simply shows nothing
-// new. Every field is attribution only; nothing here grants access to anything.
+// Execution ancestry, recovery, workflow runs and artifact delivery on the Studio service (Studio
+// 0.5.0 with agents on Ardent 3.2.0). Shapes come from the vendored contract. A Studio before 0.5.0
+// does not send the fields 0.5.0 added to tasks, revisions and imports, so those are read as optional
+// here and the UI shows nothing new for it; its routes for recovery, lineage and workflow runs answer
+// 404, which reads as unsupported. Every field is attribution only; nothing here grants access.
 import { z } from 'zod';
-import { parseExecutionRef } from '@hivemagnus/hive-common/execution';
-import { executionRefsSchema, taskRecoverySchema, type ExecutionRefs, type RecoveryAction, type TaskRecovery } from '../../../lib/execution';
 import {
   artifactImportSchema,
   deliverableRevisionSchema,
   deliverableSchema,
   listWorkflowRunsResponseSchema,
+  postMessageResponseSchema,
+  revisionRequestResponseSchema,
   revisionDetailResponseSchema,
   snapshotResponseSchema,
+  taskLineageResponseSchema,
+  taskRecoveryDecisionResponseSchema,
+  taskRecoveryResponseSchema,
   taskSchema,
   workflowRunResponseSchema,
+  type recoveryActionSchema,
+  type taskRecoverySchema,
   type workflowActionSchema,
 } from '@contracts/ardentstudio.generated';
+import { executionRefsSchema } from '../../../lib/execution';
 import { segment, studio, StudioApiError } from './client';
 
-export { RECOVERY_ACTIONS, type ExecutionRefs, type RecoveryAction, type TaskRecovery } from '../../../lib/execution';
+export { RECOVERY_ACTIONS } from '@contracts/ardentstudio.generated';
+export type RecoveryAction = z.output<typeof recoveryActionSchema>;
+export type TaskRecovery = z.output<typeof taskRecoverySchema>;
 
-const optional = <S extends z.ZodType>(schema: S) => schema.optional().catch(undefined);
+// ── Tasks ──
 
-// ── Execution references and recovery on a task ──
-
-/**
- * A Studio task, with the recovery and ancestry Studio 0.5.0 adds. `recovery` is null for a task never
- * interrupted; `ardent.attempts` names the earlier Ardent tasks (recovery continuations), oldest first.
- */
+/** A Studio task. `recovery`, `execution` and `ardent.attempts` are absent from a Studio before 0.5.0. */
+const { recovery, execution, ardent } = taskSchema.shape;
 export const studioTaskSchema = taskSchema.extend({
-  ardent: taskSchema.shape.ardent.extend({ attempts: optional(z.array(z.string())) }),
-  recovery: optional(taskRecoverySchema.nullable()),
-  execution: executionRefsSchema.optional(),
+  recovery: recovery.optional(),
+  execution: execution.optional(),
+  ardent: ardent.extend({ attempts: ardent.shape.attempts.optional() }),
 });
 export type StudioTask = z.output<typeof studioTaskSchema>;
 export const studioTaskListSchema = z.object({ tasks: z.array(studioTaskSchema) });
 export const studioSnapshotSchema = snapshotResponseSchema.extend({ tasks: z.array(studioTaskSchema) });
+export const studioPostMessageSchema = postMessageResponseSchema.extend({ tasks: z.array(studioTaskSchema) });
+export const studioRevisionRequestSchema = revisionRequestResponseSchema.extend({ task: studioTaskSchema });
 
-/**
- * Whether this Studio reports execution ancestry and recovery at all. A Studio that does sends the
- * fields on every task (null when there is nothing), so their presence is the capability.
- */
+/** Whether this Studio reports execution ancestry and recovery: 0.5.0 sends both on every task (null when there is nothing). */
 export const executionReported = (task: StudioTask): boolean => task.recovery !== undefined || task.execution !== undefined;
 export const rootRefOf = (task: StudioTask): string | null => task.execution?.root ?? null;
 
 // ── Recovery routes ──
 
+export type RecoveryAnswer = z.output<typeof taskRecoveryResponseSchema>;
 /**
- * Studio's `GET /tasks/{id}/recovery`: the recovery read now through Magnus (source live) or as last
- * recorded (stored), and whether decisions can be sent (`unavailable` says why not).
+ * The task's recovery, read now through Magnus (source live) or as last recorded (stored), with
+ * whether decisions can be sent. Null from a Studio without recovery (404).
  */
-const recoveryAnswerSchema = z.object({
-  task: studioTaskSchema,
-  recovery: taskRecoverySchema.nullable(),
-  supported: z.boolean(),
-  source: z.string().catch('stored'),
-  unavailable: z.object({ code: z.string(), message: z.string() }).nullable().catch(null),
-});
-export type RecoveryAnswer = z.output<typeof recoveryAnswerSchema>;
-/** The task's recovery, or null from a Studio without recovery (404). */
 export async function getTaskRecovery(taskId: string, signal?: AbortSignal): Promise<RecoveryAnswer | null> {
   try {
-    return await studio.get(`/tasks/${segment(taskId)}/recovery`, recoveryAnswerSchema, { signal });
+    return await studio.get(`/tasks/${segment(taskId)}/recovery`, taskRecoveryResponseSchema, { signal });
   } catch (error) {
     if (error instanceof StudioApiError && error.notFound) return null;
     throw error;
@@ -74,19 +69,23 @@ export interface RecoveryDecision {
   note?: string | undefined;
   call_id?: string | undefined;
 }
-const decisionAnswerSchema = z.object({ task: studioTaskSchema.optional(), recovery: taskRecoverySchema.nullable().optional() });
 /**
  * Decide a held task (`{ task, recovery }` back). The key goes in the idempotency header, so a retried
  * click replays the first decision instead of making a second one.
  */
 export const decideTaskRecovery = (taskId: string, decision: RecoveryDecision, idempotencyKey: string) =>
-  studio.post(`/tasks/${segment(taskId)}/recovery`, decisionAnswerSchema, {
+  studio.post(`/tasks/${segment(taskId)}/recovery`, taskRecoveryDecisionResponseSchema, {
     body: { action: decision.action, ...(decision.note ? { note: decision.note } : {}), ...(decision.call_id ? { call_id: decision.call_id } : {}) },
     idempotencyKey,
   });
 
 // ── Lineage ──
 
+/*
+ * Ardent's GET /tasks/{id}/lineage (ChefTaco/Ardent src/lineage.ts). Studio relays it as-is (a record in
+ * its contract) and no browser contract describes it, so it is read here, leniently.
+ */
+const optional = <S extends z.ZodType>(schema: S) => schema.optional().catch(undefined);
 const text = z.string().nullable().catch(null);
 const count = z.number().int().nullable().catch(null);
 /** Ardent's `GET /tasks/{id}/lineage` (ChefTaco/Ardent src/lineage.ts), passed through Magnus and Studio. */
@@ -117,7 +116,7 @@ export const ardentLineageSchema = z.object({
 });
 export type ArdentLineage = z.output<typeof ardentLineageSchema>;
 
-/** A Studio task in a lineage listing (`{ task_id, ref, role_key, state, mode }`). */
+/** A Studio task in the chain. */
 export interface Related {
   ref?: string | undefined;
   taskId?: string | undefined;
@@ -125,22 +124,8 @@ export interface Related {
   state?: string | undefined;
   kind?: string | undefined;
 }
-const relatedSchema = z.record(z.string(), z.unknown()).transform((value): Related | null => {
-  const pick = (...keys: string[]) => keys.map((key) => value[key]).find((item): item is string => typeof item === 'string' && item.length > 0);
-  const related: Related = { ref: pick('ref'), taskId: pick('task_id'), state: pick('state'), kind: pick('direction', 'relationship', 'mode') };
-  return related.ref || related.taskId ? related : null;
-});
-const present = (items: Array<Related | null>): Related[] => items.filter((item): item is Related => item !== null);
-const relatedList = z.array(relatedSchema).catch([]).transform(present);
-const handoffList = z
-  .array(z.record(z.string(), z.unknown()))
-  .catch([])
-  .transform((items) => items.flatMap((item) => {
-    const related = relatedSchema.parse(item);
-    return related ? [{ ...related, direction: item.direction === 'to' ? ('to' as const) : ('from' as const) }] : [];
-  }));
-const refText = z.string().nullable().catch(null);
-const problem = z.object({ code: z.string(), message: z.string() }).nullable().catch(null);
+type LineageTask = { task_id: string; ref: string | null; state: string; mode: string };
+const related = (item: LineageTask): Related => ({ taskId: item.task_id, ref: item.ref ?? undefined, state: item.state, kind: item.mode });
 
 /** One Ardent task the Studio task ran as: the first submission, then each recovery continuation. */
 export interface ArdentAttempt {
@@ -152,68 +137,37 @@ export interface ArdentAttempt {
   error: string | null;
 }
 
-/**
- * Studio's `GET /tasks/{id}/lineage` (Studio 0.5.0): its own relationships, each Ardent attempt's
- * lineage as the profile records it (oldest first, current last), and the Emberpath trace filter.
- */
-export const taskLineageSchema = z
-  .object({
-    studio: z
-      .object({
-        self: refText,
-        root: refText,
-        parent: refText,
-        children: relatedList,
-        reassigned_from: relatedSchema.nullable().catch(null),
-        reassigned_to: relatedList,
-        handoffs: handoffList,
-        revisions: z.array(z.object({ revision_id: z.string(), deliverable_id: z.string(), revision: z.number().int(), blob_sha256: z.string() })).catch([]),
-        workflow: z.object({ run_id: z.string(), node_key: z.string(), attempt: z.number().int(), ref: z.string().nullable() }).nullable().catch(null),
-      })
-      .partial()
-      .catch({}),
-    ardent: z
-      .object({
-        agent_ref: z.string().catch(''),
-        attempts: z
-          .array(z.object({ ardent_task_id: z.string(), ref: refText, current: z.boolean().catch(false), lineage: z.unknown(), error: problem }))
-          .catch([]),
-      })
-      .nullable()
-      .catch(null),
-    ardent_unavailable: problem.optional(),
-    emberpath: optional(z.object({ filter: z.object({ executionRoot: z.string().nullable().catch(null) }) })),
-  })
-  .transform((value) => {
-    const studioPart = value.studio;
-    const attempts: ArdentAttempt[] = (value.ardent?.attempts ?? []).map((attempt) => {
-      const lineage = attempt.lineage ? ardentLineageSchema.safeParse(attempt.lineage) : null;
-      return {
-        ardentTaskId: attempt.ardent_task_id,
-        ref: attempt.ref,
-        current: attempt.current,
-        lineage: lineage?.success ? lineage.data : null,
-        error: attempt.error?.message ?? (lineage && !lineage.success ? 'The agent answered in a shape this console does not know' : null),
-      };
-    });
+/** Studio's `GET /tasks/{id}/lineage`, with each Ardent attempt's lineage read. */
+export const taskLineageSchema = taskLineageResponseSchema.transform((value) => {
+  const attempts: ArdentAttempt[] = (value.ardent?.attempts ?? []).map((attempt) => {
+    const lineage = attempt.lineage ? ardentLineageSchema.safeParse(attempt.lineage) : null;
     return {
-      studio: {
-        self: studioPart.self ?? null,
-        root: studioPart.root ?? null,
-        parent: studioPart.parent ?? null,
-        children: studioPart.children ?? [],
-        reassignedFrom: studioPart.reassigned_from ?? null,
-        reassignedTo: studioPart.reassigned_to ?? [],
-        handoffs: studioPart.handoffs ?? [],
-        revisions: studioPart.revisions ?? [],
-        workflow: studioPart.workflow ?? null,
-      },
-      agentRef: value.ardent?.agent_ref || null,
-      ardent: attempts,
-      ardentUnavailable: value.ardent_unavailable?.message ?? null,
-      executionRoot: value.emberpath?.filter.executionRoot ?? null,
+      ardentTaskId: attempt.ardent_task_id,
+      ref: attempt.ref,
+      current: attempt.current,
+      lineage: lineage?.success ? lineage.data : null,
+      error: attempt.error?.message ?? (lineage && !lineage.success ? 'The agent answered in a shape this console does not know' : null),
     };
   });
+  const { studio: own } = value;
+  return {
+    studio: {
+      self: own.self,
+      root: own.root,
+      parent: own.parent,
+      children: own.children.map(related),
+      reassignedFrom: own.reassigned_from ? related(own.reassigned_from) : null,
+      reassignedTo: own.reassigned_to.map(related),
+      handoffs: own.handoffs.map((item) => ({ ...related(item), direction: item.direction })),
+      revisions: own.revisions,
+      workflow: own.workflow,
+    },
+    agentRef: value.ardent?.agent_ref ?? null,
+    ardent: attempts,
+    ardentUnavailable: value.ardent_unavailable?.message ?? null,
+    executionRoot: value.emberpath.filter.executionRoot,
+  };
+});
 export type TaskLineage = z.output<typeof taskLineageSchema>;
 
 /** The lineage, or null when this Studio does not serve lineage (404). */
@@ -245,41 +199,18 @@ export const getWorkflowRun = (projectId: string, runId: string, signal?: AbortS
 export const workflowNodeAction = (projectId: string, runId: string, nodeKey: string, action: WorkflowAction, idempotencyKey: string) =>
   studio.post(project(projectId, `/workflow-runs/${segment(runId)}/nodes/${segment(nodeKey)}/actions`), workflowRunResponseSchema, { body: { action }, idempotencyKey });
 
-// ── Deliverables: renditions, provenance and import progress (STUDIO-03) ──
+// ── Deliverables: renditions and import progress (STUDIO-03) ──
 
-/** One available form of a revision's artifact, the original first (HiveCommon `Rendition` plus its purpose). */
-export const renditionSchema = z.object({
-  sha256: z.string().regex(/^[a-f0-9]{64}$/),
-  role: z.enum(['original', 'preview', 'model_input']),
-  mime: z.string(),
-  size: z.number().int().min(0),
-  purpose: z.string().nullable().optional(),
-  width: z.number().int().positive().nullable().optional(),
-  height: z.number().int().positive().nullable().optional(),
-  has_alpha: z.boolean().nullable().optional(),
-});
-export type StudioRendition = z.output<typeof renditionSchema>;
-const renditionList = z
-  .array(z.unknown())
-  .transform((items) => items.flatMap((item) => {
-    const parsed = renditionSchema.safeParse(item);
-    return parsed.success ? [parsed.data] : [];
-  }));
-export const studioRevisionSchema = deliverableRevisionSchema.extend({ renditions: optional(renditionList) });
+/** Renditions are absent from a Studio before 0.5.0; transfer progress from its imports. */
+export const studioRevisionSchema = deliverableRevisionSchema.extend({ renditions: deliverableRevisionSchema.shape.renditions.optional() });
+export type StudioRendition = NonNullable<z.output<typeof studioRevisionSchema>['renditions']>[number];
 export const studioDeliverableSchema = deliverableSchema.extend({ revisions: z.array(studioRevisionSchema) });
-/**
- * An artifact import with the progress Studio 0.5.0 adds. `state` is read as text, so a newer state
- * (transferring, resuming) never makes the whole deliverable list unreadable.
- */
+const imports = artifactImportSchema.shape;
 export const studioImportSchema = artifactImportSchema.extend({
-  state: z.string(),
-  received_bytes: optional(z.number().int().min(0)),
-  /** A stable outcome code: DIGEST_MISMATCH, TOO_LARGE, MAGNUS_REFUSED, TRANSFER_FAILED or TRANSFER_REQUIRES_V2. */
-  error_code: optional(z.string().nullable()),
-  /** range: artifact transfer v2 with Range and resume; whole: the v1 download. Null until it starts. */
-  transfer: optional(z.string().nullable()),
-  /** How often the transfer continued from a partial file. */
-  resumes: optional(z.number().int().min(0)),
+  error_code: imports.error_code.optional(),
+  received_bytes: imports.received_bytes.optional(),
+  transfer: imports.transfer.optional(),
+  resumes: imports.resumes.optional(),
 });
 export const studioDeliverablesSchema = z.object({ deliverables: z.array(studioDeliverableSchema), imports: z.array(studioImportSchema) });
 export const studioRevisionDetailSchema = revisionDetailResponseSchema.extend({ revision: studioRevisionSchema, deliverable: studioDeliverableSchema });

@@ -9,7 +9,6 @@ import {
   listDecisionsResponseSchema,
   listMessagesResponseSchema,
   messageSchema,
-  postMessageResponseSchema,
   fileResponseSchema,
   linkResponseSchema,
   listAgentsResponseSchema,
@@ -42,7 +41,7 @@ import {
   type updateProjectRequestSchema,
 } from '@contracts/ardentstudio.generated';
 import { segment, studio } from './client';
-import { studioDeliverablesSchema, studioSnapshotSchema, studioTaskListSchema, studioTaskSchema } from './execution';
+import { studioDeliverablesSchema, studioPostMessageSchema, studioSnapshotSchema, studioTaskListSchema, studioTaskSchema } from './execution';
 
 export type Project = z.infer<typeof projectResponseSchema>;
 export type ProjectSummary = z.infer<typeof listProjectsResponseSchema>['projects'][number];
@@ -152,10 +151,10 @@ export const stopConversation = (conversationId: string, idempotencyKey?: Key) =
 export const listMessages = (conversationId: string, after: number, signal?: Signal) =>
   studio.get(`/conversations/${segment(conversationId)}/messages`, listMessagesResponseSchema, { query: { after, limit: 200 }, signal });
 export const postMessage = (conversationId: string, body: PostMessage, idempotencyKey?: Key) =>
-  studio.post(`/conversations/${segment(conversationId)}/messages`, postMessageResponseSchema, { body, idempotencyKey });
-export const answerClarification = (messageId: string, body: Answer, idempotencyKey?: Key) => studio.post(`/messages/${segment(messageId)}/answer`, postMessageResponseSchema, { body, idempotencyKey });
+  studio.post(`/conversations/${segment(conversationId)}/messages`, studioPostMessageSchema, { body, idempotencyKey });
+export const answerClarification = (messageId: string, body: Answer, idempotencyKey?: Key) => studio.post(`/messages/${segment(messageId)}/answer`, studioPostMessageSchema, { body, idempotencyKey });
 export const requestFollowUp = (messageId: string, note: string, idempotencyKey?: Key) =>
-  studio.post(`/messages/${segment(messageId)}/follow-up`, postMessageResponseSchema, { body: { body_md: note }, idempotencyKey });
+  studio.post(`/messages/${segment(messageId)}/follow-up`, studioPostMessageSchema, { body: { body_md: note }, idempotencyKey });
 
 // Decisions
 export const listDecisions = (id: string, signal?: Signal) => studio.get(project(id, '/decisions'), listDecisionsResponseSchema, { signal }).then((result) => result.decisions);

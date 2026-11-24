@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { messageSchema } from '@contracts/ardentstudio.generated';
 import { studioTaskSchema } from '../api/execution';
-import { taskRecoverySchema } from '../../../lib/execution';
+import { taskRecoveryEventSchema } from '@contracts/ardentstudio.generated';
 import { listDeliverables, listMessages, listTasks, type Deliverable, type Message, type Snapshot, type Task } from '../api/endpoints';
 import type { ProjectStore } from '../state/project-store';
 import { emptyRoomPresence, nextRoomChange, pruneRoomPresence, reduceRoomPresence, type RoomPresenceState } from './room-presence';
@@ -182,11 +182,8 @@ export function useRoomTasks(store: ProjectStore, snapshot: Snapshot): { tasks: 
           });
           return;
         }
-        const recovery = taskRecoverySchema.nullable().safeParse(event.payload.recovery);
-        if (event.type === 'task.recovery' && typeof event.payload.task_id === 'string' && recovery.success) {
-          const id = event.payload.task_id;
-          setRecoveries((current) => new Map(current).set(id, recovery.data));
-        }
+        const change = event.type === 'task.recovery' ? taskRecoveryEventSchema.safeParse(event.payload) : null;
+        if (change?.success) setRecoveries((current) => new Map(current).set(change.data.task_id, change.data.recovery));
       }),
     [store],
   );

@@ -22,8 +22,10 @@ const DISPLAYABLE = ['image/*', 'text/*', 'application/pdf', 'application/json']
  */
 export function displayRendition(revision: Revision): { preview: Rendition | null } {
   // HiveCommon's Rendition leaves out the optional fields a rendition does not have.
-  const renditions: Rendition[] = (revision.renditions ?? []).map(({ width, height, has_alpha, purpose: _purpose, ...rest }) => ({
+  const roles: ReadonlySet<string> = new Set(['original', 'preview', 'model_input']);
+  const renditions: Rendition[] = (revision.renditions ?? []).filter((item) => roles.has(item.role)).map(({ width, height, has_alpha, purpose: _purpose, role, ...rest }) => ({
     ...rest,
+    role: role as Rendition['role'],
     ...(typeof width === 'number' ? { width } : {}),
     ...(typeof height === 'number' ? { height } : {}),
     ...(typeof has_alpha === 'boolean' ? { has_alpha } : {}),

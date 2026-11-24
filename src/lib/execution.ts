@@ -1,13 +1,14 @@
-// Execution context and recovery as the suite's runtimes report them: HiveCommon execution context v1
-// references and Ardent's recovery object (C3), which Magnus and Studio pass on unchanged. Shared by
-// the Studio room, Agent 360 and the Magnus Ardent pages. Attribution only: nothing here grants access.
+// Execution context and recovery as Ardent reports them through Magnus: HiveCommon execution context
+// v1 references and Ardent's recovery object (C3). The Magnus browser contract does not describe
+// Ardent's task list, recovery or lineage, so they are read here, leniently (Studio's copies come from
+// its own vendored contract). Attribution only: nothing here grants access.
 import { z } from 'zod';
 import { parseExecutionContext, parseExecutionRef } from '@hivemagnus/hive-common/execution';
 
 /** A field a newer release adds: absent on older ones, and dropped when its shape is not one this console knows. */
 const optional = <S extends z.ZodType>(schema: S) => schema.optional().catch(undefined);
 
-// ── Recovery (the Ardent C3 shape that Magnus and Studio pass on) ──
+// ── Recovery (Ardent's C3 shape, as Magnus relays it) ──
 
 export const RECOVERY_ACTIONS = ['mark_applied', 'mark_not_applied', 'retry_with_new_deadline', 'abandon'] as const;
 export type RecoveryAction = (typeof RECOVERY_ACTIONS)[number];
@@ -29,9 +30,6 @@ export const taskRecoverySchema = z.object({
   actions: z.array(z.unknown()).transform((values) => values.filter(isRecoveryAction)),
   continuation_task_id: optional(z.string()),
   decided: optional(z.object({ action: z.string(), by: z.string(), at: z.string(), note: z.string().optional() })),
-  /** Studio 0.5.0: whether the agent takes recovery decisions through Magnus. When false, `actions` is empty. */
-  supported: optional(z.boolean()),
-  observed_at: optional(z.string()),
 });
 export type TaskRecovery = z.output<typeof taskRecoverySchema>;
 

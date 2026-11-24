@@ -51,7 +51,7 @@ let route: (request: StudioRequest) => unknown;
 
 beforeEach(() => {
   stubBrowser();
-  tasks = [task({ state: 'unknown', recovery: recovery(), execution: { root: ROOT, self: SELF } })];
+  tasks = [task({ state: 'unknown', recovery: recovery(), execution: { root: ROOT, parent: null, self: SELF, attempt: 1, inputs: [] } })];
   lineage = lineageAnswer();
   route = () => undefined;
   server = serveStudio((request) => {
@@ -185,7 +185,7 @@ describe('the recovery panel', () => {
   });
 
   it('offers no decision when the agent cannot take one, and says why', async () => {
-    tasks = [task({ state: 'unknown', recovery: recovery({ actions: [], supported: false }), execution: { root: ROOT, self: SELF } })];
+    tasks = [task({ state: 'unknown', recovery: recovery({ actions: [], supported: false }), execution: { root: ROOT, parent: null, self: SELF, attempt: 1, inputs: [] } })];
     await open();
     const panel = drawer().querySelector('[data-recovery]')!;
     expect(panel.querySelector('[aria-label="Recovery decisions"]')).toBeNull();
@@ -193,7 +193,9 @@ describe('the recovery panel', () => {
   });
 
   it('is not shown for a task from a Studio without recovery, which also hides the history link', async () => {
-    tasks = [task({ state: 'unknown' })];
+    // A Studio before 0.5.0 sends neither recovery nor execution.
+    const { recovery: _recovery, execution: _execution, ...older } = task({ state: 'unknown' });
+    tasks = [{ ...older, ardent: { agent_ref: 'node-1~world', task_id: 'task-1', session_id: null } } as Task];
     await open('?task=' + TASK_ID);
     expect(document.querySelector('[data-recovery]')).toBeNull();
     expect(button(`Execution history of ${task().title}`)).toBeUndefined();

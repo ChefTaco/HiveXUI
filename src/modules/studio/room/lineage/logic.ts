@@ -135,7 +135,7 @@ export function buildChain(task: Task, lineage: TaskLineage | null, tasks: Reado
   for (const item of studio?.handoffs ?? []) if (item.direction === 'from') add('handoff', item);
   if (studio?.workflow) add('workflow', { ref: studio.workflow.ref ?? undefined, taskId: undefined, title: `Workflow step ${studio.workflow.node_key}${studio.workflow.attempt > 1 ? `, attempt ${studio.workflow.attempt}` : ''}` });
   for (const ref of task.execution?.inputs ?? []) add('input', { ref });
-  entries.push({ key: 'self', kind: 'self', label: task.title, state: TASK_STATE_LABEL[task.state], ref: selfRef });
+  entries.push({ key: 'self', kind: 'self', label: task.title, state: TASK_STATE_LABEL[task.state], ref: selfRef ?? undefined });
   for (const attempt of lineage?.ardent ?? []) for (const item of attempt.lineage?.continuations ?? []) add('continuation', { ref: item.ref, kind: item.source });
   for (const item of studio?.handoffs ?? []) if (item.direction === 'to') add('handoff_to', item);
   for (const item of studio?.reassignedTo ?? []) add('reassigned_to', item);

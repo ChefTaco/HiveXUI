@@ -207,7 +207,7 @@ export const task = (overrides: Partial<Task> = {}): Task => ({
   source: {},
   state: 'running',
   dispatch: 'mission',
-  ardent: { agent_ref: 'node-1~world', task_id: 'task-1', session_id: null },
+  ardent: { agent_ref: 'node-1~world', task_id: 'task-1', session_id: null, attempts: [] },
   outcome: null,
   reassigned_from: null,
   group_id: null,
@@ -216,6 +216,8 @@ export const task = (overrides: Partial<Task> = {}): Task => ({
   created_at: AT,
   updated_at: AT,
   finished_at: null,
+  execution: null,
+  recovery: null,
   ...overrides,
 });
 

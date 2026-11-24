@@ -2,9 +2,8 @@
 // Pages share a store per project id, so the header, the Files drawer and Team Assignment read the
 // same copy and the stream is opened once.
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
-import { activitySchema, conversationSchema, decisionSchema, fileSchema, projectCountsSchema, referenceLinkSchema, teamProposalRecordSchema } from '@contracts/ardentstudio.generated';
+import { activitySchema, conversationSchema, decisionSchema, fileSchema, projectCountsSchema, referenceLinkSchema, taskRecoveryEventSchema, teamProposalRecordSchema } from '@contracts/ardentstudio.generated';
 import { studioTaskSchema } from '../api/execution';
-import { taskRecoverySchema } from '../../../lib/execution';
 import type { StreamHandle, StreamState } from '../../magnus/api/stream';
 import type { SseEvent } from '../../magnus/api/sse';
 import { getSnapshot, type Project, type ReferenceLink, type Snapshot, type StudioFile, type TeamProposalRecord, type TeamState } from '../api/endpoints';
@@ -278,10 +277,10 @@ export function patchSnapshot(snapshot: Snapshot, event: ProjectEvent): Snapshot
     const parsed = studioTaskSchema.safeParse(payload.task);
     if (!parsed.success) {
       // A recovery event may carry only the task id and its new recovery.
-      const recovery = taskRecoverySchema.nullable().safeParse(payload.recovery);
-      const known = snapshot.tasks.find((task) => task.id === payload.task_id);
-      if (event.type !== 'task.recovery' || !recovery.success || !known) return null;
-      return { ...snapshot, tasks: snapshot.tasks.map((task) => (task.id === known.id ? { ...task, recovery: recovery.data } : task)) };
+      const change = event.type === 'task.recovery' ? taskRecoveryEventSchema.safeParse(payload) : null;
+      const known = change?.success ? snapshot.tasks.find((task) => task.id === change.data.task_id) : undefined;
+      if (!change?.success || !known) return null;
+      return { ...snapshot, tasks: snapshot.tasks.map((task) => (task.id === known.id ? { ...task, recovery: change.data.recovery } : task)) };
     }
     // The snapshot holds active tasks and those waiting for an answer; a finished one leaves it.
     const tasks = SNAPSHOT_TASK_STATES.has(parsed.data.state) ? upsert(snapshot.tasks, parsed.data) : snapshot.tasks.filter((task) => task.id !== parsed.data.id);

@@ -9,7 +9,6 @@ import {
   createDevelopmentCommentResponseSchema,
   installSkillResponseSchema,
   developmentResponseSchema,
-  listTasksResponseSchema,
   presentationSchema,
   type APPLY_PARTS,
   type agentDraftBodySchema,
@@ -19,6 +18,7 @@ import {
   type installSkillRequestSchema,
   type putPresentationRequestSchema,
 } from '@contracts/ardentstudio.generated';
+import { studioTaskListSchema } from '../api/execution';
 import { segment, studio } from '../api/client';
 
 export type Presentation = z.infer<typeof presentationSchema>;
@@ -56,4 +56,4 @@ export const commentOnRecord = (ref: string, recordId: string, body: { body_md: 
 
 /** Every Studio task of a project, finished ones included, to link development records to it. */
 export const listProjectTasks = (projectId: string, signal?: Signal) =>
-  studio.get(`/projects/${segment(projectId)}/tasks`, listTasksResponseSchema, { query: { state: 'all' }, signal }).then((result) => result.tasks);
+  studio.get(`/projects/${segment(projectId)}/tasks`, studioTaskListSchema, { query: { state: 'all' }, signal }).then((result) => result.tasks);

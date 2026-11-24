@@ -208,6 +208,8 @@ export const uploadFileQuerySchema = z.object({
   purpose: filePurposeSchema.default('reference'),
 });
 export const listFilesQuerySchema = z.object({ purpose: filePurposeSchema.optional() });
+/** GET /blobs/{sha256}: inline for previews (raster images get their real type), attachment otherwise. */
+export const blobQuerySchema = z.object({ disposition: z.enum(['attachment', 'inline']).default('attachment') });
 export const listFilesResponseSchema = z.object({ files: z.array(fileSchema) });
 export const fileResponseSchema = fileSchema;
 
@@ -256,7 +258,11 @@ export const skillRefSchema = z.object({
   kind: z.enum(['local', 'hiveskills']),
   ref: z.string().regex(/^[A-Za-z0-9_.:/-]{1,128}$/),
   channel: z.string().regex(/^[A-Za-z0-9_.-]{1,64}$/).optional(),
-}).strict();
+  /** A pinned HiveSkills release: its version and the release archive's SHA-256 (both, on hiveskills skills only). */
+  version: z.string().max(64).regex(/^v?\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/i).optional(),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+}).strict().refine(value => (value.version === undefined) === (value.sha256 === undefined) && (value.version === undefined || value.kind === 'hiveskills'),
+  { message: 'A pinned skill is a hiveskills skill with both version and sha256', path: ['version'] });
 export const avatarPresetSchema = z.object({
   preset: z.string().regex(/^[a-z0-9-]{1,40}$/),
   accent: z.string().regex(/^[a-z0-9-]{1,40}$/),
@@ -443,7 +449,9 @@ const versionFields = {
   created_by: z.string(),
   created_at: isoDate,
 };
-export const agentTemplateVersionSchema = z.object({ ...versionFields, kind: z.literal('agent'), body: agentTemplateBodySchema });
+/** The agent definition a template version was imported from (POST /templates/import-definition). */
+export const sourceDefinitionSchema = z.object({ name: z.string(), sha256: z.string().regex(/^[a-f0-9]{64}$/) });
+export const agentTemplateVersionSchema = z.object({ ...versionFields, kind: z.literal('agent'), body: agentTemplateBodySchema, source_definition: sourceDefinitionSchema.nullable() });
 export const teamTemplateVersionSchema = z.object({ ...versionFields, kind: z.literal('team'), body: teamTemplateBodySchema });
 export const templateVersionSchema = z.discriminatedUnion('kind', [agentTemplateVersionSchema, teamTemplateVersionSchema]);
 export const templateDetailSchema = templateSummarySchema.extend({
@@ -826,6 +834,37 @@ export const TASK_MODES = ['turn', 'assignment', 'discussion_turn', 'revision', 
 export const taskModeSchema = z.enum(TASK_MODES);
 /** The Ardent state mirrored, plus pausing (requested, not yet at a step boundary). input_required waits for a person's answer. */
 export const taskStateSchema = z.enum(['queued', 'running', 'input_required', 'pausing', 'paused', 'completed', 'partial', 'failed', 'cancelled', 'unknown']);
+/** Decisions on a task Ardent holds for one (Ardent 3.2.0 task recovery, C3). */
+export const RECOVERY_ACTIONS = ['mark_applied', 'mark_not_applied', 'retry_with_new_deadline', 'abandon'] as const;
+export const recoveryActionSchema = z.enum(RECOVERY_ACTIONS);
+/**
+ * ready, reconciling, resumed: Ardent is continuing the interrupted run under the same task (the Studio
+ * task stays running and shows as recovering). awaiting_decision: Ardent holds it (Studio unknown) until a
+ * person decides with one of `actions`. unsupported: Ardent cannot continue it. resolved: decided; a
+ * continuation_task_id names the Ardent task that continues the work for the same Studio task.
+ */
+export const recoveryStatusSchema = z.enum(['ready', 'reconciling', 'resumed', 'awaiting_decision', 'unsupported', 'resolved']);
+export const taskRecoverySchema = z.object({
+  status: recoveryStatusSchema,
+  /** Actionable, e.g. UNSETTLED_EXTERNAL_WRITE, CODEX_THREAD_NOT_DURABLE, DEADLINE_ELAPSED_DURING_OUTAGE. */
+  reason: z.object({ code: z.string(), message: z.string() }),
+  attempt: z.number().int(),
+  checkpoint: z.object({
+    step: z.number().int(), completed_calls: z.number().int(),
+    pending_calls: z.array(z.object({ call_id: z.string(), tool: z.string(), effect: z.string(), dispatched_at: z.string().nullable(), reconcilable: z.boolean() })),
+  }).optional(),
+  /** The decisions Studio can send now: empty when the agent's Ardent or Magnus agent cannot take them (supported false). */
+  actions: z.array(recoveryActionSchema),
+  continuation_task_id: z.string().optional(),
+  decided: z.object({ action: recoveryActionSchema, by: z.string(), at: z.string(), note: z.string().optional() }).optional(),
+  /** Whether the agent supports recovery decisions through Magnus (profile recovery >= 1). */
+  supported: z.boolean(),
+  observed_at: isoDate,
+});
+/** The task's execution context references (attribution only): the causal root, parent and the task itself, qualified `hx1:` references. */
+export const taskExecutionRefsSchema = z.object({
+  root: z.string(), parent: z.string().nullable(), self: z.string().nullable(), attempt: z.number().int().nullable(), inputs: z.array(z.string()),
+});
 export const taskSchema = z.object({
   id: taskIdSchema,
   project_id: projectIdSchema,
@@ -842,7 +881,8 @@ export const taskSchema = z.object({
   state: taskStateSchema,
   /** mission: an Ardent 2.2.0 team mission; turn: a task-submit with a composed prompt (older agents). Null until Ardent accepts it. */
   dispatch: z.enum(['mission', 'turn']).nullable(),
-  ardent: z.object({ agent_ref: z.string().nullable(), task_id: z.string().nullable(), session_id: z.string().nullable() }),
+  /** task_id is the current Ardent task; attempts the earlier ones (recovery continuations), oldest first. */
+  ardent: z.object({ agent_ref: z.string().nullable(), task_id: z.string().nullable(), session_id: z.string().nullable(), attempts: z.array(z.string()) }),
   outcome: z.unknown(),
   reassigned_from: taskIdSchema.nullable(),
   /** Tasks in one ordering group start one after another. */
@@ -852,6 +892,9 @@ export const taskSchema = z.object({
   created_at: isoDate,
   updated_at: isoDate,
   finished_at: isoDate.nullable(),
+  execution: taskExecutionRefsSchema.nullable(),
+  /** The last Ardent recovery Studio observed, or null when the run was never interrupted. A running task with one is recovering. */
+  recovery: taskRecoverySchema.nullable(),
 });
 export const listTasksQuerySchema = z.object({
   state: z.enum(['active', 'finished', 'all']).default('all'),
@@ -869,6 +912,68 @@ export const createTaskRequestSchema = z.object({
 }).strict();
 export const reassignTaskRequestSchema = z.object({ role_key: roleKeySchema }).strict();
 export const taskResponseSchema = taskSchema;
+/**
+ * GET /tasks/{taskId}/recovery. source live: read now through Magnus; stored: as last recorded (the agent
+ * cannot be asked, see unavailable). supported false: no actions can be sent (unavailable says why).
+ */
+export const taskRecoveryResponseSchema = z.object({
+  task: taskSchema,
+  recovery: taskRecoverySchema.nullable(),
+  supported: z.boolean(),
+  source: z.enum(['live', 'stored']),
+  unavailable: z.object({ code: z.string(), message: z.string() }).nullable(),
+});
+/** POST /tasks/{taskId}/recovery: a person's decision on a task Ardent holds awaiting_decision. */
+export const taskRecoveryRequestSchema = z.object({
+  action: recoveryActionSchema,
+  /** The pending call the decision is about; needed when several are pending. */
+  call_id: z.string().min(1).max(256).optional(),
+  /** mark_applied: the call's result when known (JSON, at most 64 KiB), checked against the tool's output schema. */
+  result: z.unknown().optional().refine(value => value === undefined || new TextEncoder().encode(JSON.stringify(value) ?? '').length <= 64 * 1024, 'Exceeds 65536 bytes'),
+  note: z.string().trim().min(1).max(2000).optional(),
+  /** retry_with_new_deadline: the new deadline in seconds (Ardent caps it). */
+  deadline_seconds: z.number().int().min(1).max(86_400).optional(),
+}).strict();
+export const taskRecoveryDecisionResponseSchema = z.object({ task: taskSchema, recovery: taskRecoverySchema });
+/** A Studio task in a lineage listing. */
+export const lineageTaskSchema = z.object({ task_id: taskIdSchema, ref: z.string().nullable(), role_key: z.string().nullable(), state: taskStateSchema, mode: taskModeSchema });
+/**
+ * GET /tasks/{taskId}/lineage: how the task sits in the suite-wide causal tree. studio: Studio's own
+ * relationships. ardent: each Ardent attempt's lineage as the profile records it (current last), or null
+ * with ardent_unavailable when the agent cannot answer. emberpath: the filter for provider traces.
+ */
+export const taskLineageResponseSchema = z.object({
+  task_id: taskIdSchema,
+  studio: z.object({
+    self: z.string().nullable(),
+    root: z.string().nullable(),
+    parent: z.string().nullable(),
+    execution: taskExecutionRefsSchema.nullable(),
+    /** Tasks whose execution parent is this task (hand-offs, reassignments, the next discussion turn). */
+    children: z.array(lineageTaskSchema),
+    reassigned_from: lineageTaskSchema.nullable(),
+    reassigned_to: z.array(lineageTaskSchema),
+    /** Hand-offs: the task that handed this one over (direction from) and those it handed over (direction to). */
+    handoffs: z.array(lineageTaskSchema.extend({ direction: z.enum(['from', 'to']), relationship: z.string().nullable() })),
+    /** The team revision the task runs under, and the deliverable revisions it produced. */
+    assignment_revision: z.number().int().nullable(),
+    revisions: z.array(z.object({ revision_id: revisionIdSchema, deliverable_id: deliverableIdSchema, revision: z.number().int(), blob_sha256: sha256Schema })),
+    workflow: z.object({ run_id: workflowRunIdSchema, node_key: z.string(), attempt: z.number().int(), ref: z.string().nullable() }).nullable(),
+  }),
+  ardent: z.object({
+    agent_ref: agentRefSchema,
+    attempts: z.array(z.object({
+      ardent_task_id: z.string(),
+      ref: z.string().nullable(),
+      current: z.boolean(),
+      /** The profile's GET /api/v1/tasks/{id}/lineage answer, relayed as-is; null with error when it could not be read. */
+      lineage: z.record(z.string(), z.unknown()).nullable(),
+      error: z.object({ code: z.string(), message: z.string() }).nullable(),
+    })),
+  }).nullable(),
+  ardent_unavailable: z.object({ code: z.string(), message: z.string() }).nullable(),
+  emberpath: z.object({ filter: z.object({ executionRoot: z.string().nullable() }) }),
+});
 
 // ── Workflow runs ──
 export const workflowRunStateSchema = z.enum(['running', 'blocked', 'completed', 'failed', 'cancelled']);
@@ -1003,6 +1108,11 @@ export const activitySchema = z.object({
 // ── Deliverable review ──
 /** A received revision's review status. Distinct from the task that produced it and from the file's receipt. */
 export const reviewStatusSchema = z.enum(['unreviewed', 'changes_requested', 'accepted', 'rejected', 'superseded']);
+/** A rendition of a revision's artifact (artifact transfer v2), the original first. Download through GET /blobs/{sha256}. */
+export const deliverableRenditionSchema = z.object({
+  role: z.string(), sha256: sha256Schema, mime: z.string(), size: z.number().int(), purpose: z.string().nullable(),
+  width: z.number().int().nullable(), height: z.number().int().nullable(), has_alpha: z.boolean().nullable(),
+});
 export const deliverableRevisionSchema = z.object({
   id: revisionIdSchema,
   deliverable_id: deliverableIdSchema,
@@ -1019,6 +1129,8 @@ export const deliverableRevisionSchema = z.object({
   supersedes_revision_id: revisionIdSchema.nullable(),
   received_at: isoDate,
   review_status: reviewStatusSchema,
+  /** Renditions Ardent listed for the artifact (original first, then previews and model inputs); empty from agents without artifact transfer v2. */
+  renditions: z.array(deliverableRenditionSchema),
 });
 export const deliverableSchema = z.object({
   id: deliverableIdSchema,
@@ -1045,7 +1157,15 @@ export const artifactImportSchema = z.object({
   state: z.enum(['pending', 'imported', 'failed']),
   attempts: z.number().int(),
   error: z.string().nullable(),
+  /** Why the import failed or waits for a retry: DIGEST_MISMATCH, TOO_LARGE, SIZE_MISMATCH, RANGE_MISMATCH, TRANSFER_INCOMPLETE, MAGNUS_REFUSED, TRANSFER_FAILED or TASK_GONE. */
+  error_code: z.string().nullable(),
   revision_id: revisionIdSchema.nullable(),
+  /** Bytes received so far (a ranged import resumes from here). */
+  received_bytes: z.number().int(),
+  /** range: artifact transfer v2 with Range and resume; whole: the v1 download. Null until the transfer starts. */
+  transfer: z.enum(['range', 'whole']).nullable(),
+  /** How often the transfer continued from a partial file. */
+  resumes: z.number().int(),
   updated_at: isoDate,
 });
 export const listDeliverablesResponseSchema = z.object({ deliverables: z.array(deliverableSchema), imports: z.array(artifactImportSchema) });
@@ -1334,7 +1454,8 @@ export const agentOperationSchema = z.object({
   agent_ref: agentRefSchema,
   project_id: projectIdSchema.nullable(),
   role_key: z.string().nullable(),
-  kind: z.enum(['deploy', 'hivemem']),
+  /** definition: an install of an agent definition (POST /templates/{templateId}/versions/{version}/deploy). */
+  kind: z.enum(['deploy', 'hivemem', 'definition']),
   status: z.enum(['running', 'succeeded', 'failed']),
   steps: z.array(agentOperationStepSchema),
   error: z.string().nullable(),
@@ -1345,6 +1466,141 @@ export const agentOperationSchema = z.object({
   completed_at: z.string().nullable(),
 });
 export const agentOperationResponseSchema = agentOperationSchema;
+
+// ── Agent definitions (hive-agent-definition/1) ──
+// One portable, complete agent definition, as Magnus 3.3.0 validates and installs it. This is the shape of
+// @hivemagnus/magnus-contracts `agent-definition` (Magnus 3.3.0), ported here until Studio depends on that
+// release. `sha256` is the SHA-256 of the canonical JSON (sorted keys, no whitespace) of the definition
+// without `sha256`; `persona.sha256` that of `{ soul_md, identity_md }`. A definition never carries a
+// credential: secrets are named environment variables, installation resources are named bindings, and
+// history, memory, sessions and artifacts are always excluded.
+export const AGENT_DEFINITION_SCHEMA = 'hive-agent-definition/1' as const;
+export const AGENT_DEFINITION_EXCLUDES = ['history', 'memory', 'sessions', 'artifacts'] as const;
+export const AGENT_DEFINITION_BINDING_KINDS = ['hivemem', 'emberpath_alias', 'hiveskills', 'channel', 'peer'] as const;
+/** The preflight problem codes Magnus reports today (a later Magnus may add codes). */
+export const AGENT_DEFINITION_PROBLEM_CODES = [
+  'MISSING_BINDING', 'SKILL_VERSION_UNAVAILABLE', 'EXTENSION_NOT_REVIEWED', 'RUNTIME_INCOMPATIBLE', 'CAPABILITY_MISSING', 'SECRET_UNBOUND',
+] as const;
+
+const definitionUtf8Length = (value: string) => new TextEncoder().encode(value).length;
+const definitionDigest = z.string().regex(/^[a-f0-9]{64}$/u);
+const definitionPersonaText = z.string().max(131_072)
+  .refine(value => value.trim().length > 0 && definitionUtf8Length(value) <= 131_072, 'Identity text must be 1 to 128 KiB');
+const definitionPackageName = z.string().max(214).regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/u);
+const definitionDistinct = (values: string[]) => new Set(values).size === values.length;
+/** An Emberpath alias: the only portable model reference. */
+export const emberpathAliasSchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}$/u);
+
+/** A requirement's key: `hivemem`, `model`, `hiveskills`, `channel:<name>`, `peers`. */
+export const agentDefinitionBindingKeySchema = z.string().regex(/^[a-z][a-z0-9_-]{0,63}(?::[a-z0-9][a-z0-9_-]{0,63})?$/u);
+/**
+ * What an install binds each requirement to: a HiveMem workspace or `default`, an Emberpath alias, `default`
+ * for HiveSkills; `secret:<ENV_NAME>` to `provided` or `none`, never a value.
+ */
+export const agentDefinitionBindingsSchema = z.record(
+  z.union([agentDefinitionBindingKeySchema, z.string().regex(/^secret:[A-Z][A-Z0-9_]{0,127}$/u)]),
+  z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}$/u),
+).refine(value => Object.keys(value).length <= 128, 'At most 128 bindings');
+
+const agentDefinitionFields = {
+  schema: z.literal(AGENT_DEFINITION_SCHEMA),
+  name: z.string().trim().min(1).max(128),
+  description: z.string().max(2000).optional(),
+  created_at: z.iso.datetime({ offset: true }),
+  source_template: z.object({ template_id: z.string().min(1).max(128), version: z.number().int().min(1) }).strict().optional(),
+  persona: z.object({ soul_md: definitionPersonaText, identity_md: definitionPersonaText, sha256: definitionDigest }).strict(),
+  runtime: z.object({
+    package: definitionPackageName,
+    version: z.string().max(64).regex(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u),
+    required_capabilities: z.array(z.string().regex(/^[a-z0-9.-]{1,64}$/u)).max(32).refine(items => definitionDistinct(items), 'Duplicate capability'),
+  }).strict(),
+  /** Reviewed extension packages, by reference: the npm SRI of the archive and the reviewed package tree digest. */
+  extensions: z.array(z.object({
+    name: definitionPackageName,
+    version: z.string().regex(/^\d+\.\d+\.\d+$/u),
+    integrity: z.string().regex(/^sha512-[A-Za-z0-9+/]{86}==$/u),
+    package_tree_sha256: definitionDigest,
+    plugins: z.array(z.string().min(1).max(500)).min(1).max(32).optional(),
+  }).strict()).max(32).refine(items => definitionDistinct(items.map(item => item.name)), 'Duplicate extension'),
+  /** HiveSkills releases: the catalog slug, the release version and the archive's SHA-256. */
+  skills: z.array(z.object({
+    slug: z.string().regex(/^[a-z0-9][a-z0-9-]{1,62}$/u),
+    version: z.string().max(64).regex(/^v?\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/iu),
+    sha256: definitionDigest,
+  }).strict()).max(100).refine(items => definitionDistinct(items.map(item => item.slug)), 'Duplicate skill'),
+  config: z.object({
+    execution: z.object({
+      backend: z.enum(['llamacpp', 'codex']),
+      deadline_seconds: z.number().int().min(1).max(86_400).optional(),
+      max_parallel_tasks: z.number().int().min(1).max(16).optional(),
+      max_parallel_tool_calls: z.number().int().min(1).max(16).optional(),
+    }).strict(),
+    /** Absent alias: the target binds `model`. */
+    model: z.object({ emberpath_alias: emberpathAliasSchema.optional() }).strict(),
+    artifacts: z.object({ max_bytes: z.number().int().min(1024).max(67_108_864).optional() }).strict(),
+    channels: z.literal('excluded'),
+  }).strict(),
+  requirements: z.object({
+    bindings: z.array(z.object({ key: agentDefinitionBindingKeySchema, kind: z.enum(AGENT_DEFINITION_BINDING_KINDS), required: z.boolean() }).strict())
+      .max(64).refine(items => definitionDistinct(items.map(item => item.key)), 'Duplicate binding key'),
+    secrets: z.array(z.object({ env_name: z.string().regex(/^[A-Z][A-Z0-9_]{0,127}$/u), purpose: z.string().trim().min(1).max(200) }).strict())
+      .max(64).refine(items => definitionDistinct(items.map(item => item.env_name)), 'Duplicate secret'),
+  }).strict(),
+  excludes: z.tuple([z.literal('history'), z.literal('memory'), z.literal('sessions'), z.literal('artifacts')]),
+};
+/** The definition without its digest, as it is hashed. */
+export const agentDefinitionBodySchema = z.object(agentDefinitionFields).strict();
+/** The shape only; Studio also checks both digests and the credential guard before it trusts one. */
+export const agentDefinitionSchema = z.object({ ...agentDefinitionFields, sha256: definitionDigest }).strict()
+  .refine(value => definitionUtf8Length(JSON.stringify(value)) <= 512 * 1024, 'A definition is at most 512 KiB');
+export const agentDefinitionProblemSchema = z.object({ code: z.string().max(64), detail: z.string().max(500) });
+/** Magnus's preflight report: ok exactly when there are no problems. */
+export const agentDefinitionPreflightSchema = z.object({ ok: z.boolean(), problems: z.array(agentDefinitionProblemSchema) });
+
+/** What a template has that a definition cannot carry. */
+export const definitionOmissionSchema = z.object({ kind: z.enum(['skill', 'model']), name: z.string(), reason: z.string() });
+// POST /templates/{templateId}/versions/{version}/definition
+export const buildDefinitionRequestSchema = z.object({}).strict();
+export const buildDefinitionResponseSchema = z.object({ definition: agentDefinitionSchema, omitted: z.array(definitionOmissionSchema) });
+// POST /templates/import-definition
+export const importDefinitionRequestSchema = z.object({
+  /** Checked by the route: schema, both digests and the credential guard (422). */
+  definition: z.unknown(),
+  /** Add the version to this agent template. Omitted: the definition's source_template when it is here, else a new template. */
+  template_id: templateIdSchema.optional(),
+  /** The latest version this import is based on (a newer one answers 409). Omitted: the definition's source_template version. */
+  base_version: z.number().int().min(1).optional(),
+  changelog: z.string().trim().min(1).max(2_000).optional(),
+}).strict();
+export const importDefinitionResponseSchema = z.object({
+  template: templateDetailSchema,
+  version: z.number().int(),
+  /** A new template was created (no template matched). */
+  created: z.boolean(),
+  source_definition: sourceDefinitionSchema,
+  /** Definition fields a template cannot represent, by JSON path. */
+  ignored: z.array(z.object({ path: z.string(), reason: z.string() })),
+});
+// POST /templates/{templateId}/versions/{version}/deploy-check
+export const definitionDeployCheckRequestSchema = z.object({
+  node_id: z.string().regex(/^[A-Za-z0-9._-]{1,128}$/),
+  bindings: agentDefinitionBindingsSchema.optional(),
+}).strict();
+export const definitionDeployCheckResponseSchema = z.object({
+  definition: sourceDefinitionSchema,
+  omitted: z.array(definitionOmissionSchema),
+  preflight: agentDefinitionPreflightSchema,
+});
+// POST /templates/{templateId}/versions/{version}/deploy
+export const definitionDeployRequestSchema = z.object({
+  node_id: z.string().regex(/^[A-Za-z0-9._-]{1,128}$/),
+  profile: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
+  bindings: agentDefinitionBindingsSchema,
+  api_port: z.number().int().min(1024).max(65535).optional(),
+  /** Relay the operation's progress to this project's stream. */
+  project_id: projectIdSchema.optional(),
+  role_key: roleKeySchema.optional(),
+}).strict();
 
 // ── Project snapshot and stream ──
 export const snapshotResponseSchema = z.object({
@@ -1367,6 +1623,20 @@ export const snapshotResponseSchema = z.object({
   team_proposals: z.array(teamProposalRecordSchema),
 });
 export const streamQuerySchema = z.object({ after: z.string().regex(/^\d{1,15}$/).optional() });
+/**
+ * task.recovery payload. change: recovering (Ardent continues the same task), held (unknown until a
+ * decision), continued (the task follows the continuation ardent_task_id; previous_ardent_task_id is the
+ * attempt it continues), resolved (ended without a continuation), unsupported (Ardent cannot continue it).
+ */
+export const taskRecoveryEventSchema = z.object({
+  task_id: taskIdSchema,
+  change: z.enum(['recovering', 'held', 'continued', 'resolved', 'unsupported']),
+  recovery: taskRecoverySchema,
+  ardent_task_id: z.string().nullable(),
+  previous_ardent_task_id: z.string().optional(),
+});
+/** artifact.import.progress payload: a transfer moved on (at most every 2 s). State changes and outcomes arrive as artifact.import.updated. */
+export const artifactImportProgressEventSchema = z.object({ import: artifactImportSchema });
 export const PROJECT_EVENT_TYPES = [
   'project.created', 'project.updated', 'project.archived', 'project.reopened',
   'file.created', 'file.updated',
@@ -1377,6 +1647,7 @@ export const PROJECT_EVENT_TYPES = [
   'export.created', 'agent.operation.updated', 'deliverable.updated', 'artifact.import.updated',
   'link.created', 'link.updated', 'link.deleted', 'team.proposal.updated',
   'workflow.run.created', 'workflow.run.updated', 'workflow.node.updated',
+  'task.recovery', 'artifact.import.progress',
 ] as const;
 export const projectEventTypeSchema = z.enum(PROJECT_EVENT_TYPES);
 /** A persisted event. The SSE `id` is its seq. */
@@ -1502,7 +1773,7 @@ export const ardentStudioBrowserRoutes: readonly ArdentStudioBrowserRoute[] = [
   // Files
   { method: 'POST', path: '/projects/{projectId}/files', query: uploadFileQuerySchema, requestBody: 'raw', response: fileResponseSchema, permissions: WRITE, idempotent: true, successStatus: 201, note: 'Raw body up to ARDENT_STUDIO_MAX_BLOB_BYTES (default 64 MiB) with an allowed Content-Type (UPLOAD_MIME_TYPES). References are indexed into the project HiveMem workspace.' },
   { method: 'GET', path: '/projects/{projectId}/files', query: listFilesQuerySchema, response: listFilesResponseSchema, permissions: READ, idempotent: false },
-  { method: 'GET', path: '/blobs/{sha256}', response: null, permissions: READ, idempotent: false, note: 'Bytes as application/octet-stream with Content-Disposition attachment; the recorded type is in X-Blob-Mime. Only blobs that a project file, a deliverable revision or an export references are served.' },
+  { method: 'GET', path: '/blobs/{sha256}', query: blobQuerySchema, response: null, permissions: READ, idempotent: false, note: 'Bytes as application/octet-stream with Content-Disposition attachment; the recorded type is in X-Blob-Mime and the digest in X-Content-SHA256 (ETag "<sha256>"). Range (one bytes= range) answers 206 with Content-Range, 416 when unsatisfiable; If-Range with another ETag answers the whole blob. disposition=inline answers Content-Disposition inline and, for raster images (PNG, JPEG, WebP, GIF), their real Content-Type, for previews. Only blobs that a project file, a deliverable revision or rendition, or an export references are served.' },
   { method: 'POST', path: '/files/{fileId}/reindex', response: fileResponseSchema, permissions: WRITE, idempotent: true, note: 'Queues the file for HiveMem sync again.' },
 
   // Templates
@@ -1512,6 +1783,10 @@ export const ardentStudioBrowserRoutes: readonly ArdentStudioBrowserRoute[] = [
   { method: 'POST', path: '/templates', requestBody: 'json', request: createTemplateRequestSchema, response: templateDetailSchema, permissions: TEMPLATES_WRITE, idempotent: true, successStatus: 201, note: 'Templates never carry secrets; values that look like credentials are rejected.' },
   { method: 'POST', path: '/templates/{templateId}/versions', requestBody: 'json', request: createTemplateVersionRequestSchema, response: templateDetailSchema, permissions: TEMPLATES_WRITE, idempotent: true, successStatus: 201, note: 'Versions are immutable. 409 when base_version is not the latest.' },
   { method: 'POST', path: '/templates/{templateId}/archive', requestBody: 'json', request: archiveTemplateRequestSchema, response: templateDetailSchema, permissions: TEMPLATES_WRITE, idempotent: true },
+  { method: 'POST', path: '/templates/{templateId}/versions/{version}/definition', requestBody: 'json', request: buildDefinitionRequestSchema, response: buildDefinitionResponseSchema, permissions: TEMPLATES_READ, idempotent: false, note: 'Builds a sealed hive-agent-definition/1 from an agent template version: persona, pinned HiveSkills releases, Emberpath model alias, runtime and bindings. Nothing is stored and the same version always gives the same definition (created_at is the version\'s). Skills without a pinned version and digest, and a model that is not an alias, are listed in omitted. 422 NOT_AGENT_TEMPLATE, 422 DEFINITION_INCOMPLETE (empty soul or identity), 422 DEFINITION_CONTAINS_CREDENTIAL.' },
+  { method: 'POST', path: '/templates/{templateId}/versions/{version}/deploy-check', requestBody: 'json', request: definitionDeployCheckRequestSchema, response: definitionDeployCheckResponseSchema, permissions: AGENTS_ADMIN, idempotent: false, note: 'Builds the version\'s definition and asks Magnus to validate it for the node and bindings as the acting person, whom Magnus requires to be a linked Magnus ADMIN (403 ACTING_ADMIN_REQUIRED). Answers Magnus\'s preflight (MISSING_BINDING, SKILL_VERSION_UNAVAILABLE, EXTENSION_NOT_REVIEWED, RUNTIME_INCOMPATIBLE, CAPABILITY_MISSING, SECRET_UNBOUND). A Magnus without agent definitions (before 3.3.0) answers 409 MAGNUS_UPGRADE_REQUIRED; 404 NOT_FOUND for an unknown node.' },
+  { method: 'POST', path: '/templates/{templateId}/versions/{version}/deploy', requestBody: 'json', request: definitionDeployRequestSchema, response: agentOperationResponseSchema, permissions: AGENTS_ADMIN, idempotent: true, successStatus: 201, note: 'Create agent from definition: Magnus installs the version\'s definition as a new profile (a New Agent operation of kind definition) once its preflight passes, as the acting Magnus ADMIN. 409 PREFLIGHT_FAILED with error.details.problems creates nothing; 409 MAGNUS_UPGRADE_REQUIRED before Magnus 3.3.0. Progress is relayed as agent.operation.updated on project_id\'s stream.' },
+  { method: 'POST', path: '/templates/import-definition', requestBody: 'json', request: importDefinitionRequestSchema, response: importDefinitionResponseSchema, permissions: TEMPLATES_WRITE, idempotent: true, successStatus: 201, note: 'Verifies a hive-agent-definition/1 (schema, both digests, credential guard: 422 DEFINITION_INVALID or DEFINITION_CONTAINS_CREDENTIAL) and stores it as a new immutable agent template version with source_definition {name, sha256}: of template_id, else of the definition\'s source_template when it exists here, else of a new template. The base is base_version, else the source_template version; a newer latest version answers 409 VERSION_CONFLICT. Fields a template cannot hold are listed in ignored.' },
 
   // Team assignment
   { method: 'GET', path: '/projects/{projectId}/team', response: teamStateSchema, permissions: READ, idempotent: false },
@@ -1563,6 +1838,9 @@ export const ardentStudioBrowserRoutes: readonly ArdentStudioBrowserRoute[] = [
   { method: 'POST', path: '/tasks/{taskId}/pause', response: taskResponseSchema, permissions: WRITE, idempotent: true, note: 'A started task pauses at its next step boundary (state pausing, then paused); an unstarted one is held. 409 AGENT_UPGRADE_REQUIRED when the agent cannot pause.' },
   { method: 'POST', path: '/tasks/{taskId}/resume', response: taskResponseSchema, permissions: WRITE, idempotent: true },
   { method: 'POST', path: '/tasks/{taskId}/cancel', response: taskResponseSchema, permissions: WRITE, idempotent: true },
+  { method: 'GET', path: '/tasks/{taskId}/recovery', response: taskRecoveryResponseSchema, permissions: READ, idempotent: false, note: 'The task\'s Ardent recovery, read now through Magnus when the agent supports it (profile recovery >= 1, Magnus 3.3.0), else as last recorded with unavailable saying why (RECOVERY_UNSUPPORTED, MAGNUS_UNAVAILABLE, NOT_STARTED). A continuation decided elsewhere is followed by this read.' },
+  { method: 'POST', path: '/tasks/{taskId}/recovery', requestBody: 'json', request: taskRecoveryRequestSchema, response: taskRecoveryDecisionResponseSchema, permissions: WRITE, idempotent: true, note: 'Sends a person\'s decision on a task Ardent holds awaiting_decision through Magnus (task-recovery). mark_applied, mark_not_applied and retry_with_new_deadline continue the work in an Ardent continuation task that the same Studio task follows (state running, ardent.attempts gains the old id); abandon ends the task as unknown. 409 RECOVERY_UNAVAILABLE when the task is not held, 409 RECOVERY_UNSUPPORTED (details capability, required_level, level, installed_version) when the agent cannot take decisions, 409 ARDENT_CONFLICT when Ardent refuses this action now, 422 INVALID_INPUT, 409 AGENT_UPGRADE_REQUIRED, 503 MAGNUS_UNAVAILABLE.' },
+  { method: 'GET', path: '/tasks/{taskId}/lineage', response: taskLineageResponseSchema, permissions: READ, idempotent: false, note: 'Studio relationships of the task, the Ardent lineage of each of its Ardent attempts (profile lineage >= 1; otherwise ardent is null and ardent_unavailable says why) and the Emberpath trace filter. Attribution only.' },
   { method: 'POST', path: '/tasks/{taskId}/reassign', requestBody: 'json', request: reassignTaskRequestSchema, response: taskResponseSchema, permissions: WRITE, idempotent: true, successStatus: 201, note: 'Cancels the task when it is still active and creates the same work for another role, with reassigned_from.' },
 
   // Workflow runs

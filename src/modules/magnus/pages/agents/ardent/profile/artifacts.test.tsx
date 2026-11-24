@@ -56,8 +56,8 @@ async function open(capabilities: Record<string, number> | undefined, sha: strin
   history.replaceState(null, '', `/fleet/ardent/profiles/node-1~lead?tab=tasks&task=${TASK}`);
   await sessionStore.load();
   view = await mount(<ArdentProfilePage />, { id: 'node-1~lead' });
-  await settle(10);
-  await settle(10);
+  // The page reads the installation, the tasks, then the linked task's journal.
+  for (let index = 0; index < 100 && !button(/regions\.json/); index += 1) await settle(10);
   return stub;
 }
 
@@ -67,7 +67,7 @@ describe('artifacts on the Ardent profile page', () => {
     const stub = await open({ recovery: 1, lineage: 1, artifact_transfer: 2 }, sha, () => new Response(BYTES, { headers: { 'content-type': 'application/json', 'content-disposition': 'attachment; filename="regions.json"', 'x-content-sha256': sha } }));
     // The link from Agent 360 opened the task.
     await click(button(/regions\.json/));
-    await settle();
+    for (let index = 0; index < 50 && !saved.length && !document.querySelector('[role="alert"]'); index += 1) await settle(10);
     expect(stub.requests.some((item) => item.path === `/ardent/installations/node-1/profiles/lead/artifacts/${sha}/content`)).toBe(true);
     expect(saved).toEqual([{ name: 'regions.json', type: 'application/json' }]);
   });
@@ -76,7 +76,7 @@ describe('artifacts on the Ardent profile page', () => {
     const sha = await hex(BYTES);
     await open({ recovery: 1, lineage: 1, artifact_transfer: 2 }, sha, () => new Response(new TextEncoder().encode('tampered'), { headers: { 'content-type': 'application/json' } }));
     await click(button(/regions\.json/));
-    await settle();
+    for (let index = 0; index < 50 && !saved.length && !document.querySelector('[role="alert"]'); index += 1) await settle(10);
     expect(saved).toEqual([]);
     expect(document.querySelector('[role="alert"]')?.textContent).toContain('does not match its digest');
   });
@@ -85,7 +85,7 @@ describe('artifacts on the Ardent profile page', () => {
     const sha = await hex(BYTES);
     const stub = await open(undefined, sha, () => new Response(BYTES, { headers: { 'content-type': 'application/octet-stream' } }));
     await click(button(/regions\.json/));
-    await settle();
+    for (let index = 0; index < 50 && !saved.length && !document.querySelector('[role="alert"]'); index += 1) await settle(10);
     expect(stub.requests.some((item) => item.path.endsWith('/content'))).toBe(false);
     expect(saved).toEqual([{ name: 'regions.json', type: 'application/octet-stream' }]);
   });

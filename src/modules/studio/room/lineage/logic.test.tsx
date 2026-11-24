@@ -37,25 +37,25 @@ describe('reading Studio lineage', () => {
       task_id: TASK,
       studio: studio({
         handoffs: [
-          { task_id: 'tsk_from', ref: 'hx1:studio:inst:task:tsk_from', role_key: 'lead', state: 'completed', mode: 'assignment', direction: 'from', relationship: 'hands_off_to' },
-          { task_id: 'tsk_to', ref: 'hx1:studio:inst:task:tsk_to', role_key: 'editor', state: 'queued', mode: 'assignment', direction: 'to', relationship: 'hands_off_to' },
+          { task_id: 'tsk_01HZX3K6Q1V8R2M4N6P8T0W010', ref: 'hx1:studio:inst:task:tsk_01HZX3K6Q1V8R2M4N6P8T0W010', role_key: 'lead', state: 'completed', mode: 'assignment', direction: 'from', relationship: 'hands_off_to' },
+          { task_id: 'tsk_01HZX3K6Q1V8R2M4N6P8T0W011', ref: 'hx1:studio:inst:task:tsk_01HZX3K6Q1V8R2M4N6P8T0W011', role_key: 'editor', state: 'queued', mode: 'assignment', direction: 'to', relationship: 'hands_off_to' },
         ],
-        workflow: { run_id: 'wfr_1', node_key: 'synthesis', attempt: 2, ref: 'hx1:studio:inst:node:wfr_1/synthesis' },
+        workflow: { run_id: 'wfr_01HZX3K6Q1V8R2M4N6P8T0W001', node_key: 'synthesis', attempt: 2, ref: 'hx1:studio:inst:node:wfr_01HZX3K6Q1V8R2M4N6P8T0W001/synthesis' },
       }),
       ardent: null,
       ardent_unavailable: { code: 'LINEAGE_UNSUPPORTED', message: 'The agent runs Ardent 3.1.4' },
       emberpath: { filter: { executionRoot: null } },
     });
-    const known = task({ id: 'tsk_from', title: 'Outline the stacks' });
+    const known = task({ id: 'tsk_01HZX3K6Q1V8R2M4N6P8T0W010', title: 'Outline the stacks' });
     const chain = buildChain(task({ id: TASK }), lineage, new Map([[known.id, known]]));
     expect(chain.map((entry) => [entry.kind, entry.label])).toEqual([
       ['root', 'Studio request msg-1'],
       ['handoff', 'Outline the stacks'],
       ['workflow', 'Workflow step synthesis, attempt 2'],
       ['self', 'Draft the drowned stacks'],
-      ['handoff_to', 'Studio task tsk_to'],
+      ['handoff_to', 'Studio task tsk_01HZX3K6Q1V8R2M4N6P8T0W011'],
     ]);
-    expect(chain[1]!.taskId).toBe('tsk_from');
+    expect(chain[1]!.taskId).toBe('tsk_01HZX3K6Q1V8R2M4N6P8T0W010');
     expect(chain[4]!.taskId).toBeUndefined();
     expect(lineage.ardentUnavailable).toBe('The agent runs Ardent 3.1.4');
   });
@@ -64,7 +64,7 @@ describe('reading Studio lineage', () => {
     const empty = parse({ task_id: TASK, studio: studio({ self: null, root: null }), ardent: null, ardent_unavailable: null, emberpath: { filter: { executionRoot: null } } });
     expect(hasExecutionHistory(task(), empty)).toBe(false);
     expect(hasExecutionHistory(task(), null)).toBe(false);
-    expect(hasExecutionHistory(task({ execution: { root: 'hx1:studio:inst:request:msg-1' } }), null)).toBe(true);
+    expect(hasExecutionHistory(task({ execution: { root: 'hx1:studio:inst:request:msg-1', parent: null, self: null, attempt: null, inputs: [] } }), null)).toBe(true);
   });
 
   it('names a reference by product, kind and id, and finds the Ardent task reference of an attempt', () => {

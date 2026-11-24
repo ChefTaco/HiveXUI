@@ -7,14 +7,13 @@ import {
   exportResponseSchema,
   listExportsResponseSchema,
   reviewDecisionResponseSchema,
-  revisionRequestResponseSchema,
   type commentAnchorSchema,
   type reviewDecisionKindSchema,
 } from '@contracts/ardentstudio.generated';
 import { apiFetch } from '../../../lib/transport';
 import { randomId } from '../../magnus/api/client';
 import { segment, studio, studioFailure, studioPath } from '../api/client';
-import { studioDeliverableSchema, studioDeliverablesSchema, studioRevisionDetailSchema } from '../api/execution';
+import { studioDeliverableSchema, studioDeliverablesSchema, studioRevisionDetailSchema, studioRevisionRequestSchema } from '../api/execution';
 
 export type Deliverable = z.infer<typeof studioDeliverableSchema>;
 export type Revision = Deliverable['revisions'][number];
@@ -41,7 +40,7 @@ export const decide = (revisionId: string, body: { decision: DecisionKind; note_
 export const markFinal = (deliverableId: string, revisionId: string, idempotencyKey?: Key) =>
   studio.post(`/deliverables/${segment(deliverableId)}/final`, studioDeliverableSchema, { body: { revision_id: revisionId }, idempotencyKey });
 export const requestRevision = (projectId: string, body: { comment_ids: string[]; role_key?: string; instructions_md: string }, idempotencyKey?: Key) =>
-  studio.post(project(projectId, '/revision-requests'), revisionRequestResponseSchema, { body, idempotencyKey });
+  studio.post(project(projectId, '/revision-requests'), studioRevisionRequestSchema, { body, idempotencyKey });
 export const listExports = (projectId: string, signal?: Signal) => studio.get(project(projectId, '/exports'), listExportsResponseSchema, { signal }).then((result) => result.exports);
 export const createExport = (projectId: string, deliverableIds: string[] | undefined, idempotencyKey?: Key) =>
   studio.post(project(projectId, '/exports'), exportResponseSchema, { body: deliverableIds ? { deliverable_ids: deliverableIds } : {}, idempotencyKey });
