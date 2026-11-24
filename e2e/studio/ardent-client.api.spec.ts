@@ -8,10 +8,9 @@
 // origin reaches Magnus: `<origin>/api/magnus` asks for `/api/magnus/api/v1/...` and gets 404. Test 6
 // pins that; the others go through `consolePath`, which drops the doubled `/api/v1` and nothing else.
 //
-// The console ingress also forwards Last-Event-ID to Magnus when the request has none, as an empty header,
-// and Magnus answers a task stream with an empty Last-Event-ID 400 "Invalid Last-Event-ID". A follow that
-// starts without a cursor is refused before its first event; one that resumes (`after`, and so
-// Last-Event-ID) is not. Test 7 pins that; the acceptance follow starts at `after: 0`.
+// The console ingress also forwards Last-Event-ID to Magnus when the request has none, as an empty header.
+// Magnus before 3.3.2 refused a task stream with an empty Last-Event-ID (400 "Invalid Last-Event-ID");
+// from 3.3.2 an empty one means no cursor. Test 7 checks that a follow without a cursor works.
 import { createHash, randomUUID } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 import {
@@ -252,14 +251,13 @@ test('6. known defect: viaMagnus cannot reach Magnus at the console origin <orig
   expect(proxy.sent.find(item => item.path === `/api/magnus/api/v1/ardent/installations/${node.id}/profiles/${PROFILE}/status`)?.status).toBe(404);
 });
 
-test('7. known defect: a follow without a cursor is refused through the console ingress', async () => {
+test('7. a follow without a cursor works through the console ingress (Magnus 3.3.2)', async () => {
   test.skip(!ctx.taskId, 'Needs the task from test 2');
-  test.info().annotations.push({ type: 'defect', description: 'The ingress forwards an empty Last-Event-ID, and Magnus refuses the task stream' });
   const proxy = new TestProxy({ streams: 0, downloads: 0 });
-  const error = await client(proxy).tasks.follow(ctx.taskId).catch((caught: unknown) => caught);
-  expect(error).toMatchObject({ status: 400, code: 'VALIDATION_ERROR', message: 'Invalid Last-Event-ID' });
-  // The client sent no Last-Event-ID and no cursor.
+  const final = await client(proxy).tasks.follow(ctx.taskId);
+  expect(final.state).toBe('completed');
+  // The client sent no Last-Event-ID and no cursor; the ingress forwarded an empty one and Magnus accepted it.
   const stream = proxy.sent.find(item => item.path.includes(`/tasks/${ctx.taskId}/stream`))!;
-  expect(stream).toMatchObject({ lastEventId: null, status: 400 });
+  expect(stream).toMatchObject({ lastEventId: null, status: 200 });
   expect(stream.path).not.toContain('after=');
 });
