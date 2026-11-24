@@ -3,7 +3,7 @@
   "product": "ardentstudio-browser",
   "version": 1,
   "repository": "https://github.com/ChefTaco/ArdentStudio",
-  "revision": "4e232cb1cc6485804af0534b799c45e98ab20124",
+  "revision": "633b57252adc2b7bc287c54377cb7de073e79e1c",
   "files": [
     {
       "path": "browser.ts",

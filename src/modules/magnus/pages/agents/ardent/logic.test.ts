@@ -45,14 +45,14 @@ describe('taskArtifacts', () => {
     expect(taskArtifacts([{ sequence: 1, kind: 'research_artifacts', detail: { markdown: good }, created_ms: 1 }])).toEqual([{ ...good, source: 'research' }]);
   });
   it('lists the artifacts an agent registered, by their manifest digest, name, type and size', () => {
-    const registered = { artifact_id: 'f'.repeat(32), name: 'nova-map.png', mime: 'image/png', sha256: 'b'.repeat(64), size: 18_400_000, revision: 1, supersedes_sha256: null, manifest: {} };
+    const registered = { artifact_id: 'f'.repeat(32), name: 'world-map.png', mime: 'image/png', sha256: 'b'.repeat(64), size: 18_400_000, revision: 1, supersedes_sha256: null, manifest: {} };
     expect(taskArtifacts([
       { sequence: 1, kind: 'research_artifacts', detail: { markdown: good }, created_ms: 1 },
       { sequence: 2, kind: 'artifact_registered', detail: registered, created_ms: 2 },
       { sequence: 3, kind: 'artifact_registered', detail: { ...registered, sha256: '../../x' }, created_ms: 3 },
     ])).toEqual([
       { ...good, source: 'research' },
-      { id: 'b'.repeat(64), name: 'nova-map.png', bytes: 18_400_000, media_type: 'image/png', source: 'registered' },
+      { id: 'b'.repeat(64), name: 'world-map.png', bytes: 18_400_000, media_type: 'image/png', source: 'registered' },
     ]);
   });
   it('ignores other events and any id that could not be a digest', () => {
@@ -89,7 +89,7 @@ describe('parseIdList', () => {
 
 describe('dispositionName', () => {
   it('reads the file name a content answer gives, never a path', () => {
-    expect(dispositionName('attachment; filename="nova-map.png"')).toBe('nova-map.png');
+    expect(dispositionName('attachment; filename="world-map.png"')).toBe('world-map.png');
     expect(dispositionName("attachment; filename*=UTF-8''r%C3%A9sum%C3%A9.pdf; filename=\"resume.pdf\"")).toBe('résumé.pdf');
     expect(dispositionName('attachment; filename="../../etc/passwd"')).toBe('passwd');
     expect(dispositionName('attachment')).toBeNull();
