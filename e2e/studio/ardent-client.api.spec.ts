@@ -1,12 +1,11 @@
 // ARDENT-06 acceptance through Magnus: the published @hivemagnus/ardent-client, used the way Ardent's
 // client/examples/cli.mjs uses it (submit, follow, final outcome, artifact download), with `viaMagnus`
-// against the stack's Magnus and the `ember` agent (Ardent 3.2.0). A test proxy in the client's `fetch`
+// against the stack's Magnus and the `ember` agent (Ardent 3.2). A test proxy in the client's `fetch`
 // drops the task stream twice and resets the artifact transfer part-way, and records what the client sent.
 //
-// The client is pointed at the console origin, `<origin>/api/magnus`, which the ingress rewrites to
-// Magnus's `/api/v1`. viaMagnus appends `/api/v1/ardent/...` to its baseUrl, so no baseUrl on the console
-// origin reaches Magnus: `<origin>/api/magnus` asks for `/api/magnus/api/v1/...` and gets 404. Test 6
-// pins that; the others go through `consolePath`, which drops the doubled `/api/v1` and nothing else.
+// The client is pointed at the console origin: `apiBase: <origin>/api/magnus`, which the ingress rewrites
+// to Magnus's `/api/v1` (ardent-client 3.2.1; `baseUrl` is the Magnus origin and gets `/api/v1` appended,
+// so before `apiBase` no URL on the console origin reached Magnus). Test 6 checks that call unaided.
 //
 // The console ingress also forwards Last-Event-ID to Magnus when the request has none, as an empty header.
 // Magnus before 3.3.2 refused a task stream with an empty Last-Event-ID (400 "Invalid Last-Event-ID");
@@ -26,12 +25,6 @@ const PROFILE = 'ember';
 const PROMPT = 'You hold the role key "worldbuilder". Propose three region names for the ember road.';
 
 type Sent = { method: string; path: string; status: number; range: string | null; ifRange: string | null; lastEventId: string | null; contentRange: string | null };
-
-/** Maps the client's `<base>/api/v1/...` onto the console's `/api/magnus/...` (see the note at the top). */
-function consolePath(url: string): string {
-  const prefix = `${stack().origin}/api/magnus/api/v1/`;
-  return url.startsWith(prefix) ? `${stack().origin}/api/magnus/${url.slice(prefix.length)}` : url;
-}
 
 /** Pass a body through until `cutAt` names a byte of a chunk, deliver the bytes before it, then fail as a dropped connection does. */
 function severed(response: Response, cutAt: (chunk: Uint8Array, offset: number) => number | undefined, onCut: () => void): Response {
@@ -68,11 +61,9 @@ class TestProxy {
   readonly sent: Sent[] = [];
   streamDrops = 0;
   downloadDrops = 0;
-  /** `consolePath: false` sends the client's URLs unchanged. */
-  constructor(private readonly plan: { streams: number; downloads: number; consolePath?: boolean }) {}
+  constructor(private readonly plan: { streams: number; downloads: number }) {}
 
-  readonly fetch = async (input: string, init: RequestInit): Promise<Response> => {
-    const url = this.plan.consolePath === false ? input : consolePath(input);
+  readonly fetch = async (url: string, init: RequestInit): Promise<Response> => {
     const headers = new Headers(init.headers);
     const response = await stackFetch(url, init);
     this.sent.push({ method: init.method ?? 'GET', path: new URL(url).pathname + new URL(url).search, status: response.status, range: headers.get('range'),
@@ -104,7 +95,7 @@ const ctx = {} as { token: string; proxy: TestProxy; ardent: ArdentClient; root:
 function client(proxy: TestProxy): ArdentClient {
   const { origin, node } = stack();
   return createArdentClient({
-    transport: viaMagnus({ baseUrl: `${origin}/api/magnus`, nodeId: node.id, profile: PROFILE, getToken: () => ctx.token, fetch: proxy.fetch }),
+    transport: viaMagnus({ apiBase: `${origin}/api/magnus`, nodeId: node.id, profile: PROFILE, getToken: () => ctx.token, fetch: proxy.fetch }),
     execution: { v: 1, root: ctx.root },
   });
 }
@@ -116,12 +107,12 @@ test.beforeAll(async () => {
   ctx.ardent = client(ctx.proxy);
 });
 
-test('1. capabilities: Magnus 3.3.0 offers every Ardent 3.2.0 route to the client', async () => {
+test('1. capabilities: Magnus 3.3 offers every Ardent 3.2 route to the client', async () => {
   const capabilities = await ctx.ardent.capabilities();
   expect(capabilities).toMatchObject({ transport: 'magnus', profile: PROFILE, artifactTransfer: 2,
     features: { recovery: true, lineage: true, execution: true, artifactContent: true, renditions: true, imports: true } });
-  expect(capabilities.version).toBe('3.2.0');
-  expect(capabilities.magnus?.installedVersion).toBe('3.2.0');
+  expect(capabilities.version).toMatch(/^3\.2\.\d+$/);
+  expect(capabilities.magnus?.installedVersion).toBe(capabilities.version);
 });
 
 test('2. submit and follow: the stream drops twice, every journaled event arrives once and in order', async () => {
@@ -238,17 +229,16 @@ test('5. a route outside Magnus\'s allowlist answers the documented error', asyn
   expect(refused.status).toBe(404);
 });
 
-// The two known defects, each pinned to the exact refusal it causes now. When one is fixed its test fails
-// here; then assert the working call instead and drop the matching step around it above.
-test('6. known defect: viaMagnus cannot reach Magnus at the console origin <origin>/api/magnus', async () => {
-  test.info().annotations.push({ type: 'defect', description: 'viaMagnus appends /api/v1 to baseUrl; the console serves Magnus at /api/magnus' });
-  const proxy = new TestProxy({ streams: 0, downloads: 0, consolePath: false });
+test('6. viaMagnus reaches Magnus at the console origin with apiBase <origin>/api/magnus', async () => {
+  // No rewriting proxy: the client's own URLs go to the console ingress as they are.
+  const sent: Array<{ path: string; status: number }> = [];
   const { origin, node } = stack();
-  const plain = createArdentClient({ transport: viaMagnus({ baseUrl: `${origin}/api/magnus`, nodeId: node.id, profile: PROFILE, getToken: () => ctx.token, fetch: proxy.fetch }) });
-  const error = await plain.status().catch((caught: unknown) => caught);
-  expect(error).toBeInstanceOf(NotFoundError);
-  expect(error).toMatchObject({ status: 404, message: 'API unavailable' });
-  expect(proxy.sent.find(item => item.path === `/api/magnus/api/v1/ardent/installations/${node.id}/profiles/${PROFILE}/status`)?.status).toBe(404);
+  const plain = createArdentClient({ transport: viaMagnus({ apiBase: `${origin}/api/magnus`, nodeId: node.id, profile: PROFILE, getToken: () => ctx.token,
+    fetch: async (url, init) => { const response = await stackFetch(url, init); sent.push({ path: new URL(url).pathname, status: response.status }); return response; } }) });
+  const status = await plain.status();
+  expect(status.profile).toBe(PROFILE);
+  expect(sent).toContainEqual({ path: `/api/magnus/ardent/installations/${node.id}/profiles/${PROFILE}/status`, status: 200 });
+  expect(sent.every(item => !item.path.includes('/api/v1/'))).toBe(true);
 });
 
 test('7. a follow without a cursor works through the console ingress (Magnus 3.3.2)', async () => {
