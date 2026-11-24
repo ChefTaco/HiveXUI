@@ -94,10 +94,11 @@ test('4. event reconnect: a dropped stream replays without gaps or duplicates', 
   test.skip(!ctx.project, 'Needs the project from scenario 1');
   const stream = new ProjectStream(ctx.token, ctx.project.id);
   await stream.open(0);
-  const task = await ctx.api.post(`/projects/${ctx.project.id}/tasks`, { title: 'List three recycling methods', role_key: 'lead_researcher' });
-  await stream.waitFor((event) => event.type === 'task.updated' && event.data?.payload?.task?.id === task.id, 120_000, 'the task starting');
+  await stream.waitFor((event) => event.type === 'heartbeat', 30_000, 'a heartbeat after the first replay');
   const before = Number(stream.lastSeq());
   stream.close();
+  // Everything the task produces happens while the stream is closed, so the replay must hold it all.
+  const task = await ctx.api.post(`/projects/${ctx.project.id}/tasks`, { title: 'List three recycling methods', role_key: 'lead_researcher' });
   await settled(task.id);
   const resumed = new ProjectStream(ctx.token, ctx.project.id);
   await resumed.open(before);
@@ -127,7 +128,9 @@ test('10. branch and join: two research steps feed a synthesis, which waits for 
     const current = await ctx.api.get(`/projects/${ctx.project.id}/workflow-runs/${run.id}`);
     return ['completed', 'failed', 'blocked', 'cancelled'].includes(current.state) ? current : undefined;
   }, 600_000, 3000);
-  expect(finished.state).toBe('completed');
+  // On failure, name each node's state and error (for example a branch Magnus refused).
+  const nodes = finished.nodes.map((node: any) => ({ key: node.key, state: node.state, attempt: node.attempt, error: node.error }));
+  expect(finished.state, JSON.stringify(nodes)).toBe('completed');
   const synthesis = finished.nodes.find((node: any) => node.key === 'synthesis');
   const research = finished.nodes.filter((node: any) => node.key !== 'synthesis');
   for (const node of research) expect(node.updated_at <= synthesis.updated_at).toBe(true);
