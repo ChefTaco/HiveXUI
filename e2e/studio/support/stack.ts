@@ -5,6 +5,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import https from 'node:https';
 import { dirname, join, resolve } from 'node:path';
+import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -53,6 +54,37 @@ export function call(url: string, init: { method?: string; headers?: Record<stri
     });
     request.on('timeout', () => request.destroy(new Error(`Timed out: ${init.method ?? 'GET'} ${url}`)));
     request.on('error', reject);
+    if (payload) request.write(payload);
+    request.end();
+  });
+}
+
+/**
+ * A `fetch` for clients that take one (web streams, `AbortSignal`), over node:https with the stack's
+ * authority, so nothing in the process trusts it but the requests made with it. String bodies only.
+ */
+export function stackFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  const target = new URL(input);
+  if (init.body !== undefined && init.body !== null && typeof init.body !== 'string') return Promise.reject(new TypeError('stackFetch sends string bodies only'));
+  const payload = typeof init.body === 'string' ? Buffer.from(init.body) : undefined;
+  const headers: Record<string, string> = Object.fromEntries(new Headers(init.headers));
+  if (payload) headers['content-length'] = String(payload.length);
+  const signal = init.signal ?? undefined;
+  const method = init.method ?? 'GET';
+  return new Promise((resolveResponse, reject) => {
+    if (signal?.aborted) { reject(signal.reason); return; }
+    const request = https.request({ hostname: target.hostname, port: target.port, path: target.pathname + target.search, method, headers, ca: authority() }, response => {
+      const status = response.statusCode ?? 0;
+      const answered = new Headers();
+      for (const [name, value] of Object.entries(response.headers)) for (const item of [value ?? []].flat()) answered.append(name, item);
+      const empty = method === 'HEAD' || status === 204 || status === 304;
+      if (empty) response.resume();
+      response.on('close', () => signal?.removeEventListener('abort', abort));
+      resolveResponse(new Response(empty ? null : Readable.toWeb(response) as unknown as ReadableStream<Uint8Array>, { status, headers: answered }));
+    });
+    const abort = () => request.destroy(signal?.reason instanceof Error ? signal.reason : new DOMException('The operation was aborted', 'AbortError'));
+    signal?.addEventListener('abort', abort, { once: true });
+    request.on('error', error => { signal?.removeEventListener('abort', abort); reject(signal?.aborted ? signal.reason : error); });
     if (payload) request.write(payload);
     request.end();
   });
