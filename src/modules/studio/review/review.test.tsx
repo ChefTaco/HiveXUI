@@ -79,6 +79,24 @@ describe('Deliverable Review', () => {
     expect(text(root.querySelector('.review-meta')!)).toContain('verified');
   });
 
+  it('shows a large image through its preview rendition and offers the original as a download', async () => {
+    const preview = new Uint8Array([137, 80, 78, 71, 1, 2, 3]);
+    const previewSha = await hex(preview);
+    item = deliverable({ revisions: [revision({ blob_sha256: sha, mime: 'image/png', size: 18_400_000, renditions: [
+      { role: 'original', sha256: sha, mime: 'image/png', size: 18_400_000, purpose: 'download', width: 8000, height: 8000, has_alpha: true },
+      { role: 'preview', sha256: previewSha, mime: 'image/png', size: preview.length, purpose: 'display', width: 1600, height: 1600, has_alpha: true },
+    ] })] });
+    serve((request) => (request.path === `/blobs/${previewSha}` ? new Response(preview as BodyInit) : undefined));
+    const root = await open();
+    expect(text(root)).toContain('Preview · original 17.5 MB PNG');
+    expect(root.querySelector('.review-image__img')).not.toBeNull();
+    // Only the preview was read; the original waits for Download original.
+    expect(sent('GET', `/blobs/${previewSha}`)).toHaveLength(1);
+    expect(sent('GET', `/blobs/${sha}`)).toHaveLength(0);
+    expect(button('Download original', root)).toBeDefined();
+    expect(text(root.querySelector('.review-provenance')!)).toContain('node-1~world');
+  });
+
   it('anchors a comment to the selected text at its source offsets', async () => {
     serve((request) => (request.method === 'POST' && request.path === `/revisions/${REVISION_ID}/comments` ? comment({ anchor: (request.body as { anchor: ReviewComment['anchor'] }).anchor }) : undefined));
     const root = await open();

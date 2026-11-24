@@ -7,12 +7,8 @@ import {
   layoutResponseSchema,
   listConversationsResponseSchema,
   listDecisionsResponseSchema,
-  listDeliverablesResponseSchema,
   listMessagesResponseSchema,
-  listTasksResponseSchema,
   messageSchema,
-  postMessageResponseSchema,
-  taskResponseSchema,
   fileResponseSchema,
   linkResponseSchema,
   listAgentsResponseSchema,
@@ -23,7 +19,6 @@ import {
   listTemplatesResponseSchema,
   teamProposalResponseSchema,
   projectResponseSchema,
-  snapshotResponseSchema,
   teamStateSchema,
   templateDetailSchema,
   templateVersionSchema,
@@ -46,6 +41,7 @@ import {
   type updateProjectRequestSchema,
 } from '@contracts/ardentstudio.generated';
 import { segment, studio } from './client';
+import { studioDeliverablesSchema, studioPostMessageSchema, studioSnapshotSchema, studioTaskListSchema, studioTaskSchema } from './execution';
 
 export type Project = z.infer<typeof projectResponseSchema>;
 export type ProjectSummary = z.infer<typeof listProjectsResponseSchema>['projects'][number];
@@ -54,7 +50,8 @@ export type ReferenceLink = z.infer<typeof linkResponseSchema>;
 export type KnowledgeSync = StudioFile['knowledge'];
 export type TeamProposalRecord = z.infer<typeof teamProposalResponseSchema>;
 export type TeamProposal = NonNullable<TeamProposalRecord['proposal']>;
-export type Snapshot = z.infer<typeof snapshotResponseSchema>;
+/** The snapshot, with the recovery and ancestry Studio 0.5.0 adds to its tasks. */
+export type Snapshot = z.infer<typeof studioSnapshotSchema>;
 export type TeamState = z.infer<typeof teamStateSchema>;
 export type TeamRevision = NonNullable<TeamState['current']>;
 export type ValidationResult = z.infer<typeof validationResultSchema>;
@@ -62,13 +59,13 @@ export type ValidationIssue = ValidationResult['issues'][number];
 export type TemplateSummary = z.infer<typeof listTemplatesResponseSchema>['templates'][number];
 export type TemplateDetail = z.infer<typeof templateDetailSchema>;
 export type TemplateVersion = z.infer<typeof templateVersionSchema>;
-export type Task = z.infer<typeof taskResponseSchema>;
+export type Task = z.infer<typeof studioTaskSchema>;
 export type Conversation = z.infer<typeof conversationResponseSchema>;
 export type Message = z.infer<typeof messageSchema>;
 export type Decision = z.infer<typeof decisionResponseSchema>;
 export type Activity = z.infer<typeof activitySchema>;
 export type RoomLayoutRecord = NonNullable<z.infer<typeof layoutResponseSchema>['layout']>;
-export type Deliverable = z.infer<typeof listDeliverablesResponseSchema>['deliverables'][number];
+export type Deliverable = z.infer<typeof studioDeliverablesSchema>['deliverables'][number];
 export type Recipient = z.input<typeof recipientSchema>;
 export type PostMessage = z.input<typeof postMessageRequestSchema>;
 export type CreateConversation = z.input<typeof createConversationRequestSchema>;
@@ -100,7 +97,7 @@ export const createProject = (body: CreateProject, idempotencyKey?: Key) => stud
 export const updateProject = (id: string, body: UpdateProject, idempotencyKey?: Key) => studio.patch(project(id), projectResponseSchema, { body, idempotencyKey });
 export const archiveProject = (id: string, idempotencyKey?: Key) => studio.post(project(id, '/archive'), projectResponseSchema, { idempotencyKey });
 export const reopenProject = (id: string, idempotencyKey?: Key) => studio.post(project(id, '/reopen'), projectResponseSchema, { idempotencyKey });
-export const getSnapshot = (id: string, signal?: Signal) => studio.get(project(id, '/snapshot'), snapshotResponseSchema, { signal });
+export const getSnapshot = (id: string, signal?: Signal) => studio.get(project(id, '/snapshot'), studioSnapshotSchema, { signal });
 
 // Files
 export const listFiles = (id: string, signal?: Signal) => studio.get(project(id, '/files'), listFilesResponseSchema, { signal }).then((result) => result.files);
@@ -154,10 +151,10 @@ export const stopConversation = (conversationId: string, idempotencyKey?: Key) =
 export const listMessages = (conversationId: string, after: number, signal?: Signal) =>
   studio.get(`/conversations/${segment(conversationId)}/messages`, listMessagesResponseSchema, { query: { after, limit: 200 }, signal });
 export const postMessage = (conversationId: string, body: PostMessage, idempotencyKey?: Key) =>
-  studio.post(`/conversations/${segment(conversationId)}/messages`, postMessageResponseSchema, { body, idempotencyKey });
-export const answerClarification = (messageId: string, body: Answer, idempotencyKey?: Key) => studio.post(`/messages/${segment(messageId)}/answer`, postMessageResponseSchema, { body, idempotencyKey });
+  studio.post(`/conversations/${segment(conversationId)}/messages`, studioPostMessageSchema, { body, idempotencyKey });
+export const answerClarification = (messageId: string, body: Answer, idempotencyKey?: Key) => studio.post(`/messages/${segment(messageId)}/answer`, studioPostMessageSchema, { body, idempotencyKey });
 export const requestFollowUp = (messageId: string, note: string, idempotencyKey?: Key) =>
-  studio.post(`/messages/${segment(messageId)}/follow-up`, postMessageResponseSchema, { body: { body_md: note }, idempotencyKey });
+  studio.post(`/messages/${segment(messageId)}/follow-up`, studioPostMessageSchema, { body: { body_md: note }, idempotencyKey });
 
 // Decisions
 export const listDecisions = (id: string, signal?: Signal) => studio.get(project(id, '/decisions'), listDecisionsResponseSchema, { signal }).then((result) => result.decisions);
@@ -165,16 +162,16 @@ export const createDecision = (id: string, body: CreateDecision, idempotencyKey?
 
 // Tasks
 export const listTasks = (id: string, query: { state?: 'active' | 'finished' | 'all'; conversation_id?: string }, signal?: Signal) =>
-  studio.get(project(id, '/tasks'), listTasksResponseSchema, { query, signal }).then((result) => result.tasks);
-export const createTask = (id: string, body: CreateTask, idempotencyKey?: Key) => studio.post(project(id, '/tasks'), taskResponseSchema, { body, idempotencyKey });
+  studio.get(project(id, '/tasks'), studioTaskListSchema, { query, signal }).then((result) => result.tasks);
+export const createTask = (id: string, body: CreateTask, idempotencyKey?: Key) => studio.post(project(id, '/tasks'), studioTaskSchema, { body, idempotencyKey });
 export type TaskControl = 'pause' | 'resume' | 'cancel';
-export const controlTask = (taskId: string, control: TaskControl, idempotencyKey?: Key) => studio.post(`/tasks/${segment(taskId)}/${control}`, taskResponseSchema, { idempotencyKey });
+export const controlTask = (taskId: string, control: TaskControl, idempotencyKey?: Key) => studio.post(`/tasks/${segment(taskId)}/${control}`, studioTaskSchema, { idempotencyKey });
 /** Cancels the task if it is still active and creates the same work under the current team revision. */
 export const reassignTask = (taskId: string, roleKey: string, idempotencyKey?: Key) =>
-  studio.post(`/tasks/${segment(taskId)}/reassign`, taskResponseSchema, { body: { role_key: roleKey }, idempotencyKey });
+  studio.post(`/tasks/${segment(taskId)}/reassign`, studioTaskSchema, { body: { role_key: roleKey }, idempotencyKey });
 
 // Deliverables
-export const listDeliverables = (id: string, signal?: Signal) => studio.get(project(id, '/deliverables'), listDeliverablesResponseSchema, { signal });
+export const listDeliverables = (id: string, signal?: Signal) => studio.get(project(id, '/deliverables'), studioDeliverablesSchema, { signal });
 
 // Agents
 export const listAgents = (signal?: Signal) => studio.get('/agents', listAgentsResponseSchema, { signal });

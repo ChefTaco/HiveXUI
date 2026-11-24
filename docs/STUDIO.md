@@ -61,7 +61,7 @@ Team Assignment until its coordinator is bound, then the Room.
 | `/studio/p/:projectId` | The project's last area | |
 | `/studio/p/:projectId/team` | Team Assignment ▸ Designer | `view=team`, `workflow` or `table`; `role=` the open role; `start=1` shows "Bind each role, then Start in Room." |
 | `/studio/p/:projectId/team/gallery` | Team Assignment ▸ Gallery | as `/studio/gallery` |
-| `/studio/p/:projectId/room` | Conversation Room | `c=` conversation (default the team room), `m=` message, `task=` task (opens Tasks), `agent=` agent card |
+| `/studio/p/:projectId/room` | Conversation Room | `c=` conversation (default the team room), `m=` message, `task=` task (opens Tasks), `agent=` agent card, `lineage=` a task's execution history |
 | `/studio/p/:projectId/agents/:agentRef` | Agent Studio in a project | `tab=identity`, `capabilities`, `knowledge`, `preview`, `development` or `review`; `from=room` with `c=` and `m=` adds **Back to the room** |
 | `/studio/p/:projectId/review` | Review, the whole project | `d=` deliverable, `rev=` revision, `compare=` revision to compare with, `comment=` focused comment |
 
@@ -169,7 +169,23 @@ Recent outcomes. Each opens the **Tasks** drawer at that group.
   its last message, **Open in Agent Studio**, **Message directly** and **Invite to discussion**.
 - **Tasks drawer.** Each task shows its role, mode, team revision and source, with **Pause**,
   **Resume**, **Cancel** and **Reassign** as its state allows. A control says what it is waiting
-  for ("Pause requested…") until the task's own state confirms it ("Paused").
+  for ("Pause requested…") until the task's own state confirms it ("Paused"). A task a restart
+  interrupted shows **Recovering** (Ardent continues it under the same task), **Needs decision
+  (effect unknown)** (held until a person says whether an interrupted call applied; it counts as a
+  blocker) or **Unknown outcome** (Ardent cannot continue it). Paused, cancelled and failed keep
+  their own words.
+- **Recovery.** A held task shows why it stopped and only the decisions Studio says the agent takes
+  now (**It applied**, **It did not apply**, **Retry with a new deadline**, **Abandon**), each behind a
+  confirmation that says what it does. A decision is sent once with an idempotency key; a retry after
+  a lost answer replays it. Without Studio 0.5.0, Ardent 3.2.0 and Magnus 3.3.0 nothing is offered.
+- **Execution history** (the lineage drawer, `?lineage=`). The chain from the originating request
+  through hand-offs, reassignments and workflow steps to this task and what it started; for each
+  Ardent attempt, its model attempts (with the Emberpath trace when Emberpath 2.6.0 links them),
+  tool calls (with their effect and outcome, including not dispatched) and artifacts. A task from
+  before execution ancestry says "No execution history recorded". The drawer reads again on the
+  task's events and after a stream reset.
+- **Workflows** (Studio 0.5.0). Each run's steps with what they need, why they wait or are blocked,
+  and the actions Studio offers (Retry, Skip, Cancel run), kept current from the project stream.
 - **Decisions** lists pinned decisions; **New decision** pins one without a source message.
 - **Edit layout** moves agents between desks, discussion seats and the review station, and renames
   the zones. **Save layout** stores a new layout revision; if someone saved in the meantime,
@@ -279,6 +295,14 @@ Accepted, Rejected or Superseded.
 | PDF | pdf.js, a page at a time with selectable text and zoom | A selected quote on a page, or **Mark a region** and drag |
 | Word (.docx) | The service's conversion, as paragraphs | A selected passage inside one paragraph, by paragraph id |
 | Anything else | Name, type, size and **Download** | The whole file |
+
+**Renditions** (Studio 0.5.0, artifact transfer v2). When a revision has a preview that suits (HiveCommon
+`selectRendition`, keeping transparency for a PNG), the preview is shown instead of the original and
+marked "Preview · original 18.4 MB PNG". **Download original** streams the full-quality bytes with a
+progress bar, resumes with `Range` after a dropped connection (up to five times), and saves them only
+once they match the revision's SHA-256. **Receiving** shows imports in flight with their progress and
+resumes, and why one did not arrive. **Provenance** shows the producing agent and Ardent task, the
+execution root (manifest 1.1), the revision chain and a link to the task's execution history.
 
 Every file also takes a comment on the **whole file**.
 

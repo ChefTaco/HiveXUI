@@ -13,6 +13,11 @@ describe('the project stream reducer', () => {
     expect(reduceStreamFrame(4, event(5))).toEqual({ seq: 5, action: { kind: 'event', event: expect.objectContaining({ seq: 5, type: 'project.updated' }) } });
   });
 
+  it('applies the recovery and import progress events Studio 0.5.0 adds, so they never read as a gap', () => {
+    expect(reduceStreamFrame(4, event(5, 'task.recovery', { task_id: 'tsk_1', change: 'held' }))).toEqual({ seq: 5, action: { kind: 'event', event: expect.objectContaining({ type: 'task.recovery' }) } });
+    expect(reduceStreamFrame(5, event(6, 'artifact.import.progress', { import: {} })).seq).toBe(6);
+  });
+
   it('ignores a replayed event it already has', () => {
     expect(reduceStreamFrame(5, event(5))).toEqual({ seq: 5, action: { kind: 'ignore' } });
     expect(reduceStreamFrame(5, event(3))).toEqual({ seq: 5, action: { kind: 'ignore' } });

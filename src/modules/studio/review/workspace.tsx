@@ -5,6 +5,7 @@ import { FileStack, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { Badge, Button, EmptyState, Panel, Select, LoadingRows, ResourceError } from '@ui';
 import { cn } from '@lib/cn';
 import { useMagnusResource } from '../../magnus/api/use-resource';
+import { studioImportSchema } from '../api/execution';
 import type { Snapshot } from '../api/endpoints';
 import { setStudioQuery, StudioLink, useStudioSearch } from '../link';
 import { formatBytes } from '../projects/logic';
@@ -15,11 +16,19 @@ import { getRevision, listDeliverables, type ArtifactImport, type CommentAnchor,
 import { CommentsPanel } from './comments';
 import { useRevisionContent } from './content';
 import { DecisionBar } from './decision-bar';
+import { displayRendition, DownloadOriginal, ImportStrip, ProvenancePanel, RenditionBadge } from './delivery';
 import { filterDeliverables, latestRevision, revisionName, shortMime, STATUS, type ReviewFilter } from './logic';
 import { PreviewRenderer } from './renderers/registry';
 import { DownloadButton } from './renderers/shared';
 
 const CompareView = lazy(() => import('./compare'));
+
+/** The listed imports with the progress events received since. */
+const mergeImports = (imports: readonly ArtifactImport[], progress: ReadonlyMap<string, ArtifactImport>): ArtifactImport[] => {
+  const merged = imports.map((item) => progress.get(item.artifact_id) ?? item);
+  for (const item of progress.values()) if (!imports.some((known) => known.artifact_id === item.artifact_id)) merged.push(item);
+  return merged;
+};
 
 export interface ReviewAgent {
   ref: string;
@@ -82,17 +91,7 @@ function DeliverableList({ deliverables, imports, selected, filter, onFilter, on
       ) : (
         <p className="m-0 text-sm text-text-muted">{all.length ? 'Nothing matches these filters.' : 'Nothing delivered yet.'}</p>
       )}
-      {imports.length ? (
-        <div className="review-list__imports grid gap-2">
-          <p className="m-0 stat-label">Receiving</p>
-          {imports.map((item) => (
-            <p key={item.artifact_id} className="m-0 text-xs">
-              <span className="font-medium">{item.name}</span> ·{' '}
-              {item.state === 'failed' ? <span className="text-danger">not received: {item.error ?? 'failed'}</span> : <span className="text-text-muted">being received ({formatBytes(item.size)})</span>}
-            </p>
-          ))}
-        </div>
-      ) : null}
+      <ImportStrip imports={imports} />
     </aside>
   );
 }
@@ -107,7 +106,10 @@ function Viewer({ projectId, deliverable, revision, comments, focused, onAnchor,
   readOnly: boolean;
 }) {
   const [attempt, setAttempt] = useState(0);
-  const content = useRevisionContent(revision, attempt);
+  // A large original shows its preview rendition; the original stays one download away.
+  const { preview } = displayRendition(revision);
+  const shown = preview ? { ...revision, blob_sha256: preview.sha256, mime: preview.mime, size: preview.size } : revision;
+  const content = useRevisionContent(shown, attempt);
   const name = revisionName(revision, deliverable.name);
   return (
     <>
@@ -123,9 +125,9 @@ function Viewer({ projectId, deliverable, revision, comments, focused, onAnchor,
           </dd>
         </div>
         <div>
-          <dt className="text-text-muted">SHA-256</dt>
+          <dt className="text-text-muted">{preview ? 'Preview SHA-256' : 'SHA-256'}</dt>
           <dd className="m-0 font-mono">
-            {revision.blob_sha256.slice(0, 12)}
+            {shown.blob_sha256.slice(0, 12)}
             {content.status === 'ready' ? (
               content.content.verified ? (
                 <span className="review-meta__check text-success">
@@ -155,10 +157,13 @@ function Viewer({ projectId, deliverable, revision, comments, focused, onAnchor,
           <EmptyState compact tone="danger" title="These bytes do not match the revision" message="The download differs from the digest Studio recorded, so it is not shown. Retry, and tell an administrator if it happens again." action={<Button size="sm" onClick={() => setAttempt((value) => value + 1)}>Retry</Button>} />
         ) : (
           <>
-            <PreviewRenderer revision={revision} content={content.content} name={name} comments={comments} focused={focused} onAnchor={onAnchor} readOnly={readOnly} />
-            <div className="mt-3">
-              <DownloadButton content={content.content} name={name} />
-            </div>
+            {preview ? (
+              <div className="mb-2">
+                <RenditionBadge revision={revision} />
+              </div>
+            ) : null}
+            <PreviewRenderer revision={shown} content={content.content} name={name} comments={comments} focused={focused} onAnchor={onAnchor} readOnly={readOnly} />
+            <div className="mt-3">{preview ? <DownloadOriginal revision={revision} name={name} /> : <DownloadButton content={content.content} name={name} />}</div>
           </>
         )}
       </div>
@@ -188,7 +193,17 @@ export default function ReviewWorkspace({ projectId, snapshot, agent }: { projec
     void list.refresh();
     void detail.refresh();
   }, [list.refresh, detail.refresh]);
+  // Import progress patches the strip; anything else, and an import that finished, reads the list again.
+  const [progress, setProgress] = useState<ReadonlyMap<string, ArtifactImport>>(new Map());
+  useEffect(() => setProgress(new Map()), [list.data]);
   useEffect(() => store.onEvent((event) => {
+    if (event.type === 'artifact.import.progress' || event.type === 'artifact.import.updated') {
+      const item = studioImportSchema.safeParse(event.payload.import ?? event.payload);
+      if (item.success && item.data.state !== 'imported' && item.data.state !== 'failed') {
+        setProgress((current) => new Map(current).set(item.data.artifact_id, item.data));
+        return;
+      }
+    }
     if (/^(review|deliverable|export|artifact)\./.test(event.type)) refresh();
   }), [store, refresh]);
   useEffect(() => setPending(null), [revision?.id]);
@@ -201,7 +216,7 @@ export default function ReviewWorkspace({ projectId, snapshot, agent }: { projec
   const select = (id: string) => setStudioQuery({ d: id, rev: null, compare: null, comment: null }, 'push');
   return (
     <div className="review">
-      <DeliverableList deliverables={deliverables} imports={list.data.imports} selected={deliverable?.id} filter={filter} onFilter={setFilter} onSelect={select} scope={{ agent, value: scope, onChange: setScope }} />
+      <DeliverableList deliverables={deliverables} imports={mergeImports(list.data.imports, progress)} selected={deliverable?.id} filter={filter} onFilter={setFilter} onSelect={select} scope={{ agent, value: scope, onChange: setScope }} />
       {deliverable && revision ? (
         <>
           <section className="review-viewer panel panel--sm" aria-label={`${deliverable.name}, revision ${revision.revision}`}>
@@ -229,6 +244,7 @@ export default function ReviewWorkspace({ projectId, snapshot, agent }: { projec
             )}
           </section>
           <div className="review-side">
+            <ProvenancePanel projectId={projectId} deliverable={deliverable} revision={revision} />
             <CommentsPanel
               projectId={projectId}
               deliverable={deliverable}

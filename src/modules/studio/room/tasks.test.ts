@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { task } from '../test-fixtures';
-import { controlFeedback, groupTasks, taskControls } from './tasks';
+import { recovery, task } from '../test-fixtures';
+import { controlFeedback, groupTasks, taskChip, taskControls } from './tasks';
 
 const id = (n: number) => `tsk_01HZX3K6Q1V8R2M4N6P8T0W${String(n).padStart(3, '0')}`;
 
@@ -51,5 +51,26 @@ describe('task control feedback', () => {
   it('still explains a pause someone else asked for', () => {
     expect(controlFeedback(null, 'pausing')).toBe('Pause requested…');
     expect(controlFeedback(null, 'running')).toBeNull();
+  });
+});
+
+describe('task state chips', () => {
+  it('tells recovering, a decision about an unknown effect and an unknown outcome apart', () => {
+    for (const status of ['ready', 'reconciling', 'resumed'] as const) expect(taskChip(task({ state: 'running', recovery: recovery({ status, actions: [] }) }))).toMatchObject({ label: 'Recovering', recovery: 'recovering' });
+    expect(taskChip(task({ state: 'unknown', recovery: recovery() }))).toEqual({ label: 'Needs decision (effect unknown)', tone: 'warning', recovery: 'needs_decision' });
+    expect(taskChip(task({ state: 'unknown', recovery: recovery({ status: 'unsupported', actions: [] }) }))).toEqual({ label: 'Unknown outcome', tone: 'danger', recovery: 'unknown_outcome' });
+  });
+  it('keeps paused, cancelled, failed and an unknown task without recovery as they were, each distinct', () => {
+    const labels = (['paused', 'cancelled', 'failed', 'running', 'unknown'] as const).map((state) => taskChip(task({ state, recovery: null })).label);
+    expect(labels).toEqual(['Paused', 'Cancelled', 'Failed', 'Running', 'Unknown']);
+    expect(new Set(labels).size).toBe(labels.length);
+    expect(taskChip(task({ state: 'failed' })).tone).toBe('danger');
+    // A resolved recovery says nothing more than the state.
+    expect(taskChip(task({ state: 'running', recovery: recovery({ status: 'resolved', actions: [] }) })).label).toBe('Running');
+  });
+  it('puts a task that needs a decision among the blockers, and a recovering one among the assignments', () => {
+    const groups = groupTasks([task({ id: id(1), state: 'unknown', recovery: recovery() }), task({ id: id(2), state: 'running', recovery: recovery({ status: 'ready', actions: [] }) })]);
+    expect(groups.blockers.map((item) => item.id)).toEqual([id(1)]);
+    expect(groups.assignments.map((item) => item.id)).toEqual([id(2)]);
   });
 });

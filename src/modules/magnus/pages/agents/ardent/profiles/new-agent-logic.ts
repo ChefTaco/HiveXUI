@@ -28,6 +28,8 @@ export const STEP_LABELS: Record<AgentStepName, string> = {
   'skill-set': 'Enable skills',
   'service-restart': 'Restart to activate',
   'ready-probe': 'Wait for the agent to answer',
+  'extensions-install': 'Install the extensions',
+  'skill-install': 'Install the pinned skills',
 };
 
 /** A step's label; Enable HiveMem's configuration step writes only the memory settings. */

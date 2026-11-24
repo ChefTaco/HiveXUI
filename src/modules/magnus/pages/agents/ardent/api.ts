@@ -8,6 +8,7 @@ import { responseRequestId } from '../../../../../lib/api-error';
 import { apiFetch } from '../../../../../lib/transport';
 import { apiPath, magnus, segment } from '../../../api/client';
 import { MagnusApiError } from '../../../api/errors';
+import { dispositionName } from './logic';
 import { ardentInstallationResponseSchema, ardentInstallationsResponseSchema, ardentProfilesResponseSchema } from './schemas';
 
 const ok = <T extends z.ZodType>(data: T) => z.object({ success: z.literal(true), data });
@@ -72,4 +73,26 @@ export async function fetchArtifact(nodeId: string, profileId: string, artifactI
   const bytes = await response.blob();
   if (bytes.size !== expectedBytes) throw new Error('The artifact differs in size from the task record');
   return bytes;
+}
+
+/** The profile level that serves artifact transfer v2 through Magnus (the /content route). */
+export const ARTIFACT_TRANSFER_V2 = 2;
+
+/** Lowercase hex SHA-256 of some bytes. */
+async function digestHex(bytes: ArrayBuffer): Promise<string> {
+  return [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * An artifact through transfer v2 (Ardent 3.2.0 via Magnus 3.3.0): the real media type and the
+ * manifest's file name from the response, with the bytes checked against their digest before they
+ * are handed over. A profile without transfer v2 answers 409 unsupported_capability; use fetchArtifact.
+ */
+export async function fetchArtifactContent(nodeId: string, profileId: string, sha256: string, fallbackName: string): Promise<{ blob: Blob; name: string; mime: string }> {
+  const response = await apiFetch(apiPath(`${base(nodeId, profileId)}/artifacts/${segment(sha256)}/content`));
+  if (!response.ok) throw new MagnusApiError(response.status, `The artifact could not be downloaded (HTTP ${response.status})`, undefined, undefined, { requestId: responseRequestId(response) });
+  const mime = (response.headers.get('content-type') ?? 'application/octet-stream').split(';', 1)[0]!.trim() || 'application/octet-stream';
+  const bytes = await response.arrayBuffer();
+  if ((await digestHex(bytes)) !== sha256) throw new Error('The downloaded artifact does not match its digest, so it was not saved');
+  return { blob: new Blob([bytes], { type: mime }), name: dispositionName(response.headers.get('content-disposition')) ?? fallbackName, mime };
 }

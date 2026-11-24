@@ -251,7 +251,7 @@ explicitly rotating a replacement and updating the owning agent's protected conf
 With `magnus` in `products`, the fleet pages are the module at `/fleet`, signed in through Oathweave
 like every other product. See `src/modules/magnus/PORTING.md`.
 
-The module reads Magnus 3.x per-node credentials (its vendored browser contract is Magnus 3.2.0).
+The module reads Magnus 3.x per-node credentials (its vendored browser contract is Magnus main `4894bfb`, the contracts of Magnus 3.3.0).
 Nodes has a Node key column and, for
 administrators and operators, a Node credentials panel: the `NODE_AUTH_MODE` in force and whether it
 was set or is the default (`enforce` since Magnus 3.0.0), a warning for an explicit, deprecated

@@ -2,17 +2,20 @@
 // deliverables and the controls its state allows. A control says what it asked for until the task's
 // own state confirms it: "Pause requested…", then "Paused".
 import { useId, useState } from 'react';
-import { Pause, Play, Repeat, Square } from 'lucide-react';
-import { Badge, Button, ConfirmDialog, EmptyState, type Tone } from '@ui';
+import { History, Pause, Play, Repeat, Square } from 'lucide-react';
+import { Badge, Button, ConfirmDialog, EmptyState } from '@ui';
 import { cn } from '@lib/cn';
 import { errorMessage } from '../../magnus/api/errors';
 import { idempotencyKey } from '../api/client';
 import { controlTask, reassignTask, type Deliverable, type Task, type TaskControl } from '../api/endpoints';
+import { executionReported } from '../api/execution';
 import type { ProjectStore } from '../state/project-store';
 import type { Role } from './addressing';
-import { controlFeedback, groupTasks, TASK_GROUP_EMPTY, TASK_GROUP_LABEL, TASK_GROUPS, TASK_STATE_LABEL, taskControls, type TaskGroup } from './tasks';
+import { RecoveryPanel } from './lineage/recovery-panel';
+import { controlFeedback, groupTasks, TASK_GROUP_EMPTY, TASK_GROUP_LABEL, TASK_GROUPS, taskChip, taskControls, type TaskGroup } from './tasks';
 
-const TONE: Partial<Record<Task['state'], Tone>> = { running: 'info', completed: 'success', partial: 'warning', failed: 'danger', input_required: 'warning' };
+/** Recovery the row shows inline; a decided or resumed one is in the task's history. */
+const OPEN_RECOVERY: ReadonlySet<string> = new Set(['ready', 'reconciling', 'awaiting_decision', 'unsupported']);
 
 function sourceText(task: Task, roles: readonly Role[], tasks: ReadonlyMap<string, Task>): string | null {
   const source = task.source;
@@ -36,10 +39,12 @@ export interface TaskRowProps {
   archived: boolean;
   highlight?: boolean;
   onOpenMessage?: ((messageId: string, conversationId: string | null) => void) | undefined;
+  /** Opens the task's execution history (the lineage drawer). */
+  onOpenLineage?: ((taskId: string) => void) | undefined;
 }
 
 /** One task with its controls. */
-export function TaskRow({ task, store, roles, tasks, deliverables, archived, highlight, onOpenMessage }: TaskRowProps) {
+export function TaskRow({ task, store, roles, tasks, deliverables, archived, highlight, onOpenMessage, onOpenLineage }: TaskRowProps) {
   const [requested, setRequested] = useState<TaskControl | null>(null);
   const [busy, setBusy] = useState<TaskControl | 'reassign' | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +58,7 @@ export function TaskRow({ task, store, roles, tasks, deliverables, archived, hig
   const produced = deliverables.flatMap((deliverable) => deliverable.revisions.filter((revision) => revision.source_task_id === task.id).map((revision) => `${deliverable.name} rev ${revision.revision}`));
   const source = sourceText(task, roles, tasks);
   const others = roles.filter((item) => item.agent_ref && item.key !== task.role_key);
+  const chip = taskChip(task);
 
   async function control(kind: TaskControl) {
     setBusy(kind);
@@ -86,7 +92,7 @@ export function TaskRow({ task, store, roles, tasks, deliverables, archived, hig
     <li className={cn('room-task rounded-control border bg-surface-raised', highlight ? 'border-accent' : 'border-border')} data-task={task.id} tabIndex={-1}>
       <div className="room-task__head">
         <span className="room-task__title text-sm text-text-strong">{task.title}</span>
-        <Badge tone={TONE[task.state] ?? 'neutral'}>{TASK_STATE_LABEL[task.state]}</Badge>
+        <Badge tone={chip.tone}>{chip.label}</Badge>
       </div>
       <p className="room-task__meta m-0 text-xs text-text-muted">
         {[role?.name ?? task.role_key ?? 'No role', task.mode.replace('_', ' '), task.assignment_revision ? `team r${task.assignment_revision}` : null, source].filter(Boolean).join(' · ')}
@@ -97,6 +103,13 @@ export function TaskRow({ task, store, roles, tasks, deliverables, archived, hig
           Open the message that started it
         </button>
       ) : null}
+      {onOpenLineage && executionReported(task) ? (
+        <button type="button" className="room-link inline-flex items-center gap-1 text-xs text-accent" onClick={() => onOpenLineage(task.id)} aria-label={`Execution history of ${task.title}`}>
+          <History className="size-3" aria-hidden="true" />
+          Execution history
+        </button>
+      ) : null}
+      {task.recovery && OPEN_RECOVERY.has(task.recovery.status) ? <RecoveryPanel task={task} archived={archived} onDecided={(updated) => updated && store.upsertRecord('tasks', updated)} /> : null}
       {feedback ? (
         <p className="m-0 text-xs text-text" role="status">
           {feedback}

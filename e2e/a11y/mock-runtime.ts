@@ -484,6 +484,20 @@ export const ROUTES: Array<[string, RegExp, Answer]> = [
   ['GET', /^\/api\/magnus\/nodes\/node-1$/, magnusOk(AGENT_NODE)],
   ['GET', /^\/api\/magnus\/nodes\/node-1\/credentials$/, magnusOk(NODE_KEYS)],
   ['GET', /^\/api\/magnus\/ardent\/installations\/node-1$/, magnusOk(ARDENT_INSTALLATION)],
+  ['GET', /^\/api\/magnus\/ardent\/installations$/, magnusOk([ARDENT_INSTALLATION])],
+  ['GET', /^\/api\/magnus\/ardent\/dependencies$/, magnusOk([
+    { name: 'hivemem', status: 'usable', source: 'override', endpoint: 'https://memory.example.internal', capabilities: [] },
+    { name: 'hiveskills', status: 'awaiting_configuration', source: 'registry', endpoint: 'https://skills.example.internal', capabilities: ['skills.pinned-release.v1'], reason: 'Magnus has no HiveSkills target credential yet' },
+    { name: 'emberpath', status: 'unsupported', source: 'registry', endpoint: 'https://models.example.internal', capabilities: [], reason: 'Emberpath lacks emberpath.execution-trace.v1' },
+  ])],
+  ['GET', /^\/api\/magnus\/ardent\/installations\/node-1\/profiles\/lead\/tasks$/, magnusOk({ tasks: [
+    { id: '0b6f7a52-5a4e-4a43-8f3f-1d2a3b4c5d6e', state: 'unknown', prompt: 'Publish the weekly digest', created_ms: NOW_MS - 3600_000,
+      execution: { v: 1, root: 'hx1:studio:inst-1:request:msg-1', parent: 'hx1:studio:inst-1:task:tsk-1', self: 'hx1:ardent:node-1.lead:task:0b6f7a52-5a4e-4a43-8f3f-1d2a3b4c5d6e' },
+      recovery: { status: 'awaiting_decision', reason: { code: 'UNSETTLED_EXTERNAL_WRITE', message: 'A tool call with a possible external effect was dispatched but its outcome was not recorded. Confirm whether it applied.' }, attempt: 1, actions: ['mark_applied', 'mark_not_applied', 'abandon'] } },
+    { id: '1c7a8b63-6b5f-4b54-9a4b-2e3b4c5d6e7f', state: 'running', prompt: 'Summarize the incident notes', created_ms: NOW_MS - 600_000,
+      recovery: { status: 'ready', reason: { code: 'RESUME_FROM_CHECKPOINT', message: 'Every interrupted tool call is settled, a read or idempotent; the task resumes at its next step.' }, attempt: 1, actions: [] } },
+    { id: '2d8b9c74-7c6a-4c65-8b5c-3f4c5d6e7f80', state: 'completed', prompt: 'Draft the release notes', created_ms: NOW_MS - 86_400_000 },
+  ] })],
   ['GET', /^\/api\/magnus\/ardent\/installations\/node-1\/profiles\/lead\/skills$/, magnusOk({ skills: [
     { name: 'summarize', description: 'Condense long documents.', hash: 'a'.repeat(12), enabled: true },
     { name: 'translate', description: 'Translate text between languages.', hash: 'b'.repeat(12), enabled: false },

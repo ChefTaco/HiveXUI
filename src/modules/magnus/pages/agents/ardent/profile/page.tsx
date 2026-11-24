@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Download, ExternalLink, RefreshCw } from 'lucide-react';
 import { Badge, Button, EmptyState, PageHeader, Select, statusTone, StatusDot, LoadingRows, ResourceError } from '@ui';
 import { cn } from '@lib/cn';
@@ -9,7 +9,7 @@ import Link, { useParams, useSearchParams } from '../../../../navigation';
 import { ADMIN_ONLY, RequireRole } from '../../../../session';
 import { CodexNodePanel } from '../../codex/installation-card';
 import { Fact } from '../../shared/fx';
-import { ardentAction, fetchArtifact, readInstallation, readResource, saveBlob } from '../api';
+import { ardentAction, ARTIFACT_TRANSFER_V2, fetchArtifact, fetchArtifactContent, readInstallation, readResource, saveBlob } from '../api';
 import { asRecord, channelLabel, displayValue, parseProfileRef, taskArtifacts, taskIsFinal, type ArdentArtifact } from '../logic';
 import { CommandOwners } from '../command-owners';
 import { OpenInStudio, studioOffered } from '../open-in-studio';
@@ -198,10 +198,20 @@ function SkillsTab({ nodeId, profileId, studioLevel, nodeName }: ProfileRef & { 
   );
 }
 
-function TasksTab({ nodeId, profileId, onChanged }: ProfileRef & { onChanged: () => void }) {
+function TasksTab({ nodeId, profileId, onChanged, transfer, initialTask }: ProfileRef & { onChanged: () => void; transfer: number; initialTask: string | null }) {
   const tab = useMagnusResource((signal) => readResource(nodeId, profileId, 'tasks', taskListSchema, signal));
   const [filter, setFilter] = useState('all');
   const [selected, setSelected] = useState<ArdentTask | null>(null);
+  // A link from Agent 360 names the task to open.
+  const opened = useRef(false);
+  useEffect(() => {
+    if (opened.current || !initialTask || !tab.data) return;
+    opened.current = true;
+    const task = tab.data.tasks.find((item) => item.id === initialTask);
+    if (task) void inspect(task);
+    // inspect reads only the task it is given.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTask, tab.data]);
   const [events, setEvents] = useState<readonly ArdentTaskEvent[]>([]);
   const [problem, setProblem] = useState('');
   const artifacts = useMemo(() => taskArtifacts(events), [events]);
@@ -218,7 +228,11 @@ function TasksTab({ nodeId, profileId, onChanged }: ProfileRef & { onChanged: ()
   async function download(artifact: ArdentArtifact) {
     setProblem('');
     try {
-      saveBlob(await fetchArtifact(nodeId, profileId, artifact.id, artifact.bytes), artifact.name);
+      // Transfer v2 names the file and its type; the older route serves octet-stream bytes only.
+      if (transfer >= ARTIFACT_TRANSFER_V2) {
+        const content = await fetchArtifactContent(nodeId, profileId, artifact.id, artifact.name);
+        saveBlob(content.blob, content.name);
+      } else saveBlob(await fetchArtifact(nodeId, profileId, artifact.id, artifact.bytes), artifact.name);
     } catch (caught) {
       setProblem(errorMessage(caught, 'The artifact could not be downloaded'));
     }
@@ -257,7 +271,7 @@ function TasksTab({ nodeId, profileId, onChanged }: ProfileRef & { onChanged: ()
                 {artifacts.length > 0 ? (
                   <div className="border-t border-border pt-3">
                     <p className="m-0 mb-2 text-xs text-text-muted">Artifacts</p>
-                    {artifacts.map((artifact) => <Button key={artifact.id} variant="ghost" size="sm" className="w-full justify-start" icon={<Download className="size-4" />} onClick={() => void download(artifact)}><span className="truncate">{artifact.name}</span><span className="num ml-auto text-xs text-text-muted">{artifact.bytes} B</span></Button>)}
+                    {artifacts.map((artifact) => <Button key={artifact.id} variant="ghost" size="sm" className="w-full justify-start" icon={<Download className="size-4" />} onClick={() => void download(artifact)}><span className="truncate">{artifact.name}</span><span className="num ml-auto text-xs text-text-muted">{artifact.media_type} · {artifact.bytes} B</span></Button>)}
                   </div>
                 ) : null}
                 <div className="grid gap-2 border-t border-border pt-3">
@@ -359,7 +373,7 @@ export default function ArdentProfilePage() {
         {tab === 'Channels' ? <ChannelsTab nodeId={nodeId} profileId={profileId} running={running} /> : null}
         {tab === 'Peers' ? <PeersTab nodeId={nodeId} profileId={profileId} running={running} /> : null}
         {tab === 'Skills' ? <SkillsTab nodeId={nodeId} profileId={profileId} studioLevel={installation.data ? installation.data.capabilities?.studio ?? 0 : null} nodeName={installation.data?.nodeName} /> : null}
-        {tab === 'Tasks & Artifacts' ? <TasksTab nodeId={nodeId} profileId={profileId} onChanged={() => setRefreshKey((value) => value + 1)} /> : null}
+        {tab === 'Tasks & Artifacts' ? <TasksTab nodeId={nodeId} profileId={profileId} transfer={profile?.capabilities?.artifact_transfer ?? 1} initialTask={search.get('task')} onChanged={() => setRefreshKey((value) => value + 1)} /> : null}
         {tab === 'API Reference' ? <ApiTab nodeId={nodeId} profileId={profileId} /> : null}
       </PageItem>
       <PageItem>

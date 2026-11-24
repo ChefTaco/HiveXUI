@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { agentIdentityResponseSchema, hermesInstallationsResponseSchema, hermesProfilesResponseSchema, nodeDetailResponseSchema } from '@contracts/magnus/browser';
 import { listProjectsResponseSchema } from '@contracts/ardentstudio.generated';
 import { MemoryBrowseResponseSchema, MemorySearchRequestSchema, MemorySearchResponseSchema, MemoryStatsSchema } from '@contracts/hivemem.generated';
-import { traceReadSchema } from '@contracts/emberpath-model-admin.generated';
+import { tracePageSchema, traceReadSchema } from '@contracts/emberpath-model-admin.generated';
 import { TargetSchema } from '@contracts/hiveskills.generated';
 import { fusionCaseSchema } from '@contracts/cindertrace/browser';
 import { HiveApiError, HiveContractError, hiveApiError } from '../../lib/api-error';
@@ -15,7 +15,7 @@ import { productInstalled } from '../../lib/runtime';
 import { apiFetch, type Product } from '../../lib/transport';
 import { magnus, segment } from '../magnus/api/client';
 import { readInstallation, readResource } from '../magnus/pages/agents/ardent/api';
-import { skillsSchema, type ArdentProfileSummary, type ArdentSkill } from '../magnus/pages/agents/ardent/schemas';
+import { executionTaskListSchema, skillsSchema, type ArdentExecutionTask, type ArdentProfileSummary, type ArdentSkill } from '../magnus/pages/agents/ardent/schemas';
 import type { ConsoleRole } from '../magnus/routes';
 import { sessionStore } from '../magnus/session-store';
 import { studio } from '../studio/api/client';
@@ -29,7 +29,7 @@ export type MemoryRecord = z.infer<typeof MemoryBrowseResponseSchema>['memories'
 export type MemoryStats = z.infer<typeof MemoryStatsSchema>;
 export type FusionCase = z.infer<typeof fusionCaseSchema>;
 export type Trace = z.infer<typeof traceReadSchema>;
-export type { ArdentProfileSummary, ArdentSkill };
+export type { ArdentExecutionTask, ArdentProfileSummary, ArdentSkill };
 
 /**
  * A HiveSkills target. HiveSkills after 1.4.0 adds the fleet link; the vendored 1.4.0 contract does
@@ -40,9 +40,10 @@ export type FleetTarget = z.infer<typeof fleetTargetSchema>;
 
 /**
  * Emberpath's filtered trace page. Emberpath after 2.1.0 answers it for `actorId`; 2.1.0 ignores the
- * filter and answers the legacy `{data}` list. Mirrors its `tracePageSchema` until a release ships it.
+ * filter and answers the legacy `{data}` list. With an execution filter (Emberpath 2.6.0) each row
+ * also carries `execution` and its provider `attempts`.
  */
-export const tracePageSchema = z.object({ data: z.array(traceReadSchema), nextCursor: z.string().nullable() });
+export { tracePageSchema };
 
 /** A filtered read, or the news that this product release cannot filter. */
 export type Filtered<T> = { supported: true; data: T } | { supported: false };
@@ -70,7 +71,9 @@ export interface AgentSources {
   memoryStats: (actorId: string, signal: AbortSignal) => Promise<MemoryStats | null>;
   projects: (agentRef: string, signal: AbortSignal) => Promise<Filtered<ProjectSummary[]>>;
   cases: (actorId: string, signal: AbortSignal) => Promise<Filtered<FusionCase[]>>;
-  traces: (actorId: string, signal: AbortSignal) => Promise<Filtered<TracePage>>;
+  traces: (actorId: string, signal: AbortSignal, linked?: boolean) => Promise<Filtered<TracePage>>;
+  /** Recent Ardent tasks of the profile, through Magnus, with their recovery and execution references. */
+  executions: (nodeId: string, profile: string, signal: AbortSignal) => Promise<ArdentExecutionTask[]>;
   skillTargets: (nodeId: string, signal: AbortSignal) => Promise<Filtered<FleetTarget[]>>;
   profileSkills: (nodeId: string, profile: string, signal: AbortSignal) => Promise<ArdentSkill[]>;
 }
@@ -185,16 +188,39 @@ async function cases(actorId: string, signal: AbortSignal): Promise<Filtered<Fus
 }
 
 const legacyTraceList = z.object({ data: z.array(z.unknown()) });
-async function traces(actorId: string, signal: AbortSignal): Promise<Filtered<TracePage>> {
-  const search = new URLSearchParams({ actorId, limit: String(TRACE_LIMIT) });
+/** Every Ardent execution reference starts this way, so it selects the traces an Ardent run attributed. */
+const ARDENT_EXECUTIONS = 'hx1:ardent:';
+/**
+ * The agent's traffic. `linked` keeps only the traces an Ardent execution attributed, with their
+ * execution references and provider attempts; Emberpath before 2.6.0 does not know that filter and
+ * answers without them, which reads as unsupported.
+ */
+async function traces(actorId: string, signal: AbortSignal, linked = false): Promise<Filtered<TracePage>> {
+  const search = new URLSearchParams({ actorId, limit: String(TRACE_LIMIT), ...(linked ? { executionTask: ARDENT_EXECUTIONS } : {}) });
   const value = await readJson(`/api/traces?${search}`, signal, 'Emberpath could not list traces');
   // Only the paged answer is filtered. The legacy list is every agent's traffic, so it is never shown.
   if (value && typeof value === 'object' && 'nextCursor' in value) {
     const page = parsed(tracePageSchema, value, 'Emberpath');
+    if (linked && page.data.some((trace) => trace.execution === undefined)) return { supported: false };
     return { supported: true, data: { traces: page.data, nextCursor: page.nextCursor } };
   }
   parsed(legacyTraceList, value, 'Emberpath');
   return { supported: false };
+}
+
+/**
+ * Provider traces of one execution: `executionTask` takes an Ardent task reference (every model
+ * attempt of the task) or a prefix of an attempt reference; `executionRoot` the whole causal tree.
+ * Unsupported on an Emberpath before 2.6.0, which ignores the filter.
+ */
+export async function executionTraces(filter: { executionTask?: string; executionRoot?: string }, signal?: AbortSignal): Promise<Filtered<Trace[]>> {
+  const search = new URLSearchParams({ limit: String(TRACE_LIMIT) });
+  if (filter.executionTask) search.set('executionTask', filter.executionTask);
+  if (filter.executionRoot) search.set('executionRoot', filter.executionRoot);
+  const value = await readJson(`/api/traces?${search}`, signal ?? new AbortController().signal, 'Emberpath could not list traces');
+  if (!value || typeof value !== 'object' || !('nextCursor' in value)) return { supported: false };
+  const page = parsed(tracePageSchema, value, 'Emberpath');
+  return page.data.every((trace) => trace.execution !== undefined) ? { supported: true, data: page.data } : { supported: false };
 }
 
 async function skillTargets(nodeId: string, signal: AbortSignal): Promise<Filtered<FleetTarget[]>> {
@@ -219,6 +245,7 @@ export const liveSources: AgentSources = {
   projects,
   cases,
   traces,
+  executions: (nodeId, profile, signal) => readResource(nodeId, profile, 'tasks', executionTaskListSchema, signal).then((answer) => answer.tasks),
   skillTargets,
   profileSkills: (nodeId, profile, signal) => readResource(nodeId, profile, 'skills', skillsSchema, signal).then((answer) => answer.skills),
 };

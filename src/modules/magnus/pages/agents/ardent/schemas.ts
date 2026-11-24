@@ -2,6 +2,7 @@
 // its source in the Magnus repository, or in the Ardent repository (ChefTaco/Ardent) for the runtime's
 // own API. A node's Ardent reports these, so they are read leniently.
 import { z } from 'zod';
+import { executionRefsSchema, taskRecoverySchema } from '../../../../../lib/execution';
 
 const ok = <T extends z.ZodType>(data: T) => z.object({ success: z.literal(true), data });
 
@@ -43,6 +44,13 @@ export const ardentProfileSummarySchema = z.object({
   error: z.string().nullable(),
   /** Absent from a Magnus without credential renewal, which shows nothing about it. */
   hivemem: ardentHiveMemCredentialSchema.optional(),
+  /** The Ardent version the profile runs. Absent from node agents older than studio level 4. */
+  version: z.string().nullable().optional().catch(undefined),
+  /**
+   * What the profile offers through Magnus: recovery and lineage 1 on Ardent 3.2.0 or later,
+   * artifact_transfer 2 for transfer v2 (the /content route). Absent from node agents before studio 4.
+   */
+  capabilities: z.object({ recovery: z.number().int().min(0), lineage: z.number().int().min(0), artifact_transfer: z.number().int().min(0) }).partial().optional().catch(undefined),
 });
 export type ArdentProfileSummary = z.output<typeof ardentProfileSummarySchema>;
 
@@ -125,6 +133,16 @@ export const taskSchema = z.object({
 });
 export type ArdentTask = z.output<typeof taskSchema>;
 export const taskListSchema = z.object({ tasks: z.array(taskSchema) });
+/**
+ * A task as Ardent 3.2.0 lists it: with its execution context (attribution only) and, for a task a
+ * restart interrupted, its recovery (C3). Older Ardent sends neither.
+ */
+export const executionTaskSchema = taskSchema.extend({
+  execution: executionRefsSchema.optional(),
+  recovery: taskRecoverySchema.optional().catch(undefined),
+});
+export type ArdentExecutionTask = z.output<typeof executionTaskSchema>;
+export const executionTaskListSchema = z.object({ tasks: z.array(executionTaskSchema) });
 export const taskEventSchema = z.object({ sequence: z.number(), kind: z.string(), detail: z.unknown(), created_ms: z.number() });
 export type ArdentTaskEvent = z.output<typeof taskEventSchema>;
 export const taskEventsSchema = z.object({ events: z.array(taskEventSchema) });

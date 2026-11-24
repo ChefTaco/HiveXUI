@@ -2822,10 +2822,12 @@ export const ardentTaskDoneEventSchema = z.object({
  * The node agent's `studio` capability, from its ping features and Ardent inventory. 1: sessions,
  * task streams and streamed artifacts. 2: also missions, pause and resume, previews, development
  * history, artifact manifests and session contexts. 3: also skill-install, which installs a HiveSkills
- * catalog skill onto a profile. A route that needs a higher level than the agent reports answers 409
- * AGENT_UPGRADE_REQUIRED.
+ * catalog skill onto a profile. 4: also the Ardent 3.2.0 runtime contracts (task recovery and lineage,
+ * execution context passthrough, artifact transfer v2 and imports), each further gated per profile by
+ * the profile's own capabilities (see ardentProfileCapabilities). A route that needs a higher level than
+ * the agent reports answers 409 AGENT_UPGRADE_REQUIRED.
  */
-export const ARDENT_STUDIO_CAPABILITY = { bridge: 1, missions: 2, skillInstall: 3 } as const;
+export const ARDENT_STUDIO_CAPABILITY = { bridge: 1, missions: 2, skillInstall: 3, runtimeContracts: 4 } as const;
 /** task.event kinds that Ardent 2.2.0 adds. Other kinds appear too, so readers must accept unknown ones. */
 export const ARDENT_STUDIO_EVENT_KINDS = [
   'mission', 'team_handoff', 'team_ask_user', 'team_propose_decision', 'artifact_registered', 'development_note',
@@ -2928,8 +2930,14 @@ const ardentSkillInstallFields = {
 };
 const enableNeedsRevision = (value: { enable?: boolean | undefined; revision?: string | undefined }) => !value.enable || value.revision !== undefined;
 const enableNeedsRevisionIssue = { message: 'enable needs the configuration revision', path: ['revision'] };
-/** The skill-install action body: a HiveSkills release Magnus fetches, verifies and installs onto the profile. */
-export const ardentSkillInstallSchema = z.object(ardentSkillInstallFields).strict().refine(enableNeedsRevision, enableNeedsRevisionIssue);
+/**
+ * The skill-install action body: a HiveSkills release Magnus fetches, verifies and installs onto the profile.
+ * `pinned: true` accepts that exact release even when it is not the one promoted on `channel`: Magnus then
+ * reads it through HiveSkills' pinned-release routes (skills.pinned-release.v1) as its enrolled HiveSkills
+ * target (MAGNUS_ARDENT_HIVESKILLS_TARGET), and answers 409 SKILL_VERSION_UNAVAILABLE without one.
+ */
+export const ardentSkillInstallSchema = z.object({ ...ardentSkillInstallFields, pinned: z.boolean().optional() }).strict()
+  .refine(enableNeedsRevision, enableNeedsRevisionIssue);
 /**
  * The skill-install answer. `changed` is false when the same release digest was installed already. When
  * enabling was asked for and failed, the skill stays installed, `enabled` is false and `enable_error`
@@ -2997,6 +3005,8 @@ export const ardentAgentDeployRequestSchema = z.object({
 export const ardentAgentStepNameSchema = z.enum([
   'profile-check', 'profile-create', 'service-start', 'identity-soul', 'identity-identity',
   'hivemem-enroll', 'config-save', 'skill-set', 'service-restart', 'ready-probe',
+  // Installing an agent definition (POST /ardent/agent-definitions/install)
+  'extensions-install', 'skill-install',
 ]);
 export const ardentAgentStepSchema = z.object({
   name: ardentAgentStepNameSchema,
@@ -3009,7 +3019,8 @@ export const ardentAgentStepSchema = z.object({
 });
 export const ardentAgentOperationSchema = z.object({
   id: z.string(),
-  kind: z.enum(['deploy', 'hivemem']),
+  /** definition: an install of a hive-agent-definition/1 (request.definition names it). */
+  kind: z.enum(['deploy', 'hivemem', 'definition']),
   nodeId: z.string(),
   profile: z.string(),
   status: z.enum(['running', 'succeeded', 'failed']),
@@ -3020,12 +3031,35 @@ export const ardentAgentOperationSchema = z.object({
   request: z.object({
     apiPort: z.number().int().nullable(), model: ardentAgentModelSchema.nullable(), skills: z.array(z.string()),
     hivemem: z.boolean(), artifacts_max_bytes: z.number().int().nullable(),
+    /** The installed definition, for kind definition. */
+    definition: z.object({ name: z.string(), sha256: z.string() }).nullable().optional(),
   }),
   createdAt: z.string(),
   updatedAt: z.string(),
   completedAt: z.string().nullable(),
 });
 export const ardentAgentOperationResponseSchema = ok(ardentAgentOperationSchema);
+
+// services/control-api/src/routes/ardent.ts GET /ardent/dependencies (services/discovery.ts)
+/**
+ * How Magnus resolved one dependency of its Ardent agents. `source` is override (an explicit
+ * MAGNUS_ARDENT_* setting, which always wins), registry (the Hive Registry) or none. `usable`: the endpoint
+ * answers; `missing`: nothing is configured or the endpoint does not answer; `unsupported`: it answers but
+ * lacks a capability Magnus expects of it; `awaiting_configuration`: found, but Magnus still needs its own
+ * credential or setting for it. A resolved endpoint is only available: enrollment, skill installation
+ * and channels still need their explicit steps.
+ */
+export const ardentDependencySchema = z.object({
+  name: z.enum(['hivemem', 'hiveskills', 'emberpath']),
+  status: z.enum(['usable', 'missing', 'unsupported', 'awaiting_configuration']),
+  source: z.enum(['override', 'registry', 'none']),
+  endpoint: z.string().optional(),
+  /** Service capability names it offers (the Hive capability vocabulary). */
+  capabilities: z.array(z.string()),
+  reason: z.string().optional(),
+});
+export const ardentDependenciesResponseSchema = ok(z.array(ardentDependencySchema));
+export type ArdentDependency = z.infer<typeof ardentDependencySchema>;
 export const ardentAgentOperationAcceptedResponseSchema = ok(z.object({ operationId: z.string() }));
 
 // ── Agent identity ──
@@ -3385,6 +3419,8 @@ export const magnusBrowserRoutes: readonly MagnusBrowserRoute[] = [
     note: 'operation on connect and on every step change; done once the operation succeeds or fails, then the stream ends. Oathweave streams close on logout and at token expiry: reconnect with a fresh token.' },
   { method: 'POST', path: '/ardent/agents/operations/{id}/resume', response: ardentAgentOperationAcceptedResponseSchema, roles: ADMIN_ONLY, successStatus: 202,
     note: 'Reruns a failed operation from its first unfinished step; finished steps are never rerun. 409 unless the operation failed.' },
+  { method: 'GET', path: '/ardent/dependencies', response: ardentDependenciesResponseSchema, roles: ADMIN_ONLY,
+    note: 'HiveMem, HiveSkills and Emberpath as Magnus resolved them: an explicit setting first, then the Hive Registry. refresh=true resolves again now instead of using the result of the last five-minute refresh.' },
   { method: 'POST', path: '/ardent/installations/{nodeId}/profiles/{name}/hivemem', response: ardentAgentOperationAcceptedResponseSchema, roles: ADMIN_ONLY, successStatus: 202,
     note: 'Enable HiveMem on an existing running profile: profile-check, hivemem-enroll, config-save, service-restart, ready-probe. A profile already enrolled in HiveMem gets a replacement credential: renewed with a fresh deadline where HiveMem supports it, otherwise rotated. Magnus then renews it before every deadline.' },
 
