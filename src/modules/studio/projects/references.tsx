@@ -1,10 +1,10 @@
 import { useRef, useState, type DragEvent } from 'react';
-import { FileUp, RefreshCw, RotateCcw, X } from 'lucide-react';
-import { Badge, Button, EmptyState, IconButton } from '@ui';
+import { FileUp, RefreshCw, RotateCcw, Trash2, X } from 'lucide-react';
+import { Badge, Button, ConfirmDialog, EmptyState, IconButton } from '@ui';
 import { cn } from '@lib/cn';
 import { errorMessage } from '../../magnus/api/errors';
-import { idempotencyKey } from '../api/client';
-import { reindexFile, uploadFile, type StudioFile } from '../api/endpoints';
+import { idempotencyKey, StudioApiError } from '../api/client';
+import { deleteFile, reindexFile, uploadFile, type StudioFile } from '../api/endpoints';
 import type { ProjectStore } from '../state/project-store';
 import { formatBytes, KNOWLEDGE_LABEL, KNOWLEDGE_TONE, MAX_UPLOAD_BYTES, REFERENCE_ACCEPT, uploadMime } from './logic';
 
@@ -26,7 +26,22 @@ export function rejectReason(file: { name: string; type: string; size: number })
   return null;
 }
 
-function FileRow({ file, onReindex, busy, readOnly }: { file: StudioFile; onReindex: () => void; busy: boolean; readOnly: boolean }) {
+/**
+ * Why a file could not be deleted. 409 FILE_IN_USE names the agents whose portrait and the team roles
+ * that use it (details `agents`, `roles`), so the person knows what to change first.
+ */
+export function deleteRefusal(file: { name: string }, error: unknown): string {
+  if (error instanceof StudioApiError && error.code === 'FILE_IN_USE') {
+    const details = (error.details ?? {}) as { agents?: unknown; roles?: unknown };
+    const names = (value: unknown): string[] =>
+      Array.isArray(value) ? value.flatMap((item) => (typeof item === 'string' ? [item] : item && typeof item === 'object' && typeof (item as { name?: unknown }).name === 'string' ? [(item as { name: string }).name] : [])) : [];
+    const users = [...names(details.agents).map((name) => `agent ${name}`), ...names(details.roles).map((name) => `role ${name}`)];
+    return `${file.name} is still used${users.length ? ` by ${users.join(', ')}` : ' by an agent portrait or a team role'}. Remove it there first.`;
+  }
+  return `${file.name}: ${errorMessage(error, 'The file could not be deleted')}`;
+}
+
+function FileRow({ file, onReindex, onDelete, busy, readOnly }: { file: StudioFile; onReindex: () => void; onDelete: () => void; busy: boolean; readOnly: boolean }) {
   const { state, error, chunks } = file.knowledge;
   const working = state === 'pending' || state === 'indexing';
   return (
@@ -49,6 +64,7 @@ function FileRow({ file, onReindex, busy, readOnly }: { file: StudioFile; onRein
             Retry
           </Button>
         ) : null}
+        {readOnly ? null : <IconButton label={`Delete ${file.name}`} variant="danger" icon={<Trash2 className="size-4" />} onClick={onDelete} />}
       </span>
     </li>
   );
@@ -65,6 +81,8 @@ export function ReferenceManager({ store, files, readOnly = false }: { store: Pr
   const [reindexing, setReindexing] = useState<ReadonlySet<string>>(new Set());
   const [reindexError, setReindexError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [deleting, setDeleting] = useState<StudioFile | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const references = files.filter((file) => file.purpose === 'reference');
 
   async function send(upload: Upload) {
@@ -106,6 +124,22 @@ export function ReferenceManager({ store, files, readOnly = false }: { store: Pr
         next.delete(file.id);
         return next;
       });
+    }
+  }
+
+  async function remove() {
+    const file = deleting;
+    if (!file) return;
+    setDeleteBusy(true);
+    setReindexError(null);
+    try {
+      await deleteFile(file.id, idempotencyKey());
+      store.removeFile(file.id);
+    } catch (error) {
+      setReindexError(deleteRefusal(file, error));
+    } finally {
+      setDeleteBusy(false);
+      setDeleting(null);
     }
   }
 
@@ -175,12 +209,21 @@ export function ReferenceManager({ store, files, readOnly = false }: { store: Pr
             </li>
           ))}
           {references.map((file) => (
-            <FileRow key={file.id} file={file} busy={reindexing.has(file.id)} readOnly={readOnly} onReindex={() => void reindex(file)} />
+            <FileRow key={file.id} file={file} busy={reindexing.has(file.id)} readOnly={readOnly} onReindex={() => void reindex(file)} onDelete={() => setDeleting(file)} />
           ))}
         </ul>
       ) : readOnly ? (
         <EmptyState compact title="No references" message="This project has no reference files." />
       ) : null}
+      <ConfirmDialog
+        open={deleting !== null}
+        title={`Delete ${deleting?.name ?? 'file'}?`}
+        message="The file leaves the project at once and its passages are removed from the project's knowledge, so agents can no longer find it. Messages and deliverables that already quote it keep their text. This cannot be undone."
+        confirmLabel="Delete file"
+        loading={deleteBusy}
+        onCancel={() => setDeleting(null)}
+        onConfirm={() => void remove()}
+      />
     </div>
   );
 }

@@ -89,7 +89,10 @@ review. Search covers the name, brief and tags. **Active** and **Archived** swit
 
 Team Assignment then opens with **"Bind each role, then Start in Room."**
 
-**Files** in the top bar manages references and links later. **Archive** makes a project read-only;
+**Files** in the top bar manages references and links later. A file's **Delete** asks first; the
+file leaves the project and its knowledge at once, and Studio refuses while an agent portrait or a
+team role still uses it, naming them (the ArdentStudio release after 0.5.1). **Reindex project** queues every file and link
+for HiveMem again, for example after a restore. **Archive** makes a project read-only;
 the service refuses while tasks are running and lists them. **Reopen** restores it.
 
 ## Team Assignment

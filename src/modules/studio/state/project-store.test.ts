@@ -57,6 +57,16 @@ describe('the project store', () => {
     expect(load).toHaveBeenCalledTimes(1);
   });
 
+  it('drops a deleted file from its event at once', async () => {
+    const other = file({ id: 'fil_01HZX3K6Q1V8R2M4N6P8T0W002', name: 'other.md' });
+    const { store, send } = harness([snapshot({ seq: 5, files: [file(), other] })]);
+    store.start();
+    await flush();
+    send(frame(6, 'file.deleted', { file_id: file().id, name: file().name, purpose: 'reference', knowledge: 'retiring' }));
+    expect(store.getState().snapshot!.files.map((item) => item.name)).toEqual(['other.md']);
+    expect(store.getState().seq).toBe(6);
+  });
+
   it('patches the summary counts from a counts event and links from link events, without a refetch', async () => {
     const { store, load, send } = harness([snapshot({ seq: 5, links: [link()] })]);
     store.start();
