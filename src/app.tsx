@@ -1,4 +1,4 @@
-import { clearAccess } from './lib/transport';
+import { clearAccess, endChatSession } from './lib/transport';
 import {
   lazy,
   Suspense,
@@ -112,6 +112,9 @@ function ConsoleApp() {
   }, [attempt]);
 
   const handleAuthExpired = useCallback(() => {
+    // The chat cookie is the origin's, not this tab's: end it here too, for a session that ended
+    // elsewhere (another tab signed out, or Oathweave dropped it). Best effort, never awaited.
+    void endChatSession();
     browserIdentity()?.invalidate();
     clearAccess();
     setUser(null);
