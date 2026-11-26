@@ -29,6 +29,7 @@ jobs:
       - run: npm run check:bundle
       - run: npm test
       - run: npm run check:contracts
+      - run: bash scripts/privacy-output.test.sh
       - run: npm run scan:secrets
       - run: npm run check:private
       - name: Install Chromium and system dependencies
