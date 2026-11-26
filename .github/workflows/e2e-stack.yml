@@ -1,0 +1,75 @@
+name: Real-stack end-to-end
+# The Studio and console scenarios against a stack built from every product's main branch
+# (e2e/stack). Too slow for every pull request, so it runs nightly and on demand. With
+# STUDIO_E2E_REQUIRED=1 missing Docker, a stack that does not start or any skipped spec fails.
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: e2e-stack
+  cancel-in-progress: false
+jobs:
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      STUDIO_E2E_PRODUCTS_ROOT: ${{ github.workspace }}/products
+      STUDIO_E2E_REQUIRED: '1'
+      # The runner is thrown away; keeping the containers lets the next step read their logs.
+      STUDIO_E2E_KEEP: '1'
+      STUDIO_E2E_SHOTS: ${{ github.workspace }}/products/HiveXUI/output/studio-e2e-shots
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          path: products/HiveXUI
+          persist-credentials: false
+      # The stack builds these public products from their default branches.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { repository: ChefTaco/magnus, path: products/Magnus, persist-credentials: false }
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { repository: ChefTaco/Ardent, path: products/Ardent, persist-credentials: false }
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { repository: ChefTaco/ArdentStudio, path: products/ArdentStudio, persist-credentials: false }
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { repository: ChefTaco/Oathweave, path: products/Oathweave, persist-credentials: false }
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { repository: ChefTaco/HiveMem, path: products/HiveMem, persist-credentials: false }
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { repository: ChefTaco/HiveSkills, path: products/HiveSkills, persist-credentials: false }
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { repository: ChefTaco/Hive, path: products/Hive, persist-credentials: false, sparse-checkout: deployment }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24.22.3
+      - name: Install HiveXUI and Ardent dependencies
+        run: |
+          npm ci --prefix products/HiveXUI
+          npm ci --prefix products/Ardent
+      - name: Install Chromium and system dependencies
+        timeout-minutes: 8
+        working-directory: products/HiveXUI
+        run: npx playwright install --with-deps chromium
+      - name: Real-stack scenarios
+        working-directory: products/HiveXUI
+        run: npm run e2e
+      - name: Stack logs
+        if: failure()
+        working-directory: products/HiveXUI
+        run: |
+          mkdir -p output
+          for name in $(docker ps -a --filter label=com.docker.compose.project=studio-e2e --format '{{.Names}}'); do
+            echo "== $name"; docker logs --tail 400 "$name" 2>&1
+          done > output/stack.log || true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: e2e-stack
+          path: |
+            products/HiveXUI/output/studio-e2e-shots
+            products/HiveXUI/output/stack.log
+            products/HiveXUI/test-results
+          if-no-files-found: ignore
+          retention-days: 7

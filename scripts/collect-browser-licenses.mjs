@@ -7,6 +7,8 @@ import {
   mkdirSync,
   existsSync,
   cpSync,
+  readdirSync,
+  rmSync,
 } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -60,7 +62,7 @@ for (let index = 0; index < queue.length; index++) {
     'license',
     // ms, through react-markdown's debug dependency.
     'license.md',
-    // decimal.js-light, through recharts, spells it this way.
+    // The British spelling, which some packages use.
     'LICENCE.md',
     'OFL.txt',
     'OFL',
@@ -89,6 +91,10 @@ writeFileSync(
     2,
   ) + '\n',
 );
+// A dependency the bundle no longer has leaves no license behind: the folder lists what ships.
+const current = new Set(inventory.map((entry) => entry.file));
+for (const file of readdirSync(destination))
+  if (file.endsWith('.LICENSE') && !current.has(file)) rmSync(join(destination, file));
 const output = join(root, 'dist/licenses');
 mkdirSync(output, { recursive: true });
 cpSync(join(root, 'LICENSE'), join(output, 'LICENSE'));

@@ -18,6 +18,8 @@
 //   STUDIO_E2E_PORT           loopback console port (default: a free port)
 //   STUDIO_E2E_TAG            tag of the stack's images (default local), so runs of other checkouts keep theirs
 //   STUDIO_E2E_HIVEMEM_HOURS  lifetime of the agents' HiveMem credentials in hours (default 1, the shortest Magnus allows)
+//   STUDIO_E2E_ACCESS_TTL     Oathweave's access token lifetime in seconds (default: Oathweave's own, 900), so the
+//                             console's token renewal spec can run in minutes
 // Only the model is a fixture (e2e/stack/model/server.mjs). Nothing here uses real credentials.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto';
@@ -168,6 +170,7 @@ function configure(port) {
     + line('DATABASE_URL', 'file:/data/iam/iam.db') + line('REDIS_URL', `redis://:${s.oathRedis}@oathweave-redis:6379`)
     + line('JWT_ISSUER', nativeIssuer) + line('IAM_BROWSER_ISSUER', issuer) + line('IAM_BROWSER_CLIENT_POLICIES', JSON.stringify(policies))
     + line('COOKIE_SECRET', s.oathCookie) + line('IAM_AGENT_SECRET', s.oathAgent) + line('RELAX_AUTH_LIMITS', 'true')
+    + (process.env.STUDIO_E2E_ACCESS_TTL ? line('JWT_ACCESS_TTL', String(Number(process.env.STUDIO_E2E_ACCESS_TTL))) : '')
     + line('SEED_ADMIN_USERNAME', admin.username) + line('SEED_ADMIN_EMAIL', admin.email) + line('SEED_ADMIN_PASSWORD', admin.password)
     + line('SEED_HIVE_CLIENT_SECRET', s.nativeHive) + line('SEED_HIVE_ROUTER_CLIENT_SECRET', s.nativeRouter)
     + line('OATHWEAVE_SUITE_BOOTSTRAP_FILE', '/config/suite-bootstrap.json')

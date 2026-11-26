@@ -288,7 +288,8 @@ area's workflows, the room's agent states, the keyboard map, accessibility and k
 
 `npm run e2e` runs the Studio acceptance scenarios (`e2e/studio/*.spec.ts`: an adventure and a
 research project, through the Studio API and in the browser, an agent's fleet lifecycle, the
-node software card, and the Ardent client SDK through Magnus) against
+node software card, the Ardent client SDK through Magnus, and console smoke checks of IAM users,
+Memories, the Skills catalogue, sign-out and sign-in again and token renewal) against
 a real stack built from the product checkouts next to this one: Oathweave, HiveMem, HiveSkills,
 Magnus (server, PostgreSQL, Redis and one node agent in a systemd container that manages Ardent
 gateways), ArdentStudio and the UI behind Hive's ingress configuration
@@ -308,7 +309,12 @@ npm run e2e:stack -- down    # remove the stack's containers, volumes and run di
 ```
 
 Docker with Compose is required; without it the specs are skipped, so `npm run e2e` stays green
-where Docker is unavailable. The stack uses the compose project `studio-e2e`, publishes only the
+where Docker is unavailable. `STUDIO_E2E_REQUIRED=1` makes it a gate instead: missing Docker, a stack
+that does not start (whose containers are then removed) and any skipped spec fail the run. The
+`Real-stack end-to-end` workflow (`.github/workflows/e2e-stack.yml`) runs it that way nightly and on
+demand, building the stack from every product's default branch. The token renewal check waits out
+one access token lifetime (15 minutes by default); `STUDIO_E2E_ACCESS_TTL=120` when starting a stack
+sets Oathweave's lifetime to two minutes for a faster local run. The stack uses the compose project `studio-e2e`, publishes only the
 UI on a free loopback port and keeps its state in `output/studio-e2e/`; screenshots go to
 `output/studio-e2e-shots/` (or `STUDIO_E2E_SHOTS`). `STUDIO_E2E_PRODUCTS_ROOT` points at another
 directory of checkouts, `STUDIO_E2E_MAGNUS_DIR` at another Magnus checkout,

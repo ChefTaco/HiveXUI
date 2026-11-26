@@ -1,5 +1,6 @@
 // End-to-end tests of Ardent Project Studio against a real stack built from source
-// (e2e/stack). `npm run e2e` starts the stack when Docker is available and skips otherwise.
+// (e2e/stack). `npm run e2e` starts the stack when Docker is available and skips otherwise;
+// STUDIO_E2E_REQUIRED=1 fails instead, on missing Docker or on any skipped spec.
 import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
@@ -9,7 +10,7 @@ export default defineConfig({
   workers: 1,
   timeout: 15 * 60_000,
   expect: { timeout: 30_000 },
-  reporter: [['list']],
+  reporter: [['list'], ['./e2e/studio/support/required-reporter.ts']],
   globalSetup: './e2e/studio/global-setup.ts',
   globalTeardown: './e2e/studio/global-teardown.ts',
   use: {
