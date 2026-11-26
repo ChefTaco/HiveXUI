@@ -219,7 +219,7 @@ export function ProjectTools({ projectId }: { projectId: string }) {
     <div className="studio-project__tools">
       {/* The visible words start the accessible name (WCAG 2.5.3); the rest is for screen readers. */}
       <Button size="sm" variant="ghost" onClick={() => setFiles(true)}>
-        Files<span className="sr-only"> and links,</span>
+        Files<span className="sr-only"> and links,</span>{' '}
         <span className="tab-count">{count}</span>
         {failed ? <Badge tone="danger">{failed} failed</Badge> : null}
       </Button>

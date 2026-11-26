@@ -108,10 +108,12 @@ test.beforeAll(async () => {
 });
 
 test('1. capabilities: Magnus 3.3 offers every Ardent 3.2 route to the client', async () => {
+  // The stack packs Ardent from its checkout: any release from 3.2 on offers these routes.
   const capabilities = await ctx.ardent.capabilities();
   expect(capabilities).toMatchObject({ transport: 'magnus', profile: PROFILE, artifactTransfer: 2,
     features: { recovery: true, lineage: true, execution: true, artifactContent: true, renditions: true, imports: true } });
-  expect(capabilities.version).toMatch(/^3\.2\.\d+$/);
+  const [major, minor] = capabilities.version.split('.').map(Number);
+  expect(major === 3 && minor! >= 2, `Ardent ${capabilities.version} is 3.2 or later`).toBe(true);
   expect(capabilities.magnus?.installedVersion).toBe(capabilities.version);
 });
 
