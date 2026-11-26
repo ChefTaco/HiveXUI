@@ -306,6 +306,22 @@ function enrollAgent(token, port) {
   say('node key bound with a one-time enrollment token');
 }
 
+/**
+ * Oathweave and HiveMem accept their bootstrap files only when the server's own user owns them
+ * (mode 0600). On a host whose uid is not the image's, such as a CI runner, Docker hands each one to
+ * the user its image runs as; locally the host user already is that user.
+ */
+function handOverOwnedFiles() {
+  if (!shared) return;
+  const config = join(run, 'config');
+  for (const [image, file] of [[`studio-e2e-oathweave:${tag}`, 'suite-bootstrap.json'], [`studio-e2e-hivemem:${tag}`, 'hivemem-initial-account.json']]) {
+    const owner = ['-u', '-g'].map(flag => sh('docker', ['run', '--rm', '--entrypoint', 'id', image, flag])).join(':');
+    if (owner === `${process.getuid?.()}:${process.getgid?.()}`) continue;
+    chmodSync(join(config, file), 0o600);
+    sh('docker', ['run', '--rm', '--user', '0', '--entrypoint', 'chown', '-v', `${config}:/config`, image, owner, `/config/${file}`]);
+  }
+}
+
 async function up() {
   if (!dockerAvailable()) { say('Docker is not available; nothing to start'); process.exitCode = 2; return; }
   if (existsSync(statePath)) throw new Error(`A ${project} run already exists (${run}); run "down" first`);
@@ -318,6 +334,7 @@ async function up() {
   const tarball = ardentTarball();
   const settings = configure(port);
   certificates(settings.origin);
+  handOverOwnedFiles();
   const ardent = stageArdent(tarball);
   write(statePath, JSON.stringify({ project, ...settings, ardent, magnusVersion, phase: 'starting' }, null, 2));
   say(`starting ${project} on ${settings.origin}`);
