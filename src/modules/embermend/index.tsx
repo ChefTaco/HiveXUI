@@ -5,6 +5,7 @@ import { embermendRequest } from './api';
 import { Panel, Button, Badge, PageHeader, useConfirm } from '../../components/ui';
 import { browserIdentity } from '../../lib/runtime';
 import { describeApiError } from '@lib/api-error';
+import { AssignmentsPanel, downloadCampaignReport, ExceptionsPanel, ReadinessPanel } from './operations';
 
 const findingsSchema = z.array(z.object({ finding: findingSchema, occurrences: z.array(occurrenceSchema) }));
 type FindingRow = z.infer<typeof findingsSchema>[number];
@@ -42,8 +43,11 @@ export default function EmbermendModule() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false); const [loaded, setLoaded] = useState(false); const [findingsLoaded, setFindingsLoaded] = useState(false);
   const [confirmAction, confirmDialog] = useConfirm();
+  // Bumped by every refresh, so the readiness, accepted risk and profile panels read again with it.
+  const [reads, setReads] = useState(0);
   async function refresh(): Promise<void> {
     setBusy(true);
+    setReads((value) => value + 1);
     try {
       // Each part loads on its own: findings or access failing leaves the recommendations shown.
       const [timeline, risks, identity, observed] = await Promise.allSettled([
@@ -123,6 +127,10 @@ export default function EmbermendModule() {
     try { await request(`campaigns/${encodeURIComponent(row.plan.campaignId)}/pause`, { paused: !row.campaign?.paused }); await refresh(); }
     catch (error) { setError(describeApiError(error, 'Pause could not be recorded.')); setBusy(false); }
   }
+  async function report(row: Recommendation): Promise<void> {
+    try { await downloadCampaignReport(row.plan.campaignId); }
+    catch (error) { setError(describeApiError(error, 'The campaign report is unavailable for your current access.')); }
+  }
   async function showEvidence(id: string): Promise<void> {
     try { setEvidence(evidenceSchema.parse(await request(`evidence/${encodeURIComponent(id)}`))); }
     catch (error) { setError(describeApiError(error, 'Evidence is unavailable for your current access.')); }
@@ -136,6 +144,7 @@ export default function EmbermendModule() {
     />
     {confirmDialog}
     {error ? <p role="alert" className="warning-banner">{error}</p> : null}
+    <ReadinessPanel reload={reads} />
     {loaded && recommendations.length === 0 ? <Panel><h3>No recommendations yet</h3><p>Assign an assessment profile and an eligible Magnus target through your coordinator. Recommendations appear here when there is security work to review.</p></Panel> : null}
     <section className="space-y-4" aria-label="Security recommendations">{recommendations.map(row => {
       const published = row.publications.some(item => item.revision === row.plan.revision && item.digest === row.digest);
@@ -161,10 +170,12 @@ export default function EmbermendModule() {
         {awaiting && published && access?.kind === 'operator' && access.permissions.includes('approve') ? <div className="flex flex-wrap gap-2"><Button disabled={busy} onClick={() => void decide(row, 'approve')}>Approve revision {row.plan.revision}</Button><Button disabled={busy} onClick={() => void decide(row, 'reject')}>Reject recommendation</Button></div> : null}
         {row.status === 'authorized' && !row.executions.length && !row.jobs.length && access?.permissions.includes('execute') && (!row.plan.actions.some(action => action.class === 'recovery') || canRecover) ? <Button disabled={busy || row.campaign?.paused === true} onClick={() => void execute(row)}>Start authorized work</Button> : null}
         {access?.permissions.includes('execute') ? <Button disabled={busy} onClick={() => void pause(row)}>{row.campaign?.paused ? 'Resume dispatch' : 'Pause further dispatch'}</Button> : null}
-        <details className="mt-4"><summary>Actions and supporting evidence</summary>{row.jobs.map(job => <p key={job.id}>Job {job.id} · {job.status}{job.error ? ` · ${job.error}` : ''}</p>)}{row.jobs.map(job => observations[job.id]).filter(job => job !== undefined).map(job => <p key={job.id}>Observation job {job.id} · {job.status}{job.error ? ` · ${job.error}` : ''}</p>)}<ul>{row.plan.actions.map(action => <li key={action.id}>{action.version} · {action.targetId} · {row.executions.find(item => item.actionId === action.id)?.state ?? 'planned'}<p>Recovery: {action.recovery}</p></li>)}</ul><div className="flex flex-wrap gap-2">{row.plan.evidenceIds.map(id => <Button key={id} onClick={() => void showEvidence(id)}>Open evidence {id.slice(0, 12)}</Button>)}</div><p>Pausing prevents future dispatch. Already admitted operations retain their recorded state.</p></details>
+        <details className="mt-4"><summary>Actions and supporting evidence</summary>{row.jobs.map(job => <p key={job.id}>Job {job.id} · {job.status}{job.error ? ` · ${job.error}` : ''}</p>)}{row.jobs.map(job => observations[job.id]).filter(job => job !== undefined).map(job => <p key={job.id}>Observation job {job.id} · {job.status}{job.error ? ` · ${job.error}` : ''}</p>)}<ul>{row.plan.actions.map(action => <li key={action.id}>{action.version} · {action.targetId} · {row.executions.find(item => item.actionId === action.id)?.state ?? 'planned'}<p>Recovery: {action.recovery}</p></li>)}</ul><div className="flex flex-wrap gap-2">{row.plan.evidenceIds.map(id => <Button key={id} onClick={() => void showEvidence(id)}>Open evidence {id.slice(0, 12)}</Button>)}</div><p>Pausing prevents future dispatch. Already admitted operations retain their recorded state.</p><Button onClick={() => void report(row)}>Download campaign report</Button></details>
       </Panel>;
     })}</section>
     {evidence ? <Panel className="mt-4"><div className="flex justify-between gap-3"><h3>Evidence · {evidence.method}</h3><Button onClick={() => setEvidence(null)}>Close evidence</Button></div><p>Observed {new Date(evidence.observedAt).toLocaleString()} · {evidence.source}</p><pre className="max-h-96 overflow-auto whitespace-pre-wrap">{JSON.stringify(evidence.content, null, 2)}</pre><p className="font-mono break-all">SHA-256 {evidence.digest}</p></Panel> : null}
     <Panel className="mt-6"><h3>Remaining security work</h3><p>Source correction, deployed correction, and accepted risk are tracked separately.</p>{findingsLoaded && findings.length === 0 ? <p>No findings are recorded. This does not establish assessment coverage.</p> : null}{findings.map(({ finding, occurrences }) => <details key={finding.id} className="py-3"><summary>{finding.title} · {finding.severity} · {finding.validity}</summary><p>{finding.rationale}</p>{occurrences.map(item => <p key={item.id}>Source: {item.sourceState} · Runtime: {item.runtimeState} · Coverage: {item.coverage.status}</p>)}</details>)}</Panel>
+    <ExceptionsPanel findings={findings.map(item => item.finding)} scope={access?.scope ?? null} canRecord={access?.permissions.includes('exception') === true} reload={reads} />
+    <AssignmentsPanel reload={reads} />
   </>;
 }
