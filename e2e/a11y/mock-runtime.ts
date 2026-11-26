@@ -1,7 +1,10 @@
-// A mocked HiveXUI runtime for browser tests that need no backends: a legacy runtime.json and
+// A mocked HiveXUI runtime for browser tests that need no backends: a suite runtime.json with
+// Oathweave browser sign-in, a mocked Oathweave that signs real ID tokens with a per-run key, and
 // made-up product API answers served through Playwright request interception. Every value is
 // fictional (example.com hosts, alice, bob and carol). Unmocked API calls get a 404.
 import type { Page, Request } from '@playwright/test';
+import { createHash } from 'node:crypto';
+import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 import * as studio from '../../src/modules/studio/test-fixtures';
 
 type Body = unknown;
@@ -16,10 +19,7 @@ const PNG_1PX = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0l
 
 // The runtime maps each product to a same-origin prefix. Emberpath's prefix must be /api/<name>,
 // so its logical '/api/...' calls arrive as '/api/emberpath/...'. The others keep their logical path.
-const RUNTIME = {
-  schema: 1,
-  mode: 'legacy',
-  products: {
+const PRODUCTS = {
     emberpath: '/api/emberpath',
     oathweave: '/api/iam',
     hivemem: '/api/memory',
@@ -29,6 +29,15 @@ const RUNTIME = {
     embermend: '/api/embermend',
     magnus: '/api/magnus',
     ardentstudio: '/api/ardentstudio',
+};
+const ISSUER = 'https://identity.example.com';
+const RUNTIME = {
+  schema: 1,
+  products: PRODUCTS,
+  identity: {
+    issuer: ISSUER,
+    apiPrefix: '/api/iam',
+    clients: Object.fromEntries(Object.keys(PRODUCTS).map((name) => [name, `hivexui-${name}`])),
   },
 };
 
@@ -379,7 +388,7 @@ const setupItem = (id: string, title: string, status: string, command: string, d
 const INSTALLATION = {
   schema: 1,
   id: 'example-lab',
-  products: ['hive-registry', ...Object.keys(RUNTIME.products)],
+  products: ['hive-registry', ...Object.keys(PRODUCTS)],
   setup: {
     updatedAt: T1,
     items: [
@@ -420,7 +429,7 @@ const EVENTS = {
 };
 
 export const ROUTES: Array<[string, RegExp, Answer]> = [
-  // Emberpath (legacy console API; also serves /api/auth/me and /api/hive/* in legacy mode)
+  // Emberpath
   ['GET', /^\/api\/emberpath\/auth\/me$/, { user: ADMIN }],
   ['GET', /^\/api\/emberpath\/providers$/, { data: PROVIDERS }],
   ['GET', /^\/api\/emberpath\/providers\/codex-oauth\/status$/, { data: { authorized: false, provider: null } }],
@@ -437,7 +446,8 @@ export const ROUTES: Array<[string, RegExp, Answer]> = [
   ['GET', /^\/api\/emberpath\/hive\/status$/, { generatedAt: T1, uiUrl: 'https://hive.example.com', apps: HIVE_APPS }],
   ['GET', /^\/api\/emberpath\/hive\/actors$/, { data: [] }],
   ['GET', /^\/api\/emberpath\/hive\/incidents$/, { data: [] }],
-  // Oathweave
+  // Oathweave: the resource principal its pages check before they load
+  ['GET', /^\/api\/iam\/auth\/me$/, { user: { id: ADMIN.id, username: ADMIN.username, displayName: ADMIN.displayName, roles: ADMIN.roles, permissions: ADMIN.permissions } }],
   ['GET', /^\/api\/iam\/health(\/live)?$/, { status: 'ok' }],
   ['GET', /^\/api\/iam\/users(\?.*)?$/, { users: IAM_USERS, total: IAM_USERS.length, page: 1, limit: 100 }],
   ['GET', /^\/api\/iam\/roles$/, { roles: IAM_ROLES }],
@@ -517,10 +527,10 @@ export const ROUTES: Array<[string, RegExp, Answer]> = [
   ['GET', /^\/api\/skills\/admin\/targets\?nodeId=%21$/, refused({ error: 'Invalid target filter' })],
   // Hive Registry and the inbox's feeds
   ['GET', /^\/api\/registry\/v1\/installation$/, INSTALLATION],
-  ['GET', /^\/api\/registry\/v1\/products\?installed=true$/, { schema: 1, products: Object.entries(FEEDS).map(([id, [name]]) => registryProduct(id, name)) }],
+  ['GET', /^\/api\/registry\/v1\/products\?installed=true$/, { schema: 1, products: Object.keys(PRODUCTS).map((id) => registryProduct(id, FEEDS[id]?.[0] ?? id)) }],
   ['GET', /^\/api\/registry\/v1\/products\/([a-z]+)\/connection$/, (match: RegExpMatchArray) => ({
     id: match[1], consolePath: null, browserPrefix: `/api/${match[1]}`, nativeApis: {}, documentation: null,
-    capabilities: { 'events.v1': { path: FEEDS[match[1]!]![1] }, 'future.v9': { anything: true } },
+    capabilities: FEEDS[match[1]!] ? { 'events.v1': { path: FEEDS[match[1]!]![1] }, 'future.v9': { anything: true } } : {},
   })],
   ['GET', /^\/api\/magnus\/hive\/events\?limit=200$/, { data: EVENTS.magnus, nextCursor: null }],
   ['GET', /^\/api\/security\/hive\/events\?limit=200$/, { data: [...EVENTS.cindertrace, { id: 'broken' }], nextCursor: null }],
@@ -618,6 +628,32 @@ const MOCK_ROUTES: Array<[string, RegExp, Answer]> = [
 export const FIXED_NOW = new Date(NOW_MS);
 
 /** Serve the runtime and product APIs from fixtures. `log` collects requests that had no fixture. */
+/** Oathweave's browser API as HiveXUI uses it: the session, authorization, code exchange and keys. */
+const SIGNING = generateKeyPair('RS256', { extractable: true });
+async function identity(page: Page, route: import('@playwright/test').Route, target: string, request: Request, signedOut: boolean): Promise<boolean> {
+  const answer = async (status: number, json: unknown) => { await route.fulfill({ status, json }); return true; };
+  if (target === '/api/iam/browser/session')
+    return signedOut ? answer(401, { error: 'UNAUTHORIZED', message: 'Sign in to continue' }) : answer(200, { principal: { sub: ADMIN.id, username: ADMIN.username, roles: ADMIN.roles, permissions: ADMIN.permissions } });
+  if (target === '/api/iam/oauth/jwks') return answer(200, { keys: [{ ...await exportJWK((await SIGNING).publicKey), kid: 'a11y', alg: 'RS256', use: 'sig' }] });
+  if (target === '/api/iam/oauth/authorize' && request.method() === 'POST') {
+    const body = request.postDataJSON() as { clientId: string; state: string; nonce: string };
+    const code = Buffer.from(JSON.stringify({ client: body.clientId, nonce: body.nonce })).toString('base64url');
+    return answer(200, { code, state: body.state, iss: ISSUER });
+  }
+  if (target === '/api/iam/oauth/token' && request.method() === 'POST') {
+    const body = request.postDataJSON() as { code: string };
+    const { client, nonce } = JSON.parse(Buffer.from(body.code, 'base64url').toString()) as { client: string; nonce: string };
+    const access = `fixture-access-${client}`;
+    const at_hash = createHash('sha256').update(access).digest().subarray(0, 16).toString('base64url');
+    // Sign with the page's clock, which most tests freeze: the page checks the token's times.
+    const now = Math.floor((await page.evaluate(() => Date.now())) / 1000);
+    const id = await new SignJWT({ nonce, at_hash, auth_time: now }).setProtectedHeader({ alg: 'RS256', kid: 'a11y' })
+      .setSubject(ADMIN.id).setIssuer(ISSUER).setAudience(client).setIssuedAt(now).setExpirationTime(now + 300).sign((await SIGNING).privateKey);
+    return answer(200, { access_token: access, id_token: id, token_type: 'Bearer', expires_in: 900 });
+  }
+  return false;
+}
+
 export async function installMocks(page: Page, log: string[] = [], options: { signedOut?: boolean } = {}): Promise<string[]> {
   // Chat opens a websocket; accept it locally (never forwarded) so the page shows "Connected".
   await page.routeWebSocket(/\/api\/chat\/api\/v4\/websocket/, () => {});
@@ -626,7 +662,7 @@ export async function installMocks(page: Page, log: string[] = [], options: { si
     const request = route.request();
     const url = new URL(request.url());
     const target = url.pathname + url.search;
-    if (options.signedOut && /^\/api\/emberpath\/auth\/me$/.test(target)) return route.fulfill({ status: 401, json: { error: 'UNAUTHORIZED', message: 'Sign in to continue' } });
+    if (await identity(page, route, target, request, options.signedOut ?? false)) return;
     for (const [method, pattern, value] of [...MOCK_ROUTES, ...ROUTES]) {
       if (method !== request.method()) continue;
       const match = target.match(pattern);

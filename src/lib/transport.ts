@@ -31,7 +31,8 @@ let chatExpiresAt = 0;
 let chatPending: Promise<void> | undefined;
 let generation = 0;
 let accessProvider: ((product: Product) => Promise<void>) | undefined;
-let stepUpProvider: (() => Promise<void>) | undefined;
+/** Verifies the person again for the product that refused; see browser-auth `stepUp`. */
+let stepUpProvider: ((product: Product) => Promise<void>) | undefined;
 let unauthorizedHandler: (() => unknown) | undefined;
 let configuredOnly = false;
 /** A local sign-in reaches only the products runtime.json names, never a legacy alias. */
@@ -39,7 +40,7 @@ export function requireConfiguredProducts(): void {
   configuredOnly = true;
 }
 export function setStepUpProvider(
-  provider: (() => Promise<void>) | undefined,
+  provider: ((product: Product) => Promise<void>) | undefined,
 ): void {
   stepUpProvider = provider;
 }
@@ -318,7 +319,18 @@ export function createApiFetch(request: typeof fetch, options: { stepUp?: boolea
         .catch(() => null);
       // Oathweave's {error:"STEP_UP_REQUIRED"} and the suite envelope's {error:{code}} alike.
       if (body && typeof body === 'object' && parseHiveError(403, body).code.toUpperCase() === 'STEP_UP_REQUIRED') {
-        await stepUpProvider();
+        try {
+          await stepUpProvider(product);
+        } catch (error) {
+          // The person closed the identity check: the product refused, so nothing changed. Pages show
+          // this like any other refusal, and the action stays undone.
+          if (error instanceof Error && error.name === 'ReauthenticationCancelled') {
+            const cancelled = Response.json({ error: 'REAUTH_CANCELLED', message: error.message }, { status: 403 });
+            rememberSentRequestId(cancelled, requestId);
+            return cancelled;
+          }
+          throw error;
+        }
         // Only safe read methods may repeat, once, with newly acquired access.
         // Rebuild the headers/session instead of forwarding the pre-verification token.
         const method = (init.method ?? 'GET').toUpperCase();

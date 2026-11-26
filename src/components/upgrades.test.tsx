@@ -1,27 +1,16 @@
 // @vitest-environment jsdom
-// The native console's upgrade asks for the password again; an account with multi-factor
-// authentication also gives its code (Emberpath 2.7.0 answers MFA_REQUIRED without it).
+// Upgrades run on the installation controller. The console's own upgrade, with its password
+// confirmation through Emberpath, is retired: the panel never asks for a password.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { button, click, mount, settle, stubBrowser, type, type Mounted } from '../modules/magnus/test-dom';
+import { button, click, mount, settle, stubBrowser, type Mounted } from '../modules/magnus/test-dom';
 import { UpgradesPanel } from './upgrades';
 
 let view: Mounted | undefined;
-let reauth: Record<string, unknown>[] = [];
+const request = vi.fn(async () => new Response('Not found', { status: 404 }));
 beforeEach(() => {
   stubBrowser();
-  reauth = [];
-  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const path = new URL(String(input), 'https://console.example.com').pathname;
-    if (path === '/api/hive/updates') return Response.json({ installed: '1.0.0', available: '1.1.0', enabled: true, canApply: true });
-    if (path === '/api/hive/upgrades/plan') return Response.json({ error: 'STEP_UP_REQUIRED' }, { status: 403 });
-    if (path === '/api/auth/reauthenticate') {
-      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
-      reauth.push(body);
-      if (!body.mfaCode) return Response.json({ error: 'MFA_REQUIRED', code: 'MFA_REQUIRED', methods: ['totp'] }, { status: 401 });
-      return Response.json({ ok: true });
-    }
-    return new Response('Not found', { status: 404 });
-  }));
+  request.mockClear();
+  vi.stubGlobal('fetch', request);
 });
 afterEach(async () => {
   await view?.unmount();
@@ -29,24 +18,15 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-describe('upgrade reauthentication', () => {
-  it('asks for the second factor and repeats the password with the code', async () => {
+describe('the upgrades panel', () => {
+  it('shows the controller commands and never asks for a password or calls a product', async () => {
     view = await mount(<UpgradesPanel canUpgrade />);
     await settle(10);
-    await click(button('Review upgrade'));
+    expect(document.body.textContent).toContain('Hive lifecycle');
+    await click(button('Upgrade'));
     await settle(10);
-    await type(document.querySelector('input[type="password"]'), 'obviously-fake-password');
-    await click(button('Confirm authentication'));
-    await settle(10);
-    const code = document.querySelector<HTMLInputElement>('input[autocomplete="one-time-code"]');
-    expect(code).not.toBeNull();
-    expect(document.querySelector<HTMLInputElement>('input[type="password"]')?.value).toBe('obviously-fake-password');
-    expect(button('Confirm authentication')?.disabled).toBe(true);
-    await type(code, '123456');
-    await click(button('Confirm authentication'));
-    await settle(10);
-    expect(reauth).toEqual([{ password: 'obviously-fake-password' }, { password: 'obviously-fake-password', mfaCode: '123456' }]);
-    expect(document.body.textContent).toContain('Authentication refreshed. Review the upgrade again.');
+    expect(document.body.textContent).toContain('./hive.sh upgrade --config installation.json --release VERSION');
     expect(document.querySelector('input[type="password"]')).toBeNull();
+    expect(request).not.toHaveBeenCalled();
   });
 });

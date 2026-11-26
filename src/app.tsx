@@ -17,8 +17,8 @@ import { ProductAccess } from './components/product-access';
 import { ViewBoundary } from './components/view-boundary';
 import { adminApi, ApiError, SecondFactorRequired } from './lib/api';
 import { onSessionEnded, signInServiceUnreachable, type SessionEnd } from './lib/session-events';
-import { MfaRequired, PasswordExpired } from './lib/browser-auth';
-import { parsePortalAuthorization } from './lib/authorization-portal';
+import { LoginRequired, MfaRequired, PasswordExpired } from './lib/browser-auth';
+import { parsePortalAuthorization, requiresFreshSignIn, type PortalAuthorizationRequest } from './lib/authorization-portal';
 import {
   breadcrumbs,
   findActiveNav,
@@ -40,6 +40,7 @@ import { type MagnusNavContext } from './modules/magnus/nav';
 import { isStudioPath, openStudio } from './modules/studio/paths';
 import {
   browserIdentity,
+  browserSignInMissing,
   chooseLocalSignIn,
   localSignIn,
   localSignInOffered,
@@ -78,7 +79,35 @@ export function App() {
   if (location.pathname === '/auth/authorize') return <AuthorizationPortal />;
   // Public: the person redeeming an invite has no identity to sign in with.
   if (location.pathname === '/signup') return <ViewBoundary label="Chat invite redemption"><Suspense fallback={<Background />}><ChatInviteRedemption /></Suspense></ViewBoundary>;
+  if (browserSignInMissing()) return <BrowserSignInRequired />;
   return <ConsoleApp />;
+}
+
+/** Where configuring Oathweave browser sign-in for HiveXUI is described. */
+export const BROWSER_SIGN_IN_DOCS = 'https://github.com/ChefTaco/HiveXUI#runtimejson';
+
+/**
+ * No Oathweave browser sign-in is configured. HiveXUI never asks for a password on a product's
+ * behalf, so there is no sign-in form to fall back to: this says what to configure instead.
+ */
+function BrowserSignInRequired() {
+  useDocumentTitle('Configure Oathweave sign-in');
+  return <><Background /><main className="login-shell"><section className="login-card" aria-labelledby="browser-sign-in-title">
+    <HiveSigil className="login-sigil" />
+    <p className="login-eyebrow">Hive:Magnus</p>
+    <h1 id="browser-sign-in-title">Configure Oathweave browser sign-in</h1>
+    <p className="login-sub">This console has no Oathweave browser sign-in, so nobody can sign in to it yet.</p>
+    <div className="error-banner" role="alert">
+      <Icon.Alert aria-hidden="true" />
+      HiveXUI signs in only through Oathweave. Add the <code>identity</code> block to <code>runtime.json</code> (the
+      installation's <code>IAM_BROWSER_ISSUER</code>, the Oathweave API prefix and a public client for each product), then reload.
+    </div>
+    <p className="muted">
+      See <a href={BROWSER_SIGN_IN_DOCS} target="_blank" rel="noreferrer">runtime.json in the HiveXUI documentation</a>. A
+      standalone Cindertrace uses <code>{'"mode": "local"'}</code> instead. The Emberpath password sign-in this console used to
+      offer is retired.
+    </p>
+  </section></main></>;
 }
 
 function ConsoleApp() {
@@ -221,38 +250,61 @@ function AuthorizationPortal() {
     try { return { request: parsePortalAuthorization(location.search), error: '' }; }
     catch { return { request: null, error: 'This authorization request is invalid. Return to the application to start sign-in again.' }; }
   });
-  const [phase, setPhase] = useState<AuthState>('checking');
+  // 'approve' asks Oathweave; 'sign-in' shows the form (no session, or a new sign-in is required).
+  const [phase, setPhase] = useState<'checking' | 'sign-in' | 'approve'>('checking');
+  // Oathweave's login ticket binds a required new sign-in to this exact request.
+  const [ticket, setTicket] = useState<string | undefined>(undefined);
   const [error, setError] = useState(selection.error);
+  const [cancelling, setCancelling] = useState(false);
   const identity = browserIdentity();
   useDocumentTitle('Oathweave sign-in');
   useEffect(() => {
     if (!selection.request || !identity) return;
+    // prompt=login, select_account or max_age: a live session alone must not answer. Ask Oathweave first.
+    if (requiresFreshSignIn(selection.request)) { setPhase('approve'); return; }
     let active = true;
-    void identity.me().then(() => { if (active) setPhase('authed'); })
-      .catch(() => { if (active) setPhase('unauthed'); });
+    void identity.me().then(() => { if (active) setPhase('approve'); })
+      .catch(() => { if (active) setPhase('sign-in'); });
     return () => { active = false; };
   }, [selection, identity]);
   useEffect(() => {
-    if (phase !== 'authed' || !selection.request || !identity || error) return;
+    if (phase !== 'approve' || !selection.request || !identity || error) return;
     let active = true;
-    void identity.approveAuthorization(selection.request).then(approval => {
+    const request: PortalAuthorizationRequest = ticket ? { ...selection.request, loginTicket: ticket } : selection.request;
+    void identity.approveAuthorization(request).then(approval => {
       if (active) approval.redirect(url => location.replace(url));
     }).catch(caught => {
-      if (active) setError(describeApiError(caught, 'Authorization could not be completed'));
+      if (!active) return;
+      if (caught instanceof LoginRequired && !ticket) {
+        setTicket(caught.ticket);
+        setPhase('sign-in');
+      } else setError(describeApiError(caught, 'Authorization could not be completed'));
     });
     return () => { active = false; };
-  }, [phase, selection, identity, error]);
-  if (!error && identity && selection.request && phase === 'unauthed')
-    return <><AuthLimitsStrip /><LoginScreen authorization onSuccess={() => setPhase('authed')} /></>;
+  }, [phase, selection, identity, error, ticket]);
+  async function cancel() {
+    if (!identity || !selection.request) return;
+    setCancelling(true);
+    try {
+      // Oathweave answers access_denied for the application's exact callback.
+      const target = await identity.cancelAuthorization(selection.request);
+      location.replace(target);
+    } catch {
+      identity.invalidate();
+      setError('Authorization cancelled. Return to the application to start again.');
+    } finally {
+      setCancelling(false);
+    }
+  }
+  if (!error && identity && selection.request && phase === 'sign-in')
+    return <><AuthLimitsStrip /><LoginScreen authorization reauthentication={!!ticket} onCancel={() => void cancel()} onSuccess={() => setPhase('approve')} /></>;
   const message = error || (!identity ? 'Oathweave sign-in is not configured for this console.' : 'Checking your sign-in and application access…');
   return <><Background /><main className="login-shell"><section className="login-card" aria-labelledby="authorization-title">
     <HiveSigil className="login-sigil" />
     <p className="login-eyebrow">Hive:Magnus</p><h1 id="authorization-title">Oathweave sign-in</h1>
     <p className="login-sub">Continue securely to your application.</p>
     <p role={error || !identity ? 'alert' : 'status'} className={error || !identity ? 'error-banner' : 'muted'}>{message}</p>
-    {!error && identity && selection.request && <Button onClick={() => {
-      identity.invalidate(); setError('Authorization cancelled. Return to the application to start again.');
-    }}>Cancel authorization</Button>}
+    {!error && identity && selection.request && <Button disabled={cancelling} onClick={() => void cancel()}>Cancel authorization</Button>}
   </section></main></>;
 }
 
@@ -306,12 +358,12 @@ function Background() {
 
 /* ===================== Login ===================== */
 
-function LoginScreen({ onSuccess, authorization = false, initialNotice = '' }: { onSuccess: (user: AdminUser) => void; authorization?: boolean; initialNotice?: string }) {
+function LoginScreen({ onSuccess, authorization = false, reauthentication = false, onCancel, initialNotice = '' }: { onSuccess: (user: AdminUser) => void; authorization?: boolean; reauthentication?: boolean; onCancel?: () => void; initialNotice?: string }) {
   const local = localSignIn(), offered = localSignInOffered();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [challenge, setChallenge] = useState<MfaRequired | null>(null);
-  // Emberpath's native sign-in asks for the code with the password again, so the password is kept.
+  // Cindertrace's local sign-in asks for the code with the password again, so the password is kept.
   const [secondFactor, setSecondFactor] = useState<false | 'mfa' | 'totp'>(false);
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -420,7 +472,9 @@ function LoginScreen({ onSuccess, authorization = false, initialNotice = '' }: {
           <h1>{authorization ? 'Oathweave sign-in' : local ? (offered ? 'Cindertrace recovery sign-in' : 'Cindertrace sign-in') : 'Control Plane Console'}</h1>
           <p className="login-sub">
             {authorization
-              ? 'Sign in to continue to your application.'
+              ? reauthentication
+                ? 'The application asks you to sign in again before it continues.'
+                : 'Sign in to continue to your application.'
               : local
                 ? offered
                   ? "Use Cindertrace's local administrator while Oathweave is unavailable. Only Cindertrace is reachable this way."
@@ -597,6 +651,11 @@ function LoginScreen({ onSuccess, authorization = false, initialNotice = '' }: {
                 </Button>
               )}
             </div>
+          )}
+          {onCancel && (
+            <Button variant="ghost" type="button" onClick={onCancel}>
+              Cancel and return to the application
+            </Button>
           )}
           {!authorization && offered && mode === 'sign-in' && !challenge && (
             <Button variant="ghost" type="button" onClick={() => chooseLocalSignIn(!local)}>

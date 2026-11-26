@@ -158,6 +158,25 @@ it('rejects encoded route traversal before acquiring or forwarding credentials',
   expect(request).not.toHaveBeenCalled();
 });
 
+it('asks the refusing product to step up, and turns a cancelled verification into a refusal', async () => {
+  const { ReauthenticationCancelled } = await import('./browser-auth');
+  const verify = vi.fn(async (_product: string) => { throw new ReauthenticationCancelled(); });
+  setStepUpProvider(verify);
+  const request = vi.fn<typeof fetch>().mockImplementation(async () => Response.json({ error: 'STEP_UP_REQUIRED' }, { status: 403 }));
+  try {
+    const response = await createApiFetch(request)('/api/client-keys/ck_1', { method: 'PUT', body: '{}' });
+    expect(verify).toHaveBeenCalledWith('emberpath');
+    expect(request).toHaveBeenCalledOnce();
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: 'REAUTH_CANCELLED', message: expect.stringContaining('nothing was changed') });
+    // Any other failure is the caller's to see.
+    verify.mockImplementation(async () => { throw new Error('Oathweave is unavailable'); });
+    await expect(createApiFetch(request)('/api/client-keys')).rejects.toThrow('Oathweave is unavailable');
+  } finally {
+    setStepUpProvider(undefined);
+  }
+});
+
 it('step-up never replays a durable operation or consumes an approval twice', async () => {
   const verify = vi.fn(async () => {});
   setStepUpProvider(verify);

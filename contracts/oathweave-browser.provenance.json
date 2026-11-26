@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "product": "Oathweave",
-  "version": "2.3.0",
+  "version": "2.6.0",
   "source": "product-owned docs/browser-contracts.ts",
   "license": "Apache-2.0",
-  "sha256": "9f195037c7ae157918aa5f737da6314cb44e861691d72ddbd3025ac28a0d045a",
-  "sourceCommit": "d2ac3c08c8a55200160321f51bd807515bb0d249"
+  "sha256": "9255828ec787e570f68acc509e6285e9df44ee14d1a87da63eb5ea6db4a23d32",
+  "sourceCommit": "aa9b83766dba8e349f4f1b0fdc0a25073f0ccb9a"
 }
