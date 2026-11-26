@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { readApiFailure, failureMeta, type ApiFailure } from '../../../lib/api-error';
 import { apiFetch } from '../../../lib/transport';
 import { browserIdentity } from '../../../lib/runtime';
+import { verifySession } from '../../../lib/session-events';
 import { agentDisabledMessage, MagnusApiError, MagnusContractError } from './errors';
 import { rateGate, READ_RETRY_MAX_MS, readCooldown, retryAfterMs } from './rate-gate';
 
@@ -46,13 +47,9 @@ export const setAuthExpiredHandler = (handler: (() => void) | undefined): void =
 };
 /** A 401 means this session may be gone. Sign out only if Oathweave agrees, as the shell's store does. */
 export async function handleUnauthorized(): Promise<void> {
-  const identity = browserIdentity();
-  try {
-    if (identity) await identity.me();
-    else authExpired?.();
-  } catch {
-    authExpired?.();
-  }
+  // With suite sign-in the shell's session check decides, and its refusal signs out every page.
+  if (browserIdentity()) await verifySession();
+  else authExpired?.();
 }
 
 /** The operator's message for a refusal whose answer has none. */

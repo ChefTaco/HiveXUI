@@ -11,6 +11,7 @@ import { adminApi, ApiError } from './api';
 import { browserIdentity, productInstalled } from './runtime';
 import { allowedStoreResource } from './router-access';
 import { optionalRouterPrincipal } from './router-principal';
+import { verifySession } from './session-events';
 import type {
   ApiDoc,
   AuditEvent,
@@ -188,17 +189,12 @@ export function StoreProvider({
             result.reason instanceof ApiError &&
             result.reason.status === 401
           ) {
-            const identity = browserIdentity();
-            if (!identity) {
+            // With suite sign-in, Oathweave decides (and a refusal signs out every page).
+            if (!browserIdentity()) {
               onAuthExpired();
               return;
             }
-            try {
-              await identity.me();
-            } catch {
-              onAuthExpired();
-              return;
-            }
+            if (!(await verifySession())) return;
           }
           issues.push(
             `${key}: ${result.reason instanceof Error ? result.reason.message : 'Unavailable'}`,
@@ -290,17 +286,11 @@ export function StoreProvider({
       setLastSync(new Date());
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
-        const identity = browserIdentity();
-        if (!identity) {
+        if (!browserIdentity()) {
           onAuthExpired();
           return;
         }
-        try {
-          await identity.me();
-        } catch {
-          onAuthExpired();
-          return;
-        }
+        if (!(await verifySession())) return;
       }
       setError(
         caught instanceof Error ? caught.message : 'Failed to load admin data',

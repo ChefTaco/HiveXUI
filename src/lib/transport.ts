@@ -32,6 +32,7 @@ let chatPending: Promise<void> | undefined;
 let generation = 0;
 let accessProvider: ((product: Product) => Promise<void>) | undefined;
 let stepUpProvider: (() => Promise<void>) | undefined;
+let unauthorizedHandler: (() => unknown) | undefined;
 let configuredOnly = false;
 /** A local sign-in reaches only the products runtime.json names, never a legacy alias. */
 export function requireConfiguredProducts(): void {
@@ -41,6 +42,13 @@ export function setStepUpProvider(
   provider: (() => Promise<void>) | undefined,
 ): void {
   stepUpProvider = provider;
+}
+/**
+ * Called, without waiting, whenever a product answers 401: the shell checks the identity session
+ * there, once for any number of answers, and returns to sign-in only if it is gone.
+ */
+export function setUnauthorizedHandler(handler: (() => unknown) | undefined): void {
+  unauthorizedHandler = handler;
 }
 export function setAccessProvider(
   provider: ((product: Product) => Promise<void>) | undefined,
@@ -257,6 +265,7 @@ export function createApiFetch(request: typeof fetch, options: { stepUp?: boolea
       redirect: 'error',
     });
     rememberSentRequestId(response, requestId);
+    if (response.status === 401) void Promise.resolve().then(() => unauthorizedHandler?.()).catch(() => {});
     if (response.status === 403 && stepUpProvider && allowStepUp) {
       const body: unknown = await response
         .clone()

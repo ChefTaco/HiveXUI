@@ -176,3 +176,19 @@ it('shares one pending step-up across concurrent readers and refuses completion 
   expect(send.mock.calls.filter(call=>String(call[0]).endsWith('/auth/step-up'))).toHaveLength(1);
  }finally{unsubscribe();auth.invalidate()}
 });
+
+it('ends the session for every page when Oathweave refuses the browser session or a new authorization', async () => {
+  const { onSessionEnded, resetSessionEvents } = await import('./session-events');
+  const ended = vi.fn();
+  onSessionEnded(ended);
+  const request = vi.fn<typeof fetch>().mockImplementation(async () => Response.json({ error: 'LOGIN_REQUIRED' }, { status: 401 }));
+  const auth = createBrowserAuth({ issuer: 'https://identity.example.com', apiPrefix: '/api/identity', clients: { hivemem: 'hivexui-hivemem' } }, request);
+  await expect(auth.me()).rejects.toMatchObject({ status: 401 });
+  expect(ended).toHaveBeenCalledTimes(1);
+  await expect(auth.ensure('hivemem')).rejects.toMatchObject({ status: 401 });
+  expect(ended).toHaveBeenCalledTimes(2);
+  // A wrong password at sign-in is not the end of a session.
+  await expect(auth.login('operator', 'obviously-fake-password')).rejects.toMatchObject({ status: 401 });
+  expect(ended).toHaveBeenCalledTimes(2);
+  resetSessionEvents();
+});

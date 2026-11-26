@@ -14,8 +14,8 @@ const CommandPalette = lazy(() => import('./components/command-palette'));
 const InboxBell = lazy(() => import('./modules/inbox/bell'));
 import { ProductAccess } from './components/product-access';
 import { ViewBoundary } from './components/view-boundary';
-import { adminApi, ApiError } from './lib/api';
-import { HiveApiError } from './lib/api-error';
+import { adminApi, ApiError, SecondFactorRequired } from './lib/api';
+import { onSessionEnded, signInServiceUnreachable, type SessionEnd } from './lib/session-events';
 import { MfaRequired } from './lib/browser-auth';
 import { parsePortalAuthorization } from './lib/authorization-portal';
 import {
@@ -59,14 +59,13 @@ import { Button, buttonClass } from '@ui';
 type AuthState = 'checking' | 'unauthed' | 'authed';
 type StartupState = AuthState | 'unreachable';
 
-/**
- * Whether a failed session check means the sign-in service is down, not that nobody is signed in:
- * the request never got an answer, or the service or its gateway answered with a 5xx.
- */
-export function signInServiceUnreachable(error: unknown): boolean {
-  if (error instanceof TypeError) return true;
-  return error instanceof HiveApiError && error.status >= 500;
-}
+export { signInServiceUnreachable };
+
+/** What the sign-in form says after a session ended while the console was open. */
+const SESSION_END_NOTICE: Record<SessionEnd, string> = {
+  expired: 'Your session ended. Sign in again to continue where you were.',
+  'signed-out': 'You signed out in another tab. Sign in again to continue.',
+};
 
 export function App() {
   if (location.pathname === '/auth/authorize') return <AuthorizationPortal />;
@@ -80,6 +79,7 @@ function ConsoleApp() {
   const [user, setUser] = useState<AdminUser | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [startupError, setStartupError] = useState('');
+  const [ended, setEnded] = useState<SessionEnd | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -110,6 +110,19 @@ function ConsoleApp() {
     setUser(null);
     setAuth('unauthed');
   }, []);
+  // Every page and tab ends here when the session does: the address is kept, so signing in again
+  // returns to the same page.
+  const authRef = useRef(auth);
+  authRef.current = auth;
+  useEffect(
+    () =>
+      onSessionEnded((reason) => {
+        if (authRef.current !== 'authed') return;
+        setEnded(reason);
+        handleAuthExpired();
+      }),
+    [handleAuthExpired],
+  );
 
   if (auth === 'checking') {
     return (
@@ -139,7 +152,9 @@ function ConsoleApp() {
       <>
         <AuthLimitsStrip />
         <LoginScreen
+          initialNotice={ended ? SESSION_END_NOTICE[ended] : ''}
           onSuccess={(loggedIn) => {
+            setEnded(null);
             setUser(loggedIn);
             setAuth('authed');
           }}
@@ -279,11 +294,13 @@ function Background() {
 
 /* ===================== Login ===================== */
 
-function LoginScreen({ onSuccess, authorization = false }: { onSuccess: (user: AdminUser) => void; authorization?: boolean }) {
+function LoginScreen({ onSuccess, authorization = false, initialNotice = '' }: { onSuccess: (user: AdminUser) => void; authorization?: boolean; initialNotice?: string }) {
   const local = localSignIn(), offered = localSignInOffered();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [challenge, setChallenge] = useState<MfaRequired | null>(null);
+  // Emberpath's native sign-in asks for the code with the password again, so the password is kept.
+  const [secondFactor, setSecondFactor] = useState(false);
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -292,10 +309,11 @@ function LoginScreen({ onSuccess, authorization = false }: { onSuccess: (user: A
     [recoveryCode, setRecoveryCode] = useState('');
   const [newPassword, setNewPassword] = useState(''),
     [confirmation, setConfirmation] = useState('');
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState(initialNotice);
   function changeMode(value: typeof mode) {
     setMode(value);
     setChallenge(null);
+    setSecondFactor(false);
     setPassword('');
     setCode('');
     setRecoveryCode('');
@@ -343,9 +361,10 @@ function LoginScreen({ onSuccess, authorization = false }: { onSuccess: (user: A
       const result =
         challenge && identity
           ? await identity.completeMfa(challenge.token, code.trim())
-          : await adminApi.login(username.trim(), password);
+          : await adminApi.login(username.trim(), password, secondFactor ? code : undefined);
       setPassword('');
       setCode('');
+      setSecondFactor(false);
       onSuccess(result.user);
     } catch (caught) {
       if (caught instanceof MfaRequired) {
@@ -353,7 +372,13 @@ function LoginScreen({ onSuccess, authorization = false }: { onSuccess: (user: A
         setPassword('');
         return;
       }
+      if (caught instanceof SecondFactorRequired && !secondFactor) {
+        setSecondFactor(true);
+        return;
+      }
       setPassword('');
+      setCode('');
+      setSecondFactor(false);
       const message =
         caught instanceof ApiError
           ? caught.message
@@ -436,7 +461,7 @@ function LoginScreen({ onSuccess, authorization = false }: { onSuccess: (user: A
                 />
               </label>
             </>
-          ) : !challenge ? (
+          ) : !challenge && !secondFactor ? (
             <>
               <label className="field">
                 <span className="field-label">Username</span>
@@ -482,10 +507,15 @@ function LoginScreen({ onSuccess, authorization = false }: { onSuccess: (user: A
               ? 'Request recovery'
               : mode === 'reset'
                 ? 'Update password'
-                : challenge
+                : challenge || secondFactor
                   ? 'Verify and sign in'
                   : 'Sign in'}
           </Button>
+          {secondFactor && !browserIdentity() && (
+            <Button variant="ghost" type="button" onClick={() => changeMode('sign-in')}>
+              Back to sign in
+            </Button>
+          )}
           {mode === 'sign-in' && challenge?.methods.includes('webauthn') && (
             <Button
               type="button"
