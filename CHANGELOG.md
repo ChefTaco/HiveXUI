@@ -2,9 +2,31 @@
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-26
+
+### Upgrade notes
+
+- Requests now time out. A request without its own deadline fails after 30 s for a read or 120 s for a write, and names its request ID. Streams, downloads, uploads and the Magnus and Studio clients keep their own deadlines. A product that regularly takes longer than that to answer now shows an error instead of a spinner.
+- Session expiry is decided by Oathweave. A 401 from any product makes the console ask Oathweave whether the browser session still exists. If it does not, every tab returns to sign-in at the same address. An identity outage or a 5xx keeps the person signed in. Signing out in one tab also signs out the console's other tabs.
+- Sign-out always ends the ChatterMost cookie session when ChatterMost is configured, from every tab.
+- Pages no longer wait on Emberpath. The Emberpath store loads only on the pages that show it, so the sidebar counts for Emberpath pages appear once one of those pages has loaded.
+- Error toasts stay until they are dismissed.
+- The image's nginx serves `/version.json` with `Cache-Control: no-store`. An open tab reads it to offer **Reload** after an upgrade. A proxy in front of the image should not cache it either.
+- New features need newer product releases. Against an older release each one stays hidden or shows that release's refusal, and nothing else changes:
+  - Your own password and sessions (**Account security**) need Oathweave 2.5.0.
+  - Emberpath multi-factor sign-in on the native console API needs Emberpath 2.7.0.
+  - Cindertrace local sign-in with an authenticator code needs Cindertrace 0.10.0.
+  - Studio project file delete, **Reindex project** and `file.deleted` need ArdentStudio 0.6.0.
+  - Studio project **Members** and **Purge** need ArdentStudio 0.7.0.
+  - The Skills **Registry release** panel needs HiveSkills 1.10.0.
+  - Embermend **Accepted risk** (and accepting risk) and **Assessment profiles** need Embermend 0.5.0.
+  - Emberpath **Adaptive** routing needs an Emberpath that has the adaptive routing routes.
+- There are no migrations and no configuration changes. `runtime.json` is unchanged, and downgrading the image to 0.12.1 is safe.
+
+### Changes
+
 - End-to-end: `@hivemagnus/ardent-client` 3.4.0 (a devDependency, was 3.2.1) in the ARDENT-06 acceptance spec. Its follow is unchanged from 3.2.1. When the follow misses a journaled event, the spec now names the events it did not deliver and the last ones it did. Against Ardent 3.4 the follow misses the final event: Ardent's task stream reads the task's state after writing the events it read, so a task that settles meanwhile gets `task.done` before its last `state` event. That is an Ardent defect, and the spec keeps failing on it. Test tooling only; nothing to do when upgrading.
 - End-to-end: the transfer recovery scenario (`lineage-recovery.api.spec.ts` 3) no longer skips. The fixture model answers a Lead Researcher asked for a "large survey map" with a deterministic SVG map of about 160 KB, and the scenario asks for it, waits for the revision and checks the ranged read, the joined digest and the 416. With `STUDIO_E2E_REQUIRED=1`, a scenario declared with `test.fixme` (interrupted execution, which needs a fault-injection hook) is now listed as not implemented and no longer fails the run. Any `test.skip` still fails it. Test tooling only; nothing to do when upgrading.
-
 - The repository privacy checks (`scripts/check-private-data.sh` and `scripts/scan-secrets.sh`) now report a finding as `path:line: rule` and never print the matching text or the line around it, so a failing check cannot copy a private term or a credential into a public CI log. A path that itself contains a private term is shown as `(path redacted)`. Exit codes are unchanged, and `scripts/privacy-output.test.sh` (run in CI) plants fake values and checks they stay out of the output. Repository tooling only; nothing to do when upgrading.
 - Dependabot now opens one grouped weekly pull request (group `hivemagnus`) for `@hivemagnus/*` package updates, so suite package bumps arrive together. Repository configuration only; nothing to do when upgrading.
 - A tab left open across an upgrade says "HiveXUI X.Y.Z is available" with **Reload** (and **Later**) before anything fails. Each build writes `/version.json` (its version and the hashed entry script its `index.html` loads, derived from the bundle so builds stay reproducible); a visible tab reads it every five minutes and when it becomes visible again (at most once a minute), uncached and without credentials. The image's nginx serves `/version.json` with `Cache-Control: no-store`. A development server has no built entry and never asks.
