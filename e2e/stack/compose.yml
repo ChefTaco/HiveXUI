@@ -12,7 +12,7 @@ services:
     <<: *service
     image: ${STUDIO_E2E_NODE_IMAGE:-node:24.22.3-bookworm-slim}
     command: ["node", "/stack/model/server.mjs"]
-    user: "1000:1000"
+    user: "${STUDIO_E2E_UID:-1000}:${STUDIO_E2E_GID:-1000}"
     volumes: ["${STUDIO_E2E_STACK}:/stack:ro"]
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
@@ -143,7 +143,7 @@ services:
   tools:
     image: ${STUDIO_E2E_NODE_IMAGE:-node:24.22.3-bookworm-slim}
     profiles: [tools]
-    user: "1000:1000"
+    user: "${STUDIO_E2E_UID:-1000}:${STUDIO_E2E_GID:-1000}"
     environment:
       NODE_EXTRA_CA_CERTS: /state/certs/ca.pem
       STUDIO_E2E_STATE: /state

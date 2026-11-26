@@ -18,6 +18,8 @@
 //   STUDIO_E2E_PORT           loopback console port (default: a free port)
 //   STUDIO_E2E_TAG            tag of the stack's images (default local), so runs of other checkouts keep theirs
 //   STUDIO_E2E_HIVEMEM_HOURS  lifetime of the agents' HiveMem credentials in hours (default 1, the shortest Magnus allows)
+//   STUDIO_E2E_SHARED_FILES=1  make the run directory readable by every container user (CI: the runner's
+//                             uid differs from the images' 1000; the secrets are throwaway on a throwaway host)
 //   STUDIO_E2E_ACCESS_TTL     Oathweave's access token lifetime in seconds (default: Oathweave's own, 900), so the
 //                             console's token renewal spec can run in minutes
 // Only the model is a fixture (e2e/stack/model/server.mjs). Nothing here uses real credentials.
@@ -40,7 +42,10 @@ const say = message => process.stdout.write(`[studio-e2e] ${message}\n`);
 const sh = (command, args, options = {}) => (execFileSync(command, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024, ...options }) ?? '').trim();
 const secret = (bytes = 32) => randomBytes(bytes).toString('hex');
 const line = (key, value) => `${key}=${value}\n`;
-const write = (path, text, mode = 0o600) => { mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, text, { mode }); chmodSync(path, mode); };
+// Owner-only by default; readable by the containers' own users when the host's uid is not theirs.
+const shared = process.env.STUDIO_E2E_SHARED_FILES === '1';
+const PRIVATE = shared ? 0o644 : 0o600;
+const write = (path, text, mode = PRIVATE) => { mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, text, { mode }); chmodSync(path, mode); };
 
 export function dockerAvailable() {
   return spawnSync('docker', ['info', '--format', '{{.ServerVersion}}'], { stdio: 'ignore' }).status === 0
@@ -48,7 +53,9 @@ export function dockerAvailable() {
 }
 
 function composeEnv(port) {
-  return { ...process.env, STUDIO_E2E_PROJECT: project, STUDIO_E2E_RUN: run, STUDIO_E2E_STACK: stack, STUDIO_E2E_PORT: String(port), STUDIO_E2E_TAG: tag };
+  // The model and the bootstrap tools run as the host user, so they can read and write the run directory.
+  const host = { STUDIO_E2E_UID: String(process.getuid?.() ?? 1000), STUDIO_E2E_GID: String(process.getgid?.() ?? 1000) };
+  return { ...process.env, ...host, STUDIO_E2E_PROJECT: project, STUDIO_E2E_RUN: run, STUDIO_E2E_STACK: stack, STUDIO_E2E_PORT: String(port), STUDIO_E2E_TAG: tag };
 }
 function compose(args, port, options = {}) {
   return sh('docker', ['compose', '-p', project, '-f', join(stack, 'compose.yml'), ...args], { env: composeEnv(port), ...options });
@@ -121,7 +128,7 @@ function certificates(origin) {
     writeFileSync(join(certs, `${name}.ext`), `subjectAltName=${names.map(item => `DNS:${item}`).join(',')},IP:127.0.0.1\nbasicConstraints=critical,CA:FALSE\nextendedKeyUsage=serverAuth\nkeyUsage=critical,digitalSignature,keyEncipherment\n`);
     ssl(['req', '-new', '-newkey', 'rsa:2048', '-nodes', '-keyout', `${name}.key`, '-out', `${name}.csr`, '-subj', `/CN=${names[0]}`]);
     ssl(['x509', '-req', '-in', `${name}.csr`, '-CA', 'ca.pem', '-CAkey', 'ca.key', '-set_serial', `0x${secret(8)}`, '-days', '2', '-extfile', `${name}.ext`, '-out', `${name}.crt`]);
-    chmodSync(join(certs, `${name}.key`), 0o600);
+    chmodSync(join(certs, `${name}.key`), PRIVATE);
   }
   for (const file of readdirSync(certs)) if (file.endsWith('.crt') || file === 'ca.pem') chmodSync(join(certs, file), 0o644);
 }
@@ -299,11 +306,27 @@ function enrollAgent(token, port) {
   say('node key bound with a one-time enrollment token');
 }
 
+/**
+ * Oathweave and HiveMem accept their bootstrap files only when the server's own user owns them
+ * (mode 0600). On a host whose uid is not the image's, such as a CI runner, Docker hands each one to
+ * the user its image runs as; locally the host user already is that user.
+ */
+function handOverOwnedFiles() {
+  if (!shared) return;
+  const config = join(run, 'config');
+  for (const [image, file] of [[`studio-e2e-oathweave:${tag}`, 'suite-bootstrap.json'], [`studio-e2e-hivemem:${tag}`, 'hivemem-initial-account.json']]) {
+    const owner = ['-u', '-g'].map(flag => sh('docker', ['run', '--rm', '--entrypoint', 'id', image, flag])).join(':');
+    if (owner === `${process.getuid?.()}:${process.getgid?.()}`) continue;
+    chmodSync(join(config, file), 0o600);
+    sh('docker', ['run', '--rm', '--user', '0', '--entrypoint', 'chown', '-v', `${config}:/config`, image, owner, `/config/${file}`]);
+  }
+}
+
 async function up() {
   if (!dockerAvailable()) { say('Docker is not available; nothing to start'); process.exitCode = 2; return; }
   if (existsSync(statePath)) throw new Error(`A ${project} run already exists (${run}); run "down" first`);
   rmSync(run, { recursive: true, force: true });
-  mkdirSync(run, { recursive: true, mode: 0o700 });
+  mkdirSync(run, { recursive: true, mode: shared ? 0o755 : 0o700 });
   buildImages();
   const magnusVersion = magnusVersions();
   say(`Magnus server ${magnusVersion.server}, agent ${magnusVersion.agent}`);
@@ -311,6 +334,7 @@ async function up() {
   const tarball = ardentTarball();
   const settings = configure(port);
   certificates(settings.origin);
+  handOverOwnedFiles();
   const ardent = stageArdent(tarball);
   write(statePath, JSON.stringify({ project, ...settings, ardent, magnusVersion, phase: 'starting' }, null, 2));
   say(`starting ${project} on ${settings.origin}`);
