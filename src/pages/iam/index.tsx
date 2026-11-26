@@ -45,13 +45,15 @@ export function IamOperationsPage({
   view,
   onNavigate,
   currentUser,
+  onAuthExpired,
 }: {
   view: string;
   onNavigate?: (view: string) => void;
   currentUser: AdminUser | null;
+  onAuthExpired?: () => void;
 }) {
   const section = iamSection(view);
-  const ops = useIamOperations(section, currentUser);
+  const ops = useIamOperations(section, currentUser, onAuthExpired);
   const { confirmDialog, loadIam, loading, error, notice, revealedSecret } = ops;
   return (
     <>
