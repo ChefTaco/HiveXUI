@@ -9,20 +9,27 @@ vi.mock('./lib/api', async (importOriginal) => {
   return { ...actual, adminApi: { ...actual.adminApi, me: async () => ({ user: { id: 'user-1', username: 'operator', displayName: 'Operator', roles: ['admin'] } }) } };
 });
 // The shell's shared store loads Emberpath data; here it stays loading so only the frame renders.
-vi.mock('./lib/store', () => ({
-  StoreProvider: ({ children }: { children: ReactNode }) => children,
-  useStore: () => ({
+vi.mock('./lib/store', () => {
+  const state = {
     data: { providers: [], traces: [], audit: [], actors: [], incidents: [], clientKeys: [], telemetry: null },
     loading: true,
     refreshing: false,
     error: null,
     loadIssues: [],
+    incidentNotes: [],
     lastSync: null,
     refresh: async () => {},
     resourceFreshness: {},
     onAuthExpired: () => {},
-  }),
-}));
+    demand: () => () => {},
+  };
+  return {
+    StoreProvider: ({ children }: { children: ReactNode }) => children,
+    useStoreDemand: () => {},
+    useStoreStatus: () => state,
+    useStore: () => state,
+  };
+});
 
 let view: Mounted | undefined;
 beforeEach(() => {

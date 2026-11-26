@@ -23,8 +23,8 @@ function severityTone(severity: HiveIncident['severity']): 'warning' | 'success'
 }
 
 export function IncidentsPage() {
-  const { data, refresh, refreshing, loadIssues } = useStore();
-  const unavailable = loadIssues.filter(issue => issue.includes('failure summary unavailable'));
+  const { data, refresh, refreshing, incidentNotes } = useStore();
+  const unavailable = incidentNotes.filter(issue => issue.includes('failure summary unavailable'));
   const [selected, setSelected] = useState<HiveIncident | null>(null);
   const open = data.incidents.filter((incident) => incident.status === 'open').length;
   const critical = data.incidents.filter((incident) => incident.severity === 'critical').length;
