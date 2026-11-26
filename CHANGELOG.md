@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Session expiry is handled in one place. When Oathweave no longer knows the browser session (`/browser/session` or a new product authorization answers 401), every page and the fullscreen Studio return to sign-in at the same address, with "Your session ended", and the same page opens after signing in again. A 401 from any product asks Oathweave once whether the session still exists (one check for a burst of answers) and signs out only if Oathweave refuses it; an outage or a 5xx keeps the person signed in. The shared store and the Magnus and Studio clients use the same check, so an identity outage no longer signs them out.
+- Sign-out in one tab signs out the console's other tabs (a `BroadcastChannel` that carries only the fact, never a token or user detail). They forget their tokens and show the sign-in form, saying that the person signed out in another tab.
+- Emberpath 2.7.0 multi-factor accounts on the native console API: the native sign-in and the upgrade's password confirmation read Emberpath's `401 MFA_REQUIRED`, ask for the authenticator or recovery code, and send the same request again with `mfaCode`. Against an older Emberpath nothing changes.
+
 ## [0.12.1] - 2026-11-26
 
 - Fix: one failing page no longer blanks the console. Every shell page and the fullscreen Studio sit behind an error boundary that keeps the shell working and offers **Try again** and **Reload console**. A tab left open across an upgrade, whose old hashed chunks are gone, reloads once to fetch the new build (`vite:preloadError` and failed lazy imports); if the fresh page fails the same way it shows "A new HiveXUI version is available" with a reload button instead of reloading again. The search palette and inbox bell fail quietly.

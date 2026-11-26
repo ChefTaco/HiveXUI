@@ -6,8 +6,10 @@ import {
   requireConfiguredProducts,
   setAccessProvider,
   setStepUpProvider,
+  setUnauthorizedHandler,
   type Product,
 } from './transport';
+import { setSessionChecker, verifySession } from './session-events';
 
 const product = z.enum([
   'emberpath',
@@ -187,6 +189,9 @@ export async function initializeRuntime(): Promise<void> {
     identity = createBrowserAuth(config.identity);
     setAccessProvider(identity.ensure);
     setStepUpProvider(identity.stepUp);
+    // Any product's 401 asks Oathweave whether the session still exists; only its refusal signs out.
+    setSessionChecker(identity.me);
+    setUnauthorizedHandler(() => verifySession());
     // The authorization portal shows no sections and serves other applications' sign-ins.
     if (location.pathname !== '/auth/authorize') await startRegistry([...enabled]);
   }

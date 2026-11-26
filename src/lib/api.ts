@@ -6,6 +6,7 @@ import { failureMeta, HiveApiError, readApiFailure, readJsonAnswer, type HiveApi
 import {createIamApi} from './iam-api';
 import { browserIdentity, enrollmentInstallationId, localSignIn } from './runtime';
 import { cindertraceLocalAuth } from './cindertrace-local-auth';
+import { announceSignOut } from './session-events';
 import { readConsoleHealth } from './suite-health';
 import { EnrollmentInventorySchema, EnrollmentResultSchema, EnrollmentRequestSchema, LegacyEnrollmentReceiptSchema, EnrollmentInstallationsSchema, EnrollmentLifecycleRequestSchema, BrowserResourceUserResponseSchema } from '@contracts/oathweave-browser.generated';
 import type {
@@ -67,32 +68,65 @@ async function request<T, TBody extends JsonRequestBody = JsonRequestBody>(
   return (await readJsonAnswer(response, 'The product', (options.method ?? 'GET') !== 'GET')) as T;
 }
 
+/**
+ * Emberpath 2.7.0 and later: the account has multi-factor authentication. The password was right;
+ * the same request is sent again with the authenticator or recovery code (`mfaCode`).
+ */
+export class SecondFactorRequired extends Error {
+  override name = 'SecondFactorRequired';
+  constructor() {
+    super('Enter the code from your authenticator app, or a recovery code');
+  }
+}
+const isMfaRequired = (error: unknown) => error instanceof ApiError && error.status === 401 && error.code?.toUpperCase() === 'MFA_REQUIRED';
+
+/**
+ * Emberpath's own password check (sign-in and reauthentication on the native console API), with
+ * the second factor when the account has one. A refusal that asks for the code is SecondFactorRequired.
+ */
+async function emberpathPasswordCheck<T>(path: string, body: { username?: string; password: string }, mfaCode?: string): Promise<T> {
+  const code = mfaCode?.trim();
+  try {
+    return await request<T>(path, { method: 'POST', body: { ...body, ...(code ? { mfaCode: code } : {}) } });
+  } catch (error) {
+    if (isMfaRequired(error)) throw new SecondFactorRequired();
+    throw error;
+  }
+}
+
 export const adminApi = {
   // ---- auth ----
-  login(username: string, password: string) {
+  /** `mfaCode` is used only by the native console sign-in, which sends it with the password again. */
+  login(username: string, password: string, mfaCode?: string) {
     if (localSignIn()) return cindertraceLocalAuth.login(username, password);
     const identity = browserIdentity();
     if (identity) return identity.login(username, password);
-    return request<{ ok: boolean; user: AdminUser }>('/api/auth/login', {
-      method: 'POST',
-      body: { username, password },
-    });
+    return emberpathPasswordCheck<{ ok: boolean; user: AdminUser }>('/api/auth/login', { username, password }, mfaCode);
+  },
+  /** The native console's password confirmation before an upgrade, with the second factor when needed. */
+  reauthenticate(password: string, mfaCode?: string) {
+    return emberpathPasswordCheck<{ ok: boolean }>('/api/auth/reauthenticate', { password }, mfaCode);
   },
   async logout() {
-    if (localSignIn()) return cindertraceLocalAuth.logout();
-    const identity = browserIdentity();
-    if (identity) {
-      // Before the identity sign-out, which forgets that a chat session exists.
-      await endChatSession();
-      await identity.logout();
-      return { ok: true };
-    }
+    // The console's other tabs sign out with this one, whether or not the service answers.
     try {
-      return await request<{ ok: boolean }>('/api/auth/logout', {
-        method: 'POST',
-      });
+      if (localSignIn()) return await cindertraceLocalAuth.logout();
+      const identity = browserIdentity();
+      if (identity) {
+        // Before the identity sign-out, which forgets that a chat session exists.
+        await endChatSession();
+        await identity.logout();
+        return { ok: true };
+      }
+      try {
+        return await request<{ ok: boolean }>('/api/auth/logout', {
+          method: 'POST',
+        });
+      } finally {
+        clearAccess();
+      }
     } finally {
-      clearAccess();
+      announceSignOut();
     }
   },
   me() {

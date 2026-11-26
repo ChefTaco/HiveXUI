@@ -10,6 +10,7 @@ import {
   requestStepUp,
 } from './identity-prompts';
 import { authenticatePasskey } from './passkeys';
+import { sessionEnded } from './session-events';
 import {
   LoginRequestSchema,
   MfaChallengeRequestSchema,
@@ -141,6 +142,8 @@ export function createBrowserAuth(
       throw new Error(
         'Your Oathweave password has expired. Complete password recovery with your identity administrator, then sign in again.',
       );
+    // Oathweave no longer knows this browser session: every page returns to sign-in, not just this one.
+    if (response.status === 401 && (path === '/browser/session' || path === '/oauth/authorize')) sessionEnded('expired');
     if (!response.ok)
       throw new IdentityApiError(
         response.status,

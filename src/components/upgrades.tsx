@@ -1,5 +1,6 @@
 import { browserIdentity, productEnabled } from "../lib/runtime";
 import { apiFetch } from "../lib/transport";
+import { adminApi, SecondFactorRequired } from "../lib/api";
 import { safeExternalUrl } from "../lib/external-url";
 import { useEffect, useState } from "react";
 import { Button, Panel } from "./ui";
@@ -177,6 +178,9 @@ function LegacyUpgradesPanel({ canUpgrade }: { canUpgrade: boolean }) {
     [busy, setBusy] = useState(false);
   const [needsAuthentication, setNeedsAuthentication] = useState(false);
   const [password, setPassword] = useState("");
+  // Emberpath 2.7.0 and later ask an account with multi-factor authentication for its code too.
+  const [needsCode, setNeedsCode] = useState(false);
+  const [code, setCode] = useState("");
   function failure(error: unknown, fallback: string) {
     if (error instanceof Error && error.message === "STEP_UP_REQUIRED") {
       setNeedsAuthentication(true);
@@ -186,15 +190,26 @@ function LegacyUpgradesPanel({ canUpgrade }: { canUpgrade: boolean }) {
   }
   async function reauthenticate() {
     setBusy(true);
+    let keepPassword = false;
     try {
-      await api("/api/auth/reauthenticate", { password });
+      await adminApi.reauthenticate(password, needsCode ? code : undefined);
       setNeedsAuthentication(false);
+      setNeedsCode(false);
       setPlan(null);
       setResult("Authentication refreshed. Review the upgrade again.");
     } catch (e) {
-      failure(e, "Authentication failed");
+      if (e instanceof SecondFactorRequired && !needsCode) {
+        // The password was right: the same request goes again with the code.
+        keepPassword = true;
+        setNeedsCode(true);
+        setResult(e.message);
+      } else {
+        setNeedsCode(false);
+        failure(e, "Authentication failed");
+      }
     } finally {
-      setPassword("");
+      if (!keepPassword) setPassword("");
+      setCode("");
       setBusy(false);
     }
   }
@@ -289,8 +304,18 @@ function LegacyUpgradesPanel({ canUpgrade }: { canUpgrade: boolean }) {
               onChange={(event) => setPassword(event.target.value)}
             />
           </label>
+          {needsCode && (
+            <label>
+              Authenticator or recovery code{" "}
+              <input
+                autoComplete="one-time-code"
+                value={code}
+                onChange={(event) => setCode(event.target.value)}
+              />
+            </label>
+          )}
           <Button
-            disabled={busy || !password}
+            disabled={busy || !password || (needsCode && !code.trim())}
             onClick={() => void reauthenticate()}
           >
             Confirm authentication
