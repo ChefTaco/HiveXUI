@@ -72,9 +72,15 @@ test('2. interrupted execution: an uncertain write needs a decision, and mark_no
 test('3. transfer recovery: a rendition, a ranged original and its digest', async () => {
   test.skip(!ctx.supported, ctx.reason);
   test.skip(!ctx.project, 'Needs the project from scenario 1');
-  const deliverables = (await ctx.api.get(`/projects/${ctx.project.id}/deliverables`)).deliverables as any[];
-  const revision = deliverables.flatMap((item) => item.revisions).find((item: any) => item.size > 1024);
-  test.skip(!revision, 'The research agents delivered no file large enough to range; a large map fixture is needed');
+  // The research replies are too small to range, so the fixture model's large survey map (about 160 KB) is asked for.
+  const task = await ctx.api.post(`/projects/${ctx.project.id}/tasks`, { title: 'Draw the large survey map of the recycling sites', role_key: 'lead_researcher' });
+  const done = await settled(task.id);
+  expect(['completed', 'partial'], `The survey map task ended ${done.state}: ${JSON.stringify(done.outcome ?? null)}`).toContain(done.state);
+  // The import into review runs after the task settles.
+  const revision = await eventually('the survey map revision', async () => {
+    const deliverables = (await ctx.api.get(`/projects/${ctx.project.id}/deliverables`)).deliverables as any[];
+    return deliverables.flatMap((item) => item.revisions).find((item: any) => item.size > 64 * 1024);
+  }, 120_000, 2000);
   const whole = await ctx.api.blob(revision.blob_sha256);
   expect(whole.headers['accept-ranges']).toBe('bytes');
   expect(whole.headers['x-content-sha256']).toBe(revision.blob_sha256);

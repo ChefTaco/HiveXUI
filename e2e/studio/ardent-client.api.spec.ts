@@ -148,7 +148,11 @@ test('2. submit and follow: the stream drops twice, every journaled event arrive
   const sequences = events.map(event => event.sequence);
   for (let index = 1; index < sequences.length; index += 1) expect(sequences[index]).toBe(sequences[index - 1]! + 1);
   const journal = await ctx.ardent.tasks.events(accepted.task_id);
-  expect(sequences).toEqual(journal.map(event => event.sequence));
+  // On a mismatch, name the journaled events the follow did not deliver and when each was written.
+  const missed = journal.filter(event => !sequences.includes(event.sequence))
+    .map(event => ({ sequence: event.sequence, kind: event.kind, detail: event.detail, created_ms: event.created_ms }));
+  expect(sequences, `Not delivered by the follow: ${JSON.stringify(missed)}; last delivered: ${JSON.stringify(events.slice(-2).map(event => ({ sequence: event.sequence, kind: event.kind, created_ms: event.created_ms })))}`)
+    .toEqual(journal.map(event => event.sequence));
   expect(events.every(event => event.task_id === accepted.task_id)).toBe(true);
 });
 

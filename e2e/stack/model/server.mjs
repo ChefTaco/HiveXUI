@@ -27,6 +27,20 @@ ${ford ? '<rect x="400" y="330" width="60" height="18" fill="#c8a165" stroke="#5
 <text x="560" y="40" font-size="26" font-family="serif">Emberfall</text>
 </svg>`;
 
+// A survey map of about 160 KB: a grid of numbered site markers, so a deliverable is large enough
+// to fetch in ranges. Deterministic, so its digest is the same on every run.
+let largeMap;
+function largeSvgMap() {
+  if (largeMap) return largeMap;
+  const sites = [];
+  for (let row = 0; row < 32; row++) for (let col = 0; col < 32; col++) {
+    const x = 20 + col * 40, y = 20 + row * 40;
+    sites.push(`<g id="site-${row}-${col}"><circle cx="${x}" cy="${y}" r="9" fill="#6f8f6a" stroke="#3d5a3a"/><text x="${x + 12}" y="${y + 4}" font-size="9" font-family="serif">S${row * 32 + col}</text></g>`);
+  }
+  largeMap = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 1300" width="1300" height="1300">\n<rect width="1300" height="1300" fill="#efe6d0"/>\n${sites.join('\n')}\n<text x="20" y="1290" font-size="24" font-family="serif">Recycling sites survey</text>\n</svg>`;
+  return largeMap;
+}
+
 const adventureMarkdown = short => `# Emberfall One-Shot
 
 ## Act 1: The Ember Road
@@ -114,6 +128,9 @@ const rules = [
   { role: 'lead_researcher', match: /^Revision request/m, steps: [
     tool('artifact_write', { name: 'research-report.md', mime: 'text/markdown', text: researchMarkdown(true) }),
     text('Revised the report: the summary now cites recovery rates [S2].')] },
+  { role: 'lead_researcher', match: /large survey map/i, steps: [
+    tool('artifact_write', { name: 'survey-map.svg', mime: 'image/svg+xml', text: '@large-map' }),
+    text('The large survey map of the recycling sites is attached.')] },
   { role: 'lead_researcher', match: /sourced summary/i, steps: [
     tool('artifact_write', { name: 'research-report.md', mime: 'text/markdown', text: researchMarkdown(false) }),
     tool('team_handoff', { to_role: 'fact_checker', objective: 'Check the claims in the research report.' }),
@@ -150,6 +167,7 @@ function plan(body) {
     request: request.slice(0, 200), reply: next.tool ?? 'text', tools: [...offered] });
   if (log.length > 500) log.shift();
   if (next.tool === 'artifact_write' && next.args.base64 === '@large-png') return tool('artifact_write', { ...next.args, base64: largePngBase64() });
+  if (next.tool === 'artifact_write' && next.args.text === '@large-map') return tool('artifact_write', { ...next.args, text: largeSvgMap() });
   return next;
 }
 
