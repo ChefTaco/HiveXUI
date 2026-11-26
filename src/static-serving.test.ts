@@ -38,7 +38,7 @@ const effective = (location: Block) =>
 
 describe('static serving', () => {
   it('finds the routes the console relies on', () => {
-    expect(locations.map((location) => location.path)).toEqual(['= /health', '= /runtime.json', '/assets/', '/api/', '/']);
+    expect(locations.map((location) => location.path)).toEqual(['= /health', '= /runtime.json', '= /version.json', '/assets/', '/api/', '/']);
   });
 
   it('sends the CSP and security headers on every route, including ones with their own headers', () => {
@@ -56,6 +56,8 @@ describe('static serving', () => {
     expect(at('/').headers.get('Cache-Control')).toBe('no-cache');
     expect(at('/assets/').headers.get('Cache-Control')).toBe('public, immutable');
     expect(at('= /runtime.json').headers.get('Cache-Control')).toBe('no-store');
+    // An open tab compares this with its own build; a cached copy would hide an upgrade.
+    expect(at('= /version.json').headers.get('Cache-Control')).toBe('no-store');
   });
 
   it('runs on an nginx that understands add_header_inherit', () => {

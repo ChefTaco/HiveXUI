@@ -2875,3 +2875,22 @@ td .badge {
   font-weight: 700;
   text-align: center;
 }
+/* The new-version notice floats above every page, the fullscreen Studio included. */
+.update-banner {
+  --banner-tone: var(--info);
+  --banner-soft: var(--info-soft);
+  position: fixed;
+  left: 50%;
+  bottom: var(--space-5);
+  z-index: 210;
+  align-items: center;
+  width: min(36rem, calc(100vw - 2rem));
+  transform: translateX(-50%);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-overlay);
+}
+.update-banner > div {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+}
