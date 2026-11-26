@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useMemo, useState, useSyncExternalStore, type ComponentType } from 'react';
-import { productEnabled } from '../../lib/runtime';
+import { browserIdentity, productEnabled } from '../../lib/runtime';
 import { CINDERTRACE_PAGES, matchSubroute, SECURITY_PREFIX, underPrefix, type SubRouteProps } from '../../lib/routes';
 import { SecurityRefresh } from './lib/page-data';
 import { EmptyState, LoadingRows } from '@ui';
@@ -29,7 +29,11 @@ export default function SecurityModule() {
 function ConfiguredSecurityModule() {
   const current = useSyncExternalStore(subscribe, address);
   const [revision, setRevision] = useState(0);
-  const bump = useCallback(() => setRevision((value) => value + 1), []);
+  // A refresh the operator asks for also reviews product access again after a declined prompt.
+  const bump = useCallback(() => {
+    browserIdentity()?.retryConsent();
+    setRevision((value) => value + 1);
+  }, []);
   const refresh = useMemo(() => ({ revision, refresh: bump }), [revision, bump]);
   const [pathname, query = ''] = current.split('?');
   // ?page=security opens the overview at the root address.

@@ -10,6 +10,7 @@ import {
 } from '@contracts/ardentstudio.generated';
 import { failureMeta, HiveApiError, HiveContractError, readApiFailure, type HiveApiErrorMeta } from '../../../lib/api-error';
 import { apiFetch } from '../../../lib/transport';
+import { browserIdentity } from '../../../lib/runtime';
 import { handleUnauthorized, randomId } from '../../magnus/api/client';
 
 export const STUDIO_API = ARDENT_STUDIO_API_PREFIX;
@@ -80,6 +81,8 @@ export function useStudioConnection(probe: typeof probeStudio = probeStudio): { 
     };
   }, [check]);
   const retry = useCallback(() => {
+    // Retry also reviews product access again after a declined consent prompt.
+    browserIdentity()?.retryConsent();
     setConnection({ state: 'checking' });
     void check();
   }, [check]);

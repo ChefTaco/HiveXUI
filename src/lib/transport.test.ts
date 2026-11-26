@@ -5,6 +5,8 @@ import {
   setAccessProvider,
   configureEndpoint,
   createApiFetch,
+  endChatSession,
+  hasChatSession,
   onAccessCleared,
   productFor,
   refreshResourceAccess,
@@ -114,6 +116,25 @@ describe('product API transport', () => {
       new Headers(request.mock.calls[1]![1]!.headers).has('authorization'),
     ).toBe(false);
     expect(request.mock.calls[1]![1]!.credentials).toBe('include');
+  });
+  it('ends the native chat session on sign-out, and never holds sign-out up when chat fails', async () => {
+    configureEndpoint('chattermost', '/api/chat');
+    rememberAccess('chattermost', 'obviously-fake-chat-resource', Date.now() + 60000);
+    const request = vi.fn<typeof fetch>().mockImplementation(async (input) =>
+      String(input).endsWith('/session') ? Response.json({ expires_at: Date.now() + 60000 }) : Response.json({ status: 'OK' }),
+    );
+    await createApiFetch(request)('/api/chat/api/v4/users/me');
+    expect(hasChatSession()).toBe(true);
+    const logout = vi.fn<typeof fetch>().mockRejectedValue(new TypeError('Failed to fetch'));
+    await expect(endChatSession(logout)).resolves.toBeUndefined();
+    expect(logout).toHaveBeenCalledTimes(1);
+    expect(logout.mock.calls[0]![0]).toBe('/api/chat/api/v4/users/logout');
+    expect(logout.mock.calls[0]![1]).toMatchObject({ method: 'POST', credentials: 'include', redirect: 'error' });
+    expect(new Headers(logout.mock.calls[0]![1]!.headers).has('authorization')).toBe(false);
+    expect(hasChatSession()).toBe(false);
+    // Without a chat session there is nothing to end.
+    await endChatSession(logout);
+    expect(logout).toHaveBeenCalledTimes(1);
   });
 });
 

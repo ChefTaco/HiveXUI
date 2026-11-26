@@ -10,7 +10,10 @@ import { type IamSection, firstRoleId } from './shared';
  * The IAM page's records, forms and actions. Every section reads from one instance, so a form
  * keeps what was typed while the operator moves between sections, as it always has.
  */
-export function useIamOperations(section: IamSection, currentUser: AdminUser | null) {
+/** The section each IAM read fills, in `loadIam`'s order, for its error message. */
+const IAM_RESOURCE_LABELS = ['Health', 'Audit statistics', 'Sessions', 'Roles', 'Users', 'Service accounts', 'Clients', 'System users', 'Audit events', 'Password policy'] as const;
+
+export function useIamOperations(section: IamSection, currentUser: AdminUser | null, onAuthExpired?: () => void) {
   const [users, setUsers] = useState<IamUser[]>([]);
   const [confirmAction, confirmDialog] = useConfirm();
   const [roles, setRoles] = useState<IamRole[]>([]);
@@ -110,99 +113,73 @@ export function useIamOperations(section: IamSection, currentUser: AdminUser | n
   const loadIam = useCallback(async () => {
     setLoading(true);
     setError(null);
-    try {
-      const [
-        healthRes,
-        statsRes,
-        sessionRes,
-        roleRes,
-        userRes,
-        serviceRes,
-        clientRes,
-        systemRes,
-        auditRes,
-        policyRes,
-      ] = await Promise.all([
-        identityResourceAllowed('health', section, currentUser)
-          ? adminApi.iamHealth().catch(() => null)
-          : Promise.resolve(null),
-        identityResourceAllowed('stats', section, currentUser)
-          ? adminApi.iamAuditStats()
-          : Promise.resolve(null),
-        identityResourceAllowed('sessions', section, currentUser)
-          ? adminApi.iamSessions()
-          : Promise.resolve({ sessions: [] as IamSession[] }),
-        identityResourceAllowed('roles', section, currentUser)
-          ? adminApi.iamRoles()
-          : Promise.resolve({ roles: [] as IamRole[] }),
-        identityResourceAllowed('users', section, currentUser)
-          ? adminApi.iamUsers()
-          : Promise.resolve({ users: [] as IamUser[] }),
-        identityResourceAllowed('services', section, currentUser)
-          ? adminApi.iamServiceAccounts()
-          : Promise.resolve({ serviceAccounts: [] as IamServiceAccount[] }),
-        identityResourceAllowed('clients', section, currentUser)
-          ? adminApi.iamClients()
-          : Promise.resolve({ clients: [] as IamClient[] }),
-        identityResourceAllowed('system', section, currentUser)
-          ? adminApi.iamSystemUsers()
-          : Promise.resolve({ systemUsers: [] as IamSystemUser[] }),
-        identityResourceAllowed('audit', section, currentUser)
-          ? adminApi.iamAudit()
-          : Promise.resolve({
-              events: [] as IamAuditEvent[],
-              total: 0,
-              page: 1,
-              limit: 50,
-            }),
-        identityResourceAllowed('policy', section, currentUser)
-          ? adminApi.iamPasswordPolicy()
-          : Promise.resolve(null),
-      ]);
-      setHealth(healthRes);
-      setAuditStats(statsRes);
-      setSessions(sessionRes.sessions);
-      setRoles(roleRes.roles);
-      setUsers(userRes.users);
-      setServiceAccounts(serviceRes.serviceAccounts);
-      setClients(clientRes.clients);
-      setSystemUsers(systemRes.systemUsers);
-      setAuditEvents(auditRes.events);
-      setPasswordPolicy(policyRes?.policy ?? null);
-      setUserForm((current) => ({
-        ...current,
-        roleId: current.roleId || firstRoleId(roleRes.roles, 'VIEWER'),
-      }));
-      setRoleAction((current) => ({
-        ...current,
-        userId: current.userId || userRes.users[0]?.id || '',
-        roleId: current.roleId || firstRoleId(roleRes.roles, 'VIEWER'),
-      }));
-      setPasswordAction((current) => ({
-        ...current,
-        userId: current.userId || userRes.users[0]?.id || '',
-      }));
-      setServiceForm((current) => ({
-        ...current,
-        clientId: current.clientId || clientRes.clients[0]?.id || '',
-        roleId: current.roleId || firstRoleId(roleRes.roles, 'SERVICE'),
-      }));
-      setSystemForm((current) => ({
-        ...current,
-        userId: current.userId || userRes.users[0]?.id || '',
-      }));
-    } catch (caught) {
-      if (caught instanceof ApiError && caught.status === 401) {
-        setError('Hive session expired. Sign in again.');
-      } else {
-        setError(
-          caught instanceof Error ? caught.message : 'Failed to load IAM data',
-        );
-      }
-    } finally {
+    // Each section loads on its own: one refusal or outage (audit stats, say) leaves the rest shown.
+    const load = <T, E>(resource: Parameters<typeof identityResourceAllowed>[0], read: () => Promise<T>, empty: E): Promise<T | E> =>
+      identityResourceAllowed(resource, section, currentUser) ? read() : Promise.resolve(empty);
+    const results = await Promise.allSettled([
+      load('health', () => adminApi.iamHealth().catch(() => null), null),
+      load('stats', () => adminApi.iamAuditStats(), null),
+      load('sessions', () => adminApi.iamSessions(), { sessions: [] as IamSession[] }),
+      load('roles', () => adminApi.iamRoles(), { roles: [] as IamRole[] }),
+      load('users', () => adminApi.iamUsers(), { users: [] as IamUser[] }),
+      load('services', () => adminApi.iamServiceAccounts(), { serviceAccounts: [] as IamServiceAccount[] }),
+      load('clients', () => adminApi.iamClients(), { clients: [] as IamClient[] }),
+      load('system', () => adminApi.iamSystemUsers(), { systemUsers: [] as IamSystemUser[] }),
+      load('audit', () => adminApi.iamAudit(), { events: [] as IamAuditEvent[], total: 0, page: 1, limit: 50 }),
+      load('policy', () => adminApi.iamPasswordPolicy(), null),
+    ] as const);
+    const [healthRes, statsRes, sessionRes, roleRes, userRes, serviceRes, clientRes, systemRes, auditRes, policyRes] = results;
+    const failures = results.flatMap((result, index) => (result.status === 'rejected' ? [{ section: IAM_RESOURCE_LABELS[index]!, reason: result.reason as unknown }] : []));
+    if (failures.some(({ reason }) => reason instanceof ApiError && reason.status === 401)) {
       setLoading(false);
+      setError('Your session has ended. Sign in again.');
+      onAuthExpired?.();
+      return;
     }
-  }, [section, currentUser]);
+    if (healthRes.status === 'fulfilled') setHealth(healthRes.value);
+    if (statsRes.status === 'fulfilled') setAuditStats(statsRes.value);
+    if (sessionRes.status === 'fulfilled') setSessions(sessionRes.value.sessions);
+    // A section that failed keeps what it showed; the form defaults then come from nothing new.
+    const loadedRoles = roleRes.status === 'fulfilled' ? roleRes.value.roles : [];
+    const loadedUsers = userRes.status === 'fulfilled' ? userRes.value.users : [];
+    const loadedClients = clientRes.status === 'fulfilled' ? clientRes.value.clients : [];
+    if (roleRes.status === 'fulfilled') setRoles(loadedRoles);
+    if (userRes.status === 'fulfilled') setUsers(loadedUsers);
+    if (serviceRes.status === 'fulfilled') setServiceAccounts(serviceRes.value.serviceAccounts);
+    if (clientRes.status === 'fulfilled') setClients(loadedClients);
+    if (systemRes.status === 'fulfilled') setSystemUsers(systemRes.value.systemUsers);
+    if (auditRes.status === 'fulfilled') setAuditEvents(auditRes.value.events);
+    if (policyRes.status === 'fulfilled') setPasswordPolicy(policyRes.value?.policy ?? null);
+    setUserForm((current) => ({
+      ...current,
+      roleId: current.roleId || firstRoleId(loadedRoles, 'VIEWER'),
+    }));
+    setRoleAction((current) => ({
+      ...current,
+      userId: current.userId || loadedUsers[0]?.id || '',
+      roleId: current.roleId || firstRoleId(loadedRoles, 'VIEWER'),
+    }));
+    setPasswordAction((current) => ({
+      ...current,
+      userId: current.userId || loadedUsers[0]?.id || '',
+    }));
+    setServiceForm((current) => ({
+      ...current,
+      clientId: current.clientId || loadedClients[0]?.id || '',
+      roleId: current.roleId || firstRoleId(loadedRoles, 'SERVICE'),
+    }));
+    setSystemForm((current) => ({
+      ...current,
+      userId: current.userId || loadedUsers[0]?.id || '',
+    }));
+    if (failures.length)
+      setError(
+        failures
+          .map(({ section: label, reason }) => `${label}: ${reason instanceof Error ? reason.message : 'could not be loaded'}`)
+          .join(' · '),
+      );
+    setLoading(false);
+  }, [section, currentUser, onAuthExpired]);
 
   useEffect(() => {
     void loadIam();

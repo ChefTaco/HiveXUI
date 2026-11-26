@@ -108,6 +108,15 @@ describe('Cindertrace pages', () => {
     expect(text()).toContain('Evolving evidence lab');
   });
 
+  it('retries a page that failed to load, in place', async () => {
+    await open('/security-fusion/lab');
+    expect(document.querySelector('[role="alert"]')?.textContent).toBe('This security record is unavailable');
+    lab = true;
+    await click(button('Retry'));
+    await until(() => text().includes('Evolving evidence lab'));
+    expect(requests.filter((item) => item === 'GET lab')).toHaveLength(2);
+  });
+
   it('refuse an address it has no page for', async () => {
     await open('/security-fusion/nope');
     expect(document.querySelector('[role="alert"]')?.textContent).toBe('This security page is unavailable');

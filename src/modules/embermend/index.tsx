@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import { recommendationSchema, findingSchema, occurrenceSchema, accessSchema, evidenceSchema, jobSchema, type Recommendation } from '@contracts/embermend.generated';
 import { embermendRequest } from './api';
-import { Panel, Button, Badge, PageHeader } from '../../components/ui';
+import { Panel, Button, Badge, PageHeader, useConfirm } from '../../components/ui';
+import { browserIdentity } from '../../lib/runtime';
 
 const findingsSchema = z.array(z.object({ finding: findingSchema, occurrences: z.array(occurrenceSchema) }));
 type FindingRow = z.infer<typeof findingsSchema>[number];
@@ -25,6 +26,12 @@ function outcomeForScope(row: Recommendation, findings: readonly FindingRow[], d
   return 'outstanding';
 }
 const request = embermendRequest;
+const failure = (reason: unknown, fallback: string) => (reason instanceof Error && reason.message ? reason.message : fallback);
+/** What a confirmation repeats from the recommendation: what it changes, where, and at what cost. */
+function planSummary(row: Recommendation): string {
+  const targets = row.plan.scope.targetIds.length;
+  return `${row.plan.objective} · revision ${row.plan.revision} · ${targets} managed ${targets === 1 ? 'target' : 'targets'} · Service impact: ${row.plan.impact}`;
+}
 export default function EmbermendModule() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [findings, setFindings] = useState<FindingRow[]>([]);
@@ -32,15 +39,30 @@ export default function EmbermendModule() {
   const [evidence, setEvidence] = useState<z.infer<typeof evidenceSchema> | null>(null);
   const [observations, setObservations] = useState<Record<string, z.infer<typeof jobSchema>>>({});
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false); const [loaded, setLoaded] = useState(false);
+  const [busy, setBusy] = useState(false); const [loaded, setLoaded] = useState(false); const [findingsLoaded, setFindingsLoaded] = useState(false);
+  const [confirmAction, confirmDialog] = useConfirm();
   async function refresh(): Promise<void> {
     setBusy(true);
     try {
-      const [timeline, risks, identity, observed] = await Promise.all([request('recommendations'), request('findings'), request('access'), Promise.all(Object.entries(observations).map(async ([originalId, job]) => [originalId, jobSchema.parse(await request(`jobs/${encodeURIComponent(job.id)}`))] as const))]);
-      setRecommendations(z.array(recommendationSchema).parse(timeline)); setFindings(findingsSchema.parse(risks)); setAccess(accessSchema.parse(identity)); setLoaded(true); setError(null);
-      if (observed.length) setObservations(current => ({ ...current, ...Object.fromEntries(observed) }));
-    } catch (error) { setError(error instanceof Error ? error.message : 'Embermend is unavailable.'); }
-    finally { setBusy(false); }
+      // Each part loads on its own: findings or access failing leaves the recommendations shown.
+      const [timeline, risks, identity, observed] = await Promise.allSettled([
+        request('recommendations').then(value => z.array(recommendationSchema).parse(value)),
+        request('findings').then(value => findingsSchema.parse(value)),
+        request('access').then(value => accessSchema.parse(value)),
+        Promise.all(Object.entries(observations).map(async ([originalId, job]) => [originalId, jobSchema.parse(await request(`jobs/${encodeURIComponent(job.id)}`))] as const)),
+      ]);
+      if (timeline.status === 'fulfilled') { setRecommendations(timeline.value); setLoaded(true); }
+      if (risks.status === 'fulfilled') { setFindings(risks.value); setFindingsLoaded(true); }
+      if (identity.status === 'fulfilled') setAccess(identity.value);
+      if (observed.status === 'fulfilled' && observed.value.length) setObservations(current => ({ ...current, ...Object.fromEntries(observed.value) }));
+      const problems = [
+        timeline.status === 'rejected' ? `Recommendations: ${failure(timeline.reason, 'unavailable')}` : null,
+        risks.status === 'rejected' ? `Findings: ${failure(risks.reason, 'unavailable')}` : null,
+        identity.status === 'rejected' ? `Access: ${failure(identity.reason, 'unavailable')}` : null,
+        observed.status === 'rejected' ? `Observations: ${failure(observed.reason, 'unavailable')}` : null,
+      ].filter(item => item !== null);
+      setError(problems.length ? problems.join(' · ') : null);
+    } finally { setBusy(false); }
   }
   useEffect(() => { void refresh(); }, []);
   // A link from the inbox names one plan or campaign: /?page=embermend&plan=<id> or &campaign=<id>.
@@ -77,16 +99,25 @@ export default function EmbermendModule() {
     } catch (error) { setError(error instanceof Error ? error.message : 'The original outcome could not be observed.'); setBusy(false); }
   }
   async function decide(row: Recommendation, decision: 'approve' | 'reject'): Promise<void> {
+    const confirmed = await confirmAction(decision === 'approve'
+      ? { title: `Approve revision ${row.plan.revision}`, message: `Approving authorizes this remediation on fleet hosts. ${planSummary(row)}`, confirmLabel: 'Approve', tone: 'warning' }
+      : { title: 'Reject recommendation', message: `Rejecting closes this revision without changes. ${planSummary(row)}`, confirmLabel: 'Reject', tone: 'danger' });
+    if (!confirmed) return;
     setBusy(true);
     try { await request('decisions', { planId: row.plan.id, revision: row.plan.revision, digest: row.digest, decision, expiresAt: row.plan.expiresAt }); await refresh(); }
     catch (error) { setError(error instanceof Error ? error.message : 'Decision could not be recorded.'); setBusy(false); }
   }
   async function execute(row: Recommendation): Promise<void> {
+    if (!(await confirmAction({ title: 'Start authorized work', message: `This dispatches the authorized changes to managed hosts now. ${planSummary(row)}`, confirmLabel: 'Start work', tone: 'warning' }))) return;
     setBusy(true);
     try { await request(`plans/${encodeURIComponent(row.plan.id)}/execute`, { revision: row.plan.revision, digest: row.digest }); await refresh(); }
     catch (error) { setError(error instanceof Error ? error.message : 'Inspect the retained operation before requesting further work.'); setBusy(false); }
   }
   async function pause(row: Recommendation): Promise<void> {
+    const resuming = row.campaign?.paused === true;
+    if (!(await confirmAction(resuming
+      ? { title: 'Resume dispatch', message: `Further operations of this campaign may be dispatched again. ${planSummary(row)}`, confirmLabel: 'Resume dispatch', tone: 'warning' }
+      : { title: 'Pause further dispatch', message: `No further operations of this campaign are dispatched until it resumes. Already admitted operations retain their recorded state. ${planSummary(row)}`, confirmLabel: 'Pause dispatch', tone: 'primary' }))) return;
     setBusy(true);
     try { await request(`campaigns/${encodeURIComponent(row.plan.campaignId)}/pause`, { paused: !row.campaign?.paused }); await refresh(); }
     catch (error) { setError(error instanceof Error ? error.message : 'Pause could not be recorded.'); setBusy(false); }
@@ -100,8 +131,9 @@ export default function EmbermendModule() {
       eyebrow="Embermend · continuous hardening"
       title="Recommendations & outcomes"
       description="Review proposed changes, follow authorized work, and inspect the evidence behind each outcome."
-      actions={<Button loading={busy} onClick={() => void refresh()}>Refresh</Button>}
+      actions={<Button loading={busy} onClick={() => { browserIdentity()?.retryConsent(); void refresh(); }}>Refresh</Button>}
     />
+    {confirmDialog}
     {error ? <p role="alert" className="warning-banner">{error}</p> : null}
     {loaded && recommendations.length === 0 ? <Panel><h3>No recommendations yet</h3><p>Assign an assessment profile and an eligible Magnus target through your coordinator. Recommendations appear here when there is security work to review.</p></Panel> : null}
     <section className="space-y-4" aria-label="Security recommendations">{recommendations.map(row => {
@@ -132,6 +164,6 @@ export default function EmbermendModule() {
       </Panel>;
     })}</section>
     {evidence ? <Panel className="mt-4"><div className="flex justify-between gap-3"><h3>Evidence · {evidence.method}</h3><Button onClick={() => setEvidence(null)}>Close evidence</Button></div><p>Observed {new Date(evidence.observedAt).toLocaleString()} · {evidence.source}</p><pre className="max-h-96 overflow-auto whitespace-pre-wrap">{JSON.stringify(evidence.content, null, 2)}</pre><p className="font-mono break-all">SHA-256 {evidence.digest}</p></Panel> : null}
-    <Panel className="mt-6"><h3>Remaining security work</h3><p>Source correction, deployed correction, and accepted risk are tracked separately.</p>{loaded && findings.length === 0 ? <p>No findings are recorded. This does not establish assessment coverage.</p> : null}{findings.map(({ finding, occurrences }) => <details key={finding.id} className="py-3"><summary>{finding.title} · {finding.severity} · {finding.validity}</summary><p>{finding.rationale}</p>{occurrences.map(item => <p key={item.id}>Source: {item.sourceState} · Runtime: {item.runtimeState} · Coverage: {item.coverage.status}</p>)}</details>)}</Panel>
+    <Panel className="mt-6"><h3>Remaining security work</h3><p>Source correction, deployed correction, and accepted risk are tracked separately.</p>{findingsLoaded && findings.length === 0 ? <p>No findings are recorded. This does not establish assessment coverage.</p> : null}{findings.map(({ finding, occurrences }) => <details key={finding.id} className="py-3"><summary>{finding.title} · {finding.severity} · {finding.validity}</summary><p>{finding.rationale}</p>{occurrences.map(item => <p key={item.id}>Source: {item.sourceState} · Runtime: {item.runtimeState} · Coverage: {item.coverage.status}</p>)}</details>)}</Panel>
   </>;
 }

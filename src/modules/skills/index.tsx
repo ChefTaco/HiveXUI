@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { productEnabled } from '../../lib/runtime';
+import { browserIdentity, productEnabled } from '../../lib/runtime';
 import { can } from '../../lib/permissions';
 import type { AdminUser } from '../../lib/types';
 import {
@@ -195,7 +195,7 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
       <PageHeader
         title="Skills and assignments"
         description="Versioned archives, release channels and scoped agent distribution."
-        actions={<Button onClick={() => void run(refresh)} loading={busy}>
+        actions={<Button onClick={() => { browserIdentity()?.retryConsent(); void run(refresh); }} loading={busy}>
           Refresh
         </Button>}
       />

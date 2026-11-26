@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { recommendationSchema } from '@contracts/embermend.generated';
-import { button, click, mount, settle, stubBrowser, type Mounted } from '../magnus/test-dom';
+import { button, click, dialog, mount, settle, stubBrowser, type Mounted } from '../magnus/test-dom';
 import EmbermendModule from './index';
 const { api } = vi.hoisted(() => ({ api: vi.fn<(path: string, init?: RequestInit) => Promise<Response>>() }));
 vi.mock('../../lib/transport', () => ({ apiFetch: api }));
+const { retryConsent } = vi.hoisted(() => ({ retryConsent: vi.fn() }));
+vi.mock('../../lib/runtime', async (importOriginal) => ({ ...(await importOriginal<typeof import('../../lib/runtime')>()), browserIdentity: () => ({ retryConsent }) }));
 const scope = { installationId: 'fixture', applicationIds: ['fixture-app'], targetIds: ['fixture-node'] };
 const hash = 'a'.repeat(64);
 function recommendation() {
@@ -35,6 +37,8 @@ beforeEach(() => {
 });
 afterEach(async () => { await clearView(); api.mockReset(); });
 async function clearView() { await view?.unmount(); view = undefined; }
+/** Answers the confirmation an action opens. */
+async function confirm(label: string) { const box = dialog(); if (!box) throw new Error('Missing confirmation'); const control = button(label, box); if (!control) throw new Error('Missing ' + label); await click(control); await settle(20); }
 async function ready() { view = await mount(<EmbermendModule />); for (let i = 0; i < 20 && !document.body.textContent?.includes(row.plan.objective); i++) await settle(10); }
 describe('Embermend recommendation decisions', () => {
   it('exposes named recommendation and progress groups to assistive technology', async () => {
@@ -86,7 +90,7 @@ describe('Embermend recommendation decisions', () => {
   });
 
   it('binds a decision to the displayed immutable revision and digest', async () => {
-    await ready(); const approve = button('Approve revision 3'); expect(approve).toBeDefined(); if (!approve) throw new Error('Missing decision control'); await click(approve);
+    await ready(); const approve = button('Approve revision 3'); expect(approve).toBeDefined(); if (!approve) throw new Error('Missing decision control'); await click(approve); await confirm('Approve');
     expect(mutations).toEqual([{ path: '/api/embermend/api/v1/decisions', body: { planId: 'fixture-plan', revision: 3, digest: hash, decision: 'approve', expiresAt: row.plan.expiresAt } }]);
     expect(document.body.textContent).toContain('verification outstanding');
   });
@@ -95,13 +99,42 @@ describe('Embermend recommendation decisions', () => {
     await clearView(); kind = 'operator'; row.publications = []; await ready(); expect(button('Approve revision 3')).toBeUndefined(); expect(mutations).toHaveLength(0);
   });
   it('reports a stale decision without retrying its mutation', async () => {
-    failDecision = true; await ready(); const approve = button('Approve revision 3'); if (!approve) throw new Error('Missing decision control'); await click(approve); await settle(20);
+    failDecision = true; await ready(); const approve = button('Approve revision 3'); if (!approve) throw new Error('Missing decision control'); await click(approve); await confirm('Approve');
     expect(document.querySelector('[role="alert"]')?.textContent).toContain('conditions changed'); expect(mutations).toHaveLength(1);
   });
   it('starts only the displayed authorized revision and describes pause accurately', async () => {
-    row.status = 'authorized'; await ready(); const start = button('Start authorized work'); if (!start) throw new Error('Missing start control'); await click(start);
+    row.status = 'authorized'; await ready(); const start = button('Start authorized work'); if (!start) throw new Error('Missing start control'); await click(start); await confirm('Start work');
     expect(mutations[0]).toEqual({ path: '/api/embermend/api/v1/plans/fixture-plan/execute', body: { revision: 3, digest: hash } });
     expect(document.body.textContent).toContain('Already admitted operations retain their recorded state');
+  });
+  it('asks before each decision, start or pause, and sends nothing when cancelled', async () => {
+    row.status = 'authorized'; await ready();
+    for (const label of ['Start authorized work', 'Pause further dispatch']) {
+      const control = button(label); if (!control) throw new Error('Missing ' + label); await click(control);
+      const box = dialog(); expect(box?.textContent).toContain(row.plan.objective); expect(box?.textContent).toContain('1 managed target'); expect(box?.textContent).toContain('No expected restart');
+      await confirm('Cancel'); expect(dialog()).toBeNull();
+    }
+    await clearView(); row = recommendation(); await ready();
+    for (const label of ['Approve revision 3', 'Reject recommendation']) {
+      const control = button(label); if (!control) throw new Error('Missing ' + label); await click(control);
+      expect(dialog()?.textContent).toContain(row.plan.objective); await confirm('Cancel');
+    }
+    expect(mutations).toHaveLength(0);
+    const pause = button('Pause further dispatch'); if (!pause) throw new Error('Missing pause control'); await click(pause); await confirm('Pause dispatch');
+    expect(mutations).toEqual([{ path: '/api/embermend/api/v1/campaigns/fixture-campaign/pause', body: { paused: true } }]);
+  });
+  it('reviews declined product access again when the operator refreshes', async () => {
+    await ready(); retryConsent.mockClear();
+    const refresh = button('Refresh'); if (!refresh) throw new Error('Missing refresh control'); await click(refresh); await settle(20);
+    expect(retryConsent).toHaveBeenCalledTimes(1);
+  });
+  it('keeps recommendations on screen when findings or access cannot be read', async () => {
+    const answer = api.getMockImplementation()!;
+    api.mockImplementation(async (path, init) => path.endsWith('/findings') ? Response.json({ error: 'UNAVAILABLE' }, { status: 503 }) : answer(path, init));
+    await ready();
+    expect(document.body.textContent).toContain(row.plan.objective);
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain('Findings:');
+    expect(document.body.textContent).not.toContain('No findings are recorded');
   });
   it('requires dispatch to resume before starting a paused campaign', async () => {
     row.status = 'authorized'; if (!row.campaign) throw new Error('Missing campaign'); row.campaign.paused = true;
