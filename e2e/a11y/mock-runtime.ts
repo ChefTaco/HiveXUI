@@ -2,6 +2,7 @@
 // made-up product API answers served through Playwright request interception. Every value is
 // fictional (example.com hosts, alice, bob and carol). Unmocked API calls get a 404.
 import type { Page, Request } from '@playwright/test';
+import * as studio from '../../src/modules/studio/test-fixtures';
 
 type Body = unknown;
 type Answer = Body | ((match: RegExpMatchArray, url: URL, request: Request) => Body);
@@ -27,6 +28,7 @@ const RUNTIME = {
     cindertrace: '/api/security',
     embermend: '/api/embermend',
     magnus: '/api/magnus',
+    ardentstudio: '/api/ardentstudio',
   },
 };
 
@@ -558,11 +560,60 @@ export const ROUTES: Array<[string, RegExp, Answer]> = [
 ];
 
 
+// Chat: one team with a channel holding two posts, for the conversation view.
+const CHAT_TEAM = { id: 'team00000000000000000000001', create_at: NOW_MS - 86400_000, update_at: NOW_MS - 86400_000, delete_at: 0, name: 'ops', display_name: 'Operations', description: '', type: 'O', company_name: '', allowed_domains: '', invite_id: '', allow_open_invite: false, scheme_id: null, group_constrained: false };
+const CHAT_CHANNEL = { id: 'chan00000000000000000000001', create_at: NOW_MS - 86400_000, update_at: NOW_MS - 3600_000, delete_at: 0, team_id: CHAT_TEAM.id, type: 'O', display_name: 'Town square', name: 'town-square', header: '', purpose: 'Everyday coordination', last_post_at: NOW_MS - 600_000, total_msg_count: 2, extra_update_at: 0, creator_id: CHAT_ME.id };
+const chatPost = (n: number, user: string, message: string, minutesAgo: number) => ({
+  id: `post0000000000000000000000${n}`, create_at: NOW_MS - minutesAgo * 60_000, update_at: NOW_MS - minutesAgo * 60_000, edit_at: 0, delete_at: 0, is_pinned: false,
+  user_id: user, channel_id: CHAT_CHANNEL.id, root_id: '', original_id: '', message, type: '', props: {}, hashtags: '', file_ids: [], pending_post_id: '', reply_count: 0, last_reply_at: 0, participants: [], metadata: {},
+});
+const CHAT_POSTS = { order: ['post00000000000000000000002', 'post00000000000000000000001'], posts: Object.fromEntries([chatPost(1, CHAT_USERS[1]!.id, 'Maintenance window starts at 18:00.', 30), chatPost(2, CHAT_ME.id, 'Thanks, node-2 is drained.', 10)].map((post) => [post.id, post])), next_post_id: '', prev_post_id: '' };
+// Embermend: an operator with a finding, accepted risk and a profile assignment, and no recommendation yet.
+const EMBERMEND_SCOPE = { installationId: 'installation-1', applicationIds: ['app-1'], targetIds: ['node-1'] };
+const EMBERMEND_FINDING = { finding: { id: 'finding-1', scope: EMBERMEND_SCOPE, kind: 'hardening', identity: 'b'.repeat(64), component: 'sshd', weakness: 'password-auth', title: 'SSH allows password sign-in', severity: 'high', confidence: 0.9, validity: 'validated', rationale: 'The daemon accepts passwords.', evidenceIds: [], classifications: [], priority: 70 }, occurrences: [] };
+// Ardent Project Studio: one project with a team, a conversation and a message, and one Ardent agent.
+const STUDIO_READY = { status: 'ready', checks: { database: { status: 'ok', error: null }, magnus: { status: 'ok', error: null }, hivemem: { status: 'ok', error: null }, agents: { status: 'ok', available: 1 } } };
+const STUDIO_PROFILE = { id: 'lead', name: 'Lead', backend: 'llamacpp', apiPort: 9910, running: true, a2aEnabled: false, channels: {}, error: null, nodeId: 'node-1', nodeName: 'node one', hostname: 'node-1.example.com', installationVersion: '2.2.0', reachable: true };
+const STUDIO_BASE = '\\/api\\/ardentstudio\\/v1';
+const studioRoute = (method: string, path: string, answer: Answer): [string, RegExp, Answer] => [method, new RegExp(`^${STUDIO_BASE}${path}$`), answer];
+const MOCK_ROUTES: Array<[string, RegExp, Answer]> = [
+  studioRoute('GET', '\\/health\\/ready', STUDIO_READY),
+  ['GET', /^\/api\/magnus\/ardent\/profiles$/, { success: true, data: [STUDIO_PROFILE] }],
+  studioRoute('GET', '\\/projects(\\?.*)?', { projects: [studio.summary(), studio.summary({ id: studio.OTHER_PROJECT_ID, name: 'Market scan' })] }),
+  studioRoute('GET', `\\/projects\\/${studio.PROJECT_ID}`, studio.project()),
+  studioRoute('GET', `\\/projects\\/${studio.PROJECT_ID}\\/snapshot`, studio.snapshot({ conversations: [studio.conversation()] })),
+  studioRoute('GET', `\\/conversations\\/[^/]+\\/messages(\\?.*)?`, { messages: [studio.message()] }),
+  studioRoute('GET', '\\/agents(\\?.*)?', { agents: [studio.agent()] }),
+  studioRoute('GET', '\\/templates(\\?.*)?', { templates: [studio.templateSummary()] }),
+  studioRoute('GET', `\\/projects\\/${studio.PROJECT_ID}\\/deliverables`, { deliverables: [], imports: [] }),
+  studioRoute('GET', `\\/projects\\/${studio.PROJECT_ID}\\/tasks(\\?.*)?`, { tasks: [studio.task()] }),
+  studioRoute('GET', `\\/projects\\/${studio.PROJECT_ID}\\/workflow-runs(\\?.*)?`, { runs: [] }),
+  studioRoute('GET', `\\/projects\\/${studio.PROJECT_ID}\\/team\\/proposals`, { proposals: [] }),
+  studioRoute('POST', `\\/projects\\/${studio.PROJECT_ID}\\/team\\/validate`, { issues: [], can_publish: true, can_start_room: true, agent_facts: 'complete' }),
+  studioRoute('GET', '\\/agents\\/[^/]+\\/presentation', { agent_ref: 'node-1~lead', display_name: 'Lead', portrait: null, avatar_file_id: null, updated_by: null, updated_at: null }),
+  ['GET', /^\/api\/chat\/api\/v4\/users\/me\/teams$/, [CHAT_TEAM]],
+  ['GET', /^\/api\/chat\/api\/v4\/users\/me\/teams\/[^/]+\/channels$/, [CHAT_CHANNEL]],
+  ['GET', /^\/api\/chat\/api\/v4\/channels\/[^/]+\/posts(\?.*)?$/, CHAT_POSTS],
+  ['GET', /^\/api\/chat\/api\/v4\/channels\/[^/]+\/pinned$/, { order: [], posts: {}, next_post_id: '', prev_post_id: '' }],
+  ['GET', /^\/api\/chat\/api\/v4\/channels\/[^/]+\/members$/, []],
+  ['GET', /^\/api\/chat\/api\/v4\/users\/[a-z0-9]+$/, (match: RegExpMatchArray) => CHAT_USERS.find((user) => match[0].endsWith(user.id)) ?? CHAT_ME],
+  ['POST', /^\/api\/chat\/api\/v4\/users\/ids$/, CHAT_USERS],
+  ['POST', /^\/api\/chat\/api\/v4\/channels\/members\/[^/]+\/view$/, { status: 'OK' }],
+  ['GET', /^\/api\/iam\/auth\/mfa\/status$/, { enabled: true, totpConfigured: true, recoveryCodesRemaining: 8 }],
+  ['GET', /^\/api\/iam\/mfa\/webauthn\/credentials$/, { data: [{ id: 'passkey-1', friendlyName: 'Desk key', deviceType: 'singleDevice', backedUp: false, credentialId: 'credential-1', lastUsedAt: null, createdAt: T0 }] }],
+  ['GET', /^\/api\/embermend\/api\/v1\/recommendations$/, []],
+  ['GET', /^\/api\/embermend\/api\/v1\/findings$/, [EMBERMEND_FINDING]],
+  ['GET', /^\/api\/embermend\/api\/v1\/access$/, { actorId: 'admin', kind: 'operator', permissions: ['read', 'evidence', 'approve', 'execute', 'exception'], scope: EMBERMEND_SCOPE }],
+  ['GET', /^\/api\/embermend\/api\/v1\/readiness$/, { status: 'degraded', serviceAvailable: true, assessmentReady: false, managedDispatch: false, eligibleTargets: 0, blockers: ['NO_FRESH_ENROLLED_ASSESSMENT_TARGET'], capabilities: null }],
+  ['GET', /^\/api\/embermend\/api\/v1\/exceptions$/, [{ id: 'exception-1', scope: EMBERMEND_SCOPE, findingIds: ['finding-1'], owner: 'platform-team', rationale: 'Legacy jump host until it is retired.', compensatingControls: ['vpn-only'], expiresAt: '2027-01-31T23:59:59.000Z', status: 'active' }]],
+  ['GET', /^\/api\/embermend\/api\/v1\/profile-assignments$/, [{ id: 'assignment-1', scope: EMBERMEND_SCOPE, profileId: 'ubuntu-baseline', profileVersion: '1.2.0', targetIds: ['node-1'], impact: 'Read-only checks', supersedes: null }]],
+];
+
 /** The browser clock tests freeze at, so relative times read the same on every run. */
 export const FIXED_NOW = new Date(NOW_MS);
 
 /** Serve the runtime and product APIs from fixtures. `log` collects requests that had no fixture. */
-export async function installMocks(page: Page, log: string[] = []): Promise<string[]> {
+export async function installMocks(page: Page, log: string[] = [], options: { signedOut?: boolean } = {}): Promise<string[]> {
   // Chat opens a websocket; accept it locally (never forwarded) so the page shows "Connected".
   await page.routeWebSocket(/\/api\/chat\/api\/v4\/websocket/, () => {});
   await page.route(/\/runtime\.json(\?.*)?$/, (route) => route.fulfill({ json: RUNTIME }));
@@ -570,7 +621,8 @@ export async function installMocks(page: Page, log: string[] = []): Promise<stri
     const request = route.request();
     const url = new URL(request.url());
     const target = url.pathname + url.search;
-    for (const [method, pattern, value] of ROUTES) {
+    if (options.signedOut && /^\/api\/emberpath\/auth\/me$/.test(target)) return route.fulfill({ status: 401, json: { error: 'UNAUTHORIZED', message: 'Sign in to continue' } });
+    for (const [method, pattern, value] of [...MOCK_ROUTES, ...ROUTES]) {
       if (method !== request.method()) continue;
       const match = target.match(pattern);
       if (!match) continue;

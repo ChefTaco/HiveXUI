@@ -247,11 +247,11 @@ describe('reviewing a ready proposal', () => {
     const root = await open('?view=team');
     await settle(100);
     const carto = root.querySelector<HTMLElement>('[data-role-key="carto"]')!;
-    expect(carto.getAttribute('aria-label')).toContain('Cartographer, added by the proposal');
+    expect(carto.querySelector('.sr-only')?.textContent).toContain('Cartographer, added by the proposal');
     expect(carto.querySelector('.studio-role-card')?.className).toContain('border-success');
     expect(text(carto)).toContain('Added');
-    expect(root.querySelector('[data-role-key="editor"]')!.getAttribute('aria-label')).toContain('changed by the proposal');
-    expect(root.querySelector('[data-role-key="lead"]')!.getAttribute('aria-label')).not.toContain('proposal');
+    expect(root.querySelector('[data-role-key="editor"] .sr-only')!.textContent).toContain('changed by the proposal');
+    expect(root.querySelector('[data-role-key="lead"] .sr-only')!.textContent).not.toContain('proposal');
     carto.focus();
     await act(async () => {
       carto.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));

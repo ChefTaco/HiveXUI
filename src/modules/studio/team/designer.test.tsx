@@ -235,7 +235,7 @@ describe('the team canvas', () => {
     await settle(100);
     const nodes = [...root.querySelectorAll<HTMLElement>('[data-role-key]')];
     expect(nodes.map((node) => node.dataset.roleKey)).toEqual(['lead', 'world', 'editor']);
-    expect(nodes[0]!.getAttribute('aria-label')).toContain('Story Lead, coordinator. Bound to Lead, available.');
+    expect(nodes[0]!.querySelector('.sr-only')?.textContent).toContain('Story Lead, coordinator. Bound to Lead, available.');
     nodes[0]!.focus();
     await act(async () => {
       nodes[0]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));

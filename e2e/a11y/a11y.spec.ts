@@ -37,7 +37,79 @@ const PAGES = [
   { name: 'Agent 360 traffic', path: '/agents/node-1~lead?tab=traffic' },
   { name: 'Magnus Ardent overview and agent dependencies', path: '/fleet/ardent' },
   { name: 'Agent 360 skills', path: '/agents/node-1~lead?tab=skills' },
+  { name: 'Embermend', path: '/?page=embermend' },
+  { name: 'Memories and memory operations', path: '/?page=memories' },
+  { name: 'Chat conversation', path: '/?page=chat&chatTeam=team00000000000000000000001&chatChannel=chan00000000000000000000001' },
+  { name: 'Account security', path: '/?page=account' },
+  { name: 'Actors', path: '/?page=actors' },
+  { name: 'Emberpath traces', path: '/?page=traces' },
+  { name: 'Emberpath API keys', path: '/?page=keys' },
+  { name: 'Emberpath testing', path: '/?page=testing' },
 ];
+/** Pages checked again at a phone's width, where the sidebar becomes a drawer. */
+const NARROW = ['Installation overview', 'Emberpath providers', 'Oathweave users', 'Embermend', 'Chat conversation', 'Cindertrace cases', 'Magnus fleet timeline', 'Agent 360 overview'];
+
+async function scan(page: import('@playwright/test').Page) {
+  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  return results.violations
+    .filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
+    .map((violation) => ({ rule: violation.id, impact: violation.impact, help: violation.help, targets: violation.nodes.map((node) => node.target.join(' ')).slice(0, 5) }));
+}
+
+test.describe('at 390 px', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+  for (const { name, path } of PAGES.filter((entry) => NARROW.includes(entry.name)))
+    test(`${name} has no serious or critical accessibility violations and no sideways scroll`, async ({ page }) => {
+      await page.clock.setFixedTime(FIXED_NOW);
+      await installMocks(page);
+      await page.goto(path, { waitUntil: 'networkidle' });
+      await expect(page.locator('main h2').first()).toBeVisible();
+      await page.waitForTimeout(500);
+      expect(await scan(page)).toEqual([]);
+      // The page itself never scrolls sideways; wide content scrolls inside its own frame.
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+      // The navigation drawer opens over the page and its contents pass too.
+      await page.getByRole('button', { name: 'Toggle navigation' }).click();
+      await expect(page.locator('#product-navigation')).toBeVisible();
+      expect(await scan(page)).toEqual([]);
+    });
+});
+
+const STUDIO_PROJECT = '/studio/p/prj_01HZX3K6Q1V8R2M4N6P8T0W001';
+const STUDIO_PAGES = [
+  { name: 'Studio projects', path: '/studio', ready: 'Sunken Archive' },
+  { name: 'Studio conversation room', path: `${STUDIO_PROJECT}/room`, ready: 'Team room' },
+  { name: 'Studio review', path: `${STUDIO_PROJECT}/review`, ready: 'Deliverables from every agent' },
+  { name: 'Studio team assignment', path: `${STUDIO_PROJECT}/team`, ready: 'Design the team' },
+  { name: 'Agent Studio', path: '/studio/agents/node-1~lead', ready: 'lead on node-1' },
+];
+for (const { name, path, ready } of STUDIO_PAGES)
+  test(`${name} has no serious or critical accessibility violations`, async ({ page }) => {
+    await page.clock.setFixedTime(FIXED_NOW);
+    await installMocks(page);
+    await page.goto(path, { waitUntil: 'networkidle' });
+    await expect(page.locator('#studio-main')).toContainText(ready);
+    await page.waitForTimeout(500);
+    expect(await scan(page)).toEqual([]);
+  });
+
+test('memory operations have no serious or critical accessibility violations', async ({ page }) => {
+  await page.clock.setFixedTime(FIXED_NOW);
+  await installMocks(page);
+  await page.goto('/?page=memories', { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Open memory operations' }).click();
+  await page.waitForTimeout(500);
+  expect(await scan(page)).toEqual([]);
+});
+
+test('the sign-in screen has no serious or critical accessibility violations', async ({ page }) => {
+  await page.clock.setFixedTime(FIXED_NOW);
+  await installMocks(page, [], { signedOut: true });
+  await page.goto('/', { waitUntil: 'networkidle' });
+  await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
+  await expect(page).toHaveTitle('Sign in · HiveXUI');
+  expect(await scan(page)).toEqual([]);
+});
 
 for (const { name, path } of PAGES)
   test(`${name} has no serious or critical accessibility violations`, async ({ page }) => {
