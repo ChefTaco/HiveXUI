@@ -1,11 +1,11 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Archive, ArchiveRestore, ChevronsUpDown, FolderOpen, Plus, Search } from 'lucide-react';
+import { Archive, ArchiveRestore, ChevronsUpDown, DatabaseZap, FolderOpen, Plus, Search } from 'lucide-react';
 import { Badge, Button, ConfirmDialog, Drawer, LoadingRows, ResourceError, buttonClass } from '@ui';
 import { errorMessage } from '../../magnus/api/errors';
 import { useMagnusResource } from '../../magnus/api/use-resource';
 import { idempotencyKey, StudioApiError } from '../api/client';
-import { archiveProject, listProjects, reopenProject } from '../api/endpoints';
+import { archiveProject, listProjects, reindexProject, reopenProject } from '../api/endpoints';
 import { StudioLink } from '../link';
 import { STUDIO_PREFIX } from '../paths';
 import { projectHref } from '../routes';
@@ -107,6 +107,36 @@ export function ProjectSwitcher({ projectId }: { projectId: string }) {
   );
 }
 
+/**
+ * Queues every reference file and link for HiveMem sync again, for example after a backup was
+ * restored (the ArdentStudio release after 0.5.1). Each row's state then follows the project stream.
+ */
+export function ProjectReindex({ projectId }: { projectId: string }) {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null);
+  async function run() {
+    setBusy(true);
+    setResult(null);
+    try {
+      const queued = await reindexProject(projectId, idempotencyKey());
+      setResult({ tone: 'success', text: `Queued ${queued.files} ${queued.files === 1 ? 'file' : 'files'} and ${queued.links} ${queued.links === 1 ? 'link' : 'links'} for indexing again.` });
+    } catch (error) {
+      setResult({ tone: 'danger', text: errorMessage(error, 'The project could not be queued for indexing again') });
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="studio-drawer-section">
+      <Button size="sm" icon={<DatabaseZap className="size-4" />} loading={busy} onClick={() => void run()}>
+        Reindex project
+      </Button>
+      <p className="m-0 text-xs text-text-muted">Sends every file and link to HiveMem again, for example after restoring a backup.</p>
+      {result ? <p role={result.tone === 'danger' ? 'alert' : 'status'} className={`m-0 text-sm ${result.tone === 'danger' ? 'text-danger' : 'text-success'}`}>{result.text}</p> : null}
+    </div>
+  );
+}
+
 interface ActiveTask {
   id?: string;
   title?: string;
@@ -159,6 +189,7 @@ export function ProjectTools({ projectId }: { projectId: string }) {
       {createPortal(
         <>
           <Drawer open={files} title="Files and links" eyebrow={project.name} onClose={() => setFiles(false)}>
+            {archived ? null : <ProjectReindex projectId={projectId} />}
             <section className="studio-drawer-section" aria-labelledby="studio-files-heading">
               <h4 id="studio-files-heading" className="studio-drawer-section__title stat-label">Files</h4>
               <ReferenceManager store={store} files={state.snapshot!.files} readOnly={archived} />

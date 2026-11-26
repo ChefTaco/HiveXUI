@@ -189,6 +189,13 @@ export class ProjectStore {
         return;
       }
     }
+    // A deleted file leaves the list at once; the summary's counts follow with the next read.
+    if (event.type === 'file.deleted' && snapshot && typeof event.payload.file_id === 'string') {
+      const fileId = event.payload.file_id;
+      this.set({ seq, snapshot: { ...snapshot, seq, files: snapshot.files.filter((file) => file.id !== fileId) } });
+      this.scheduleRefetch(SUMMARY_REFETCH_DELAY_MS, true);
+      return;
+    }
     // A counts change carries the counts; nothing else about the project moved.
     if (event.type === 'project.updated' && snapshot && Array.isArray(event.payload.fields) && event.payload.fields.length === 1 && event.payload.fields[0] === 'counts') {
       const counts = projectCountsSchema.safeParse(event.payload.counts);
@@ -252,6 +259,11 @@ export class ProjectStore {
   upsertLink(link: ReferenceLink): void {
     const snapshot = this.state.snapshot;
     if (snapshot) this.set({ snapshot: { ...snapshot, links: link.deleted_at ? snapshot.links.filter((item) => item.id !== link.id) : upsert(snapshot.links, link) } });
+  }
+  /** A file a delete answered for, ahead of its file.deleted event. */
+  removeFile(fileId: string): void {
+    const snapshot = this.state.snapshot;
+    if (snapshot) this.set({ snapshot: { ...snapshot, files: snapshot.files.filter((item) => item.id !== fileId) } });
   }
   upsertFile(file: StudioFile): void {
     const snapshot = this.state.snapshot;

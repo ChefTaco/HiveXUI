@@ -9,6 +9,7 @@ import {
   listDecisionsResponseSchema,
   listMessagesResponseSchema,
   messageSchema,
+  deleteFileResponseSchema,
   fileResponseSchema,
   linkResponseSchema,
   listAgentsResponseSchema,
@@ -19,6 +20,7 @@ import {
   listTemplatesResponseSchema,
   teamProposalResponseSchema,
   projectResponseSchema,
+  reindexProjectResponseSchema,
   teamStateSchema,
   templateDetailSchema,
   templateVersionSchema,
@@ -104,6 +106,10 @@ export const listFiles = (id: string, signal?: Signal) => studio.get(project(id,
 export const uploadFile = (id: string, file: Blob, name: string, mime: string, idempotencyKey?: Key, purpose: 'reference' | 'attachment' = 'reference') =>
   studio.upload(project(id, '/files'), fileResponseSchema, file, mime, { query: { name, purpose }, idempotencyKey });
 export const reindexFile = (fileId: string, idempotencyKey?: Key) => studio.post(`/files/${segment(fileId)}/reindex`, fileResponseSchema, { idempotencyKey });
+/** 409 FILE_IN_USE (details agents, roles) while a portrait or a team role names the file; 409 PROJECT_ARCHIVED.  Needs the ArdentStudio release after 0.5.1. */
+export const deleteFile = (fileId: string, idempotencyKey?: Key) => studio.delete(`/files/${segment(fileId)}`, deleteFileResponseSchema, { idempotencyKey });
+/** Queues every reference file and link of the project for HiveMem sync again.  Needs the ArdentStudio release after 0.5.1. */
+export const reindexProject = (id: string, idempotencyKey?: Key) => studio.post(project(id, '/reindex'), reindexProjectResponseSchema, { idempotencyKey });
 
 // Reference links
 export const listLinks = (id: string, signal?: Signal) => studio.get(project(id, '/links'), listLinksResponseSchema, { signal }).then((result) => result.links);

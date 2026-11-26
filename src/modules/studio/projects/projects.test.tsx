@@ -178,6 +178,47 @@ describe('creating a project', () => {
     expect(text(root)).toContain('Queued');
   });
 
+  it('deletes a reference after confirmation, and says which roles still use one it cannot delete', async () => {
+    const used = file({ id: 'fil_01HZX3K6Q1V8R2M4N6P8T0W002', name: 'portrait.png', mime: 'image/png' });
+    route = (request) => {
+      if (request.path === `/projects/${PROJECT_ID}`) return project();
+      if (request.path === `/projects/${PROJECT_ID}/snapshot`) return snapshot({ files: [file(), used] });
+      if (request.method === 'DELETE' && request.path === `/files/${used.id}`)
+        return Response.json({ error: { code: 'FILE_IN_USE', message: 'Remove the file from the agent portraits and team roles that use it first', details: { agents: ['node-1~lead'], roles: ['narrator'] } } }, { status: 409 });
+      if (request.method === 'DELETE' && request.path === `/files/${file().id}`) return { file: file(), deleted_at: '2026-11-08T11:00:00.000Z', knowledge: 'retiring' };
+      return undefined;
+    };
+    const root = await open(`/studio/new?project=${PROJECT_ID}&step=2`);
+    await click(button('Delete map-notes.md', root));
+    expect(document.querySelector('[role="alertdialog"]')?.textContent).toContain('Delete map-notes.md?');
+    expect(server.mutations()).toHaveLength(0);
+    await click(button('Delete file', document.querySelector('[role="alertdialog"]')!));
+    await settle();
+    expect(text(root)).not.toContain('map-notes.md');
+
+    await click(button('Delete portrait.png', root));
+    await click(button('Delete file', document.querySelector('[role="alertdialog"]')!));
+    await settle();
+    expect(root.querySelector('[role="alert"]')?.textContent).toBe('portrait.png is still used by agent node-1~lead, role narrator. Remove it there first.');
+    expect(text(root)).toContain('portrait.png');
+    expect(server.mutations().map((request) => `${request.method} ${request.path}`)).toEqual([`DELETE /files/${file().id}`, `DELETE /files/${used.id}`]);
+    expect(server.mutations().every((request) => request.headers.get('x-idempotency-key'))).toBe(true);
+  });
+
+  it('queues the whole project for indexing again from the Files drawer', async () => {
+    route = (request) => {
+      if (request.path === `/projects/${PROJECT_ID}/snapshot`) return snapshot({ files: [file()] });
+      if (request.path === `/projects/${PROJECT_ID}/reindex`) return { files: 1, links: 2 };
+      return undefined;
+    };
+    const root = await open(`/studio/p/${PROJECT_ID}/review`);
+    await click(button(/^Files and links/, root));
+    await click(button('Reindex project'));
+    await settle();
+    expect(server.mutations().map((request) => request.path)).toEqual([`/projects/${PROJECT_ID}/reindex`]);
+    expect(document.body.textContent).toContain('Queued 1 file and 2 links for indexing again.');
+  });
+
   it('copies another project’s team without its bindings unless asked', async () => {
     route = (request) => {
       if (request.path === `/projects/${PROJECT_ID}`) return project();

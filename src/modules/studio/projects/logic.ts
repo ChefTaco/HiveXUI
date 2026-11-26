@@ -10,6 +10,7 @@ const ACTIVITY: Record<string, string> = {
   'project.reopened': 'Project reopened',
   'file.created': 'Reference added',
   'file.updated': 'Reference indexing changed',
+  'file.deleted': 'Reference deleted',
   'team.draft.updated': 'Team draft edited',
   'team.revision.published': 'Team revision published',
   'layout.updated': 'Room layout changed',
