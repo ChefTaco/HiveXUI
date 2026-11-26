@@ -93,6 +93,17 @@ for (const { name, path, ready } of STUDIO_PAGES)
     expect(await scan(page)).toEqual([]);
   });
 
+test('Studio project members have no serious or critical accessibility violations', async ({ page }) => {
+  await page.clock.setFixedTime(FIXED_NOW);
+  await installMocks(page);
+  await page.goto(`${STUDIO_PROJECT}/review`, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Members' }).click();
+  const drawer = page.getByRole('dialog', { name: 'Members' });
+  await expect(drawer.getByText('Alice Example')).toBeVisible();
+  await expect(drawer.getByRole('button', { name: 'Add Bob Example' })).toBeVisible();
+  expect(await scan(page)).toEqual([]);
+});
+
 test('memory operations have no serious or critical accessibility violations', async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);
   await installMocks(page);

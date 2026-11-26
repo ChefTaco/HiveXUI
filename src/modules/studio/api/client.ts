@@ -143,6 +143,14 @@ const FALLBACK: Record<number, string> = {
   429: 'Too many requests. Wait a moment and try again.',
 };
 
+/** 403 PROJECT_ROLE_REQUIRED (details required, role): the person's project role is too low. */
+function roleMessage(code: string | undefined, details: unknown): string | null {
+  if (code !== 'PROJECT_ROLE_REQUIRED') return null;
+  const { required, role } = (details && typeof details === 'object' ? details : {}) as { required?: unknown; role?: unknown };
+  const need = typeof required === 'string' ? required : 'a higher';
+  return `You need ${need} access to this project for that${typeof role === 'string' ? `; you have ${role} access` : ''}. Ask a project owner.`;
+}
+
 const studioFallback = (status: number): string =>
   FALLBACK[status] ?? (status >= 500 ? 'The Studio service could not complete this request' : 'The request was rejected');
 
@@ -150,7 +158,7 @@ const studioFallback = (status: number): string =>
 export async function studioFailure(response: Response): Promise<StudioApiError> {
   if (response.status === 401) void handleUnauthorized();
   const failure = await readApiFailure(response, { fallback: studioFallback });
-  return new StudioApiError(failure.status, failure.message, failure.code, failure.details, failureMeta(failure));
+  return new StudioApiError(failure.status, roleMessage(failure.code, failure.details) ?? failure.message, failure.code, failure.details, failureMeta(failure));
 }
 
 export interface RequestOptions {

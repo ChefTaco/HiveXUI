@@ -57,6 +57,16 @@ describe('the project store', () => {
     expect(load).toHaveBeenCalledTimes(1);
   });
 
+  it('closes the project when the stream says it was purged', async () => {
+    const { store, load } = harness([snapshot({ seq: 5 })]);
+    store.start();
+    await flush();
+    store.receive({ event: 'project.purged', data: JSON.stringify({ project_id: snapshot().project.id, at: '2026-11-26T10:00:00.000Z' }) } as never);
+    expect(store.getState()).toMatchObject({ status: 'purged', snapshot: null });
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
   it('drops a deleted file from its event at once', async () => {
     const other = file({ id: 'fil_01HZX3K6Q1V8R2M4N6P8T0W002', name: 'other.md' });
     const { store, send } = harness([snapshot({ seq: 5, files: [file(), other] })]);

@@ -11,7 +11,8 @@ import { openProjectStream, reduceStreamFrame, type MessageDelta, type ProjectEv
 import { StudioApiError } from '../api/client';
 
 export interface ProjectState {
-  status: 'loading' | 'ready' | 'missing' | 'error';
+  /** `purged`: the project was deleted for good while open (`project.purged`); nothing more will load. */
+  status: 'loading' | 'ready' | 'missing' | 'error' | 'purged';
   snapshot: Snapshot | null;
   error: unknown;
   /** The last applied event. Every snapshot resets it to the snapshot's own. */
@@ -165,6 +166,14 @@ export class ProjectStore {
         for (const listener of [...this.deltaListeners]) listener(action.delta);
         return;
       }
+      case 'purged':
+        // The service closes the stream after this; nothing of the project remains to read.
+        clearTimeout(this.refetchTimer);
+        this.loading?.abort();
+        this.handle?.close();
+        this.handle = null;
+        this.set({ status: 'purged', snapshot: null, stream: 'idle' });
+        return;
       case 'reset':
         void this.refetch();
         for (const listener of [...this.resetListeners]) listener();

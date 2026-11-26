@@ -10,6 +10,10 @@ import {
   listMessagesResponseSchema,
   messageSchema,
   deleteFileResponseSchema,
+  listPeopleResponseSchema,
+  projectMembersResponseSchema,
+  purgeProjectResponseSchema,
+  type putProjectMembersRequestSchema,
   fileResponseSchema,
   linkResponseSchema,
   listAgentsResponseSchema,
@@ -98,6 +102,17 @@ export const getProject = (id: string, signal?: Signal) => studio.get(project(id
 export const createProject = (body: CreateProject, idempotencyKey?: Key) => studio.post('/projects', projectResponseSchema, { body, idempotencyKey });
 export const updateProject = (id: string, body: UpdateProject, idempotencyKey?: Key) => studio.patch(project(id), projectResponseSchema, { body, idempotencyKey });
 export const archiveProject = (id: string, idempotencyKey?: Key) => studio.post(project(id, '/archive'), projectResponseSchema, { idempotencyKey });
+// Membership and purge (the ArdentStudio release after 0.6.1).
+export type ProjectMembers = z.infer<typeof projectMembersResponseSchema>;
+export type ProjectMembersWrite = z.input<typeof putProjectMembersRequestSchema>;
+export type LinkedPerson = z.infer<typeof listPeopleResponseSchema>['people'][number];
+export const getProjectMembers = (id: string, signal?: Signal) => studio.get(project(id, '/members'), projectMembersResponseSchema, { signal });
+/** 409 VERSION_CONFLICT, 422 MEMBERS_NOT_ALLOWED, OWNER_REQUIRED or SELF_LOCKOUT. */
+export const putProjectMembers = (id: string, body: ProjectMembersWrite, idempotencyKey?: Key) => studio.put(project(id, '/members'), projectMembersResponseSchema, { body, idempotencyKey });
+/** People with an account link, by prefix; at most 50 with `truncated` when more match. Owners and admins only. */
+export const listPeople = (q: string, signal?: Signal) => studio.get('/people', listPeopleResponseSchema, { query: { q }, signal });
+/** Archived projects only, admins only: 409 PROJECT_NOT_ARCHIVED, TASKS_ACTIVE, FILE_IN_USE; 422 CONFIRMATION_MISMATCH. */
+export const purgeProject = (id: string, confirmName: string, idempotencyKey?: Key) => studio.post(project(id, '/purge'), purgeProjectResponseSchema, { body: { confirm_name: confirmName }, idempotencyKey });
 export const reopenProject = (id: string, idempotencyKey?: Key) => studio.post(project(id, '/reopen'), projectResponseSchema, { idempotencyKey });
 export const getSnapshot = (id: string, signal?: Signal) => studio.get(project(id, '/snapshot'), studioSnapshotSchema, { signal });
 
