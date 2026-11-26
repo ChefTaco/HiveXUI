@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { localBrowserLoginSchema, localBrowserProfileSchema } from '../../contracts/cindertrace/browser-auth';
 import { readApiFailure, failureMeta, HiveApiError } from './api-error';
 import { apiFetch, clearAccess } from './transport';
+import { SecondFactorRequired } from './second-factor';
 import type { AdminUser } from './types';
 
 /**
@@ -20,20 +21,34 @@ export function localUser(profile: { username: string; userId: string; role: str
   return { id: profile.userId, username: profile.username, roles: [profile.role] };
 }
 
-async function send(path: string, init: RequestInit, fallback: string): Promise<unknown> {
+/** Cindertrace's sign-in answers, in words an operator acts on. */
+function loginRefusal(status: number, totp: boolean, retryAfterMs: number | undefined): string | null {
+  if (status === 429) return `Too many sign-in attempts. Try again${retryAfterMs ? ` in ${Math.ceil(retryAfterMs / 1000)} seconds` : ' later'}.`;
+  if (status === 401 && totp) return 'That authentication code is not valid or was already used. Sign in again with the current code.';
+  return null;
+}
+
+async function send(path: string, init: RequestInit, fallback: string, totp?: string): Promise<unknown> {
   const response = await apiFetch('/api/cindertrace/auth/local/' + path, { ...init, credentials: 'include' });
   if (!response.ok) {
     const failure = await readApiFailure(response, { trustMessage: response.status !== 503, fallback: () => fallback });
-    throw new HiveApiError(response.status, failure.message, { ...failureMeta(failure), code: failure.code });
+    const totpRequired = Boolean(failure.body && typeof failure.body === 'object' && (failure.body as { totpRequired?: unknown }).totpRequired === true);
+    // The password was right; this account also needs its authenticator code.
+    if (path === 'login' && response.status === 401 && totpRequired && totp === undefined) throw new SecondFactorRequired('totp');
+    const message = path === 'login' ? loginRefusal(response.status, totp !== undefined, failure.retryAfterMs) : null;
+    throw new HiveApiError(response.status, message ?? failure.message, { ...failureMeta(failure), code: failure.code });
   }
   return response.json();
 }
 
 export const cindertraceLocalAuth = {
-  async login(username: string, password: string): Promise<{ user: AdminUser }> {
-    const body = localBrowserLoginSchema.parse({ username, password });
+  /** `totp` is the six-digit code an account with TOTP needs (Cindertrace after 2.x: totpRequired). */
+  async login(username: string, password: string, totp?: string): Promise<{ user: AdminUser }> {
+    const code = totp?.replace(/\s+/g, '');
+    if (code !== undefined && !/^\d{6}$/.test(code)) throw new Error('Enter the 6 digits your authenticator app shows.');
+    const body = localBrowserLoginSchema.parse({ username, password, ...(code !== undefined ? { totp: code } : {}) });
     const answer = loginAnswer.parse(
-      await send('login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }, 'Sign-in failed'),
+      await send('login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }, 'Sign-in failed', code),
     );
     return { user: localUser(answer) };
   },

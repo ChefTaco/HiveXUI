@@ -7,7 +7,7 @@ const severity=z.enum(['info','low','medium','high','critical']);
 export const fusionCaseSchema=z.object({id,title:text,severity,status:text,confidence:z.number(),summary:text,firstSeenAt:time,lastSeenAt:time,recommendedInvestigation:z.array(text),evidenceSteps:z.array(text)});
 export const fusionEventSchema=z.object({id,eventId:text,source:text,kind:text,observedAt:time,severity,confidence:z.number(),summary:text,integritySha256:text,confidenceContribution:z.number().optional(),attributes:json.optional()});
 export const fusionEntitySchema=z.object({id,type:text,canonical:text,label:text,lastSeenAt:time});
-export const fusionSourceSchema=z.object({source:text,status:text,lastEventAt:time.nullish(),lastSuccessAt:time.nullish(),lastError:text.nullish()});
+export const fusionSourceSchema=z.object({source:text,status:text,lastEventAt:time.nullish(),lastSuccessAt:time.nullish(),lastError:text.nullish(),checkpoint:text.nullish(),lastErrorAt:time.nullish(),lastPollAt:time.nullish(),lastPollRecords:z.number().int().nullish(),lastPollPages:z.number().int().nullish()});
 export const fusionCollectorSchema=z.object({id,displayName:text,allowedSources:z.array(text),schemaVersion:text,dataClassification:text,status:text,cursorHealth:text,lastReceiptAt:time.nullish(),lastSuccessAt:time.nullish(),revokedAt:time.nullish()});
 export const fusionEvidenceSchema=z.object({id,sourceLocator:text.optional(),sha256:text,preservedAt:time,mediaType:text});
 const investigation=z.object({id,revision:z.number().int(),draft:securityFusionInvestigationDraftSchema,authorId:text,createdAt:time});
@@ -69,7 +69,15 @@ export function securityBrowserRoute(path:string,method='GET') {
  const route=securityBrowserRoutes.find(value=>value.method===method.toUpperCase()&&new RegExp('^'+value.path.replace(/\{[^}]+\}/gu,'[^/]+')+'$','u').test(pathname));
  if(!route)throw Error('Security browser route has no released contract');return route;
 }
-export function securityBrowserResponseSchema(path:string,method='GET') {return z.object({success:z.literal(true),data:securityBrowserRoute(path,method).response});}
+/**
+ * List routes served a page at a time: pass `?cursor=<nextCursor>`; nextCursor is null on the
+ * last page. It is optional here so a client can still read an API from before paging.
+ */
+export const securityBrowserPagedRoutes=['/cases','/events','/entities','/evidence'];
+export function securityBrowserResponseSchema(path:string,method='GET') {
+ const route=securityBrowserRoute(path,method);
+ return z.object({success:z.literal(true),data:route.response,...(method==='GET'&&securityBrowserPagedRoutes.includes(route.path)?{nextCursor:z.string().nullable().optional()}:{})});
+}
 export type FusionCase=z.infer<typeof fusionCaseSchema>;
 export type FusionEvent=z.infer<typeof fusionEventSchema>;
 export type FusionEntity=z.infer<typeof fusionEntitySchema>;

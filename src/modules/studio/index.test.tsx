@@ -1,9 +1,15 @@
 // @vitest-environment jsdom
 import { act } from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sessionStore } from '../magnus/session-store';
 import { button, click, mount, settle, stubBrowser, type Mounted } from '../magnus/test-dom';
 import StudioModule from './index';
+
+// The project areas load on demand; load them once up front so each page renders as it opens.
+beforeAll(async () => {
+  const { preloadStudioAreas } = await import('./pages');
+  await preloadStudioAreas();
+}, 60_000);
 
 const runtime = vi.hoisted(() => ({ magnus: true }));
 vi.mock('../../lib/runtime', async (importOriginal) => ({

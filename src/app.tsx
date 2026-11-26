@@ -312,7 +312,7 @@ function LoginScreen({ onSuccess, authorization = false, initialNotice = '' }: {
   const [password, setPassword] = useState('');
   const [challenge, setChallenge] = useState<MfaRequired | null>(null);
   // Emberpath's native sign-in asks for the code with the password again, so the password is kept.
-  const [secondFactor, setSecondFactor] = useState(false);
+  const [secondFactor, setSecondFactor] = useState<false | 'mfa' | 'totp'>(false);
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -386,7 +386,7 @@ function LoginScreen({ onSuccess, authorization = false, initialNotice = '' }: {
         return;
       }
       if (caught instanceof SecondFactorRequired && !secondFactor) {
-        setSecondFactor(true);
+        setSecondFactor(caught.kind);
         return;
       }
       // An expired password is changed through recovery: open it, saying why.
@@ -505,14 +505,29 @@ function LoginScreen({ onSuccess, authorization = false, initialNotice = '' }: {
           ) : (
             <label className="field">
               <span className="field-label">
-                Authenticator or recovery code
+                {secondFactor === 'totp' ? 'Authentication code' : 'Authenticator or recovery code'}
               </span>
-              <input
-                value={code}
-                onChange={(event) => setCode(event.target.value)}
-                autoComplete="one-time-code"
-                required
-              />
+              {secondFactor === 'totp' ? (
+                // Cindertrace takes the six digits an authenticator app shows (RFC 6238).
+                <input
+                  value={code}
+                  onChange={(event) => setCode(event.target.value)}
+                  autoComplete="one-time-code"
+                  inputMode="numeric"
+                  pattern="[0-9 ]{6,7}"
+                  maxLength={7}
+                  aria-describedby="totp-hint"
+                  required
+                />
+              ) : (
+                <input
+                  value={code}
+                  onChange={(event) => setCode(event.target.value)}
+                  autoComplete="one-time-code"
+                  required
+                />
+              )}
+              {secondFactor === 'totp' ? <span id="totp-hint" className="field-hint">The 6-digit code your authenticator app shows for Cindertrace.</span> : null}
             </label>
           )}
 
