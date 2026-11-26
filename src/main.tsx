@@ -10,6 +10,7 @@ import ReactDOM from 'react-dom/client';
 import { App } from './app';
 import { IdentityPrompts } from './components/identity-prompts';
 import { ToastProvider } from './components/toast';
+import { UpdateBanner } from './components/update-banner';
 import { initializeRuntime } from './lib/runtime';
 import { applyStoredFxLevel } from './lib/motion';
 import { installChunkReload } from './lib/chunk-reload';
@@ -38,6 +39,7 @@ ReactDOM.createRoot(root).render(
     <ToastProvider>
       <IdentityPrompts />
       <App />
+      <UpdateBanner />
     </ToastProvider>
   </React.StrictMode>,
 );
