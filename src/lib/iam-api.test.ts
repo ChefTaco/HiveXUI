@@ -31,4 +31,13 @@ describe('owned Oathweave browser contracts',()=>{
   expect(EnrollmentRequestSchema.safeParse(body).success).toBe(true);
   expect(EnrollmentRequestSchema.safeParse({...body,scopes:['admin:all']}).success).toBe(false);
  });
+ it('pages and filters users and audit events in the query',async()=>{
+  const send=vi.fn<typeof fetch>().mockImplementation(async()=>Response.json({users:[],total:0,page:2,limit:100}));
+  const api=createIamApi(send);
+  await api.iamUsers();
+  await api.iamUsers({page:2,search:' ali ce '});
+  send.mockImplementation(async()=>Response.json({events:[],total:0,page:3,limit:50}));
+  await api.iamAudit({page:3});
+  expect(send.mock.calls.map(call=>call[0])).toEqual(['/api/iam/users?limit=100','/api/iam/users?page=2&limit=100&search=ali+ce','/api/iam/audit?page=3&limit=50']);
+ });
 });

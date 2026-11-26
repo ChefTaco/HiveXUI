@@ -25,6 +25,18 @@ import {
   IamSuccessResponseSchema, BrowserMessageResponseSchema, BrowserOkResponseSchema, BrowserConsentDetailsSchema, BrowserAuthorizationResponseSchema, BrowserTokenResponseSchema, BrowserSessionResponseSchema, BrowserLoginResponseSchema,
 } from '../../contracts/oathweave-browser.generated';
 
+/**
+ * Oathweave refused a sign-in because the password is older than the policy allows. Oathweave has
+ * no signed-out password change, so the way on is password recovery: a code sent to the account's
+ * email, then a new password set with it.
+ */
+export class PasswordExpired extends Error {
+  override name = 'PasswordExpired';
+  constructor() {
+    super('Your Oathweave password has expired. Request a recovery code below, then set a new password with it.');
+  }
+}
+
 /** A refusal from Oathweave's browser API. `data` is its body, which consent prompts read. */
 class IdentityApiError extends HiveApiError {
   override name = 'IdentityApiError';
@@ -139,9 +151,7 @@ export function createBrowserAuth(
       'passwordExpired' in result &&
       result.passwordExpired === true
     )
-      throw new Error(
-        'Your Oathweave password has expired. Complete password recovery with your identity administrator, then sign in again.',
-      );
+      throw new PasswordExpired();
     // Oathweave no longer knows this browser session: every page returns to sign-in, not just this one.
     if (response.status === 401 && (path === '/browser/session' || path === '/oauth/authorize')) sessionEnded('expired');
     if (!response.ok)

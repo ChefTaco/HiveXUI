@@ -140,3 +140,12 @@ export function EntityTable({
     </TableFrame>
   );
 }
+
+/** "1–100 of 340 users" for one page of a list the product pages, or "3 users" when it is all of it. */
+export function shownRange(page: number, size: number, shown: number, total: number, noun = 'users'): string {
+  const word = (count: number) => (count === 1 ? noun.replace(/s$/, '') : noun);
+  if (shown === 0) return total > 0 ? `0 of ${total} ${word(total)}` : `0 ${noun}`;
+  const first = (page - 1) * size + 1;
+  if (page === 1 && shown >= total) return `${total} ${word(total)}`;
+  return `${first}–${first + shown - 1} of ${total} ${word(total)}`;
+}

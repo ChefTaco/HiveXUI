@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mount, settle, stubBrowser, type Mounted } from '../../modules/magnus/test-dom';
+import { button, click, mount, settle, stubBrowser, type, type Mounted } from '../../modules/magnus/test-dom';
 import { ApiError } from '../../lib/api';
 import type { AdminUser } from '../../lib/types';
 
@@ -15,6 +15,7 @@ vi.mock('../../lib/api', async (importOriginal) => {
   return { ...actual, adminApi: { ...actual.adminApi, ...iam } };
 });
 const { useIamOperations } = await import('./use-iam-operations');
+const { UsersSection } = await import('./users');
 
 const operator: AdminUser = { id: 'fixture-operator', username: 'operator', permissions: ['*'], roles: ['admin'] };
 const user = { id: 'fixture-user', email: 'user@example.com', username: 'user', displayName: 'Fixture user', active: true, lastLoginAt: null, createdAt: '2026-11-01T00:00:00Z', roles: [] };
@@ -62,5 +63,32 @@ describe('IAM loading', () => {
     view = await mount(<Probe onAuthExpired={onAuthExpired} />);
     await settle(20);
     expect(onAuthExpired).toHaveBeenCalledTimes(1);
+  });
+});
+
+function UsersProbe() {
+  const ops = useIamOperations('users', operator);
+  return <UsersSection ops={ops} />;
+}
+const many = (from: number, count: number) => Array.from({ length: count }, (_, index) => ({ ...user, id: `fixture-user-${from + index}`, username: `user${from + index}`, email: `user${from + index}@example.com` }));
+
+describe('the IAM users list', () => {
+  it('says how many of the directory it shows, pages through it and filters it on the server', async () => {
+    iam.iamUsers.mockImplementation(async ({ page = 1, search = '' }: { page?: number; search?: string }) =>
+      search ? { users: many(7, 1), total: 1, page: 1, limit: 100 } : { users: many((page - 1) * 100, page === 3 ? 40 : 100), total: 240, page, limit: 100 });
+    view = await mount(<UsersProbe />);
+    await settle(20);
+    expect(document.body.textContent).toContain('1–100 of 240 users');
+    expect(iam.iamUsers).toHaveBeenLastCalledWith({ page: 1, limit: 100, search: '' });
+    await click(button('Next'));
+    await settle(20);
+    expect(iam.iamUsers).toHaveBeenLastCalledWith({ page: 2, limit: 100, search: '' });
+    expect(document.body.textContent).toContain('101–200 of 240 users');
+    await type(document.querySelector('input[type="search"]'), 'user7');
+    await settle(350);
+    expect(iam.iamUsers).toHaveBeenLastCalledWith({ page: 1, limit: 100, search: 'user7' });
+    expect(document.body.textContent).toContain('1 user');
+    expect(document.body.textContent).not.toContain('of 240');
+    expect(button('Next')).toBeUndefined();
   });
 });

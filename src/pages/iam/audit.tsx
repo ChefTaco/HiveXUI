@@ -1,12 +1,16 @@
-import { Badge, Panel, StatCard } from '../../components/ui';
+import { Badge, Pagination, Panel, StatCard } from '../../components/ui';
 import { formatTime } from '../../lib/format';
-import { safeDetail, EntityTable } from './shared';
-import type { IamOps } from './use-iam-operations';
+import { safeDetail, EntityTable, shownRange } from './shared';
+import { AUDIT_PAGE_SIZE, type IamOps } from './use-iam-operations';
 
 export function AuditSection({ ops }: { ops: IamOps }) {
   const {
     auditStats,
     auditEvents,
+    auditTotal,
+    auditPage,
+    showAuditPage,
+    pageLoading,
   } = ops;
   return (
     <>
@@ -36,7 +40,7 @@ export function AuditSection({ ops }: { ops: IamOps }) {
           tone="accent"
         />
       </div>
-      <Panel title="Audit events" eyebrow="Recent">
+      <Panel title="Audit events" eyebrow={shownRange(auditPage, AUDIT_PAGE_SIZE, auditEvents.length, auditTotal, 'events')}>
         <EntityTable
           label="Identity audit events"
           empty="No audit events found."
@@ -69,6 +73,17 @@ export function AuditSection({ ops }: { ops: IamOps }) {
             </tr>
           ))}
         </EntityTable>
+        {auditTotal > AUDIT_PAGE_SIZE || auditPage > 1 ? (
+          <Pagination
+            label="Audit pages"
+            summary={shownRange(auditPage, AUDIT_PAGE_SIZE, auditEvents.length, auditTotal, 'events')}
+            hasPrevious={auditPage > 1}
+            hasNext={auditPage * AUDIT_PAGE_SIZE < auditTotal}
+            loading={pageLoading}
+            onPrevious={() => showAuditPage(auditPage - 1)}
+            onNext={() => showAuditPage(auditPage + 1)}
+          />
+        ) : null}
       </Panel>
     </>
   );

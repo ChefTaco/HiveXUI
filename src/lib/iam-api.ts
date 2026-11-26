@@ -16,9 +16,18 @@ export function createIamApi(send:typeof apiFetch=apiFetch,fail:(failure:ApiFail
     return parseAnswer(schema,value,'Oathweave',method!=='GET');
   }
   const id=(value:string)=>encodeURIComponent(value);
+  const listQuery=(query:{page?:number;limit?:number;search?:string})=>{
+    const params=new URLSearchParams();
+    if(query.page&&query.page>1)params.set('page',String(Math.floor(query.page)));
+    if(query.limit)params.set('limit',String(Math.floor(query.limit)));
+    const search=query.search?.trim();
+    if(search)params.set('search',search.slice(0,200));
+    return params.toString();
+  };
   return {
     iamHealth:()=>call('health',owner.IamHealthResponseSchema),
-    iamUsers:()=>call('users?limit=100',owner.IamUsersResponseSchema),
+    /** One page of users (Oathweave caps a page at 100), optionally matching a username, email or display name. */
+    iamUsers:(query:{page?:number;limit?:number;search?:string}={})=>call('users?'+listQuery({limit:100,...query}),owner.IamUsersResponseSchema),
     createIamUser:(body:owner.CreateIamUserRequest)=>call('users',owner.IamUserMutationResponseSchema,'POST',owner.CreateIamUserRequestSchema.parse(body)),
     updateIamUser:(key:string,body:owner.UpdateIamUserRequest)=>call('users/'+id(key),owner.IamUserMutationResponseSchema,'PATCH',owner.UpdateIamUserRequestSchema.parse(body)),
     deleteIamUser:(key:string)=>call('users/'+id(key),owner.IamSuccessResponseSchema,'DELETE'),
@@ -46,7 +55,8 @@ export function createIamApi(send:typeof apiFetch=apiFetch,fail:(failure:ApiFail
     deleteIamSystemUser:(key:string)=>call('system-users/'+id(key),owner.IamSuccessResponseSchema,'DELETE'),
     iamSessions:()=>call('sessions',owner.IamSessionsResponseSchema),
     revokeIamSession:(key:string)=>call('sessions/'+id(key),owner.IamSuccessResponseSchema,'DELETE'),
-    iamAudit:()=>call('audit?limit=50',owner.IamAuditResponseSchema),
+    /** One page of audit events, newest first (Oathweave caps a page at 200). */
+    iamAudit:(query:{page?:number;limit?:number}={})=>call('audit?'+listQuery({limit:50,...query}),owner.IamAuditResponseSchema),
     iamAuditStats:()=>call('audit/stats',owner.IamAuditStatsSchema),
     iamPasswordPolicy:()=>call('password-policy',owner.IamPasswordPolicyResponseSchema),
     updateIamPasswordPolicy:(body:owner.UpdateIamPasswordPolicyRequest)=>call('password-policy',owner.IamPasswordPolicyResponseSchema,'PATCH',owner.UpdateIamPasswordPolicyRequestSchema.parse(body)),
