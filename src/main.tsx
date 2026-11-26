@@ -12,9 +12,12 @@ import { IdentityPrompts } from './components/identity-prompts';
 import { ToastProvider } from './components/toast';
 import { initializeRuntime } from './lib/runtime';
 import { applyStoredFxLevel } from './lib/motion';
+import { installChunkReload } from './lib/chunk-reload';
 import './styles/index.css';
 
 applyStoredFxLevel();
+// A tab left open across an upgrade asks for chunks the new image no longer has: reload once.
+installChunkReload();
 
 const root = document.getElementById('root');
 
