@@ -8,6 +8,8 @@ export function OverviewSection({ ops }: { ops: IamOps }) {
   const {
     currentUser,
     users,
+    usersTotal,
+    userQuery,
     serviceAccounts,
     clients,
     sessions,
@@ -26,11 +28,13 @@ export function OverviewSection({ ops }: { ops: IamOps }) {
         <StatCard
           label="Login Users"
           value={
-            can(currentUser, 'iam:users:read') ? users.length : 'Unavailable'
+            can(currentUser, 'iam:users:read') ? (userQuery.search ? users.length : Math.max(usersTotal, users.length)) : 'Unavailable'
           }
           sub={
             can(currentUser, 'iam:users:read')
-              ? `${activeUsers} active`
+              ? usersTotal > users.length && !userQuery.search
+                ? `${activeUsers} active of the first ${users.length}`
+                : `${activeUsers} active`
               : 'Permission required'
           }
           tone="accent"

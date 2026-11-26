@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { createHash, webcrypto } from 'node:crypto';
 import { exportJWK, generateKeyPair, SignJWT } from 'jose';
-import { createBrowserAuth } from './browser-auth';
+import { createBrowserAuth, PasswordExpired } from './browser-auth';
 import { subscribeIdentityPrompts } from './identity-prompts';
 import { clearAccess } from './transport';
 
@@ -126,7 +126,7 @@ describe('browser authorization response binding', () => {
 });
 
 it('reports password expiry without requesting tokens or treating it as a session', async () => {
-  const request = vi.fn<typeof fetch>().mockResolvedValue(
+  const request = vi.fn<typeof fetch>().mockImplementation(async () =>
     Response.json(
       {
         passwordExpired: true,
@@ -146,7 +146,9 @@ it('reports password expiry without requesting tokens or treating it as a sessio
   await expect(auth.login('admin', 'obviously-fake-password')).rejects.toThrow(
     'password has expired',
   );
-  expect(request).toHaveBeenCalledTimes(1);
+  // The sign-in form opens password recovery for this error.
+  await expect(auth.login('admin', 'obviously-fake-password')).rejects.toBeInstanceOf(PasswordExpired);
+  expect(request).toHaveBeenCalledTimes(2);
   expect(String(request.mock.calls[0]?.[0])).toBe('/api/identity/auth/login');
 });
 

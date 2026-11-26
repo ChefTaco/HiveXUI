@@ -21,6 +21,7 @@ import {
   RecoveryCodesSchema, PasskeyCredentialsResponseSchema, PasskeyRegisterRequestSchema, MfaDisableRequestSchema, MfaVerifyRequestSchema, MfaSetupResponseSchema, IamSuccessResponseSchema, type MfaSetupResponse,
 } from '../../../contracts/oathweave-browser.generated';
 import { describeApiError } from '@lib/api-error';
+import { OwnSessions, PasswordChange } from './password-sessions';
 async function api(
   path: string,
   method = 'GET',
@@ -63,6 +64,7 @@ export default function AccountModule() {
   const [name, setName] = useState(''),
     [code, setCode] = useState(''),
     [password, setPassword] = useState('');
+  const [sessionsRead, setSessionsRead] = useState(0);
   const [confirm, setConfirm] = useState<
     { kind: 'remove-passkey'; id: string } | { kind: 'replace-codes' } | null
   >(null);
@@ -113,7 +115,7 @@ export default function AccountModule() {
     <div className="page-stack">
       <PageHeader
         title="Account security"
-        description="Passkeys, authenticator app and recovery codes for your own sign-in."
+        description="Your password, passkeys, authenticator app, recovery codes and signed-in sessions."
       />
       {error && (
         <p role="alert" className="error-banner">
@@ -308,6 +310,8 @@ export default function AccountModule() {
           </div>
         )}
       </Panel>
+      <PasswordChange onChanged={() => setSessionsRead((value) => value + 1)} />
+      <OwnSessions reload={sessionsRead} />
       <ConfirmDialog
         open={!!confirm}
         title={

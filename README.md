@@ -19,7 +19,7 @@ The sidebar has one section per installed product, plus Hive and System.
 | Section | Runtime key | What it covers |
 | --- | --- | --- |
 | Hive | | Installation overview; Inbox, the HiveEvent feeds of every installed product (also the header bell); Incidents across Emberpath, Oathweave and HiveMem; the setup checklist for administrators (opened from the header nudge); and Agent 360 at `/agents`, one agent's view across Magnus, HiveMem, Studio, Cindertrace, Emberpath and HiveSkills (opened from agent links) |
-| Oathweave | `oathweave` | Overview, account security (passkeys, MFA, recovery, consent and step-up), users, roles, service accounts, clients, sessions, system users, security and audit |
+| Oathweave | `oathweave` | Overview, account security (password change, your own sessions, passkeys, MFA, recovery, consent and step-up), users, roles, service accounts, clients, sessions, system users, security and audit |
 | Oathweave: Actors | `oathweave`, `emberpath`, `hivemem` | Agent enrollment. Needs all three products, because each enrollment links all three |
 | Emberpath | `emberpath` | Routers, providers, routing, testing, traces, API keys and audit log |
 | HiveMem | `hivemem` | Memories, memory operations and workspaces |

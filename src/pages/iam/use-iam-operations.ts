@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { adminApi, ApiError } from '../../lib/api';
 import { identityResourceAllowed } from '../../lib/iam-access';
 import { can } from '../../lib/permissions';
@@ -14,8 +14,21 @@ import { describeApiError } from '@lib/api-error';
 /** The section each IAM read fills, in `loadIam`'s order, for its error message. */
 const IAM_RESOURCE_LABELS = ['Health', 'Audit statistics', 'Sessions', 'Roles', 'Users', 'Service accounts', 'Clients', 'System users', 'Audit events', 'Password policy'] as const;
 
+/** Users and audit events per page: Oathweave's largest user page, and its default audit page. */
+export const USERS_PAGE_SIZE = 100;
+export const AUDIT_PAGE_SIZE = 50;
+
 export function useIamOperations(section: IamSection, currentUser: AdminUser | null, onAuthExpired?: () => void) {
   const [users, setUsers] = useState<IamUser[]>([]);
+  // The users list is one page of a directory that may hold more: its total, page and filter.
+  const [usersTotal, setUsersTotal] = useState(0);
+  const [userQuery, setUserQuery] = useState({ page: 1, search: '' });
+  const userQueryRef = useRef(userQuery);
+  userQueryRef.current = userQuery;
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [auditPage, setAuditPage] = useState(1);
+  const auditPageRef = useRef(auditPage);
+  auditPageRef.current = auditPage;
   const [confirmAction, confirmDialog] = useConfirm();
   const [roles, setRoles] = useState<IamRole[]>([]);
   const [serviceAccounts, setServiceAccounts] = useState<IamServiceAccount[]>(
@@ -122,11 +135,11 @@ export function useIamOperations(section: IamSection, currentUser: AdminUser | n
       load('stats', () => adminApi.iamAuditStats(), null),
       load('sessions', () => adminApi.iamSessions(), { sessions: [] as IamSession[] }),
       load('roles', () => adminApi.iamRoles(), { roles: [] as IamRole[] }),
-      load('users', () => adminApi.iamUsers(), { users: [] as IamUser[] }),
+      load('users', () => adminApi.iamUsers({ page: userQueryRef.current.page, limit: USERS_PAGE_SIZE, search: userQueryRef.current.search }), { users: [] as IamUser[], total: 0 }),
       load('services', () => adminApi.iamServiceAccounts(), { serviceAccounts: [] as IamServiceAccount[] }),
       load('clients', () => adminApi.iamClients(), { clients: [] as IamClient[] }),
       load('system', () => adminApi.iamSystemUsers(), { systemUsers: [] as IamSystemUser[] }),
-      load('audit', () => adminApi.iamAudit(), { events: [] as IamAuditEvent[], total: 0, page: 1, limit: 50 }),
+      load('audit', () => adminApi.iamAudit({ page: auditPageRef.current, limit: AUDIT_PAGE_SIZE }), { events: [] as IamAuditEvent[], total: 0, page: 1, limit: AUDIT_PAGE_SIZE }),
       load('policy', () => adminApi.iamPasswordPolicy(), null),
     ] as const);
     const [healthRes, statsRes, sessionRes, roleRes, userRes, serviceRes, clientRes, systemRes, auditRes, policyRes] = results;
@@ -145,11 +158,17 @@ export function useIamOperations(section: IamSection, currentUser: AdminUser | n
     const loadedUsers = userRes.status === 'fulfilled' ? userRes.value.users : [];
     const loadedClients = clientRes.status === 'fulfilled' ? clientRes.value.clients : [];
     if (roleRes.status === 'fulfilled') setRoles(loadedRoles);
-    if (userRes.status === 'fulfilled') setUsers(loadedUsers);
+    if (userRes.status === 'fulfilled') {
+      setUsers(loadedUsers);
+      setUsersTotal(userRes.value.total);
+    }
     if (serviceRes.status === 'fulfilled') setServiceAccounts(serviceRes.value.serviceAccounts);
     if (clientRes.status === 'fulfilled') setClients(loadedClients);
     if (systemRes.status === 'fulfilled') setSystemUsers(systemRes.value.systemUsers);
-    if (auditRes.status === 'fulfilled') setAuditEvents(auditRes.value.events);
+    if (auditRes.status === 'fulfilled') {
+      setAuditEvents(auditRes.value.events);
+      setAuditTotal(auditRes.value.total);
+    }
     if (policyRes.status === 'fulfilled') setPasswordPolicy(policyRes.value?.policy ?? null);
     setUserForm((current) => ({
       ...current,
@@ -185,6 +204,41 @@ export function useIamOperations(section: IamSection, currentUser: AdminUser | n
   useEffect(() => {
     void loadIam();
   }, [loadIam]);
+
+  // A new page or filter reads only its own list; the rest of the page stays as it is.
+  const [pageLoading, setPageLoading] = useState(false);
+  const readPage = useCallback(async (label: string, read: () => Promise<void>) => {
+    setPageLoading(true);
+    try {
+      await read();
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 401) onAuthExpired?.();
+      else setError(`${label}: ${describeApiError(caught, 'could not be loaded')}`);
+    } finally {
+      setPageLoading(false);
+    }
+  }, [onAuthExpired]);
+  const showUsers = useCallback((next: { page: number; search: string }) => {
+    setUserQuery(next);
+    userQueryRef.current = next;
+    void readPage('Users', async () => {
+      const result = await adminApi.iamUsers({ page: next.page, limit: USERS_PAGE_SIZE, search: next.search });
+      // An answer for a filter or page the operator has since left is not shown.
+      if (userQueryRef.current !== next) return;
+      setUsers(result.users);
+      setUsersTotal(result.total);
+    });
+  }, [readPage]);
+  const showAuditPage = useCallback((page: number) => {
+    setAuditPage(page);
+    auditPageRef.current = page;
+    void readPage('Audit events', async () => {
+      const result = await adminApi.iamAudit({ page, limit: AUDIT_PAGE_SIZE });
+      if (auditPageRef.current !== page) return;
+      setAuditEvents(result.events);
+      setAuditTotal(result.total);
+    });
+  }, [readPage]);
 
   async function run(action: () => Promise<unknown>, success: string) {
     setBusy(true);
@@ -236,6 +290,13 @@ export function useIamOperations(section: IamSection, currentUser: AdminUser | n
     currentUser,
     users,
     setUsers,
+    usersTotal,
+    userQuery,
+    showUsers,
+    auditTotal,
+    auditPage,
+    showAuditPage,
+    pageLoading,
     confirmAction,
     confirmDialog,
     roles,

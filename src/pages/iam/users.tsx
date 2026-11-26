@@ -1,13 +1,18 @@
 import { adminApi } from '../../lib/api';
-import { Badge, Button, Field, Panel, Select, TextInput, Toggle } from '../../components/ui';
+import { useEffect, useState } from 'react';
+import { Badge, Button, Field, FilterBar, Pagination, Panel, Select, TextInput, Toggle } from '../../components/ui';
 import { Icon } from '../../components/icons';
 import { relativeTime } from '../../lib/format';
-import { roleIds, EntityTable } from './shared';
-import type { IamOps } from './use-iam-operations';
+import { roleIds, EntityTable, shownRange } from './shared';
+import { USERS_PAGE_SIZE, type IamOps } from './use-iam-operations';
 
 export function UsersSection({ ops }: { ops: IamOps }) {
   const {
     users,
+    usersTotal,
+    userQuery,
+    showUsers,
+    pageLoading,
     confirmAction,
     roles,
     busy,
@@ -24,6 +29,13 @@ export function UsersSection({ ops }: { ops: IamOps }) {
     canWriteRoles,
     run,
   } = ops;
+  // The filter is sent once typing pauses, from the first page.
+  const [search, setSearch] = useState(userQuery.search);
+  useEffect(() => {
+    if (search.trim() === userQuery.search) return undefined;
+    const timer = window.setTimeout(() => showUsers({ page: 1, search: search.trim() }), 300);
+    return () => window.clearTimeout(timer);
+  }, [search, userQuery.search, showUsers]);
   return (
     <div className="iam-ops-grid">
       <Panel title="Create user" eyebrow="Human account">
@@ -168,9 +180,13 @@ export function UsersSection({ ops }: { ops: IamOps }) {
       </Panel>
       <Panel
         title="Users"
-        eyebrow="Directory"
+        eyebrow={shownRange(userQuery.page, USERS_PAGE_SIZE, users.length, usersTotal)}
         className="col-span-full"
       >
+        <FilterBar
+          label="Find users"
+          search={{ value: search, onChange: setSearch, label: 'Filter users by username, email or name', placeholder: 'Username, email or name' }}
+        />
         <EntityTable
           label="IAM users"
           empty="No IAM users found."
@@ -288,6 +304,17 @@ export function UsersSection({ ops }: { ops: IamOps }) {
             </tr>
           ))}
         </EntityTable>
+        {usersTotal > USERS_PAGE_SIZE || userQuery.page > 1 ? (
+          <Pagination
+            label="Users pages"
+            summary={shownRange(userQuery.page, USERS_PAGE_SIZE, users.length, usersTotal)}
+            hasPrevious={userQuery.page > 1}
+            hasNext={userQuery.page * USERS_PAGE_SIZE < usersTotal}
+            loading={pageLoading}
+            onPrevious={() => showUsers({ page: userQuery.page - 1, search: userQuery.search })}
+            onNext={() => showUsers({ page: userQuery.page + 1, search: userQuery.search })}
+          />
+        ) : null}
       </Panel>
     </div>
   );

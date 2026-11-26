@@ -17,7 +17,7 @@ import { ProductAccess } from './components/product-access';
 import { ViewBoundary } from './components/view-boundary';
 import { adminApi, ApiError, SecondFactorRequired } from './lib/api';
 import { onSessionEnded, signInServiceUnreachable, type SessionEnd } from './lib/session-events';
-import { MfaRequired } from './lib/browser-auth';
+import { MfaRequired, PasswordExpired } from './lib/browser-auth';
 import { parsePortalAuthorization } from './lib/authorization-portal';
 import {
   breadcrumbs,
@@ -384,6 +384,12 @@ function LoginScreen({ onSuccess, authorization = false, initialNotice = '' }: {
       }
       if (caught instanceof SecondFactorRequired && !secondFactor) {
         setSecondFactor(true);
+        return;
+      }
+      // An expired password is changed through recovery: open it, saying why.
+      if (caught instanceof PasswordExpired && browserIdentity()) {
+        changeMode('recover');
+        setError(caught.message);
         return;
       }
       setPassword('');
