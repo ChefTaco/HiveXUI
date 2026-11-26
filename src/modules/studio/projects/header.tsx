@@ -55,12 +55,12 @@ export function ProjectSwitcher({ projectId }: { projectId: string }) {
         className="studio-switcher rounded-control border border-border bg-surface px-2 py-1 text-sm text-text hover:border-accent"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        aria-label={`Project ${name}. Switch project`}
         onClick={() => setOpen((value) => !value)}
       >
         <span className="studio-switcher__label stat-label">Project</span>
         <span className="studio-switcher__name">{name}</span>
         {state.snapshot?.project.status === 'archived' ? <Badge tone="neutral">Archived</Badge> : null}
+        <span className="sr-only">. Switch project</span>
         <ChevronsUpDown className="size-4 text-text-muted" aria-hidden="true" />
       </button>
       {open ? (
@@ -177,8 +177,9 @@ export function ProjectTools({ projectId }: { projectId: string }) {
 
   return (
     <div className="studio-project__tools">
-      <Button size="sm" variant="ghost" onClick={() => setFiles(true)} aria-label={`Files and links, ${count}${failed ? `, ${failed} failed` : ''}`}>
-        Files
+      {/* The visible words start the accessible name (WCAG 2.5.3); the rest is for screen readers. */}
+      <Button size="sm" variant="ghost" onClick={() => setFiles(true)}>
+        Files<span className="sr-only"> and links,</span>
         <span className="tab-count">{count}</span>
         {failed ? <Badge tone="danger">{failed} failed</Badge> : null}
       </Button>

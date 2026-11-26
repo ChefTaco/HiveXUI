@@ -427,12 +427,13 @@ function Room({ projectId, snapshot, stream }: { projectId: string; snapshot: Sn
             Stop discussion
           </Button>
         ) : null}
-        <Button size="sm" variant="ghost" icon={<ListChecks className="btn-ico" aria-hidden="true" />} onClick={() => setTasksOpen('all')} aria-label={`Tasks, ${groups.assignments.length + groups.reviews.length} active`}>
-          Tasks
+        <Button size="sm" variant="ghost" icon={<ListChecks className="btn-ico" aria-hidden="true" />} onClick={() => setTasksOpen('all')}>
+          Tasks<span className="sr-only">,</span>
           <span className="tab-count">{groups.assignments.length + groups.reviews.length}</span>
+          <span className="sr-only"> active</span>
         </Button>
-        <Button size="sm" variant="ghost" icon={<Pin className="btn-ico" aria-hidden="true" />} onClick={() => setDecisionsOpen(true)} aria-label={`Decisions, ${decisions.length}`}>
-          Decisions
+        <Button size="sm" variant="ghost" icon={<Pin className="btn-ico" aria-hidden="true" />} onClick={() => setDecisionsOpen(true)}>
+          Decisions<span className="sr-only">,</span>
           <span className="tab-count">{decisions.length}</span>
         </Button>
         {workflows.state.status === 'ready' && workflows.state.runs.length ? (

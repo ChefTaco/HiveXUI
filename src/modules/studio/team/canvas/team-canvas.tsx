@@ -105,13 +105,16 @@ const RoleNodeView = memo(function RoleNodeView({ id, data }: NodeProps<RoleNode
       data-role-key={role.key}
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : -1}
-      aria-label={interactive ? label : undefined}
       aria-pressed={interactive ? props.selected === role.key : undefined}
       onKeyDown={interactive ? onKeyDown : undefined}
       onFocus={interactive ? () => props.onSelect?.(role.key) : undefined}
     >
       <Handle id="t" type="target" position={Position.Top} isConnectable={!props.readOnly && interactive} className="studio-node__handle" />
-      <RoleCard role={role} binding={binding} issues={issues} selected={props.selected === role.key} compact={props.mini ?? false} ghost={change} />
+      {/* An interactive node is named by this summary; the card it summarizes is visual. */}
+      {interactive ? <span className="sr-only">{label}</span> : null}
+      <div aria-hidden={interactive ? true : undefined}>
+        <RoleCard role={role} binding={binding} issues={issues} selected={props.selected === role.key} compact={props.mini ?? false} ghost={change} />
+      </div>
       <Handle id="b" type="source" position={Position.Bottom} isConnectable={!props.readOnly && interactive} className="studio-node__handle" />
       {/* Anchors for lines between roles side by side or drawn upwards; not for drawing new lines. */}
       {SIDE_HANDLES.map(([handle, type, position]) => (

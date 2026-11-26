@@ -19,6 +19,16 @@
 - Embermend: a **Readiness** panel says whether assessment and managed dispatch can run in your scope, how many targets are eligible and, in words, why not (`GET /readiness`). **Accepted risk** lists the recorded exceptions: findings, owner, expiry, compensating controls and rationale (`GET /exceptions`). With the `exception` permission you can accept risk for chosen findings until a date, after a confirmation that names them (`POST /exceptions`). **Assessment profiles** lists which profile each set of targets is assessed against (`GET /profile-assignments`). Each recommendation can **Download campaign report** (`GET /campaigns/{id}/report`, checked against the contract) as JSON. Every panel loads on its own and shows Embermend's refusal when it has one.
 - Chat: the live connection reconnects with exponential backoff and jitter (about 1 s doubling to a minute, reset after a healthy connection) instead of every 3 s forever, and renews the chat session before each attempt. A chat session that cannot be renewed stops reconnecting and says to sign in again.
 - The chat reconnect and the Magnus and Studio event streams use `@hivemagnus/hive-common/retry`'s backoff instead of their own copies.
+- Accessibility checks (`npm run e2e:a11y`) now also cover:
+  - The sign-in screen.
+  - Studio: Projects, the Conversation Room, Review, Team Assignment and Agent Studio, against Studio fixtures.
+  - Embermend.
+  - Memories and memory operations.
+  - A chat conversation.
+  - Account security and Actors.
+  - Emberpath traces, API keys and testing.
+  - Eight pages again at 390 px, which must not scroll sideways and whose navigation drawer is scanned open.
+- Accessibility: Studio's project switcher, **Files**, **Tasks** and **Decisions** buttons and the team canvas's role nodes give their visible words first in their accessible names (WCAG 2.5.3, label in name). Before, an `aria-label` worded differently replaced what is on screen, so speech control could not reach them by what they say.
 - Accessibility: a **Skip to content** link is the first keyboard stop on the console, the Cindertrace-only console and Studio (WCAG 2.4.1). Every page names itself in the tab and history title, such as "Inbox · HiveXUI", "Conversation Room · Studio · HiveXUI" or "Sign in · HiveXUI" (WCAG 2.4.2).
 - Accessibility: error toasts stay until dismissed and are announced as alerts; clicking their text no longer dismisses them, so a request ID can be selected and copied (WCAG 2.2.1). Other toasts still leave on their own, but their clock stops while hovered or focused. At most five toasts show at once.
 - Accessibility: the Emberpath audit, traces and API Docs tables open a row's detail from a button in its first cell, as Magnus's audit does, so the drawers are reachable by keyboard.

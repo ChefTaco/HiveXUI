@@ -145,7 +145,7 @@ describe('link references in the Files drawer', () => {
     serve();
     const root = await open(`/studio/p/${PROJECT_ID}/room`);
     const files = button(/^Files/, root)!;
-    expect(files.getAttribute('aria-label')).toBe('Files and links, 1');
+    expect(files.textContent).toBe('Files and links,1');
     await click(files);
     const drawer = document.querySelector('aside[aria-label="Files and links"]')!;
     expect(text(drawer)).toContain('Tide tables');
