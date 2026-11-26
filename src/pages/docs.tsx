@@ -61,19 +61,19 @@ const SUITE_RUNBOOKS = [
 
 const RUNBOOKS = [
   {
-    title: 'Secret rotation',
-    symptom: 'Planned credential change or suspected exposure',
+    title: 'Backup before a change',
+    symptom: 'Planned maintenance, credential change or upgrade',
     action:
-      'Run a dry-run rotation, review the redacted plan, then apply during a maintenance window.',
-    command: 'npm run rotate:secrets -- --host hive --kind all',
+      'Take a protected backup of every host first. Restore rehearsals and retention are listed by ./hive.sh backups list.',
+    command: './hive.sh backup --config installation.json',
     target: 'settings',
   },
   {
     title: 'Rollback',
-    symptom: 'Router deploy fails health or the UI regresses after release',
+    symptom: 'An upgrade fails health or the UI regresses after a release',
     action:
-      'Roll Router back to the previous retained release, then verify readiness and audit drift.',
-    command: 'npm run deploy -- --rollback',
+      'Return the suite to the release installed before the last upgrade, then confirm with ./hive.sh status and doctor.',
+    command: './hive.sh rollback --config installation.json',
     target: 'routers',
   },
   {
@@ -81,8 +81,8 @@ const RUNBOOKS = [
     symptom:
       'IAM Redis, Memory Qdrant, provider health, or SQLite checks are degraded',
     action:
-      'Open the service page, inspect failing checks, repair the dependency, then restart only the affected service.',
-    command: 'npm run audit:deployments',
+      'Run the suite doctor, inspect the failing checks on the service page, repair the dependency, then restart only the affected service.',
+    command: './hive.sh doctor --config installation.json',
     target: 'hive',
   },
   {
@@ -90,8 +90,8 @@ const RUNBOOKS = [
     symptom:
       'TLS cert is expired, near expiry, or does not match the public FQDN',
     action:
-      'Redeploy Router with the expected certificate domain and verify the parsed TLS details.',
-    command: 'HIVE_ROUTER_CERT_DOMAIN=hive.example.com npm run deploy:router',
+      'Place the renewed certificate and key at the files the installation names, then install them into the ingress (a migrated installation uses migrate-native tls-refresh).',
+    command: './hive.sh tls-refresh --config installation.json',
     target: 'hive',
   },
   {
@@ -107,8 +107,8 @@ const RUNBOOKS = [
     symptom:
       'Operator cannot sign in or sessions are failing step-up/auth checks',
     action:
-      'Use OS/PAM break-glass login, inspect IAM sessions/audit, then reset the admin password only if needed.',
-    command: 'IAM_RESET_PASSWORD=<known-password> npm run reset:admin',
+      'Use the Cindertrace recovery sign-in where it is offered, inspect IAM sessions and audit, then restore access for an existing Oathweave administrator.',
+    command: './hive.sh admin-access setup <username>',
     target: 'iam-sessions',
   },
 ] as const;
@@ -218,7 +218,17 @@ export function DocsPage({
                         </Badge>
                       </td>
                       <td className="cell-mono">
-                        {doc.route}
+                        {/* The row is the mouse target. This is the same action for the keyboard. */}
+                        <button
+                          type="button"
+                          className="row-open"
+                          onClick={(click) => {
+                            click.stopPropagation();
+                            setSelected(doc);
+                          }}
+                        >
+                          {doc.route}
+                        </button>
                       </td>
                       <td>{doc.summary}</td>
                     </tr>

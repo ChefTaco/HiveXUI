@@ -283,7 +283,7 @@ export const viewAddress = (view: ViewKey, path?: string): string => routeAddres
 export function resolveDeepLink(
   location: { pathname: string; search: string },
   installed: ProductCheck,
-): { view: ViewKey; url: string | null } {
+): { view: ViewKey; url: string | null; missing?: string } {
   const prefixed = ROUTES.filter((route): route is Extract<(typeof ROUTES)[number], { prefix: object }> => 'prefix' in route);
   const under = prefixed.filter((route) => underPrefix(location.pathname, route.prefix.path));
   for (const route of under)
@@ -299,7 +299,15 @@ export function resolveDeepLink(
   }
   for (const route of under)
     if (!route.prefix.ownsQuery && viewAvailable(route.id, installed)) return { view: route.id, url: null };
-  return { view: 'hive', url: page !== null || under.length > 0 ? '/' : null };
+  if (page === null && under.length === 0) return { view: 'hive', url: null };
+  // `?page=studio` asks for a fullscreen product the shell does not render: drop it quietly.
+  if (page !== null && viewAvailable(page, installed)) return { view: 'hive', url: '/' };
+  return { view: 'hive', url: '/', missing: missingNotice((page !== null ? routeFor(page) : undefined) ?? under[0]) };
+}
+
+/** Why a dead address landed on the overview: a product this installation does not run, or no such page. */
+export function missingNotice(route: { group: string } | undefined): string {
+  return route ? `${route.group} isn't installed here` : "That page doesn't exist here";
 }
 
 const LINK_BASE = 'http://hivexui.invalid';

@@ -14,6 +14,7 @@ import {
 } from 'react';
 import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { cn } from '../lib/cn';
+import { describeApiError } from '../lib/api-error';
 import { Icon } from './icons';
 
 /* ===== Button ===== */
@@ -626,7 +627,8 @@ export function LoadingRows({ rows = 4 }: { rows?: number }) {
   return <div className="grid gap-2" aria-busy="true">{Array.from({ length: rows }, (_, index) => <Skeleton key={index} className="h-6" />)}</div>;
 }
 
-const failureMessage = (error: unknown, fallback = 'The request failed'): string => (error instanceof Error && error.message ? error.message : fallback);
+/** The failure's message with its request ID, which an operator quotes when reporting it. */
+const failureMessage = (error: unknown, fallback = 'The request failed'): string => describeApiError(error, fallback);
 
 /** The failure of a read, with Retry. In a panel that has no data to show instead. */
 export function ResourceError({ error, title, onRetry, action }: { error: unknown; title: string; onRetry?: () => void; action?: ReactNode }) {

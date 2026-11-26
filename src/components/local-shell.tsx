@@ -1,11 +1,14 @@
-import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { adminApi } from '../lib/api';
 import { cn } from '../lib/cn';
 import { initials } from '../lib/format';
-import { CINDERTRACE_PAGES, SECURITY_PREFIX, navigateTo, underPrefix } from '../lib/routes';
+import { CINDERTRACE_PAGES, SECURITY_PREFIX, matchSubroute, navigateTo, underPrefix } from '../lib/routes';
 import { chooseLocalSignIn, localSignInOffered } from '../lib/runtime';
 import type { AdminUser } from '../lib/types';
 import { Icon, HiveSigil } from './icons';
+import { SkipLink } from './skip-link';
+import { useDocumentTitle } from '../lib/document-title';
+import { useNavigationDrawer } from '../lib/nav-drawer';
 import { Button } from '@ui';
 
 const SecurityModule = lazy(() => import('../modules/security'));
@@ -27,12 +30,18 @@ const ENTRIES = CINDERTRACE_PAGES.flatMap((page) =>
 export function LocalShell({ user, onLogout }: { user: AdminUser | null; onLogout: () => void }) {
   const pathname = useSyncExternalStore(subscribe, currentPath);
   const [navOpen, setNavOpen] = useState(false);
+  const drawer = useRef<HTMLElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  const closeNav = useCallback(() => setNavOpen(false), []);
+  useNavigationDrawer(navOpen, closeNav, drawer, toggle);
   const recovery = localSignInOffered();
   useEffect(() => {
     if (!underPrefix(pathname, SECURITY_PREFIX)) navigateTo(SECURITY_PREFIX, 'replace');
   }, [pathname]);
   const active = [...ENTRIES].reverse().find((entry) => underPrefix(pathname, entry.href))?.href;
   const displayName = user?.displayName ?? user?.username ?? 'Operator';
+  const page = matchSubroute(SECURITY_PREFIX, CINDERTRACE_PAGES, pathname.replace(/\/+$/, ''))?.page;
+  useDocumentTitle(page?.path ? `${page.title} · Cindertrace` : 'Cindertrace');
 
   async function signOut() {
     try {
@@ -44,7 +53,8 @@ export function LocalShell({ user, onLogout }: { user: AdminUser | null; onLogou
 
   return (
     <div className="app-shell">
-      <aside id="product-navigation" className={navOpen ? 'sidebar sidebar--open' : 'sidebar'}>
+      <SkipLink />
+      <aside id="product-navigation" ref={drawer} className={navOpen ? 'sidebar sidebar--open' : 'sidebar'}>
         <div className="brand">
           <HiveSigil className="brand-sigil" />
           <div>
@@ -85,9 +95,10 @@ export function LocalShell({ user, onLogout }: { user: AdminUser | null; onLogou
           </button>
         </div>
       </aside>
-      <main className="main">
+      <main className="main" id="main-content" tabIndex={-1}>
         <header className="topbar">
           <button
+            ref={toggle}
             aria-expanded={navOpen}
             aria-controls="product-navigation"
             className="menu-toggle"

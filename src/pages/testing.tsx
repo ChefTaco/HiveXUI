@@ -17,6 +17,7 @@ import {
   PageHeader,
 } from '../components/ui';
 import { Icon } from '../components/icons';
+import { describeApiError } from '@lib/api-error';
 
 interface TestCategory {
   alias: string;
@@ -619,7 +620,7 @@ export function TestingPage({
               })
               .catch((error: unknown) =>
                 toast.error(
-                  error instanceof Error ? error.message : 'Apply failed',
+                  describeApiError(error, 'Apply failed'),
                 ),
               );
           }}
@@ -652,7 +653,7 @@ export function TestingPage({
               })
               .catch((error: unknown) =>
                 toast.error(
-                  error instanceof Error ? error.message : 'Preview failed',
+                  describeApiError(error, 'Preview failed'),
                 ),
               );
           }}

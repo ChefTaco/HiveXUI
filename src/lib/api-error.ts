@@ -278,5 +278,13 @@ export async function hiveApiError(response: Response, options: FailureOptions =
 /** A message with its request ID, for an operator to quote when reporting a failure. */
 export function describeApiError(error: unknown, fallback = 'The request failed'): string {
   const message = error instanceof Error && error.message ? error.message : fallback;
-  return error instanceof HiveApiError && error.requestId ? `${message} (request ${error.requestId})` : message;
+  const requestId = requestIdOf(error);
+  return requestId && !message.includes(requestId) ? `${message} (request ${requestId})` : message;
+}
+
+/** The request ID a failure carries: a product's error answer, or a request that timed out. */
+export function requestIdOf(error: unknown): string | undefined {
+  if (!(error instanceof Error)) return undefined;
+  const requestId = (error as { requestId?: unknown }).requestId;
+  return typeof requestId === 'string' && requestId ? requestId : undefined;
 }

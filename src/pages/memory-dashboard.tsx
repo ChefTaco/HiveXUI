@@ -3,6 +3,7 @@ import { memoryCan } from '../lib/memory-access';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { MemoryAccess } from '../components/memory-access';
 import { browserIdentity } from '../lib/runtime';
+import { describeApiError } from '@lib/api-error';
 const MemoryOperationsModule = lazy(() => import('../modules/memory-operations'));
 import { Badge, Button, EmptyState, Field, JsonBlock, Panel, StatCard, TextArea, TextInput, PageHeader, useConfirm } from '../components/ui';
 import { Icon } from '../components/icons';
@@ -110,7 +111,7 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
       if (queueData) setQueue(queueData);
       if (webhookData) setWebhooks(webhookData);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : caught instanceof Error ? caught.message : 'Failed to load Memory data');
+      setError(describeApiError(caught, 'Failed to load Memory data'));
     } finally {
       setLoading(false);
     }
@@ -122,7 +123,7 @@ export function MemoryDashboardPage({ currentUser, profile = null }: { currentUs
     try {
       return await action();
     } catch (caught) {
-      if (isCurrent()) setError(caught instanceof ApiError ? caught.message : caught instanceof Error ? caught.message : `${label} failed`);
+      if (isCurrent()) setError(describeApiError(caught, `${label} failed`));
       return null;
     } finally {
       if (isCurrent()) setBusy(null);

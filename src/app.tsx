@@ -9,6 +9,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
+import { describeApiError } from '@lib/api-error';
 const ChatInviteRedemption = lazy(() => import('./modules/chat/invite-redemption'));
 const CommandPalette = lazy(() => import('./components/command-palette'));
 const InboxBell = lazy(() => import('./modules/inbox/bell'));
@@ -23,6 +24,7 @@ import {
   findActiveNav,
   navProducts,
   paletteScreens,
+  missingNotice,
   resolveDeepLink,
   shellLocation,
   showsShellRefresh,
@@ -56,6 +58,10 @@ import { SetupNudge } from './components/setup-nudge';
 import { initials } from './lib/format';
 import { RelativeTime } from './components/relative-time';
 import { Button, buttonClass } from '@ui';
+import { useToast } from './components/toast';
+import { SkipLink } from './components/skip-link';
+import { useDocumentTitle } from './lib/document-title';
+import { useNavigationDrawer } from './lib/nav-drawer';
 
 type AuthState = 'checking' | 'unauthed' | 'authed';
 type StartupState = AuthState | 'unreachable';
@@ -95,7 +101,7 @@ function ConsoleApp() {
         if (!active) return;
         // An outage is not a signed-out session: a sign-in form would only fail at the gateway.
         if (signInServiceUnreachable(caught)) {
-          setStartupError(caught instanceof Error ? caught.message : '');
+          setStartupError(describeApiError(caught, ''));
           setAuth('unreachable');
         } else setAuth('unauthed');
       }
@@ -215,6 +221,7 @@ function AuthorizationPortal() {
   const [phase, setPhase] = useState<AuthState>('checking');
   const [error, setError] = useState(selection.error);
   const identity = browserIdentity();
+  useDocumentTitle('Oathweave sign-in');
   useEffect(() => {
     if (!selection.request || !identity) return;
     let active = true;
@@ -228,7 +235,7 @@ function AuthorizationPortal() {
     void identity.approveAuthorization(selection.request).then(approval => {
       if (active) approval.redirect(url => location.replace(url));
     }).catch(caught => {
-      if (active) setError(caught instanceof Error ? caught.message : 'Authorization could not be completed');
+      if (active) setError(describeApiError(caught, 'Authorization could not be completed'));
     });
     return () => { active = false; };
   }, [phase, selection, identity, error]);
@@ -250,6 +257,7 @@ function AuthorizationPortal() {
 function SignInUnavailable({ detail, onRetry, onSignIn }: { detail: string; onRetry: () => void; onSignIn: () => void }) {
   const local = localSignIn(), offered = localSignInOffered();
   const service = local ? 'Cindertrace' : 'Oathweave';
+  useDocumentTitle('Identity service unreachable');
   return (
     <>
       <Background />
@@ -311,6 +319,7 @@ function LoginScreen({ onSuccess, authorization = false, initialNotice = '' }: {
   const [newPassword, setNewPassword] = useState(''),
     [confirmation, setConfirmation] = useState('');
   const [notice, setNotice] = useState(initialNotice);
+  useDocumentTitle(authorization ? 'Oathweave sign-in' : mode === 'sign-in' ? 'Sign in' : 'Password recovery');
   function changeMode(value: typeof mode) {
     setMode(value);
     setChallenge(null);
@@ -334,7 +343,7 @@ function LoginScreen({ onSuccess, authorization = false, initialNotice = '' }: {
       setChallenge(null);
     } catch (error) {
       setError(
-        error instanceof Error ? error.message : 'Passkey verification failed',
+        describeApiError(error, 'Passkey verification failed'),
       );
     } finally {
       setBusy(false);
@@ -597,8 +606,13 @@ function Shell({
   const screens = useMemo(() => paletteScreens(products), [products]);
   const [pathname, setPathname] = useState(location.pathname);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const toast = useToast();
+  // A dead bookmark lands on the overview; say why rather than change pages silently.
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
   useEffect(() => {
     if (deepLink.url) history.replaceState(null, '', deepLink.url);
+    if (deepLink.missing) toastRef.current.info(deepLink.missing, 'Showing the installation overview instead.');
   }, [deepLink]);
   // Role and capabilities decide which Magnus entries show. The session and its contract stay in
   // the module's chunks, so this adds one dynamic import to the main chunk.
@@ -629,6 +643,7 @@ function Shell({
       setPathname(location.pathname);
       const next = resolveDeepLink(location, productInstalled);
       if (next.url) history.replaceState(null, '', next.url);
+      if (next.missing) toastRef.current.info(next.missing, 'Showing the installation overview instead.');
       setView(next.view);
     };
     window.addEventListener('popstate', sync);
@@ -649,6 +664,7 @@ function Shell({
   viewRef.current = view;
   useEffect(() => {
     if (viewAvailable(viewRef.current, productInstalled)) return;
+    toastRef.current.info(missingNotice(routeFor(viewRef.current)), 'Showing the installation overview instead.');
     history.replaceState(null, '', '/');
     setPathname('/');
     setView('hive');
@@ -656,21 +672,8 @@ function Shell({
   const [navOpen, setNavOpen] = useState(false);
   const navigationRef = useRef<HTMLElement>(null);
   const navigationToggleRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!navOpen) return;
-    if (matchMedia('(max-width: 920px)').matches)
-      navigationRef.current
-        ?.querySelector<HTMLButtonElement>('nav button')
-        ?.focus();
-    const close = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setNavOpen(false);
-        navigationToggleRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', close);
-    return () => window.removeEventListener('keydown', close);
-  }, [navOpen]);
+  const closeNav = useCallback(() => setNavOpen(false), []);
+  useNavigationDrawer(navOpen, closeNav, navigationRef, navigationToggleRef);
   const {
     data,
     loading,
@@ -757,9 +760,11 @@ function Shell({
   const where = shellLocation(view, pathname);
   const activeNav = findActiveNav(products, view, where.navPath);
   const crumbs = breadcrumbs(activeNav, titleFor(view), where.path ? titleFor(view, where.path) : undefined, where.path);
+  useDocumentTitle(crumbs.at(-1)?.label ?? titleFor(view));
 
   return (
     <>
+      <SkipLink />
       <Background />
       <div className="app-shell">
         <aside
@@ -791,7 +796,7 @@ function Shell({
           </div>
         </aside>
 
-        <main className="main">
+        <main className="main" id="main-content" tabIndex={-1}>
           <AuthLimitsStrip />
           <header className="topbar">
             <button

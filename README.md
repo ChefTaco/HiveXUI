@@ -48,8 +48,10 @@ Synthetic browser renders do not establish backend authorization or workflow par
 
 ## Theme
 
-There is one dark theme for now, and the UI does not follow the operating system or keep a
-preference. Tokens stay semantic so a light theme can return without touching components.
+There is one dark theme for now, and the UI does not follow the operating system's color scheme
+or keep a preference. It does follow `prefers-contrast: more` (brighter secondary text and
+outlines, no glow or backdrop) and forced colors. Tokens stay semantic so a light theme can return
+without touching components.
 [docs/THEME.md](docs/THEME.md) describes the tokens and components, and how a page adopts them.
 
 ## Build and run

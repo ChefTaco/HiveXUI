@@ -30,6 +30,7 @@ import {
   TableFrame,
 } from '../components/ui';
 import { Icon } from '../components/icons';
+import { describeApiError } from '@lib/api-error';
 
 export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }) {
   const { data, refresh } = useStore();
@@ -67,7 +68,7 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
       setForm(next);
       setDrawerOpen(true);
     } catch (error) {
-      toast.error('Provider could not be edited', error instanceof Error ? error.message : 'Invalid provider model data');
+      toast.error('Provider could not be edited', describeApiError(error, 'Invalid provider model data'));
     }
   }
 
@@ -90,7 +91,7 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
       await refresh();
     } catch (caught) {
       const message =
-        caught instanceof ApiError ? providerSaveRefusal(caught.code) ?? caught.message : caught instanceof Error ? caught.message : 'Could not save provider';
+        caught instanceof ApiError ? providerSaveRefusal(caught.code) ?? caught.message : describeApiError(caught, 'Could not save provider');
       toast.error('Save failed', message);
     } finally {
       setSaving(false);
@@ -106,7 +107,7 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
       setDeleteTarget(null);
       await refresh();
     } catch (caught) {
-      toast.error('Delete failed', caught instanceof Error ? caught.message : 'Could not delete provider');
+      toast.error('Delete failed', describeApiError(caught, 'Could not delete provider'));
     } finally {
       setDeleting(false);
     }
@@ -118,7 +119,7 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
       const status = await adminApi.codexOAuthStatus();
       setCodexStatus(status.data);
     } catch (caught) {
-      toast.error('Codex status failed', caught instanceof Error ? caught.message : 'Could not load Codex authorization status');
+      toast.error('Codex status failed', describeApiError(caught, 'Could not load Codex authorization status'));
     } finally {
       setCodexBusy(false);
     }
@@ -148,7 +149,7 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
       setCodexCheck({ status: 'pending' });
       toast.info('Codex authorization started', 'Open the authorization link and enter the displayed code.');
     } catch (caught) {
-      toast.error('Codex authorization failed', caught instanceof Error ? caught.message : 'Could not start Codex OAuth');
+      toast.error('Codex authorization failed', describeApiError(caught, 'Could not start Codex OAuth'));
     } finally {
       setCodexBusy(false);
     }
@@ -167,7 +168,7 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
         toast.info('Still waiting', 'Complete the device authorization in the OpenAI window.');
       }
     } catch (caught) {
-      toast.error('Codex check failed', caught instanceof Error ? caught.message : 'Could not check Codex authorization');
+      toast.error('Codex check failed', describeApiError(caught, 'Could not check Codex authorization'));
     } finally {
       if (manual) setCodexBusy(false);
     }

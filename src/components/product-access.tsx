@@ -4,6 +4,7 @@ import { adminApi } from '../lib/api';
 import { browserIdentity, productEnabled } from '../lib/runtime';
 import type { AdminUser } from '../lib/types';
 import { Button, Panel } from './ui';
+import { describeApiError } from '@lib/api-error';
 export function ProductAccess({
   product,
   fallback,
@@ -32,7 +33,7 @@ export function ProductAccess({
         .catch((error) => {
           if (active)
             setError(
-              error instanceof Error ? error.message : 'Product unavailable',
+              describeApiError(error, 'Product unavailable'),
             );
         })
         .finally(() => {

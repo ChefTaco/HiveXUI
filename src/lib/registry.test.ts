@@ -52,7 +52,7 @@ describe('what the console treats as installed', () => {
     expect(navigation.viewAvailable('magnus', runtime.productInstalled)).toBe(false);
     expect(productIds(navigation.visibleNavGroups(runtime.productInstalled))).toContain('Emberpath');
     expect(navigation.navProducts(navigation.visibleNavGroups(runtime.productInstalled)).map((product) => product.label)).not.toContain('Magnus');
-    expect(navigation.resolveDeepLink({ pathname: '/fleet/nodes', search: '' }, runtime.productInstalled)).toEqual({ view: 'hive', url: '/' });
+    expect(navigation.resolveDeepLink({ pathname: '/fleet/nodes', search: '' }, runtime.productInstalled)).toEqual({ view: 'hive', url: '/', missing: "Magnus isn't installed here" });
   });
   it('hides a product that is registered but not configured', async () => {
     const { runtime, navigation } = await boot(() => installed('oathweave', 'emberpath', 'magnus', 'hivemem'));

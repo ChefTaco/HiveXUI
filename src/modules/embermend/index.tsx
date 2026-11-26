@@ -4,6 +4,7 @@ import { recommendationSchema, findingSchema, occurrenceSchema, accessSchema, ev
 import { embermendRequest } from './api';
 import { Panel, Button, Badge, PageHeader, useConfirm } from '../../components/ui';
 import { browserIdentity } from '../../lib/runtime';
+import { describeApiError } from '@lib/api-error';
 
 const findingsSchema = z.array(z.object({ finding: findingSchema, occurrences: z.array(occurrenceSchema) }));
 type FindingRow = z.infer<typeof findingsSchema>[number];
@@ -96,7 +97,7 @@ export default function EmbermendModule() {
       const job = jobSchema.parse(await request(`jobs/${encodeURIComponent(queued.jobId)}`));
       setObservations(current => ({ ...current, [originalId]: job }));
       await refresh();
-    } catch (error) { setError(error instanceof Error ? error.message : 'The original outcome could not be observed.'); setBusy(false); }
+    } catch (error) { setError(describeApiError(error, 'The original outcome could not be observed.')); setBusy(false); }
   }
   async function decide(row: Recommendation, decision: 'approve' | 'reject'): Promise<void> {
     const confirmed = await confirmAction(decision === 'approve'
@@ -105,13 +106,13 @@ export default function EmbermendModule() {
     if (!confirmed) return;
     setBusy(true);
     try { await request('decisions', { planId: row.plan.id, revision: row.plan.revision, digest: row.digest, decision, expiresAt: row.plan.expiresAt }); await refresh(); }
-    catch (error) { setError(error instanceof Error ? error.message : 'Decision could not be recorded.'); setBusy(false); }
+    catch (error) { setError(describeApiError(error, 'Decision could not be recorded.')); setBusy(false); }
   }
   async function execute(row: Recommendation): Promise<void> {
     if (!(await confirmAction({ title: 'Start authorized work', message: `This dispatches the authorized changes to managed hosts now. ${planSummary(row)}`, confirmLabel: 'Start work', tone: 'warning' }))) return;
     setBusy(true);
     try { await request(`plans/${encodeURIComponent(row.plan.id)}/execute`, { revision: row.plan.revision, digest: row.digest }); await refresh(); }
-    catch (error) { setError(error instanceof Error ? error.message : 'Inspect the retained operation before requesting further work.'); setBusy(false); }
+    catch (error) { setError(describeApiError(error, 'Inspect the retained operation before requesting further work.')); setBusy(false); }
   }
   async function pause(row: Recommendation): Promise<void> {
     const resuming = row.campaign?.paused === true;
@@ -120,11 +121,11 @@ export default function EmbermendModule() {
       : { title: 'Pause further dispatch', message: `No further operations of this campaign are dispatched until it resumes. Already admitted operations retain their recorded state. ${planSummary(row)}`, confirmLabel: 'Pause dispatch', tone: 'primary' }))) return;
     setBusy(true);
     try { await request(`campaigns/${encodeURIComponent(row.plan.campaignId)}/pause`, { paused: !row.campaign?.paused }); await refresh(); }
-    catch (error) { setError(error instanceof Error ? error.message : 'Pause could not be recorded.'); setBusy(false); }
+    catch (error) { setError(describeApiError(error, 'Pause could not be recorded.')); setBusy(false); }
   }
   async function showEvidence(id: string): Promise<void> {
     try { setEvidence(evidenceSchema.parse(await request(`evidence/${encodeURIComponent(id)}`))); }
-    catch (error) { setError(error instanceof Error ? error.message : 'Evidence is unavailable for your current access.'); }
+    catch (error) { setError(describeApiError(error, 'Evidence is unavailable for your current access.')); }
   }
   return <>
     <PageHeader

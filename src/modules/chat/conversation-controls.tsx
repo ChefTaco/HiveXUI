@@ -10,9 +10,10 @@ import type {
 } from "../../../contracts/chattermost.generated";
 import { chat, chatResource, json, safeId } from "./api";
 import { Button, useConfirm } from "@ui";
+import { describeApiError } from '@lib/api-error';
 
 const message = (reason: unknown) =>
-  reason instanceof Error ? reason.message : "Chat request failed";
+  describeApiError(reason, "Chat request failed");
 
 export function ConversationFiles({
   posts,

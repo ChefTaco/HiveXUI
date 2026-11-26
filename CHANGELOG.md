@@ -12,6 +12,14 @@
 - Fix: the incident aggregator's notes (one source's failure summary unavailable) no longer count as failed console sections; Incidents still lists them.
 - Chat: the live connection reconnects with exponential backoff and jitter (about 1 s doubling to a minute, reset after a healthy connection) instead of every 3 s forever, and renews the chat session before each attempt. A chat session that cannot be renewed stops reconnecting and says to sign in again.
 - The chat reconnect and the Magnus and Studio event streams use `@hivemagnus/hive-common/retry`'s backoff instead of their own copies.
+- Accessibility: a **Skip to content** link is the first keyboard stop on the console, the Cindertrace-only console and Studio (WCAG 2.4.1). Every page names itself in the tab and history title, such as "Inbox · HiveXUI", "Conversation Room · Studio · HiveXUI" or "Sign in · HiveXUI" (WCAG 2.4.2).
+- Accessibility: error toasts stay until dismissed and are announced as alerts; clicking their text no longer dismisses them, so a request ID can be selected and copied (WCAG 2.2.1). Other toasts still leave on their own, but their clock stops while hovered or focused. At most five toasts show at once.
+- Accessibility: the Emberpath audit, traces and API Docs tables open a row's detail from a button in its first cell, as Magnus's audit does, so the drawers are reachable by keyboard.
+- Accessibility: the mobile navigation drawer keeps Tab and Shift+Tab inside it while it is open, in the console and the Cindertrace-only console, which also gains Escape to close it.
+- Accessibility: with `prefers-contrast: more` secondary text and control outlines are brighter (7:1 and 4.5:1) and glow, wash, grid and scanlines are dropped. Under forced colors (Windows High Contrast) the backdrop and scanlines are hidden and the current page, tabs, toggles, badges and status dots keep a visible system-color outline or fill.
+- A bookmark or link to a page this installation does not have still opens the overview, now with a notice such as "Embermend isn't installed here" or "That page doesn't exist here".
+- Errors name their request ID. Failures shown on product pages and in error toasts (Embermend, Skills, Chat, Account, Workspaces, Memories, Emberpath providers, keys, settings, testing and actors, IAM, Cindertrace, product access) and every "could not be loaded" panel now end with "(request …)", as the inbox already did. A request that timed out names the ID it sent.
+- Fix: the API Docs runbooks cite real `./hive.sh` commands (`backup`, `rollback`, `doctor`, `tls-refresh`, `admin-access setup`) instead of `npm run` scripts that no product has (`rotate:secrets`, `deploy -- --rollback`, `audit:deployments`, `deploy:router`, `reset:admin`). The secret-rotation runbook, which had no supported command, became "Backup before a change".
 
 ## [0.12.1] - 2026-11-26
 

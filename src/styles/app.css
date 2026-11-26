@@ -1186,6 +1186,21 @@ kbd.key {
 .row-clickable {
   cursor: pointer;
 }
+/* The keyboard path to a clickable row's action: a plain-looking button in its first cell. */
+.row-open {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.row-open:hover {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .row-sub {
   display: block;
   margin-top: 2px;
@@ -2287,6 +2302,10 @@ td .badge {
   width: min(22.5rem, calc(100vw - 2rem));
   gap: var(--space-2);
 }
+.toast-region {
+  display: grid;
+  gap: var(--space-2);
+}
 .toast {
   --toast-tone: var(--info);
   --toast-glow: var(--glow-info);
@@ -2320,7 +2339,7 @@ td .badge {
   --toast-tone: var(--danger);
   --toast-glow: var(--glow-danger);
 }
-/* Time left before the toast leaves. Decoration: it also stays until dismissed by hover or click. */
+/* Time left before the toast leaves. Decoration: the clock stops while the toast is hovered or focused. */
 .toast__progress {
   position: absolute;
   right: 0;
@@ -2331,6 +2350,9 @@ td .badge {
   opacity: 0.7;
   transform-origin: left;
   animation: toast-progress var(--toast-ms, 4000ms) linear forwards;
+}
+.toast--paused .toast__progress {
+  animation-play-state: paused;
 }
 .toast__body {
   min-width: 0;

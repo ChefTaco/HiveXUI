@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { RouteLink } from '../../../../components/route-link';
 import { linkTo, navigateTo } from '../../../../lib/routes';
 import { buttonClass, Panel } from '@ui';
+import { describeApiError } from '@lib/api-error';
 
 export async function labPost(path: string, body: unknown = {}): Promise<Record<string, unknown>> {
   return securityPost('security-fusion/'+path,body);
@@ -16,7 +17,7 @@ export function LabHome({canAdmin, runs}: Pick<LabStatus, 'canAdmin' | 'runs'>) 
   async function start() {
     setBusy(true);
     try { const run = await labPost('lab/runs'); navigateTo(caseLink(run.caseId)); }
-    catch (error) { setMessage(error instanceof Error ? error.message : 'Could not start lab'); setBusy(false); }
+    catch (error) { setMessage(describeApiError(error, 'Could not start lab')); setBusy(false); }
   }
   return <div className="page-stack">
     <Panel eyebrow="One case · three evidence releases" title="What would change your mind?">

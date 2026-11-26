@@ -21,6 +21,7 @@ import {
   TextInput,
   Toggle,
 } from "../../components/ui";
+import { describeApiError } from '@lib/api-error';
 
 type Tab =
   "sessions" | "webhooks" | "graph" | "conflicts" | "consolidation" | "queue";
@@ -148,7 +149,7 @@ export default function MemoryOperationsModule({
     } catch (error) {
       if (version === current())
         setError(
-          error instanceof Error ? error.message : "Memory operation failed",
+          describeApiError(error, "Memory operation failed"),
         );
     } finally {
       lock.current = false;
@@ -267,7 +268,7 @@ export default function MemoryOperationsModule({
       .catch((error) => {
         if (version === current())
           setError(
-            error instanceof Error ? error.message : "Memory data unavailable",
+            describeApiError(error, "Memory data unavailable"),
           );
       });
     const url = new URL(location.href);

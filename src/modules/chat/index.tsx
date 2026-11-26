@@ -77,6 +77,7 @@ import {
 } from "./conversation-state";
 import "./chat.css";
 import { Button, Badge, EmptyState, useConfirm } from "@ui";
+import { describeApiError } from '@lib/api-error';
 
 const standardEmoji: Record<string, string> = {
   thumbsup: "👍",
@@ -229,7 +230,7 @@ function ConnectedChat() {
       .catch((reason) => {
         if (current)
           setError(
-            reason instanceof Error ? reason.message : "Chat is unavailable",
+            describeApiError(reason, "Chat is unavailable"),
           );
       });
     return () => {
@@ -337,7 +338,7 @@ function ConnectedChat() {
     void refresh().catch((reason) => {
       if (current)
         setError(
-          reason instanceof Error ? reason.message : "Messages are unavailable",
+          describeApiError(reason, "Messages are unavailable"),
         );
     });
     return () => {
@@ -629,7 +630,7 @@ function ConnectedChat() {
       await refresh();
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : "Reaction was not saved",
+        describeApiError(reason, "Reaction was not saved"),
       );
     }
   }
@@ -641,7 +642,7 @@ function ConnectedChat() {
       await refresh();
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : "Message was not updated",
+        describeApiError(reason, "Message was not updated"),
       );
     }
   }
@@ -659,7 +660,7 @@ function ConnectedChat() {
       await refresh();
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : "Message was not deleted",
+        describeApiError(reason, "Message was not deleted"),
       );
     }
   }
@@ -673,7 +674,7 @@ function ConnectedChat() {
       setResults(data.order.map((id) => data.posts[id]!).filter(Boolean));
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : "Search is unavailable",
+        describeApiError(reason, "Search is unavailable"),
       );
     }
   }

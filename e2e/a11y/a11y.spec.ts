@@ -54,6 +54,24 @@ for (const { name, path } of PAGES)
     expect(blocking).toEqual([]);
   });
 
+test('the keyboard opens an audit row and skips to the page content', async ({ page }) => {
+  await page.clock.setFixedTime(FIXED_NOW);
+  await installMocks(page);
+  await page.goto('/?page=audit', { waitUntil: 'networkidle' });
+  await expect(page).toHaveTitle('Routing audit · HiveXUI');
+  // The first Tab reaches the skip link, which moves focus past the sidebar.
+  await page.keyboard.press('Tab');
+  const skip = page.getByRole('link', { name: 'Skip to content' });
+  await expect(skip).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#main-content')).toBeFocused();
+  // A row's first-cell button opens the same drawer as clicking the row.
+  const open = page.getByRole('button', { name: /open audit event auth\.login/ }).first();
+  await open.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('dialog', { name: 'auth.login' })).toBeVisible();
+});
+
 test('the shared confirmation dialog has no serious or critical accessibility violations', async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);
   await installMocks(page);

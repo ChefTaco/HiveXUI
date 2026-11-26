@@ -41,7 +41,18 @@ export function TracesPage() {
                 {data.traces.map((trace) => (
                   <tr key={trace.id} className="row-clickable" onClick={() => selectTrace(trace)}>
                     <td className="cell-mono" title={formatTime(trace.createdAt)}>
-                      {relativeTime(trace.createdAt)}
+                      {/* The row is the mouse target. This is the same action for the keyboard. */}
+                      <button
+                        type="button"
+                        className="row-open"
+                        onClick={(click) => {
+                          click.stopPropagation();
+                          selectTrace(trace);
+                        }}
+                      >
+                        {relativeTime(trace.createdAt)}
+                        <span className="sr-only">: open trace {trace.method} {trace.path}</span>
+                      </button>
                     </td>
                     <td>
                       <span className="cell-strong">{trace.routeKey ?? trace.path}</span>

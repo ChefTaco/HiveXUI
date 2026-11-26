@@ -29,6 +29,7 @@ import type {
   DeploymentJob,
   ManagedDeployment, DeploymentCapabilities,
 } from '../../../contracts/hiveskills.generated';
+import { describeApiError } from '@lib/api-error';
 
 export default function SkillsModule({
   currentUser,
@@ -124,7 +125,7 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
   useEffect(() => {
     void refresh()
       .catch((e) =>
-        setError(e instanceof Error ? e.message : 'Registry unavailable'),
+        setError(describeApiError(e, 'Registry unavailable')),
       )
       .finally(() => setLoaded(true));
     return () => setOneTime('');
@@ -154,7 +155,7 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
       await action();
       if (refreshAfter) await refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Registry operation failed');
+      setError(describeApiError(e, 'Registry operation failed'));
     } finally {
       setBusy(false);
     }
