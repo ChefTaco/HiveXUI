@@ -90,3 +90,24 @@ it('keeps the code of a refused provider save next to its message', () => {
   const failure = apiFailureFromBody(422, {error: 'The base URL now points to a different server.', code: contracts.providerWriteErrorCodes.originChangeRequiresSecret});
   expect(failure).toMatchObject({code: 'provider_origin_change_requires_secret', remoteMessage: 'The base URL now points to a different server.'});
 });
+
+it('reads model discovery and adaptive routing, and checks the adaptive write before sending it', async () => {
+  const request = vi.fn().mockResolvedValue({data: {provider: null, discovered: [{model: 'fixture-large'}, {model: 'fixture-small'}], created: ['fixture-small'], updated: [], unchanged: ['fixture-large'], stale: ['fixture-old']}});
+  const api = createEmberpathApi(request);
+  const {data} = await api.discoverProviderModels('provider/1');
+  expect(request).toHaveBeenLastCalledWith('/api/providers/provider%2F1/discover', {method: 'POST'});
+  expect(data.created).toEqual(['fixture-small']);
+  expect(data.stale).toEqual(['fixture-old']);
+
+  request.mockResolvedValue({data: {config: {enabled: true, weight: 1, windowMinutes: 60, minSamples: 5, latencyTargetMs: 4000},
+    providers: [{providerId: 'p1', slug: 'fixture', name: 'Fixture', samples: 12, successRate: 0.917, avgLatencyMs: 820, avgTotalTokens: 300, scoreAdjustment: 0.42}]}});
+  expect((await api.adaptiveRouting()).data.providers[0]?.scoreAdjustment).toBe(0.42);
+
+  request.mockClear();
+  expect(() => api.updateAdaptiveRouting({enabled: true, weight: 11})).toThrow();
+  expect(() => api.updateAdaptiveRouting({enabled: true, unexpected: 1} as never)).toThrow();
+  expect(request).not.toHaveBeenCalled();
+  request.mockResolvedValue({data: {config: {enabled: false, weight: 2}}});
+  await api.updateAdaptiveRouting({enabled: false, weight: 2});
+  expect(request).toHaveBeenLastCalledWith('/api/routing/adaptive', {method: 'PUT', body: {enabled: false, weight: 2}});
+});

@@ -1,5 +1,7 @@
 import {routeRuleSchema, heuristicSchema} from '@contracts/emberpath-model-admin.generated';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import type { AdaptiveRoutingState } from '../lib/emberpath-api';
+import { describeApiError } from '@lib/api-error';
 import { adminApi, ApiError } from '../lib/api';
 import { useStore } from '../lib/store';
 import { useToast } from '../components/toast';
@@ -26,7 +28,7 @@ import {
 } from '../components/ui';
 import { Icon } from '../components/icons';
 
-type Tab = 'aliases' | 'rules' | 'heuristics';
+type Tab = 'aliases' | 'rules' | 'heuristics' | 'adaptive';
 
 function errMessage(caught: unknown, fallback: string): string {
   if (caught instanceof ApiError) return caught.message;
@@ -56,11 +58,127 @@ export function RoutingPage({ currentUser }: { currentUser: AdminUser | null }) 
         <button className={tab === 'heuristics' ? 'tab tab--active' : 'tab'} onClick={() => setTab('heuristics')}>
           Heuristics <span className="tab-count">{data.heuristics.length}</span>
         </button>
+        <button className={tab === 'adaptive' ? 'tab tab--active' : 'tab'} onClick={() => setTab('adaptive')}>
+          Adaptive
+        </button>
       </div>
 
       {tab === 'aliases' ? <AliasSection canWrite={canWriteRouting} /> : null}
       {tab === 'rules' ? <RuleSection canWrite={canWriteRouting} /> : null}
       {tab === 'heuristics' ? <HeuristicSection canWrite={canWriteRouting} /> : null}
+      {tab === 'adaptive' ? <AdaptiveSection canWrite={canWriteRouting} /> : null}
+    </>
+  );
+}
+
+/* ===================== Adaptive routing ===================== */
+
+type AdaptiveConfig = AdaptiveRoutingState['config'];
+const ADAPTIVE_FIELDS: ReadonlyArray<{ key: Exclude<keyof AdaptiveConfig, 'enabled'>; label: string; hint: string; min: number; max: number; step: number }> = [
+  { key: 'weight', label: 'Weight', hint: 'How strongly measured results move a provider’s score (0 to 10).', min: 0, max: 10, step: 0.1 },
+  { key: 'windowMinutes', label: 'Window (minutes)', hint: 'How far back traces count (up to 7 days).', min: 1, max: 10080, step: 1 },
+  { key: 'minSamples', label: 'Minimum samples', hint: 'Traces a provider needs in the window before it is adjusted.', min: 0, max: 100000, step: 1 },
+  { key: 'latencyTargetMs', label: 'Latency target (ms)', hint: 'Faster than this raises the score; slower lowers it.', min: 1, max: 600000, step: 1 },
+];
+
+/**
+ * Adaptive routing (Emberpath): each provider's recent success rate and latency nudge its routing
+ * score. The panel shows the measured window and lets a routing writer turn it on and tune it.
+ */
+function AdaptiveSection({ canWrite }: { canWrite: boolean }) {
+  const toast = useToast();
+  const [state, setState] = useState<AdaptiveRoutingState | null>(null);
+  const [form, setForm] = useState<AdaptiveConfig | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const load = useCallback(async () => {
+    try {
+      const { data } = await adminApi.adaptiveRouting();
+      setState(data);
+      setForm(data.config);
+      setError(null);
+    } catch (caught) {
+      setError(caught instanceof ApiError && caught.status === 404 ? 'This Emberpath has no adaptive routing. Upgrade Emberpath to use it.' : describeApiError(caught, 'Adaptive routing could not be loaded'));
+    }
+  }, []);
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function save() {
+    if (!form) return;
+    setSaving(true);
+    try {
+      await adminApi.updateAdaptiveRouting(form);
+      toast.success('Adaptive routing saved', form.enabled ? 'Measured results now adjust provider scores.' : 'Provider scores no longer use measured results.');
+      await load();
+    } catch (caught) {
+      toast.error('Save failed', describeApiError(caught, 'Adaptive routing could not be saved'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (error) return <EmptyState framed title="Adaptive routing unavailable" message={error} action={<Button onClick={() => void load()}>Retry</Button>} />;
+  if (!state || !form) return <Panel title="Adaptive routing"><p className="m-0 text-text-muted">Loading…</p></Panel>;
+  const valid = ADAPTIVE_FIELDS.every(({ key, min, max }) => Number.isFinite(form[key]) && form[key] >= min && form[key] <= max);
+  return (
+    <>
+      <Panel title="Adaptive routing" eyebrow={state.config.enabled ? 'On' : 'Off'}>
+        <div className="grid gap-3">
+          <p className="m-0">Each provider’s success rate and latency over the window adjust its routing score, once it has enough traces.</p>
+          <Toggle checked={form.enabled} onChange={(enabled) => setForm({ ...form, enabled })} label="Adjust scores from measured results" disabled={!canWrite} />
+          <div className="field-grid">
+            {ADAPTIVE_FIELDS.map(({ key, label, hint, min, max, step }) => (
+              <Field key={key} label={label} hint={hint}>
+                <TextInput type="number" min={min} max={max} step={step} value={String(form[key])} disabled={!canWrite} onChange={(value) => setForm({ ...form, [key]: value === '' ? Number.NaN : Number(value) })} />
+              </Field>
+            ))}
+          </div>
+          <div className="inline-actions">
+            <Button variant="primary" onClick={() => void save()} loading={saving} disabled={!canWrite || !valid} icon={<Icon.Check className="btn-ico" />}>
+              Save adaptive routing
+            </Button>
+            {!valid ? <span role="alert" className="text-xs text-danger">Each value must be within its range.</span> : null}
+          </div>
+        </div>
+      </Panel>
+      <Panel title="Measured providers" eyebrow={`last ${state.config.windowMinutes} min`}>
+        {state.providers.length === 0 ? (
+          <EmptyState compact title="No measurements" message={state.config.enabled ? 'No provider has traces in the window yet.' : 'Emberpath measures providers while adaptive routing is on.'} />
+        ) : (
+          <TableFrame label="Adaptive routing measurements">
+            <table>
+              <thead>
+                <tr>
+                  <th>Provider</th>
+                  <th>Samples</th>
+                  <th>Success</th>
+                  <th>Avg latency</th>
+                  <th>Avg tokens</th>
+                  <th>Score adjustment</th>
+                </tr>
+              </thead>
+              <tbody>
+                {state.providers.map((provider) => (
+                  <tr key={provider.providerId}>
+                    <td className="cell-strong">{provider.name ?? provider.slug ?? provider.providerId}</td>
+                    <td className="cell-mono">{provider.samples}</td>
+                    <td className="cell-mono">{(provider.successRate * 100).toFixed(1)}%</td>
+                    <td className="cell-mono">{provider.avgLatencyMs} ms</td>
+                    <td className="cell-mono">{provider.avgTotalTokens}</td>
+                    <td>
+                      <Badge tone={provider.scoreAdjustment > 0 ? 'success' : provider.scoreAdjustment < 0 ? 'warning' : 'neutral'}>
+                        {provider.samples < state.config.minSamples ? 'too few samples' : `${provider.scoreAdjustment > 0 ? '+' : ''}${provider.scoreAdjustment.toFixed(2)}`}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableFrame>
+        )}
+      </Panel>
     </>
   );
 }

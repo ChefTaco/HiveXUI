@@ -2,6 +2,42 @@ import {z} from 'zod';
 import * as contracts from '@contracts/emberpath-model-admin.generated';
 import {parseAnswer} from './api-error';
 
+// The vendored contract (Emberpath 2.6.0) describes the adaptive routing request but neither answer
+// below, so these follow Emberpath's own `POST /api/providers/:id/discover` and
+// `GET|PUT /api/routing/adaptive` handlers and are read leniently.
+const modelNames = z.array(z.string().max(500)).max(5000);
+export const providerDiscoverySchema = contracts.dataSchema(z.object({
+  provider: contracts.providerReadSchema.nullable(),
+  discovered: z.array(z.object({model: z.string().max(500), displayName: z.string().max(500).optional()}).passthrough()).max(5000),
+  created: modelNames,
+  updated: modelNames,
+  unchanged: modelNames,
+  stale: modelNames,
+}));
+const adaptiveConfigSchema = z.object({
+  enabled: z.boolean(),
+  weight: z.number(),
+  windowMinutes: z.number(),
+  minSamples: z.number(),
+  latencyTargetMs: z.number(),
+});
+export const adaptiveRoutingStateSchema = contracts.dataSchema(z.object({
+  config: adaptiveConfigSchema,
+  providers: z.array(z.object({
+    providerId: z.string(),
+    slug: z.string().nullable(),
+    name: z.string().nullable(),
+    samples: z.number(),
+    successRate: z.number(),
+    avgLatencyMs: z.number(),
+    avgTotalTokens: z.number(),
+    scoreAdjustment: z.number(),
+  })).max(1000),
+}));
+const adaptiveSavedSchema = contracts.dataSchema(z.object({config: contracts.adaptiveRoutingSchema}));
+export type AdaptiveRoutingState = z.infer<typeof adaptiveRoutingStateSchema>['data'];
+export type ProviderDiscovery = z.infer<typeof providerDiscoverySchema>['data'];
+
 // The transport supplies authentication and errors; all model-plane payloads are owned by Emberpath.
 export function createEmberpathApi(request: (path: string, options?: {method?: string; body?: object}) => Promise<unknown>) {
   const id = encodeURIComponent;
@@ -15,6 +51,10 @@ export function createEmberpathApi(request: (path: string, options?: {method?: s
     createProvider: (body: contracts.ProviderWriteRequest) => read('/api/providers', contracts.dataSchema(contracts.providerReadSchema), 'POST', contracts.providerSchema.parse(body)),
     updateProvider: (key: string, body: contracts.ProviderWriteRequest) => read('/api/providers/' + id(key), contracts.dataSchema(contracts.providerReadSchema), 'PUT', contracts.providerSchema.parse(body)),
     deleteProvider: (key: string) => read('/api/providers/' + id(key), contracts.okSchema, 'DELETE'),
+    /** Asks the provider for its live model list and reconciles it into Emberpath; operator overrides are kept. */
+    discoverProviderModels: (key: string) => read('/api/providers/' + id(key) + '/discover', providerDiscoverySchema, 'POST'),
+    adaptiveRouting: () => read('/api/routing/adaptive', adaptiveRoutingStateSchema),
+    updateAdaptiveRouting: (body: z.input<typeof contracts.adaptiveRoutingSchema>) => read('/api/routing/adaptive', adaptiveSavedSchema, 'PUT', contracts.adaptiveRoutingSchema.parse(body)),
     aliases: () => read('/api/model-aliases', contracts.dataSchema(z.array(contracts.modelAliasReadSchema))),
     createAlias: (body: contracts.ModelAliasWriteRequest) => read('/api/model-aliases', contracts.dataSchema(contracts.modelAliasReadSchema), 'POST', contracts.modelAliasSchema.parse(body)),
     updateAlias: (key: string, body: contracts.ModelAliasWriteRequest) => read('/api/model-aliases/' + id(key), contracts.dataSchema(contracts.modelAliasReadSchema), 'PUT', contracts.modelAliasSchema.parse(body)),
