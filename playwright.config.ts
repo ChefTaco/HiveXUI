@@ -1,6 +1,6 @@
 // End-to-end tests of Ardent Project Studio against a real stack built from source
 // (e2e/stack). `npm run e2e` starts the stack when Docker is available and skips otherwise;
-// STUDIO_E2E_REQUIRED=1 fails instead, on missing Docker or on any skipped spec.
+// STUDIO_E2E_REQUIRED=1 fails instead, on missing Docker or on any skipped spec (test.fixme is listed only).
 import { defineConfig } from '@playwright/test';
 
 export default defineConfig({

@@ -310,7 +310,8 @@ npm run e2e:stack -- down    # remove the stack's containers, volumes and run di
 
 Docker with Compose is required; without it the specs are skipped, so `npm run e2e` stays green
 where Docker is unavailable. `STUDIO_E2E_REQUIRED=1` makes it a gate instead: missing Docker, a stack
-that does not start (whose containers are then removed) and any skipped spec fail the run. The
+that does not start (whose containers are then removed) and any skipped spec fail the run. A scenario
+declared with `test.fixme` (not written yet) is listed as not implemented and does not fail it. The
 `Real-stack end-to-end` workflow (`.github/workflows/e2e-stack.yml`) runs it that way nightly and on
 demand, building the stack from every product's default branch. The token renewal check waits out
 one access token lifetime (15 minutes by default); `STUDIO_E2E_ACCESS_TTL=120` when starting a stack
