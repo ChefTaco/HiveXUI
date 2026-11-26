@@ -4,6 +4,7 @@ import {
   type IdentityPrompt,
 } from '../lib/identity-prompts';
 import { Button, Field, TextInput } from './ui';
+import { useToast } from './toast';
 
 export function IdentityPrompts() {
   const [prompt, setPrompt] = useState<IdentityPrompt | null>(null);
@@ -22,9 +23,13 @@ export function IdentityPrompts() {
         dialog.current?.querySelector<HTMLElement>('input,button')?.focus(),
       );
   }, [prompt]);
+  const toast = useToast();
   const cancel = () => {
     if (prompt?.kind === 'consent') prompt.resolve(false);
-    else prompt?.resolve(null);
+    else if (prompt) {
+      prompt.resolve(null);
+      toast.info('Identity verification cancelled', 'Nothing was changed. Start the action again when you are ready.');
+    }
   };
   const verify = (passkey: boolean) => {
     if (prompt?.kind !== 'step-up' || !password) return;
@@ -80,8 +85,8 @@ export function IdentityPrompts() {
           }}
         >
           <p>
-            Verify your identity to continue. Review and submit any requested
-            changes again.
+            This action needs a fresh sign-in. Verify your identity with
+            Oathweave to continue; your password goes only to Oathweave.
           </p>
           <Field label="Current password">
             <TextInput

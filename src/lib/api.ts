@@ -69,35 +69,24 @@ async function request<T, TBody extends JsonRequestBody = JsonRequestBody>(
 }
 
 export { SecondFactorRequired } from './second-factor';
-import { SecondFactorRequired } from './second-factor';
-const isMfaRequired = (error: unknown) => error instanceof ApiError && error.status === 401 && error.code?.toUpperCase() === 'MFA_REQUIRED';
 
-/**
- * Emberpath's own password check (sign-in and reauthentication on the native console API), with
- * the second factor when the account has one. A refusal that asks for the code is SecondFactorRequired.
- */
-async function emberpathPasswordCheck<T>(path: string, body: { username?: string; password: string }, mfaCode?: string): Promise<T> {
-  const code = mfaCode?.trim();
-  try {
-    return await request<T>(path, { method: 'POST', body: { ...body, ...(code ? { mfaCode: code } : {}) } });
-  } catch (error) {
-    if (isMfaRequired(error)) throw new SecondFactorRequired();
-    throw error;
-  }
+/** No Oathweave browser sign-in and no Cindertrace local sign-in: HiveXUI has nothing to sign in with. */
+function signInUnavailable(): Promise<never> {
+  return Promise.reject(new Error('Oathweave browser sign-in is not configured for this console'));
 }
 
 export const adminApi = {
   // ---- auth ----
-  /** `mfaCode` is used only by the native console sign-in, which sends it with the password again. */
+  /**
+   * Sign-in goes to Oathweave's own browser API (the suite's sign-in page), or to Cindertrace's
+   * local store in local mode. No product receives the password. `mfaCode` is Cindertrace's,
+   * which takes the code with the password again.
+   */
   login(username: string, password: string, mfaCode?: string) {
     if (localSignIn()) return cindertraceLocalAuth.login(username, password, mfaCode);
     const identity = browserIdentity();
     if (identity) return identity.login(username, password);
-    return emberpathPasswordCheck<{ ok: boolean; user: AdminUser }>('/api/auth/login', { username, password }, mfaCode);
-  },
-  /** The native console's password confirmation before an upgrade, with the second factor when needed. */
-  reauthenticate(password: string, mfaCode?: string) {
-    return emberpathPasswordCheck<{ ok: boolean }>('/api/auth/reauthenticate', { password }, mfaCode);
+    return signInUnavailable();
   },
   async logout() {
     // The console's other tabs sign out with this one, whether or not the service answers.
@@ -110,13 +99,8 @@ export const adminApi = {
         await identity.logout();
         return { ok: true };
       }
-      try {
-        return await request<{ ok: boolean }>('/api/auth/logout', {
-          method: 'POST',
-        });
-      } finally {
-        clearAccess();
-      }
+      clearAccess();
+      return { ok: true };
     } finally {
       announceSignOut();
     }
@@ -125,7 +109,7 @@ export const adminApi = {
     if (localSignIn()) return cindertraceLocalAuth.me();
     const identity = browserIdentity();
     if (identity) return identity.me();
-    return request<{ user: AdminUser }>('/api/auth/me');
+    return signInUnavailable();
   },
 
   resourceMe(product: 'emberpath' | 'oathweave') {

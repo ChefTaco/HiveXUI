@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { createHash, webcrypto } from 'node:crypto';
 import { exportJWK, generateKeyPair, SignJWT } from 'jose';
-import { createBrowserAuth, PasswordExpired } from './browser-auth';
+import { createBrowserAuth, PasswordExpired, ReauthenticationCancelled } from './browser-auth';
 import { subscribeIdentityPrompts } from './identity-prompts';
 import { clearAccess } from './transport';
 
@@ -169,14 +169,45 @@ it('reports a gateway error page at sign-in by its status, not as a JSON parser 
 it('shares one pending step-up across concurrent readers and refuses completion after logout',async()=>{
  let finish:((value:Response)=>void)|undefined;let prompts=0;
  const unsubscribe=subscribeIdentityPrompts(prompt=>{if(prompt?.kind==='step-up'){prompts++;prompt.resolve({password:'obviously-fake-password'})}});
- const send=vi.fn<typeof fetch>().mockImplementation(input=>String(input).endsWith('/browser/logout')?Promise.resolve(Response.json({ok:true})):new Promise(resolve=>{finish=resolve}));
- const auth=createBrowserAuth({issuer:'https://identity.example.com',apiPrefix:'/api/identity',clients:{}},send);
+ const send=vi.fn<typeof fetch>().mockImplementation(input=>{
+  const path=String(input);
+  if(path.endsWith('/browser/logout'))return Promise.resolve(Response.json({ok:true}));
+  if(path.endsWith('/browser/session'))return Promise.resolve(Response.json({principal:{sub:'fixture-user',username:'admin',roles:[],permissions:[]}}));
+  if(path.endsWith('/oauth/authorize'))return Promise.resolve(Response.json({error:'LOGIN_REQUIRED',message:'Sign in again',reason:'prompt_login',loginTicket:'fixture-ticket',loginTicketExpiresIn:600},{status:401}));
+  return new Promise(resolve=>{finish=resolve});
+ });
+ const auth=createBrowserAuth({issuer:'https://identity.example.com',apiPrefix:'/api/identity',clients:{oathweave:'hivexui-oathweave'}},send);
  try{
   const first=auth.stepUp(),second=auth.stepUp();expect(second).toBe(first);
-  const observed=expect(first).rejects.toThrow('session ended');await Promise.resolve();expect(prompts).toBe(1);
+  const observed=expect(first).rejects.toThrow('session ended');await vi.waitFor(()=>expect(finish).toBeDefined());expect(prompts).toBe(1);
   await auth.logout();finish!(Response.json({success:true}));await observed;
   expect(send.mock.calls.filter(call=>String(call[0]).endsWith('/auth/step-up'))).toHaveLength(1);
  }finally{unsubscribe();auth.invalidate()}
+});
+
+it('does not end the session when Oathweave asks for a new sign-in, only when the session is gone', async () => {
+ const { onSessionEnded, resetSessionEvents } = await import('./session-events');
+ const ended = vi.fn();
+ onSessionEnded(ended);
+ const unsubscribe=subscribeIdentityPrompts(prompt=>{if(prompt?.kind==='step-up')prompt.resolve(null)});
+ let reason='prompt_login';
+ const send=vi.fn<typeof fetch>().mockImplementation(async input=>{
+  const path=String(input);
+  if(path.endsWith('/browser/session'))return Response.json({principal:{sub:'fixture-user',username:'admin',roles:[],permissions:[]}});
+  if(path.endsWith('/oauth/authorize/cancel'))return Response.json({error:'access_denied',error_description:'cancelled',iss:'https://identity.example.com',redirectTo:'https://console.example.com/auth/callback?error=access_denied'});
+  if(path.endsWith('/oauth/authorize'))return Response.json({error:'LOGIN_REQUIRED',message:'Sign in again',reason,loginTicket:'fixture-ticket',loginTicketExpiresIn:600},{status:401});
+  throw new Error('unexpected '+path);
+ });
+ const auth=createBrowserAuth({issuer:'https://identity.example.com',apiPrefix:'/api/identity',clients:{oathweave:'hivexui-oathweave'}},send);
+ try{
+  const cancelled=await auth.stepUp('oathweave').catch((error:unknown)=>error);
+  expect(cancelled).toBeInstanceOf(ReauthenticationCancelled);
+  expect((cancelled as Error).message).toMatch(/cancelled, so nothing was changed/);
+  expect(ended).not.toHaveBeenCalled();
+  reason='no_session';
+  await expect(auth.stepUp('oathweave')).rejects.toBeInstanceOf(ReauthenticationCancelled);
+  expect(ended).toHaveBeenCalledWith('expired');
+ }finally{unsubscribe();auth.invalidate();resetSessionEvents()}
 });
 
 it('ends the session for every page when Oathweave refuses the browser session or a new authorization', async () => {

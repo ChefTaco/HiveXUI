@@ -100,6 +100,13 @@ let identity: ReturnType<typeof createBrowserAuth> | undefined;
 let identityConfig: { clients: Partial<Record<Product, string>> } | undefined;
 let local = false;
 let recoveryOffered = false;
+let signInMissing = false;
+/**
+ * The runtime configures neither Oathweave browser sign-in nor Cindertrace's local sign-in (a
+ * `legacy` runtime). HiveXUI no longer signs in with a password through a product, so it shows how
+ * to configure Oathweave instead of a sign-in form.
+ */
+export const browserSignInMissing = () => signInMissing;
 /**
  * The tab's choice of Cindertrace's own sign-in on a suite installation. It is a choice, not a
  * credential: the session itself is Cindertrace's HttpOnly cookie.
@@ -194,7 +201,7 @@ export async function initializeRuntime(): Promise<void> {
     setUnauthorizedHandler(() => verifySession());
     // The authorization portal shows no sections and serves other applications' sign-ins.
     if (location.pathname !== '/auth/authorize') await startRegistry([...enabled]);
-  }
+  } else signInMissing = true;
 }
 
 /** The Oathweave browser client of the Registry's inventory read; fresh setup and console-clients create it. */

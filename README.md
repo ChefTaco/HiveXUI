@@ -107,10 +107,35 @@ credentials, infrastructure keys or passwords in it.
 
 Suite runtime requires an Oathweave identity configuration and a public client for
 each configured product. A missing runtime file or missing identity fails before
-sign-in. Explicit `mode: "legacy"` is reserved for standalone recovery against
-the retained native console API; suite installations never select it implicitly.
-That mode keeps its unfiltered navigation. The legacy `links.magnus` runtime key is accepted and
-ignored for one release.
+sign-in. HiveXUI signs in only through Oathweave (or, in local mode, Cindertrace's own
+store): no product ever receives a person's password. A `mode: "legacy"` runtime, which used to
+sign in with a password through Emberpath's native console API, now shows **Configure Oathweave
+browser sign-in** instead of a sign-in form: add the `identity` block above (the installation's
+`IAM_BROWSER_ISSUER`, its Oathweave API prefix and a public client per product) and reload. The
+legacy `links.magnus` runtime key is accepted and ignored for one release.
+
+### Re-authentication (step-up)
+
+A product that needs a recent sign-in before a sensitive action answers `403 STEP_UP_REQUIRED`.
+HiveXUI then re-authenticates as an OpenID Connect round trip in the page, so the pending action
+never leaves memory:
+
+1. For Emberpath, `POST /api/emberpath/auth/step-up/challenge` hands out a single-use nonce (other
+   products get a random one).
+2. HiveXUI asks Oathweave to authorize the product's public client with `prompt=login`, S256 PKCE,
+   that nonce and a new state. Oathweave answers `LOGIN_REQUIRED` with a login ticket.
+3. **Verify your identity** asks for the password and authenticator code (or a passkey), which go
+   only to Oathweave's own step-up endpoint.
+4. The same authorization is repeated with the ticket, and the code exchanged with the verifier.
+   HiveXUI checks the ID token: signature, issuer, client, nonce, the same person (`sub`), an
+   `auth_time` no older than the start, and `at_hash`.
+5. Emberpath gets the ID token at `POST /api/emberpath/auth/step-up` and checks it again on the
+   server. Every product's access token is then renewed, so each carries the new `auth_time` (Magnus
+   checks it itself).
+
+A read that was refused is repeated once; a refused change is not replayed, and the page says to
+submit it again. Cancelling **Verify your identity** ends Oathweave's ticket
+(`POST /oauth/authorize/cancel`), leaves the action undone and shows a dismissible notice.
 
 ### Cindertrace sign-in (local mode and recovery)
 
@@ -339,8 +364,14 @@ needs `CAP_SYS_ADMIN` in a private cgroup namespace; it never touches the host's
 The central `/auth/authorize` portal accepts standard Code with S256 PKCE requests for explicitly
 registered Oathweave public clients. It reuses sign-in, MFA and consent, validates state/nonce and the
 configured issuer, and returns only the backend-issued code to the exact registered HTTPS callback.
-The requesting application's backend retains its verifier and performs token exchange. Unknown or
-repeated parameters, unsafe callbacks and declined access remain local errors; the portal does not
-redirect errors to unvalidated targets. Authorization requests and one-use continuations live only in
+The requesting application's backend retains its verifier and performs token exchange. It honours
+OpenID Connect `prompt` (`login`, `select_account`, `consent`, `none`) and `max_age` (Oathweave
+2.7.0): for `prompt=login`, `select_account` or `max_age` it asks Oathweave first, shows the sign-in
+form when Oathweave answers `LOGIN_REQUIRED`, and repeats the request with Oathweave's login ticket.
+**Cancel** returns `access_denied` to the application through Oathweave
+(`/oauth/authorize/cancel`), and a declined consent and `prompt=none` errors go back the same way.
+Those OAuth errors are sent only to the exact callback the request named, with its state and the
+configured issuer. Unknown or repeated parameters and unsafe callbacks remain local errors; the
+portal does not redirect errors to unvalidated targets. Authorization requests and one-use continuations live only in
 memory and are invalidated on logout or session invalidation. Existing suite sign-in and UI deep
 links retain their original behavior.

@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+### Upgrade notes
+
+- **HiveXUI no longer signs in with a password through Emberpath.** A `mode: "legacy"` runtime (no
+  Oathweave `identity`) now shows **Configure Oathweave browser sign-in** instead of a sign-in
+  form. Suite installations already configure Oathweave and are unaffected; Cindertrace's local
+  mode and its recovery sign-in are unchanged. The console's own upgrade panel with its password
+  confirmation is gone; upgrades run on the installation controller as the panel describes.
+- Re-authentication needs Oathweave 2.7.0 (`prompt=login` and login tickets) and, for Emberpath's
+  credential and policy changes, Emberpath with `POST /api/auth/step-up` (the release after 2.9.0).
+  Against an older Oathweave the step-up still works (Oathweave ignores `prompt`). Against an older
+  Emberpath its step-up challenge answers 404: renewing the Emberpath token still carries the new
+  `auth_time`, which that Emberpath checks, so set no configuration. The vendored Oathweave browser
+  contract is Oathweave main after 2.6.0 (`aa9b837`).
+- No migrations and no `runtime.json` change for suite installations. Downgrading to 0.13.0 is safe.
+
+### Changed
+
+- Step-up is an OpenID Connect round trip in the page (`prompt=login`, PKCE, the product's
+  nonce, Oathweave's login ticket), the ID token is checked in the browser and, for Emberpath, on
+  the server; every product's access token is then renewed. The password goes only to Oathweave.
+  A cancelled verification shows a dismissible notice and the refusal `REAUTH_CANCELLED`.
+- The sign-in portal honours `prompt` and `max_age`, repeats a forced sign-in with Oathweave's
+  login ticket, returns **Cancel**, declined consent and `prompt=none` errors to the application's
+  exact callback, and offers **Cancel and return to the application** on its sign-in form.
+
+### Removed
+
+- The Emberpath password sign-in (`/api/auth/login`), its multi-factor retry and its password
+  re-authentication (`/api/auth/reauthenticate`), and the legacy upgrade panel that used them.
+
 ## [0.13.0] - 2026-11-26
 
 ### Upgrade notes
