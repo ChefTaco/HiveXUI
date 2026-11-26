@@ -18,7 +18,9 @@ import {
   LoadingRows,
   TableFrame,
 } from '../../components/ui';
-import { skillsApi as api } from './api';
+import { skillsApi as api, type UpdateStatus } from './api';
+import { exportAuditRecords } from './audit-export';
+import { safeExternalUrl } from '../../lib/external-url';
 import type {
   Skill,
   Release,
@@ -86,6 +88,7 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
     [file, setFile] = useState<File | null>(null),
     [oneTime, setOneTime] = useState(''),
     [confirm, setConfirm] = useState<'delete' | 'withdraw' | null>(null);
+  const [updates, setUpdates] = useState<UpdateStatus | null>(null);
   const canWrite =
     admin &&
     (can(currentUser, 'hiveskills:write') ||
@@ -106,8 +109,10 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
         api.deployments(),
         api.audit(),
         api.deploymentCapabilities(),
+        api.updates(),
       ]);
-      const [s, c, t, r, j, a,capabilities] = result;
+      const [s, c, t, r, j, a,capabilities,update] = result;
+      if (update?.status === 'fulfilled') setUpdates(update.value);
       if(capabilities?.status==='fulfilled')setDeploymentCapabilities(capabilities.value);
       if (s?.status === 'fulfilled') setSkills(s.value as Skill[]);
       if (c?.status === 'fulfilled') setChannels(c.value as Channel[]);
@@ -634,6 +639,7 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
               <EmptyState compact title="No deployment jobs" message="No deployment jobs have been recorded." />
             )}
           </Panel>
+          {updates ? <RegistryRelease status={updates} /> : null}
           <Panel title="Registry audit">
             {audit.length ? (
               <TableFrame label="Registry audit">
@@ -682,6 +688,20 @@ function Registry({ currentUser }: { currentUser: AdminUser | null }) {
             >
               Older events
             </Button>
+            <Button
+              variant="ghost"
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  const exported = await exportAuditRecords(api.auditExport);
+                  setNotice(exported.truncated
+                    ? `Saved the first ${exported.count} audit records; the export stops there. Collect the rest with Cindertrace or the API.`
+                    : `Saved ${exported.count} audit records (HiveAuditRecord v1).`);
+                }, false)
+              }
+            >
+              Export audit records
+            </Button>
           </Panel>
         </>
       )}
@@ -720,4 +740,28 @@ function parseDetails(value: string | null): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+/** The registry's own release, and the newer one its update check found (`GET /admin/updates`). */
+export function RegistryRelease({ status }: { status: UpdateStatus }) {
+  const notes = safeExternalUrl(status.notesUrl);
+  return (
+    <Panel title="Registry release" eyebrow={`HiveSkills ${status.installed}`}>
+      {!status.enabled ? (
+        <p className="m-0 text-text-muted">Update checks are off for this registry (HIVE_UPDATE_CHECK). Upgrades come with the suite release.</p>
+      ) : status.available ? (
+        <div className="grid gap-1">
+          <p className="m-0">
+            HiveSkills <strong>{status.available}</strong> is available{status.summary ? `: ${status.summary}` : '.'}
+          </p>
+          {status.newRequiredEnv?.length ? <p className="m-0 text-sm">New required settings: {status.newRequiredEnv.map((entry) => entry.name).join(', ')}.</p> : null}
+          {status.migrations?.length ? <p className="m-0 text-sm">Migrations: {[...new Set(status.migrations.map((entry) => entry.impact ?? 'unspecified'))].join(', ')}.</p> : null}
+          {notes ? <a href={notes} target="_blank" rel="noopener noreferrer">Release notes</a> : null}
+        </div>
+      ) : (
+        <p className="m-0">{status.error ?? 'This is the newest release the update check knows.'}</p>
+      )}
+      {status.checkedAt ? <p className="m-0 text-xs text-text-muted">Checked {status.checkedAt}{status.stale ? ' (out of date)' : ''}</p> : null}
+    </Panel>
+  );
 }

@@ -1,6 +1,11 @@
 {
   "components": {
     "schemas": {
+      "AgentRef": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "pattern": "^[A-Za-z0-9._-]{1,128}~[A-Za-z0-9._-]{1,128}$",
+        "type": "string"
+      },
       "Audit": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -369,6 +374,539 @@
         ],
         "type": "object"
       },
+      "HiveAuditPage": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "action": {
+                  "maxLength": 128,
+                  "pattern": "^[a-z0-9_]+(?:\\.[a-z0-9_]+)+$",
+                  "type": "string"
+                },
+                "actor": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "displayName": {
+                      "maxLength": 256,
+                      "type": "string"
+                    },
+                    "id": {
+                      "maxLength": 256,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "issuer": {
+                      "maxLength": 512,
+                      "type": "string"
+                    },
+                    "type": {
+                      "enum": [
+                        "user",
+                        "service",
+                        "agent",
+                        "system"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "id"
+                  ],
+                  "type": "object"
+                },
+                "details": {
+                  "additionalProperties": {
+                    "type": [
+                      "string",
+                      "number",
+                      "boolean"
+                    ]
+                  },
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "id": {
+                  "maxLength": 256,
+                  "minLength": 1,
+                  "pattern": "^(hivemem|hiveskills|ardentstudio|embermend):audit:[A-Za-z0-9._:-]{1,200}$",
+                  "type": "string"
+                },
+                "occurredAt": {
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                  "type": "string"
+                },
+                "outcome": {
+                  "enum": [
+                    "success",
+                    "failure"
+                  ],
+                  "type": "string"
+                },
+                "product": {
+                  "enum": [
+                    "hivemem",
+                    "hiveskills",
+                    "ardentstudio",
+                    "embermend"
+                  ],
+                  "type": "string"
+                },
+                "subject": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "actorId": {
+                      "maxLength": 256,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "agentRef": {
+                      "maxLength": 257,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "nodeId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "target": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "maxLength": 512,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": {
+                      "maxLength": 64,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              },
+              "required": [
+                "id",
+                "product",
+                "occurredAt",
+                "action",
+                "outcome",
+                "actor",
+                "details"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "nextCursor"
+        ],
+        "type": "object"
+      },
+      "HiveAuditQuery": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "after": {
+            "pattern": "^[A-Za-z0-9._~:-]{1,512}$",
+            "type": "string"
+          },
+          "limit": {
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "HiveAuditRecord": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "maxLength": 128,
+            "pattern": "^[a-z0-9_]+(?:\\.[a-z0-9_]+)+$",
+            "type": "string"
+          },
+          "actor": {
+            "additionalProperties": false,
+            "properties": {
+              "displayName": {
+                "maxLength": 256,
+                "type": "string"
+              },
+              "id": {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              "issuer": {
+                "maxLength": 512,
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "user",
+                  "service",
+                  "agent",
+                  "system"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "id"
+            ],
+            "type": "object"
+          },
+          "details": {
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ]
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "id": {
+            "maxLength": 256,
+            "minLength": 1,
+            "pattern": "^(hivemem|hiveskills|ardentstudio|embermend):audit:[A-Za-z0-9._:-]{1,200}$",
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "success",
+              "failure"
+            ],
+            "type": "string"
+          },
+          "product": {
+            "enum": [
+              "hivemem",
+              "hiveskills",
+              "ardentstudio",
+              "embermend"
+            ],
+            "type": "string"
+          },
+          "subject": {
+            "additionalProperties": false,
+            "properties": {
+              "actorId": {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              "agentRef": {
+                "maxLength": 257,
+                "minLength": 1,
+                "type": "string"
+              },
+              "nodeId": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "target": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "product",
+          "occurredAt",
+          "action",
+          "outcome",
+          "actor",
+          "details"
+        ],
+        "type": "object"
+      },
+      "HiveEvent": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "link": {
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "pattern": "^\\/(?![/\\\\])",
+                "type": "string"
+              },
+              "product": {
+                "const": "hiveskills",
+                "type": "string"
+              }
+            },
+            "required": [
+              "product",
+              "path"
+            ],
+            "type": "object"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "type": "string"
+          },
+          "product": {
+            "const": "hiveskills",
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "info",
+              "warning",
+              "critical"
+            ],
+            "type": "string"
+          },
+          "sourceRef": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          },
+          "subject": {
+            "additionalProperties": false,
+            "properties": {
+              "agentRef": {
+                "pattern": "^[a-z0-9_-]{2,32}~[a-z0-9_-]{2,32}$",
+                "type": "string"
+              },
+              "nodeId": {
+                "pattern": "^[a-z0-9_-]{2,32}$",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "summary": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "deployment.succeeded",
+              "deployment.failed",
+              "deployment.expired",
+              "deployment.unknown",
+              "target.restart.failed",
+              "skill.release.published",
+              "skill.release.promoted",
+              "skill.release.withdrawn",
+              "skill.deleted"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "product",
+          "type",
+          "severity",
+          "title",
+          "summary",
+          "occurredAt",
+          "link"
+        ],
+        "type": "object"
+      },
+      "HiveEventPage": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "maxLength": 128,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+                  "type": "string"
+                },
+                "link": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "path": {
+                      "pattern": "^\\/(?![/\\\\])",
+                      "type": "string"
+                    },
+                    "product": {
+                      "const": "hiveskills",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "product",
+                    "path"
+                  ],
+                  "type": "object"
+                },
+                "occurredAt": {
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                  "type": "string"
+                },
+                "product": {
+                  "const": "hiveskills",
+                  "type": "string"
+                },
+                "severity": {
+                  "enum": [
+                    "info",
+                    "warning",
+                    "critical"
+                  ],
+                  "type": "string"
+                },
+                "sourceRef": {
+                  "maxLength": 256,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "subject": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "agentRef": {
+                      "pattern": "^[a-z0-9_-]{2,32}~[a-z0-9_-]{2,32}$",
+                      "type": "string"
+                    },
+                    "nodeId": {
+                      "pattern": "^[a-z0-9_-]{2,32}$",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "summary": {
+                  "maxLength": 2000,
+                  "type": "string"
+                },
+                "title": {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "deployment.succeeded",
+                    "deployment.failed",
+                    "deployment.expired",
+                    "deployment.unknown",
+                    "target.restart.failed",
+                    "skill.release.published",
+                    "skill.release.promoted",
+                    "skill.release.withdrawn",
+                    "skill.deleted"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "product",
+                "type",
+                "severity",
+                "title",
+                "summary",
+                "occurredAt",
+                "link"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "nextCursor"
+        ],
+        "type": "object"
+      },
+      "HiveEventQuery": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "after": {
+            "pattern": "^[A-Za-z0-9_-]{1,512}$",
+            "type": "string"
+          },
+          "limit": {
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "MagnusNodeId": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "pattern": "^[A-Za-z0-9._-]{1,128}$",
+        "type": "string"
+      },
       "ManagedDeployment": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -455,6 +993,148 @@
         },
         "required": [
           "ok"
+        ],
+        "type": "object"
+      },
+      "PinnedRelease": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "advisory": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "level": {
+                    "enum": [
+                      "deprecated",
+                      "yanked"
+                    ],
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "since": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "level",
+                  "reason",
+                  "since"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "archiveUrl": {
+            "type": "string"
+          },
+          "channels": {
+            "items": {
+              "enum": [
+                "stable",
+                "canary"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "compatibility": {
+            "additionalProperties": false,
+            "properties": {
+              "maxHermesVersion": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "minHermesVersion": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "minHermesVersion",
+              "maxHermesVersion"
+            ],
+            "type": "object"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "signature": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "keyId": {
+                    "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                    "type": "string"
+                  },
+                  "value": {
+                    "pattern": "^[A-Za-z0-9_-]{86}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "keyId",
+                  "value"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "size": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "slug": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "version",
+          "sha256",
+          "size",
+          "notes",
+          "compatibility",
+          "channels",
+          "archiveUrl",
+          "createdAt",
+          "advisory",
+          "signature"
         ],
         "type": "object"
       },
@@ -554,10 +1234,52 @@
         },
         "type": "array"
       },
+      "ReceiptQuery": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "targetId": {
+            "pattern": "^[a-z0-9][a-z0-9-]{1,62}$",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "Release": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "advisory": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "level": {
+                    "enum": [
+                      "deprecated",
+                      "yanked"
+                    ],
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "since": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "level",
+                  "reason",
+                  "since"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "createdAt": {
             "type": "string"
           },
@@ -583,6 +1305,31 @@
             "pattern": "^[a-f0-9]{64}$",
             "type": "string"
           },
+          "signature": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "keyId": {
+                    "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                    "type": "string"
+                  },
+                  "value": {
+                    "pattern": "^[A-Za-z0-9_-]{86}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "keyId",
+                  "value"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "skillSlug": {
             "type": "string"
           },
@@ -599,11 +1346,67 @@
         ],
         "type": "object"
       },
+      "ReleaseAdvisory": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "level": {
+            "enum": [
+              "deprecated",
+              "yanked"
+            ],
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "since": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "level",
+          "reason",
+          "since"
+        ],
+        "type": "object"
+      },
       "ReleaseList": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "items": {
           "additionalProperties": false,
           "properties": {
+            "advisory": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "level": {
+                      "enum": [
+                        "deprecated",
+                        "yanked"
+                      ],
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "since": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "level",
+                    "reason",
+                    "since"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "createdAt": {
               "type": "string"
             },
@@ -629,6 +1432,31 @@
               "pattern": "^[a-f0-9]{64}$",
               "type": "string"
             },
+            "signature": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "keyId": {
+                      "pattern": "^[A-Za-z0-9._-]{1,64}$",
+                      "type": "string"
+                    },
+                    "value": {
+                      "pattern": "^[A-Za-z0-9_-]{86}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "keyId",
+                    "value"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "skillSlug": {
               "type": "string"
             },
@@ -646,6 +1474,67 @@
           "type": "object"
         },
         "type": "array"
+      },
+      "ReleaseSignature": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "keyId": {
+            "pattern": "^[A-Za-z0-9._-]{1,64}$",
+            "type": "string"
+          },
+          "value": {
+            "pattern": "^[A-Za-z0-9_-]{86}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "keyId",
+          "value"
+        ],
+        "type": "object"
+      },
+      "SetReleaseAdvisory": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "level": {
+            "enum": [
+              "deprecated",
+              "yanked"
+            ],
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "level",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "SetReleaseSignature": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "keyId": {
+            "pattern": "^[A-Za-z0-9._-]{1,64}$",
+            "type": "string"
+          },
+          "value": {
+            "pattern": "^[A-Za-z0-9_-]{86}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "keyId",
+          "value"
+        ],
+        "type": "object"
       },
       "Skill": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -734,10 +1623,19 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "agentRefs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "enabled": {
             "type": "boolean"
           },
           "host": {
+            "type": "string"
+          },
+          "magnusNodeId": {
             "type": "string"
           },
           "name": {
@@ -760,10 +1658,19 @@
         "items": {
           "additionalProperties": false,
           "properties": {
+            "agentRefs": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
             "enabled": {
               "type": "boolean"
             },
             "host": {
+              "type": "string"
+            },
+            "magnusNodeId": {
               "type": "string"
             },
             "name": {
@@ -782,6 +1689,17 @@
           "type": "object"
         },
         "type": "array"
+      },
+      "TargetQuery": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "nodeId": {
+            "pattern": "^[A-Za-z0-9._-]{1,128}$",
+            "type": "string"
+          }
+        },
+        "type": "object"
       },
       "UpdateSkill": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -818,6 +1736,14 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "agentRefs": {
+            "items": {
+              "pattern": "^[A-Za-z0-9._-]{1,128}~[A-Za-z0-9._-]{1,128}$",
+              "type": "string"
+            },
+            "maxItems": 64,
+            "type": "array"
+          },
           "enabled": {
             "type": "boolean"
           },
@@ -826,6 +1752,17 @@
             "minLength": 1,
             "pattern": "^[a-zA-Z0-9][a-zA-Z0-9.-]*$",
             "type": "string"
+          },
+          "magnusNodeId": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9._-]{1,128}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "username": {
             "maxLength": 32,
@@ -837,6 +1774,63 @@
         "required": [
           "host",
           "username"
+        ],
+        "type": "object"
+      },
+      "UploadArchiveQuery": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "maxHermesVersion": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "minHermesVersion": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 5000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "signature": {
+            "pattern": "^[A-Za-z0-9_-]{86}$",
+            "type": "string"
+          },
+          "signatureKeyId": {
+            "pattern": "^[A-Za-z0-9._-]{1,64}$",
+            "type": "string"
+          },
+          "version": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^v?\\d+\\.\\d+\\.\\d+(?:-[a-z0-9.-]+)?$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version"
         ],
         "type": "object"
       },
@@ -882,6 +1876,14 @@
               }
             ]
           },
+          "signature": {
+            "pattern": "^[A-Za-z0-9_-]{86}$",
+            "type": "string"
+          },
+          "signatureKeyId": {
+            "pattern": "^[A-Za-z0-9._-]{1,64}$",
+            "type": "string"
+          },
           "version": {
             "maxLength": 64,
             "minLength": 1,
@@ -906,30 +1908,48 @@
         "bearerFormat": "JWT",
         "scheme": "bearer",
         "type": "http"
+      },
+      "targetToken": {
+        "description": "Target enrollment token, sent with ?target=<name>",
+        "scheme": "bearer",
+        "type": "http"
       }
     }
   },
   "info": {
     "description": "Owned route inventory. Request/response schema completeness is an open acceptance gate.",
     "title": "HiveSkills API route inventory",
-    "version": "1.2.2"
+    "version": "1.9.1"
   },
   "openapi": "3.1.0",
   "paths": {
     "/": {
       "get": {
+        "description": "HiveXUI is the UI. Without HIVEXUI_URL this returns a static HTML page pointing to HiveXUI; with HIVEXUI_URL it redirects there.",
         "responses": {
           "200": {
-            "description": "Success; see the native API reference for payloads"
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Stub page (HIVEXUI_URL unset)"
           },
-          "401": {
-            "description": "Authentication required"
-          },
-          "403": {
-            "description": "Permission denied"
+          "302": {
+            "description": "Redirect to HIVEXUI_URL",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "format": "uri",
+                  "type": "string"
+                }
+              }
+            }
           }
         },
-        "summary": "GET /"
+        "summary": "Retired web UI: HiveXUI stub page or redirect"
       }
     },
     "/admin/audit": {
@@ -1349,6 +2369,17 @@
     },
     "/admin/receipts": {
       "get": {
+        "parameters": [
+          {
+            "description": "Only receipts for exactly this deployment target name",
+            "in": "query",
+            "name": "targetId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -1362,6 +2393,9 @@
               }
             },
             "description": "Authorized product records"
+          },
+          "400": {
+            "description": "Invalid filter"
           },
           "401": {
             "description": "Authentication required"
@@ -1636,8 +2670,143 @@
         "summary": "POST /admin/skills/{slug}/releases"
       }
     },
+    "/admin/skills/{slug}/releases/{version}/advisory": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; see the native API reference for payloads"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission denied"
+          }
+        },
+        "security": [
+          {
+            "resourceBearer": []
+          },
+          {
+            "nativeSession": []
+          }
+        ],
+        "summary": "DELETE /admin/skills/{slug}/releases/{version}/advisory"
+      },
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; see the native API reference for payloads"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission denied"
+          }
+        },
+        "security": [
+          {
+            "resourceBearer": []
+          },
+          {
+            "nativeSession": []
+          }
+        ],
+        "summary": "PUT /admin/skills/{slug}/releases/{version}/advisory"
+      }
+    },
+    "/admin/skills/{slug}/releases/{version}/signature": {
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; see the native API reference for payloads"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission denied"
+          }
+        },
+        "security": [
+          {
+            "resourceBearer": []
+          },
+          {
+            "nativeSession": []
+          }
+        ],
+        "summary": "PUT /admin/skills/{slug}/releases/{version}/signature"
+      }
+    },
     "/admin/targets": {
       "get": {
+        "parameters": [
+          {
+            "description": "Only targets bound to exactly this Magnus node id",
+            "in": "query",
+            "name": "nodeId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -1651,6 +2820,9 @@
               }
             },
             "description": "Authorized product records"
+          },
+          "400": {
+            "description": "Invalid filter"
           },
           "401": {
             "description": "Authentication required"
@@ -1870,6 +3042,22 @@
         "summary": "GET /health/live"
       }
     },
+    "/health/ready": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success; see the native API reference for payloads"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission denied"
+          }
+        },
+        "summary": "GET /health/ready"
+      }
+    },
     "/healthz": {
       "get": {
         "responses": {
@@ -1928,6 +3116,118 @@
         "summary": "POST /v1/agent/receipts/{target}"
       }
     },
+    "/v1/audit/export": {
+      "get": {
+        "description": "Every stored audit record, oldest first by id, with no retention window. nextCursor is the cursor of the last record, even on the final page; poll it again later. A null nextCursor (empty data) means caught up. Oathweave service (client-credentials) tokens need hiveskills:audit:read; registry administrators are also accepted.",
+        "parameters": [
+          {
+            "description": "Opaque cursor from a previous page",
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 200 (default 100; larger values are capped)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HiveAuditPage"
+                }
+              }
+            },
+            "description": "A page of HiveAuditRecords"
+          },
+          "400": {
+            "description": "Invalid cursor or limit"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "hiveskills:audit:read or registry administrator access required"
+          }
+        },
+        "security": [
+          {
+            "resourceBearer": []
+          },
+          {
+            "nativeSession": []
+          }
+        ],
+        "summary": "HiveAuditRecord v1 export of the registry audit log"
+      }
+    },
+    "/v1/hive/events": {
+      "get": {
+        "description": "Events from the last 14 days, oldest first by (occurredAt, id). Pass nextCursor as after to read on; a null nextCursor means caught up.",
+        "parameters": [
+          {
+            "description": "Cursor from a previous page",
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 200 (default 50; larger values are capped)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HiveEventPage"
+                }
+              }
+            },
+            "description": "A page of HiveEvents"
+          },
+          "400": {
+            "description": "Invalid cursor or limit"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Registry administrator access required"
+          }
+        },
+        "security": [
+          {
+            "resourceBearer": []
+          },
+          {
+            "nativeSession": []
+          }
+        ],
+        "summary": "HiveEvent v1 feed of deployment outcomes, agent restart failures and skill release changes"
+      }
+    },
     "/v1/skills": {
       "get": {
         "responses": {
@@ -1970,8 +3270,9 @@
         "summary": "GET /v1/skills/{slug}"
       }
     },
-    "/v1/skills/{slug}/releases/{version}/archive": {
+    "/v1/skills/{slug}/releases/{version}": {
       "get": {
+        "description": "Digest, archive size, Hermes compatibility and the channels this version is promoted on. Requires an enrolled target (assigned the skill) or a registry administrator.",
         "parameters": [
           {
             "in": "path",
@@ -1988,20 +3289,145 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "description": "Enrolled target name; send its enrollment token as the bearer token",
+            "in": "query",
+            "name": "target",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Success; see the native API reference for payloads"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PinnedRelease"
+                }
+              }
+            },
+            "description": "The release"
           },
           "401": {
-            "description": "Authentication required"
+            "description": "Target enrollment or sign-in required"
           },
           "403": {
-            "description": "Permission denied"
+            "description": "Registry administrator access, or a target assigned this skill, required"
+          },
+          "404": {
+            "description": "No such release of an enabled skill"
           }
         },
-        "summary": "GET /v1/skills/{slug}/releases/{version}/archive"
+        "security": [
+          {
+            "targetToken": []
+          },
+          {
+            "resourceBearer": []
+          },
+          {
+            "nativeSession": []
+          }
+        ],
+        "summary": "Metadata of one immutable release by exact version, promoted or not"
+      }
+    },
+    "/v1/skills/{slug}/releases/{version}/archive": {
+      "get": {
+        "description": "The release promoted on the requested channel (default stable) is public. Any other immutable release of an enabled skill needs an enrolled target (assigned the skill) or a registry administrator; anonymous callers get 404 for it. The stored bytes are checked against the release digest before they are served; X-Content-SHA256 carries that digest.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Enrolled target name; send its enrollment token as the bearer token",
+            "in": "query",
+            "name": "target",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "stable (default) or canary; selects the public promoted release",
+            "in": "query",
+            "name": "channel",
+            "required": false,
+            "schema": {
+              "enum": [
+                "stable",
+                "canary"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/gzip": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The archive bytes",
+            "headers": {
+              "X-Content-SHA256": {
+                "description": "SHA-256 of the archive, equal to the release digest",
+                "schema": {
+                  "pattern": "^[a-f0-9]{64}$",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid channel"
+          },
+          "401": {
+            "description": "Target enrollment or sign-in required"
+          },
+          "403": {
+            "description": "Registry administrator access, or a target assigned this skill, required"
+          },
+          "404": {
+            "description": "Not the promoted release (anonymous), or no such release or archive"
+          },
+          "500": {
+            "description": "The stored archive no longer matches the release digest"
+          }
+        },
+        "security": [
+          {},
+          {
+            "targetToken": []
+          },
+          {
+            "resourceBearer": []
+          },
+          {
+            "nativeSession": []
+          }
+        ],
+        "summary": "Skill release archive with its SHA-256 digest"
       }
     }
   },

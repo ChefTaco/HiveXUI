@@ -10,6 +10,7 @@ import {
   EnrollTargetSchema,
   AuthMeSchema, EmptyResponseSchema, OkSchema, EnrollmentResponseSchema, UpdateSkillSchema, UpdateTargetSchema, PromoteReleaseSchema,
   SkillListSchema, ReleaseListSchema, ChannelListSchema, TargetListSchema, ReceiptListSchema, DeploymentJobListSchema, AuditListSchema,
+  HiveAuditPage,
   type UpdateSkill, type UpdateTarget,
   type CreateSkill,
   type UploadRelease,
@@ -24,6 +25,26 @@ export const CatalogEntrySchema = SkillSchema.extend({
   release: z.object({ version: z.string(), sha256: z.string().regex(/^[a-f0-9]{64}$/), notes: z.string().nullable().optional(), createdAt: z.string().optional() }).nullable(),
 });
 export type CatalogEntry = z.infer<typeof CatalogEntrySchema>;
+
+/**
+ * GET /admin/updates: the registry's own release and the newer one its update check found. The
+ * browser contract does not describe it; this follows HiveSkills' `UpdateStatus`.
+ */
+export const UpdateStatusSchema = z.object({
+  enabled: z.boolean(),
+  installed: z.string().max(64),
+  checkedAt: z.string().optional(),
+  available: z.string().max(64).optional(),
+  notesUrl: z.string().max(2000).optional(),
+  summary: z.string().max(5000).optional(),
+  newRequiredEnv: z.array(z.object({ name: z.string() }).passthrough()).optional(),
+  migrations: z.array(z.object({ impact: z.string().optional() }).passthrough()).optional(),
+  stale: z.boolean().optional(),
+  error: z.string().max(2000).optional(),
+});
+export type UpdateStatus = z.infer<typeof UpdateStatusSchema>;
+/** The largest page the audit export serves. */
+export const AUDIT_EXPORT_PAGE = 200;
 
 export function createSkillsApi(send: typeof apiFetch = apiFetch) {
   async function request<T>(
@@ -46,6 +67,9 @@ export function createSkillsApi(send: typeof apiFetch = apiFetch) {
     return parseAnswer(schema, response.status === 204 ? null : await readJsonAnswer(response, 'HiveSkills', method !== 'GET'), 'HiveSkills', method !== 'GET');
   }
   return {
+    updates: () => request('/admin/updates', UpdateStatusSchema),
+    /** One page of the HiveAuditRecord v1 export, oldest first; `nextCursor` continues it. */
+    auditExport: (after?: string) => request('/v1/audit/export?limit=' + AUDIT_EXPORT_PAGE + (after ? '&after=' + encodeURIComponent(after) : ''), HiveAuditPage),
     catalog: () => request('/v1/skills', SkillListSchema),
     catalogEntry: (slug: string, channel: 'stable' | 'canary' = 'stable') =>
       request('/v1/skills/' + encodeURIComponent(slug) + (channel === 'stable' ? '' : '?channel=' + channel), CatalogEntrySchema),
