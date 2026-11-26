@@ -92,7 +92,7 @@ Team Assignment then opens with **"Bind each role, then Start in Room."**
 **Files** in the top bar manages references and links later. A file's **Delete** asks first; the
 file leaves the project and its knowledge at once, and Studio refuses while an agent portrait or a
 team role still uses it, naming them (the ArdentStudio release after 0.5.1). **Reindex project** queues every file and link
-for HiveMem again, for example after a restore. **Archive** makes a project read-only;
+for HiveMem again, for example after a restore. **Members** (owners only) limits a project to listed Oathweave people and roles with viewer, editor or owner access, or opens it to everyone linked again. **Archive** makes a project read-only; an archived project's owners see **Purge**, which deletes it for good once its exact name is typed (Studio administrators only);
 the service refuses while tasks are running and lists them. **Reopen** restores it.
 
 ## Team Assignment

@@ -502,6 +502,7 @@ export function ConfirmDialog({
   onCancel,
   loading,
   tone = 'danger',
+  confirmDisabled = false,
   children,
 }: {
   open: boolean;
@@ -515,6 +516,8 @@ export function ConfirmDialog({
   tone?: 'danger' | 'warning' | 'primary';
   /** Optional fields between the message and the buttons, such as a reason. Focus starts on Cancel. */
   children?: ReactNode;
+  /** Holds the confirm button back until the fields are complete, such as a typed name. */
+  confirmDisabled?: boolean;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef(onCancel);
@@ -548,7 +551,7 @@ export function ConfirmDialog({
           <Button variant="ghost" onClick={onCancel}>
             Cancel
           </Button>
-          <Button variant={tone} onClick={onConfirm} loading={loading} icon={tone === 'danger' ? <Icon.Trash className="btn-ico" /> : undefined}>
+          <Button variant={tone} onClick={onConfirm} loading={loading} disabled={confirmDisabled} icon={tone === 'danger' ? <Icon.Trash className="btn-ico" /> : undefined}>
             {confirmLabel}
           </Button>
         </div>

@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { FolderX } from 'lucide-react';
 import { EmptyState, Panel, LoadingRows, ResourceError, buttonClass } from '@ui';
+import { useToast } from '../../../components/toast';
 import { StudioLink } from '../link';
 import { goStudio, STUDIO_PREFIX } from '../paths';
 import { areaHref, projectHref } from '../routes';
@@ -19,14 +20,23 @@ export function landingHref(projectId: string, snapshot: NonNullable<ProjectStat
 /** Loading, missing and failed states for any page of one project; children render once the snapshot is in. */
 export function ProjectFrame({ projectId, children }: { projectId: string; children: (state: ProjectState & { snapshot: NonNullable<ProjectState['snapshot']> }) => ReactNode }) {
   const { state, store } = useProject(projectId);
+  const toast = useToast();
+  // A purge closes the project for everyone who has it open: leave for the project list, which no
+  // longer has it, and say why.
+  const purged = state.status === 'purged';
+  useEffect(() => {
+    if (!purged) return;
+    toast.info('This project was purged', 'It was deleted for good, so Studio returned to your projects.');
+    goStudio(STUDIO_PREFIX, 'replace');
+  }, [purged]);
   if (state.snapshot) return <>{children(state as ProjectState & { snapshot: NonNullable<ProjectState['snapshot']> })}</>;
-  if (state.status === 'missing')
+  if (state.status === 'missing' || state.status === 'purged')
     return (
       <EmptyState
         framed
         icon={<FolderX className="size-6" />}
-        title="Project not found"
-        message="It may have been removed, or this address is mistyped."
+        title={state.status === 'purged' ? 'This project was purged' : 'Project not found'}
+        message={state.status === 'purged' ? 'It was deleted for good while it was open. Nothing of it can be shown.' : 'It may have been removed, the address may be mistyped, or you are not a member of it.'}
         action={
           <StudioLink href={STUDIO_PREFIX} className={buttonClass({ className: 'no-underline' })}>
             All projects

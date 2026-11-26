@@ -1,13 +1,14 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Archive, ArchiveRestore, ChevronsUpDown, DatabaseZap, FolderOpen, Plus, Search } from 'lucide-react';
-import { Badge, Button, ConfirmDialog, Drawer, LoadingRows, ResourceError, buttonClass } from '@ui';
+import { Archive, ArchiveRestore, ChevronsUpDown, DatabaseZap, FolderOpen, Plus, Search, Trash2, Users } from 'lucide-react';
+import { Badge, Button, ConfirmDialog, Drawer, Field, LoadingRows, ResourceError, TextInput, buttonClass } from '@ui';
 import { errorMessage } from '../../magnus/api/errors';
 import { useMagnusResource } from '../../magnus/api/use-resource';
 import { idempotencyKey, StudioApiError } from '../api/client';
-import { archiveProject, listProjects, reindexProject, reopenProject } from '../api/endpoints';
+import { archiveProject, listProjects, purgeProject, reindexProject, reopenProject } from '../api/endpoints';
+import { MembersDrawer } from './members';
 import { StudioLink } from '../link';
-import { STUDIO_PREFIX } from '../paths';
+import { goStudio, STUDIO_PREFIX } from '../paths';
 import { projectHref } from '../routes';
 import { useProject } from '../state/project-store';
 import { LinkManager } from './links';
@@ -22,7 +23,7 @@ export function ProjectSwitcher({ projectId }: { projectId: string }) {
   const button = useRef<HTMLButtonElement>(null);
   const menuId = useId();
   const projects = useMagnusResource((signal) => listProjects({ status: 'active' }, signal), [], { enabled: open });
-  const name = state.snapshot?.project.name ?? (state.status === 'missing' ? 'Project not found' : projectId);
+  const name = state.snapshot?.project.name ?? (state.status === 'purged' ? 'Project purged' : state.status === 'missing' ? 'Project not found' : projectId);
 
   useEffect(() => {
     if (!open) return;
@@ -137,6 +138,22 @@ export function ProjectReindex({ projectId }: { projectId: string }) {
   );
 }
 
+/** Why Studio refused a purge, in words. */
+export function purgeRefusal(error: unknown): string {
+  if (error instanceof StudioApiError) {
+    if (error.code === 'PROJECT_NOT_ARCHIVED') return 'Only an archived project can be purged. Archive it first.';
+    if (error.code === 'TASKS_ACTIVE') return 'Tasks of this project are still running. Cancel them first:';
+    if (error.code === 'CONFIRMATION_MISMATCH') return 'The name you typed is not the project’s exact name. Nothing was purged.';
+    if (error.code === 'FILE_IN_USE') {
+      const agents = (error.details as { agents?: unknown } | null)?.agents;
+      const names = Array.isArray(agents) ? agents.filter((item): item is string => typeof item === 'string') : [];
+      return `An agent portrait uses one of this project’s files${names.length ? ` (${names.join(', ')})` : ''}. Choose another portrait for ${names.length === 1 ? 'that agent' : 'those agents'} first.`;
+    }
+    if (error.status === 403) return 'Purging a project needs the Studio administrator permission (ardentstudio:agents:admin).';
+  }
+  return errorMessage(error, 'The project could not be purged');
+}
+
 interface ActiveTask {
   id?: string;
   title?: string;
@@ -153,6 +170,9 @@ export function ProjectTools({ projectId }: { projectId: string }) {
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<{ message: string; tasks: ActiveTask[] } | null>(null);
+  const [members, setMembers] = useState(false);
+  const [purging, setPurging] = useState(false);
+  const [typed, setTyped] = useState('');
   const project = state.snapshot?.project;
   if (!project) return null;
   const archived = project.status === 'archived';
@@ -160,6 +180,26 @@ export function ProjectTools({ projectId }: { projectId: string }) {
   const links = state.snapshot!.links;
   const count = references.length + links.length;
   const failed = [...references.map((file) => file.knowledge), ...links.map((link) => link.knowledge)].filter((knowledge) => knowledge.state === 'failed').length;
+  // Owners manage members; a Studio administrator is an owner of every project. Purging also needs
+  // the administrator permission, which only Studio checks: a non-admin owner gets its refusal.
+  const owner = state.snapshot!.summary.access?.role === 'owner';
+
+  async function purge() {
+    if (!project) return;
+    setBusy(true);
+    setFailure(null);
+    try {
+      await purgeProject(projectId, typed, idempotencyKey());
+      setPurging(false);
+      goStudio(STUDIO_PREFIX, 'replace');
+    } catch (error) {
+      setPurging(false);
+      setFailure({ message: purgeRefusal(error), tasks: error instanceof StudioApiError && error.code === 'TASKS_ACTIVE' ? activeTasks(error.details) : [] });
+    } finally {
+      setBusy(false);
+      setTyped('');
+    }
+  }
 
   async function toggleArchive() {
     setBusy(true);
@@ -183,9 +223,19 @@ export function ProjectTools({ projectId }: { projectId: string }) {
         <span className="tab-count">{count}</span>
         {failed ? <Badge tone="danger">{failed} failed</Badge> : null}
       </Button>
+      {owner ? (
+        <Button size="sm" variant="ghost" icon={<Users className="size-4" />} onClick={() => setMembers(true)}>
+          <span className="studio-tool-label">Members</span>
+        </Button>
+      ) : null}
       <Button size="sm" variant="ghost" icon={archived ? <ArchiveRestore className="size-4" /> : <Archive className="size-4" />} onClick={() => setConfirm(true)}>
         <span className="studio-tool-label">{archived ? 'Reopen' : 'Archive'}</span>
       </Button>
+      {archived && owner ? (
+        <Button size="sm" variant="ghost" icon={<Trash2 className="size-4" />} onClick={() => setPurging(true)}>
+          <span className="studio-tool-label">Purge</span>
+        </Button>
+      ) : null}
       {/* The top bar's backdrop filter would hold fixed overlays inside it; they render on the body. */}
       {createPortal(
         <>
@@ -200,6 +250,24 @@ export function ProjectTools({ projectId }: { projectId: string }) {
               <LinkManager store={store} links={links} readOnly={archived} />
             </section>
           </Drawer>
+          <MembersDrawer projectId={projectId} projectName={project.name} open={members} onClose={() => setMembers(false)} onSaved={() => void store.refetch()} />
+          <ConfirmDialog
+            open={purging}
+            title={`Purge ${project.name} for good?`}
+            message="Its events, files, links, team, room, tasks, workflow runs, deliverables, reviews and exports are deleted and cannot be restored. Its references leave HiveMem; audit records are kept. Type the project's name to confirm."
+            confirmLabel="Purge project"
+            loading={busy}
+            confirmDisabled={typed !== project.name}
+            onCancel={() => {
+              setPurging(false);
+              setTyped('');
+            }}
+            onConfirm={() => void purge()}
+          >
+            <Field label="Project name">
+              <TextInput value={typed} onChange={setTyped} autoComplete="off" spellCheck={false} />
+            </Field>
+          </ConfirmDialog>
           <ConfirmDialog
             open={confirm}
             title={archived ? `Reopen ${project.name}?` : `Archive ${project.name}?`}

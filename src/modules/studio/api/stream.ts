@@ -2,7 +2,7 @@
 // keeps the last one and resumes with ?after=. Anything it cannot account for (a reset from the
 // service, a skipped seq, a heartbeat ahead of it) means its copy may be stale: refetch the snapshot.
 import type { z } from 'zod';
-import { messageDeltaEventSchema, projectEventSchema, resetEventSchema, heartbeatEventSchema } from '@contracts/ardentstudio.generated';
+import { messageDeltaEventSchema, projectEventSchema, projectPurgedEventSchema, resetEventSchema, heartbeatEventSchema } from '@contracts/ardentstudio.generated';
 import { openStream, type StreamHandle, type StreamState } from '../../magnus/api/stream';
 import type { SseEvent } from '../../magnus/api/sse';
 import { segment, studioPath } from './client';
@@ -17,6 +17,8 @@ export type StreamAction =
   | { kind: 'delta'; delta: MessageDelta }
   /** The local copy may have missed events: refetch the snapshot and resume from its seq. */
   | { kind: 'reset'; reason: 'reset' | 'gap' }
+  /** The project was purged for good; the service closes the stream. */
+  | { kind: 'purged'; at: string }
   /** A duplicate, a heartbeat in step, or a frame this client does not read. */
   | { kind: 'ignore' };
 
@@ -35,6 +37,11 @@ export function reduceStreamFrame(seq: number, frame: SseEvent): { seq: number; 
   if (frame.event === 'heartbeat') {
     const beat = parse(heartbeatEventSchema, frame.data);
     return beat && beat.seq > seq ? { seq, action: { kind: 'reset', reason: 'gap' } } : { seq, action: { kind: 'ignore' } };
+  }
+  // Live only, never replayed: the project is gone and the stream closes after it.
+  if (frame.event === 'project.purged') {
+    const purged = parse(projectPurgedEventSchema, frame.data);
+    return { seq, action: purged ? { kind: 'purged', at: purged.at } : { kind: 'ignore' } };
   }
   if (frame.event === 'message.delta') {
     const delta = parse(messageDeltaEventSchema, frame.data);
