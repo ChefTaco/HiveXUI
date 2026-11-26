@@ -24,6 +24,7 @@ import {
   TableFrame,
 } from '../components/ui';
 import { Icon } from '../components/icons';
+import { describeApiError } from '@lib/api-error';
 
 type KeyDrawerMode = 'create' | 'edit';
 
@@ -90,7 +91,7 @@ export function KeysPage({ currentUser }: { currentUser: AdminUser | null }) {
   const openEdit = (key: ClientKey) => {
     setUsage(null); setUsageError(null);
     const generation = ++usageGeneration.current;
-    void adminApi.clientKeyUsage(key.id).then((value) => { if (generation === usageGeneration.current) setUsage(value); }).catch((error: unknown) => { if (generation === usageGeneration.current) setUsageError(error instanceof Error ? error.message : 'Usage unavailable'); });
+    void adminApi.clientKeyUsage(key.id).then((value) => { if (generation === usageGeneration.current) setUsage(value); }).catch((error: unknown) => { if (generation === usageGeneration.current) setUsageError(describeApiError(error, 'Usage unavailable')); });
     setMode('edit');
     setName(key.name);
     setMetadataText(metadataToText(key.metadataJson));
@@ -113,7 +114,7 @@ export function KeysPage({ currentUser }: { currentUser: AdminUser | null }) {
     try {
       metadata = parseMetadataInput(metadataText);
     } catch (error) {
-      toast.error('Invalid metadata', error instanceof Error ? error.message : 'Could not parse metadata JSON');
+      toast.error('Invalid metadata', describeApiError(error, 'Could not parse metadata JSON'));
       return;
     }
 
@@ -136,7 +137,7 @@ export function KeysPage({ currentUser }: { currentUser: AdminUser | null }) {
       }
       await refresh();
     } catch (caught) {
-      const message = caught instanceof ApiError ? caught.message : caught instanceof Error ? caught.message : 'Could not save key';
+      const message = describeApiError(caught, 'Could not save key');
       toast.error('Save failed', message);
     } finally {
       setSaving(false);
@@ -150,7 +151,7 @@ export function KeysPage({ currentUser }: { currentUser: AdminUser | null }) {
       toast.success('API key updated', `Key ${next ? 'enabled' : 'disabled'}`);
       await refresh();
     } catch (caught) {
-      toast.error('Update failed', caught instanceof Error ? caught.message : 'Could not update key');
+      toast.error('Update failed', describeApiError(caught, 'Could not update key'));
     } finally {
       setDeleting(false);
     }
@@ -165,7 +166,7 @@ export function KeysPage({ currentUser }: { currentUser: AdminUser | null }) {
       setTarget(null);
       await refresh();
     } catch (caught) {
-      toast.error('Delete failed', caught instanceof Error ? caught.message : 'Could not delete key');
+      toast.error('Delete failed', describeApiError(caught, 'Could not delete key'));
     } finally {
       setDeleting(false);
     }

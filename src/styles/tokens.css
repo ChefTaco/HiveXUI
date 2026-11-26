@@ -132,6 +132,27 @@
 }
 
 /*
+ * More contrast, for people who ask for it (`prefers-contrast: more`): brighter secondary text and
+ * outlines, and no glow, wash, grid or scanlines behind the text. The same dark theme otherwise.
+ */
+@media (prefers-contrast: more) {
+  :root {
+    --text: #f5f7ff;
+    --text-muted: #c8cae4;
+    --border: #4a4c74;
+    --border-strong: #a4a6cc;
+    --corner: var(--accent);
+    --shadow-overlay: 0 24px 80px rgb(0 0 0 / 0.75);
+    --glow-text-strength: 0%;
+    --glow-mark-radius: 0px;
+    --heading-glow: none;
+    --backdrop-wash: transparent;
+    --backdrop-grid: transparent;
+    --backdrop-scanline: transparent;
+  }
+}
+
+/*
  * Tailwind colors. Clearing the default palette keeps `bg-red-500` and friends from
  * rendering at all: a ported page uses these names or it visibly has no color.
  * `primary` is the same color as `accent`; it stays only because ported pages use it.

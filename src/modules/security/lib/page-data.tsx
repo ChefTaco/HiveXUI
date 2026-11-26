@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { Button, LoadingRows } from '@ui';
+import { describeApiError } from '@lib/api-error';
 
 /** Reloads the current Cindertrace page's records, after a change or while an action runs. */
 export const SecurityRefresh = createContext<{ revision: number; refresh: () => void }>({ revision: 0, refresh: () => {} });
@@ -25,7 +26,7 @@ export function useSecurityData<T>(load: () => Promise<T>, key: string): Securit
     let current = true;
     void load()
       .then((data) => current && setState({ key, value: { status: 'ready', data } }))
-      .catch((reason: unknown) => current && setState({ key, value: { status: 'error', message: reason instanceof Error ? reason.message : 'Security information could not be loaded' } }));
+      .catch((reason: unknown) => current && setState({ key, value: { status: 'error', message: describeApiError(reason, 'Security information could not be loaded') } }));
     return () => {
       current = false;
     };

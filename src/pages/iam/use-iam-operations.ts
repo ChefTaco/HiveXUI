@@ -5,6 +5,7 @@ import { can } from '../../lib/permissions';
 import type { AdminUser, IamAuditEvent, IamAuditStats, IamClient, IamPasswordPolicy, IamRole, IamServiceAccount, IamSession, IamSystemUser, IamUser } from '../../lib/types';
 import { useConfirm } from '../../components/ui';
 import { type IamSection, firstRoleId } from './shared';
+import { describeApiError } from '@lib/api-error';
 
 /**
  * The IAM page's records, forms and actions. Every section reads from one instance, so a form
@@ -175,7 +176,7 @@ export function useIamOperations(section: IamSection, currentUser: AdminUser | n
     if (failures.length)
       setError(
         failures
-          .map(({ section: label, reason }) => `${label}: ${reason instanceof Error ? reason.message : 'could not be loaded'}`)
+          .map(({ section: label, reason }) => `${label}: ${describeApiError(reason, 'could not be loaded')}`)
           .join(' · '),
       );
     setLoading(false);
@@ -203,7 +204,7 @@ export function useIamOperations(section: IamSection, currentUser: AdminUser | n
       setNotice(success);
       await loadIam();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Operation failed');
+      setError(describeApiError(caught, 'Operation failed'));
     } finally {
       setBusy(false);
     }

@@ -77,12 +77,41 @@ describe('the theme', () => {
     expect(base).toMatch(/prefers-reduced-motion: reduce[\s\S]*animation: none !important/);
   });
   it('is one set of tokens, dark whatever the operating system prefers', () => {
-    expect(tokensSource.match(/:root\b/g)).toHaveLength(1);
+    // The second :root is the more-contrast override of the same theme.
+    expect(tokensSource.match(/:root\b/g)).toHaveLength(2);
+    expect(tokensSource).toMatch(/@media \(prefers-contrast: more\) \{\n  :root \{/);
     expect(tokensSource).not.toMatch(/prefers-color-scheme|data-theme/);
     expect(tokensSource).toMatch(/^\s*color-scheme: dark;$/m);
   });
   it('uses meaning, not hue, for every token name', () => {
     const hue = /amber|teal|coral|sky|violet|red|green|blue|gold|cyan|magenta|neon/;
     expect([...tokens.keys()].filter((name) => hue.test(name))).toEqual([]);
+  });
+});
+
+describe('the more-contrast theme', () => {
+  const start = tokensSource.indexOf('@media (prefers-contrast: more)');
+  const body = tokensSource.slice(start, tokensSource.indexOf('\n}', tokensSource.indexOf(':root {', start)));
+  const more = new Map(tokens);
+  for (const match of body.matchAll(/^\s*(--[\w-]+):\s*([^;]+);/gm)) more.set(match[1]!, match[2]!.trim());
+  const color = (name: string) => parse(more.get(name)!);
+  it('overrides only tokens the theme defines', () => {
+    expect([...body.matchAll(/^\s*(--[\w-]+):/gm)].map((match) => match[1]).filter((name) => !tokens.has(name!))).toEqual([]);
+  });
+  it.each(SOLID.flatMap((surface) => ['--text', '--text-muted'].map((text) => [text, surface] as const)))('%s on %s reaches 7:1', (text, surface) => {
+    expect(contrast(color(text), color(surface))).toBeGreaterThanOrEqual(7);
+  });
+  it.each(['--surface-page', '--surface', '--surface-raised'])('control outlines reach 4.5:1 on %s', (surface) => {
+    expect(contrast(color('--border-strong'), color(surface))).toBeGreaterThanOrEqual(4.5);
+  });
+  it('drops the backdrop behind the text', () => {
+    expect(['--backdrop-wash', '--backdrop-grid', '--backdrop-scanline'].map((name) => more.get(name))).toEqual(['transparent', 'transparent', 'transparent']);
+  });
+});
+
+describe('forced colors', () => {
+  it('hides the decorative backdrop and scanlines', () => {
+    const base = readFileSync(new URL('./base.css', import.meta.url), 'utf8');
+    expect(base).toMatch(/@media \(forced-colors: active\) \{\n  \.console-backdrop,\n  \.console-scanlines \{\n    display: none;/);
   });
 });

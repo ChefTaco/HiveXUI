@@ -4,6 +4,7 @@ import { useSecurityRefresh } from '@security/lib/page-data';
 import { labAssessmentSchema, type LabAssessment, type LabComparison, type LabRun } from '@contracts/cindertrace/index';
 import { Meter, Panel, TableFrame, Button } from '@ui';
 import { labPost, labButton } from './lab-home';
+import { describeApiError } from '@lib/api-error';
 
 const signed = (value: number) => `${value > 0 ? '+' : ''}${value}`;
 export function LabCase({run, comparison}: {run: LabRun; comparison: LabComparison | null}) {
@@ -18,7 +19,7 @@ export function LabCase({run, comparison}: {run: LabRun; comparison: LabComparis
   async function action(fn: () => Promise<unknown>, success: string) {
     setBusy(true); setMessage('');
     try { await fn(); setMessage(success); refresh(); }
-    catch (error) { setMessage(error instanceof Error ? error.message : 'Request failed'); }
+    catch (error) { setMessage(describeApiError(error, 'Request failed')); }
     finally { setBusy(false); }
   }
   function claim(id: LabAssessment['assertions'][number]['claimId'], patch: Partial<LabAssessment['assertions'][number]>) {

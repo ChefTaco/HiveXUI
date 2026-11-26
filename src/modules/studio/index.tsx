@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react';
 import { Workflow, X } from 'lucide-react';
 import { StatusDot } from '@ui';
 import { cn } from '@lib/cn';
+import { useDocumentTitle } from '@lib/document-title';
+import { SkipLink } from '../../components/skip-link';
 import './studio.css';
 import { setAuthExpiredHandler } from '../magnus/api/client';
 import { useStudioConnection, type StudioConnection } from './api/client';
@@ -97,6 +99,7 @@ export default function StudioModule({ onAuthExpired }: { onAuthExpired?: () => 
   const { connection, retry } = useStudioConnection();
   const agents = useArdentAgents();
   const main = useRef<HTMLElement>(null);
+  useDocumentTitle(match ? `${match.route.title} · Studio` : 'Studio');
   useEffect(() => {
     if (match?.projectId && match.agentRef) lastAgent.set(match.projectId, match.agentRef);
   }, [match?.projectId, match?.agentRef]);
@@ -106,11 +109,12 @@ export default function StudioModule({ onAuthExpired }: { onAuthExpired?: () => 
   }, [pathname]);
   return (
     <>
+      <SkipLink target="studio-main" />
       <div className="console-backdrop" aria-hidden="true" />
       <div className="console-scanlines" aria-hidden="true" />
       <div className="studio-shell">
         <StudioBar match={match} connection={connection} />
-        <main ref={main} tabIndex={-1} className="studio-main" aria-label={match?.route.title ?? 'Studio'}>
+        <main ref={main} id="studio-main" tabIndex={-1} className="studio-main" aria-label={match?.route.title ?? 'Studio'}>
           {match ? (
             <AgentGate agents={agents}>
               <StudioPage key={pathname} match={match} connection={connection} onRetry={retry} />

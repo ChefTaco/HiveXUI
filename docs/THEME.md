@@ -6,8 +6,15 @@ tokens and components. This is how a page, new or ported, adopts them.
 There is one theme for now: the Magnus look. Near-black surfaces, neon cyan and magenta,
 saturated status colors that glow, a faint grid, terminal breadcrumbs, and display headings in
 uppercase mono. `tokens.css` has a single `:root` block, the UI sets `color-scheme: dark`,
-and nothing follows the operating system or reads a stored preference. Body text stays in the
-sans and meets WCAG AA: drama belongs in headings, status, data and focal widgets, not paragraphs.
+and nothing follows the operating system's color scheme or reads a stored preference. Body text
+stays in the sans and meets WCAG AA: drama belongs in headings, status, data and focal widgets, not
+paragraphs.
+
+Two accessibility preferences adjust the same theme. `prefers-contrast: more` overrides a few
+tokens in `tokens.css` (secondary text and outlines at 7:1 and 4.5:1, no glow, wash, grid or
+scanlines; checked in `tokens.test.ts`). Under `forced-colors: active` (`base.css`) the backdrop
+and scanlines are hidden and state carried only by a tint, such as the current page in the
+sidebar, a tab or a toggle, gets an outline or fill in a system color.
 
 Tokens stay semantic so a light theme can come back without touching components: colors are named
 for what they mean, and the look of headings, labels, navigation and controls is itself a set of

@@ -21,6 +21,7 @@ import {
   EmptyState,
   LoadingRows,
 } from '../../components/ui';
+import { describeApiError } from '@lib/api-error';
 
 /** The Workspaces screen, once this identity's HiveMem profile is known. */
 export function WorkspacesScreen() {
@@ -89,7 +90,7 @@ export default function WorkspacesModule({
     } catch (error) {
       if (current === generation.current)
         setError(
-          error instanceof Error ? error.message : 'Workspace unavailable',
+          describeApiError(error, 'Workspace unavailable'),
         );
     }
   }
@@ -104,7 +105,7 @@ export default function WorkspacesModule({
       setNotice(message);
     } catch (error) {
       setError(
-        error instanceof Error ? error.message : 'Workspace operation failed',
+        describeApiError(error, 'Workspace operation failed'),
       );
     } finally {
       setBusy(false);
@@ -114,7 +115,7 @@ export default function WorkspacesModule({
     void refresh()
       .catch((error) =>
         setError(
-          error instanceof Error ? error.message : 'Workspace list unavailable',
+          describeApiError(error, 'Workspace list unavailable'),
         ),
       )
       .finally(() => setLoaded(true));

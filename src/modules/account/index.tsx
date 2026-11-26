@@ -20,6 +20,7 @@ import {
   PasskeyOptionsResponseSchema,
   RecoveryCodesSchema, PasskeyCredentialsResponseSchema, PasskeyRegisterRequestSchema, MfaDisableRequestSchema, MfaVerifyRequestSchema, MfaSetupResponseSchema, IamSuccessResponseSchema, type MfaSetupResponse,
 } from '../../../contracts/oathweave-browser.generated';
+import { describeApiError } from '@lib/api-error';
 async function api(
   path: string,
   method = 'GET',
@@ -80,7 +81,7 @@ export default function AccountModule() {
       void refresh()
         .catch((error) =>
           setError(
-            error instanceof Error ? error.message : 'Identity unavailable',
+            describeApiError(error, 'Identity unavailable'),
           ),
         )
         .finally(() => setLoaded(true));
@@ -93,7 +94,7 @@ export default function AccountModule() {
       await operation();
       await refresh();
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Operation failed');
+      setError(describeApiError(error, 'Operation failed'));
     } finally {
       setBusy(false);
       setPassword('');

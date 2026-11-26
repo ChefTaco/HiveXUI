@@ -84,6 +84,28 @@ button:disabled {
   outline-offset: 2px;
 }
 
+/* "Skip to content": off screen until the keyboard reaches it. */
+.skip-link {
+  position: fixed;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 300;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-chip);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  transform: translateY(calc(-100% - var(--space-4)));
+}
+.skip-link:focus {
+  transform: none;
+}
+/* The skip link's target takes focus only to move the reading position; it needs no ring. */
+#main-content:focus,
+#studio-main:focus {
+  outline: none;
+}
+
 ::selection {
   background: var(--accent);
   color: var(--on-accent);
@@ -254,6 +276,46 @@ details > summary {
   .content pre {
     max-width: 100%;
     overflow-x: auto;
+  }
+}
+
+/*
+ * Forced colors (Windows High Contrast and similar): the system palette replaces ours. The
+ * decorative backdrop and scanlines go, and state that only a background tint carried gets an
+ * outline in a system color, so it survives the palette swap.
+ */
+@media (forced-colors: active) {
+  .console-backdrop,
+  .console-scanlines {
+    display: none;
+  }
+  .nav-item--active,
+  .tab--active,
+  .toast,
+  .badge {
+    outline: 1px solid CanvasText;
+    outline-offset: -1px;
+  }
+  .nav-item--active,
+  .tab--active {
+    outline-color: Highlight;
+  }
+  .status-dot::before {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+  .toggle-track {
+    border: 1px solid ButtonText;
+  }
+  .toggle input:checked + .toggle-track {
+    background: Highlight;
+  }
+  .toggle-track::after {
+    forced-color-adjust: none;
+    background: ButtonText;
+  }
+  .skip-link {
+    border: 2px solid CanvasText;
   }
 }
 

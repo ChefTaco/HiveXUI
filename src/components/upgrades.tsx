@@ -4,6 +4,7 @@ import { adminApi, SecondFactorRequired } from "../lib/api";
 import { safeExternalUrl } from "../lib/external-url";
 import { useEffect, useState } from "react";
 import { Button, Panel } from "./ui";
+import { describeApiError } from '@lib/api-error';
 
 interface Notice {
   installed: string;
@@ -186,7 +187,7 @@ function LegacyUpgradesPanel({ canUpgrade }: { canUpgrade: boolean }) {
       setNeedsAuthentication(true);
       setPlan(null);
       setResult("Confirm your password, then review a new upgrade plan.");
-    } else setResult(error instanceof Error ? error.message : fallback);
+    } else setResult(describeApiError(error, fallback));
   }
   async function reauthenticate() {
     setBusy(true);

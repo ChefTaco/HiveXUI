@@ -8,6 +8,7 @@ import type { AdminUser, ConfigImportRequest, RoutingGoal, RoutingObjectiveConfi
 import { Icon } from '../components/icons';
 import { UpgradesPanel } from '../components/upgrades';
 import { productInstalled } from '../lib/runtime';
+import { describeApiError } from '@lib/api-error';
 
 const ROUTING_GOALS: Array<{ value: RoutingGoal; label: string; copy: string }> = [
   { value: 'balanced', label: 'Balanced', copy: 'Use quality, throughput, and cost together.' },
@@ -71,7 +72,7 @@ export function SettingsPage({ currentUser }: { currentUser: AdminUser | null })
       URL.revokeObjectURL(url);
       toast.success('Config exported');
     } catch (caught) {
-      toast.error('Export failed', caught instanceof Error ? caught.message : 'Could not export config');
+      toast.error('Export failed', describeApiError(caught, 'Could not export config'));
     } finally {
       setExporting(false);
     }
@@ -95,7 +96,7 @@ export function SettingsPage({ currentUser }: { currentUser: AdminUser | null })
       setImportText('');
       await refresh();
     } catch (caught) {
-      const message = caught instanceof ApiError ? caught.message : caught instanceof Error ? caught.message : 'Could not import config';
+      const message = describeApiError(caught, 'Could not import config');
       toast.error('Import failed', message);
     } finally {
       setImporting(false);
@@ -109,7 +110,7 @@ export function SettingsPage({ currentUser }: { currentUser: AdminUser | null })
       toast.success('Routing objective saved', ROUTING_GOALS.find((entry) => entry.value === goal)?.label ?? goal);
       await refresh();
     } catch (caught) {
-      const message = caught instanceof ApiError ? caught.message : caught instanceof Error ? caught.message : 'Could not save routing objective';
+      const message = describeApiError(caught, 'Could not save routing objective');
       toast.error('Save failed', message);
     } finally {
       setSavingObjective(false);

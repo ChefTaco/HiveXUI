@@ -2,6 +2,7 @@ import { securityPost,securityFetch } from '@security/lib/security-api';
 import { useState, useEffect } from "react";
 import { useSecurityRefresh } from "@security/lib/page-data";
 import { Button, Panel } from '@ui';
+import { describeApiError } from '@lib/api-error';
 
 interface ExistingAction {
   id: string;
@@ -51,7 +52,7 @@ export function ContainmentPanel({
       setMessage(label);
       refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Request failed");
+      setMessage(describeApiError(error, "Request failed"));
     } finally {
       setBusy(false);
     }

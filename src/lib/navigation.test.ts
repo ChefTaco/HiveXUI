@@ -287,8 +287,24 @@ describe('remembered sidebar state', () => {
 describe('deep links', () => {
   const link = (url: string, installed: ProductCheck) => {
     const { pathname, search } = new URL(url, 'https://console.example.com');
-    return resolveDeepLink({ pathname, search }, installed);
+    // The notice for a dead address has its own test below.
+    const { missing: _missing, ...rest } = resolveDeepLink({ pathname, search }, installed);
+    return rest;
   };
+  const notice = (url: string, installed: ProductCheck) => {
+    const { pathname, search } = new URL(url, 'https://console.example.com');
+    return resolveDeepLink({ pathname, search }, installed).missing;
+  };
+
+  it('says why a dead address landed on the overview', () => {
+    expect(notice('/?page=memories', IDENTITY)).toBe("HiveMem isn't installed here");
+    expect(notice('/fleet/nodes/abc', IDENTITY)).toBe("Magnus isn't installed here");
+    expect(notice('/?page=retired', ALL)).toBe("That page doesn't exist here");
+    // An address that opens, or Studio's own page asked for in the old form, needs no notice.
+    expect(notice('/?page=memories', ALL)).toBeUndefined();
+    expect(notice('/', ALL)).toBeUndefined();
+    expect(notice('/?page=studio', only('ardentstudio'))).toBeUndefined();
+  });
 
   it('keeps bookmarks when the product is installed, without touching the address', () => {
     expect(link('/?page=memories', ALL)).toEqual({ view: 'memories', url: null });

@@ -9,6 +9,7 @@ import { can } from '../lib/permissions';
 import type { AdminUser, HiveActor, HiveActorLifecycleResponse } from '../lib/types';
 import { formatTime, relativeTime } from '../lib/format';
 import { browserIdentity, enrollmentInstallationId, selectEnrollmentInstallation } from '../lib/runtime';
+import { describeApiError } from '@lib/api-error';
 type CoordinatedActor = HiveActor & { enrollmentStatus?: string; credentialExpiresAt?: string | null; legacyReceiptAvailable?: boolean; latestOperation?: { id: string; action: string; status: string } | null };
 
 const KIND_LABELS: Record<HiveActor['kind'], string> = {
@@ -53,7 +54,7 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
       if (!active) return;
       setInstallations(result.installations);
       if (!installationId && result.installations.length === 1) setInstallationId(result.installations[0]);
-    }).catch(error => { if (active) setLoadError(error instanceof Error ? error.message : 'Installation namespaces are unavailable'); });
+    }).catch(error => { if (active) setLoadError(describeApiError(error, 'Installation namespaces are unavailable')); });
     return () => { active = false; };
   }, [suite, canRead, currentUser?.id]);
   useEffect(() => { if (installationId) selectEnrollmentInstallation(installationId); }, [installationId]);
@@ -63,7 +64,7 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
     const generation = ++refreshGeneration.current;
     setLoading(true); setLoadError(null);
     try { const result = await adminApi.hiveActors(); if (generation === refreshGeneration.current) setEnrollments(result.data); }
-    catch (error) { if (generation === refreshGeneration.current) setLoadError(error instanceof Error ? error.message : 'Identity enrollment APIs are unavailable'); }
+    catch (error) { if (generation === refreshGeneration.current) setLoadError(describeApiError(error, 'Identity enrollment APIs are unavailable')); }
     finally { if (generation === refreshGeneration.current) setLoading(false); }
   }, [suite, canRead, currentUser?.id, installationId, legacyRefresh]);
   useEffect(() => { if (suite) void refresh(); }, [suite, refresh]);
@@ -114,13 +115,13 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
     try {
       setActionResult(await (resume ? adminApi.resumeHiveActor(actor.id, actor.latestOperation.id) : adminApi.recoverHiveActorOperation(actor.id, actor.latestOperation.id)));
       await refresh();
-    } catch (error) { toast.error(resume ? 'Resume refused' : 'Recovery refused', error instanceof Error ? error.message : 'Inspect the owning product before retrying'); }
+    } catch (error) { toast.error(resume ? 'Resume refused' : 'Recovery refused', describeApiError(error, 'Inspect the owning product before retrying')); }
     finally { setBusy(null); }
   }
   async function recoverLegacy(actor: CoordinatedActor) {
     setBusy('recover-' + actor.id);
     try { setActionResult({ ok: true, ...await adminApi.recoverLegacyActorReceipt(actor.id), identifiers: actor.identifiers }); }
-    catch (error) { toast.error('Legacy receipt unavailable', error instanceof Error ? error.message : 'Inspect retained recovery evidence'); }
+    catch (error) { toast.error('Legacy receipt unavailable', describeApiError(error, 'Inspect retained recovery evidence')); }
     finally { setBusy(null); }
   }
 
@@ -145,7 +146,7 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
       await refresh();
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 410) sessionStorage.removeItem(operationStorage(actor.id, action));
-      toast.error(action === 'disable' ? 'Disable failed' : 'Rotate failed', caught instanceof Error ? caught.message : 'Actor lifecycle request failed');
+      toast.error(action === 'disable' ? 'Disable failed' : 'Rotate failed', describeApiError(caught, 'Actor lifecycle request failed'));
     } finally {
       setBusy(null);
     }
@@ -201,7 +202,7 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
       if (response.ok) setCreateForm((current) => ({ ...current, agentId: '', displayName: '', description: '', hostLabel: '', allowedIps: '' }));
       await refresh();
     } catch (caught) {
-      toast.error('Create failed', caught instanceof Error ? caught.message : 'Could not create actor');
+      toast.error('Create failed', describeApiError(caught, 'Could not create actor'));
     } finally {
       setBusy(null);
     }
@@ -257,8 +258,8 @@ export function ActorsPage({ currentUser }: { currentUser: AdminUser | null }) {
           <div className="json-stack">
             <p className="panel-eyebrow">Latest one-time secrets and steps</p>
             <JsonBlock value={actionResult} />
-            <Button variant="ghost" disabled={!actionResult.ok} onClick={() => { void acknowledgeLatest().catch((error: unknown) => toast.error(error instanceof Error ? error.message : 'Acknowledgement failed')); }}>I have saved these credentials</Button>
-            {!actionResult.ok && <Button variant="danger" disabled={!canWriteActors} onClick={() => { void containLatest().catch((error: unknown) => toast.error(error instanceof Error ? error.message : 'Containment failed')); }}>Contain partial actor</Button>}
+            <Button variant="ghost" disabled={!actionResult.ok} onClick={() => { void acknowledgeLatest().catch((error: unknown) => toast.error(describeApiError(error, 'Acknowledgement failed'))); }}>I have saved these credentials</Button>
+            {!actionResult.ok && <Button variant="danger" disabled={!canWriteActors} onClick={() => { void containLatest().catch((error: unknown) => toast.error(describeApiError(error, 'Containment failed'))); }}>Contain partial actor</Button>}
           </div>
         ) : null}
       </Panel>

@@ -2,7 +2,7 @@
 // Only the pages that show the shared Emberpath store wait for it; every other page renders at once.
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mount, settle, stubBrowser, type Mounted } from './modules/magnus/test-dom';
+import { click, mount, settle, stubBrowser, type Mounted } from './modules/magnus/test-dom';
 
 const { demands } = vi.hoisted(() => ({ demands: [] as boolean[] }));
 vi.mock('./lib/api', async (importOriginal) => {
@@ -63,5 +63,30 @@ describe('the shell and the shared store', () => {
     await until(() => document.querySelector('.app-shell'));
     expect(document.querySelector('.content .center-load')).not.toBeNull();
     expect(demands.at(-1)).toBe(true);
+  });
+});
+
+describe('the shell for the keyboard and assistive technology', () => {
+  it('starts with a skip link to the main region and names the page in the tab title', async () => {
+    history.replaceState(null, '', '/?page=inbox');
+    const { App } = await import('./app');
+    view = await mount(<App />);
+    await until(() => document.querySelector('.app-shell'));
+    const skip = document.querySelector<HTMLAnchorElement>('a.skip-link')!;
+    expect(skip.textContent).toBe('Skip to content');
+    await click(skip);
+    expect(document.activeElement?.id).toBe('main-content');
+    // The address is the console's: following the link does not add a fragment.
+    expect(location.hash).toBe('');
+    await until(() => document.title === 'Inbox · HiveXUI');
+  });
+
+  it('says why a dead bookmark opened the overview', async () => {
+    history.replaceState(null, '', '/?page=retired');
+    const { App } = await import('./app');
+    view = await mount(<App />);
+    await until(() => document.querySelector('[role="status"] .toast'));
+    expect(document.querySelector('[role="status"] .toast')!.textContent).toContain("That page doesn't exist here");
+    expect(location.search).toBe('');
   });
 });

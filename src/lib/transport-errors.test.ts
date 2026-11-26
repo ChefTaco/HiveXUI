@@ -9,6 +9,7 @@ import {
   productFor,
   resolveApiPath,
   REQUEST_ID_HEADER,
+  RequestTimeoutError,
   setStepUpProvider,
 } from './transport';
 import { ApiError } from './api';
@@ -116,6 +117,13 @@ describe('request IDs', () => {
     const error = await failureOf(() => json({ error: 'That is not allowed' }, 400, { 'x-request-id': 'echoed-id' }));
     expect(error.requestId).toBe('echoed-id');
     expect(describeApiError(error)).toBe('That is not allowed (request echoed-id)');
+  });
+
+  it('names the request ID of a timed-out request once, and none for a plain error', () => {
+    expect(describeApiError(new RequestTimeoutError(30_000, 'sent-id'))).toBe('The product did not answer within 30 seconds. Try again in a moment. (request sent-id)');
+    expect(describeApiError(new HiveApiError(500, 'Failed (request x-1)', { requestId: 'x-1' }))).toBe('Failed (request x-1)');
+    expect(describeApiError(new Error('Bad JSON'), 'fallback')).toBe('Bad JSON');
+    expect(describeApiError('nope', 'fallback')).toBe('fallback');
   });
 
   it('reads the older x-hive-request-id', async () => {

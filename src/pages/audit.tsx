@@ -38,7 +38,18 @@ export function AuditPage() {
                 {data.audit.map((event) => (
                   <tr key={event.id} className="row-clickable" onClick={() => setSelected(event)}>
                     <td className="cell-mono" title={formatTime(event.createdAt)}>
-                      {relativeTime(event.createdAt)}
+                      {/* The row is the mouse target. This is the same action for the keyboard. */}
+                      <button
+                        type="button"
+                        className="row-open"
+                        onClick={(click) => {
+                          click.stopPropagation();
+                          setSelected(event);
+                        }}
+                      >
+                        {relativeTime(event.createdAt)}
+                        <span className="sr-only">: open audit event {event.action}</span>
+                      </button>
                     </td>
                     <td className="cell-strong">{event.action}</td>
                     <td className="cell-mono">
