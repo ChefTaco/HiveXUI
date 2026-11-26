@@ -1,6 +1,7 @@
 // Reads a text/event-stream with fetch, because EventSource cannot send a bearer token. Each
 // connection goes through apiFetch, so a new one carries a newly minted token: Oathweave streams
 // close at token expiry and on logout, and a clean close simply reconnects.
+import { backoffDelay as sharedBackoff } from '@hivemagnus/hive-common/retry';
 import { apiFetch, onAccessCleared } from '../../../lib/transport';
 import { apiPath, handleUnauthorized, randomId, type Query } from './client';
 import { createSseParser, type SseEvent } from './sse';
@@ -34,9 +35,9 @@ const HEALTHY_MS = 30_000;
 /** A 401 can be a token that just expired. Past this many in a row the session is gone. */
 const MAX_UNAUTHORIZED = 3;
 
+/** The wait after `attempt` failures in a row (0 after a healthy connection): HiveCommon's equal jitter. */
 export function backoffDelay(attempt: number, minMs: number, maxMs: number, random: () => number = Math.random): number {
-  const ceiling = Math.min(maxMs, minMs * 2 ** attempt);
-  return ceiling / 2 + random() * (ceiling / 2);
+  return sharedBackoff(attempt + 1, { maxAttempts: Number.MAX_SAFE_INTEGER, baseMs: minMs, maxMs, jitter: 'equal' }, { random }) ?? maxMs;
 }
 
 export function openStream(options: StreamOptions): StreamHandle {

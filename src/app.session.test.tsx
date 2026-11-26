@@ -11,20 +11,27 @@ vi.mock('./lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./lib/api')>();
   return { ...actual, adminApi: { ...actual.adminApi, me } };
 });
-vi.mock('./lib/store', () => ({
-  StoreProvider: ({ children }: { children: ReactNode }) => children,
-  useStore: () => ({
+vi.mock('./lib/store', () => {
+  const state = {
     data: { providers: [], traces: [], audit: [], actors: [], incidents: [], clientKeys: [], telemetry: null },
     loading: true,
     refreshing: false,
     error: null,
     loadIssues: [],
+    incidentNotes: [],
     lastSync: null,
     refresh: async () => {},
     resourceFreshness: {},
     onAuthExpired: () => {},
-  }),
-}));
+    demand: () => () => {},
+  };
+  return {
+    StoreProvider: ({ children }: { children: ReactNode }) => children,
+    useStoreDemand: () => {},
+    useStoreStatus: () => state,
+    useStore: () => state,
+  };
+});
 
 let view: Mounted | undefined;
 beforeEach(() => {

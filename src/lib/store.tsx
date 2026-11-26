@@ -67,22 +67,48 @@ export interface ResourceFreshness {
 interface StoreApi {
   resourceFreshness: Partial<Record<keyof RouterData, ResourceFreshness>>;
   data: RouterData;
+  /** No load has finished yet. The first one starts when a page reads the store. */
   loading: boolean;
   refreshing: boolean;
   error: string | null;
+  /** Sections that failed to refresh, as "section: reason". */
   loadIssues: string[];
+  /**
+   * The incident aggregator's notes, such as one source's failure summary being unavailable. The
+   * incidents themselves loaded, so these are not refresh failures.
+   */
+  incidentNotes: string[];
   lastSync: Date | null;
   refresh: () => Promise<void>;
   onAuthExpired: () => void;
+  /** A page that shows store data asks for it here; the store loads and auto-refreshes only while asked. */
+  demand: () => () => void;
 }
 
 const StoreContext = createContext<StoreApi | null>(null);
 
-export function useStore(): StoreApi {
+/** The store's state without asking it to load: the shell's status and counts. */
+export function useStoreStatus(): StoreApi {
   const ctx = useContext(StoreContext);
   if (!ctx) throw new Error('useStore must be used within StoreProvider');
   return ctx;
 }
+
+/** Keeps the store loaded and refreshing while `active`, for a page the shell has not mounted yet. */
+export function useStoreDemand(active: boolean): void {
+  const { demand } = useStoreStatus();
+  useEffect(() => (active ? demand() : undefined), [active, demand]);
+}
+
+/** The store's data, for a page that shows it: mounting the page starts the first load. */
+export function useStore(): StoreApi {
+  const ctx = useStoreStatus();
+  useStoreDemand(true);
+  return ctx;
+}
+
+/** How often the store refreshes while a page that reads it is on screen and the tab is visible. */
+export const AUTO_REFRESH_MS = 60_000;
 
 export function StoreProvider({
   onAuthExpired,
@@ -96,6 +122,11 @@ export function StoreProvider({
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadIssues, setLoadIssues] = useState<string[]>([]);
+  const [incidentNotes, setIncidentNotes] = useState<string[]>([]);
+  const [demanders, setDemanders] = useState(0);
+  const inFlight = useRef(false);
+  // When the last refresh started, finished or failed: the timer waits a full period after either.
+  const lastAttemptAt = useRef(0);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [resourceFreshness, setResourceFreshness] = useState<
     Partial<Record<keyof RouterData, ResourceFreshness>>
@@ -105,6 +136,8 @@ export function StoreProvider({
 
   const refresh = useCallback(async () => {
     const refreshId = ++generation.current;
+    inFlight.current = true;
+    lastAttemptAt.current = Date.now();
     if (firstLoad.current) setLoading(true);
     else setRefreshing(true);
     setError(null);
@@ -157,6 +190,7 @@ export function StoreProvider({
       if (refreshId !== generation.current) return;
       const values = new Map<string, unknown>();
       const issues: string[] = [];
+      const notes: string[] = [];
       const timestamp = new Date().toISOString();
       setResourceFreshness((previous) => {
         const next = { ...previous };
@@ -182,7 +216,7 @@ export function StoreProvider({
         if (result.status === 'fulfilled') {
           values.set(key, result.value);
           if (key === 'incidents' && result.value && typeof result.value === 'object' && 'issues' in result.value && Array.isArray(result.value.issues))
-            issues.push(...result.value.issues.filter((issue): issue is string => typeof issue === 'string'));
+            notes.push(...result.value.issues.filter((issue): issue is string => typeof issue === 'string'));
         }
         else {
           if (
@@ -202,6 +236,7 @@ export function StoreProvider({
         }
       }
       setLoadIssues(issues);
+      setIncidentNotes(notes);
       setError(
         issues.length
           ? `${issues.length} console sections failed to refresh; previous data remains visible`
@@ -297,15 +332,43 @@ export function StoreProvider({
       );
     } finally {
       if (refreshId !== generation.current) return;
+      inFlight.current = false;
+      lastAttemptAt.current = Date.now();
       firstLoad.current = false;
       setLoading(false);
       setRefreshing(false);
     }
   }, [onAuthExpired]);
 
+  const demand = useCallback(() => {
+    setDemanders((count) => count + 1);
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      setDemanders((count) => count - 1);
+    };
+  }, []);
+  const active = demanders > 0;
+  // Nothing loads until a page that shows the data is on screen, so other pages never wait on
+  // Emberpath. While one is, the data refreshes on a timer, paused while the tab is hidden, and at
+  // once when the tab comes back after a longer absence.
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    if (!active) return;
+    if (firstLoad.current && !inFlight.current) void refresh();
+    const due = () => document.visibilityState === 'visible' && !inFlight.current && Date.now() - lastAttemptAt.current >= AUTO_REFRESH_MS;
+    const timer = setInterval(() => {
+      if (due()) void refresh();
+    }, AUTO_REFRESH_MS / 4);
+    const visible = () => {
+      if (due()) void refresh();
+    };
+    document.addEventListener('visibilitychange', visible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', visible);
+    };
+  }, [active, refresh]);
 
   return (
     <StoreContext.Provider
@@ -315,10 +378,12 @@ export function StoreProvider({
         refreshing,
         error,
         loadIssues,
+        incidentNotes,
         lastSync,
         refresh,
         onAuthExpired,
         resourceFreshness,
+        demand,
       }}
     >
       {children}

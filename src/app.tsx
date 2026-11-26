@@ -47,13 +47,14 @@ import {
 import { LocalShell } from './components/local-shell';
 import { useRegistry } from './lib/registry';
 import type { AdminUser } from './lib/types';
-import { StoreProvider, useStore } from './lib/store';
+import { StoreProvider, useStoreDemand, useStoreStatus } from './lib/store';
 import { Icon, HiveSigil } from './components/icons';
 import { AuthLimitsStrip } from './components/auth-limits-strip';
 import { Breadcrumb } from './components/breadcrumb';
 import { SidebarNav } from './components/sidebar-nav';
 import { SetupNudge } from './components/setup-nudge';
-import { initials, relativeTime } from './lib/format';
+import { initials } from './lib/format';
+import { RelativeTime } from './components/relative-time';
 import { Button, buttonClass } from '@ui';
 
 type AuthState = 'checking' | 'unauthed' | 'authed';
@@ -679,7 +680,10 @@ function Shell({
     lastSync,
     refresh,
     resourceFreshness,
-  } = useStore();
+  } = useStoreStatus();
+  // Only the pages that show the shared Emberpath store wait for it; every other page renders at once.
+  const storePage = showsShellStatus(view);
+  useStoreDemand(storePage);
 
   const counts: Partial<Record<ViewKey, number>> = {
     providers: data.providers.length,
@@ -807,14 +811,14 @@ function Shell({
                   <span className="pip-dot" />
                   {error ? 'Sync error' : failures > 0 ? `${failures} failures` : 'Healthy'}
                   <span aria-hidden="true">·</span>
-                  {lastSync ? `Synced ${relativeTime(lastSync.toISOString())}` : 'Syncing…'}
+                  {lastSync ? <RelativeTime prefix="Synced " value={lastSync} /> : 'Syncing…'}
                   <details>
                     <summary>Panels<span className="sr-only"> freshness</span></summary>
                     <div className="status-pip__panel">
                       {Object.entries(resourceFreshness).map(([key, value]) => (
                         <p key={key}>
                           {key}:{' '}
-                          {value?.lastSuccess ? relativeTime(value.lastSuccess) : 'Never loaded'}
+                          {value?.lastSuccess ? <RelativeTime value={value.lastSuccess} /> : 'Never loaded'}
                           {value?.error ? ' · ' + value.error : ''}
                         </p>
                       ))}
@@ -852,13 +856,13 @@ function Shell({
           </header>
 
           <div className="content">
-            {loading ? (
+            {loading && storePage ? (
               <div className="center-load">
                 <span className="spinner spinner--lg" />
               </div>
             ) : (
               <>
-                {error ? (
+                {error && storePage ? (
                   <div className="sync-warning">
                     <Icon.Alert />
                     <div>

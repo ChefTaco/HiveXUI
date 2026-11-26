@@ -214,11 +214,45 @@ export function resolveApiPath(path: string): string {
   return (prefixes.get(product) ?? ROUTES[product].alias) + rest;
 }
 
+/** How long a request without its own signal may wait for an answer's headers. */
+export const READ_TIMEOUT_MS = 30_000;
+export const WRITE_TIMEOUT_MS = 120_000;
+
+/** A product that did not start to answer in time. Its message names the wait. */
+export class RequestTimeoutError extends Error {
+  override name = 'TimeoutError';
+  constructor(readonly timeoutMs: number, readonly requestId: string) {
+    super(`The product did not answer within ${Math.round(timeoutMs / 1000)} seconds. Try again in a moment.`);
+  }
+}
+
+/**
+ * A request without its own signal gets a deadline for the answer's headers, so a hung upstream
+ * fails instead of leaving a spinner forever. A caller with a signal (streams, downloads, the Magnus
+ * and Studio clients) keeps its own deadline, and an upload body (anything but text) has none: its
+ * time depends on its size. Reading the body is never cut short.
+ */
+function withDeadline(init: RequestInit, timeouts: { read: number; write: number }): { init: RequestInit; timeoutMs: number; done: () => void; expired: () => boolean } {
+  const method = (init.method ?? 'GET').toUpperCase();
+  const timeoutMs = method === 'GET' || method === 'HEAD' ? timeouts.read : timeouts.write;
+  const textBody = init.body == null || typeof init.body === 'string' || init.body instanceof URLSearchParams;
+  if (init.signal || !textBody || !(timeoutMs > 0)) return { init, timeoutMs, done: () => {}, expired: () => false };
+  const controller = new AbortController();
+  let fired = false;
+  const timer = setTimeout(() => {
+    fired = true;
+    controller.abort();
+  }, timeoutMs);
+  return { init: { ...init, signal: controller.signal }, timeoutMs, done: () => clearTimeout(timer), expired: () => fired };
+}
+
 /**
  * `stepUp: false` never asks the person to verify again: a refusal that needs verification comes
  * back as the 403 it is. For background reads, such as palette search, that must not open a prompt.
+ * `timeouts` overrides the header deadlines for requests without a signal (0 turns one off).
  */
-export function createApiFetch(request: typeof fetch, options: { stepUp?: boolean } = {}) {
+export function createApiFetch(request: typeof fetch, options: { stepUp?: boolean; timeouts?: { read?: number; write?: number } } = {}) {
+  const timeouts = { read: options.timeouts?.read ?? READ_TIMEOUT_MS, write: options.timeouts?.write ?? WRITE_TIMEOUT_MS };
   async function send(path: string, init: RequestInit, allowStepUp: boolean): Promise<Response> {
     init.signal?.throwIfAborted();
     if (!path.startsWith('/api/') || /[\\#\r\n]/.test(path))
@@ -257,13 +291,22 @@ export function createApiFetch(request: typeof fetch, options: { stepUp?: boolea
         await ensureChat(request, prefix, access);
       } else headers.set('Authorization', `Bearer ${access.value}`);
     }
-    const response = await request(target, {
-      ...init,
-      headers,
-      credentials:
-        accessProvider && product !== 'chattermost' ? 'omit' : 'include',
-      redirect: 'error',
-    });
+    const deadline = withDeadline(init, timeouts);
+    let response: Response;
+    try {
+      response = await request(target, {
+        ...deadline.init,
+        headers,
+        credentials:
+          accessProvider && product !== 'chattermost' ? 'omit' : 'include',
+        redirect: 'error',
+      });
+    } catch (error) {
+      if (deadline.expired()) throw new RequestTimeoutError(deadline.timeoutMs, requestId);
+      throw error;
+    } finally {
+      deadline.done();
+    }
     rememberSentRequestId(response, requestId);
     if (response.status === 401) void Promise.resolve().then(() => unauthorizedHandler?.()).catch(() => {});
     if (response.status === 403 && stepUpProvider && allowStepUp) {

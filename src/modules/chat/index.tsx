@@ -25,6 +25,7 @@ import { productPrefix } from "../../lib/transport";
 import { HiveApiError } from "../../lib/api-error";
 import { productEnabled } from "../../lib/runtime";
 import { chat, chatResource, json, reactionPath, safeId } from "./api";
+import { createReconnector } from "./reconnect";
 import ChatAdministration from "./admin";
 import {
   attachmentDrafts,
@@ -432,8 +433,17 @@ function ConnectedChat() {
     if (!me) return;
     let stopped = false;
     let socket: WebSocket | null = null;
-    let reconnect: ReturnType<typeof setTimeout> | undefined;
     let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    const reconnect = createReconnector({
+      // A read through the chat API mints a new chat session first when the current one is near expiry.
+      prepare: () => chat("/users/me"),
+      connect: () => {
+        // Renewing the session may already have reconnected (chat-session-refreshed).
+        if (socket && socket.readyState !== WebSocket.CLOSED && socket.readyState !== WebSocket.CLOSING) return;
+        connect();
+      },
+      onRefused: () => setError("Sign in again to continue this conversation"),
+    });
     const connect = () => {
       if (stopped) return;
       const old = socket;
@@ -446,7 +456,10 @@ function ConnectedChat() {
       url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
       const next = new WebSocket(url);
       socket = next;
-      next.onopen = () => setOnline(true);
+      next.onopen = () => {
+        reconnect.opened();
+        setOnline(true);
+      };
       next.onmessage = (message) => {
         if (socketEvent.current(message.data)) return;
         if (refreshTimer) clearTimeout(refreshTimer);
@@ -459,7 +472,7 @@ function ConnectedChat() {
       next.onclose = () => {
         if (socket !== next || stopped) return;
         setOnline(false);
-        reconnect = setTimeout(connect, 3000);
+        reconnect.closed();
       };
     };
     connect();
@@ -467,7 +480,7 @@ function ConnectedChat() {
     return () => {
       stopped = true;
       socket?.close();
-      if (reconnect) clearTimeout(reconnect);
+      reconnect.stop();
       if (refreshTimer) clearTimeout(refreshTimer);
       window.removeEventListener("chat-session-refreshed", connect);
     };
