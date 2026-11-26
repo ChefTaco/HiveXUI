@@ -68,16 +68,8 @@ async function request<T, TBody extends JsonRequestBody = JsonRequestBody>(
   return (await readJsonAnswer(response, 'The product', (options.method ?? 'GET') !== 'GET')) as T;
 }
 
-/**
- * Emberpath 2.7.0 and later: the account has multi-factor authentication. The password was right;
- * the same request is sent again with the authenticator or recovery code (`mfaCode`).
- */
-export class SecondFactorRequired extends Error {
-  override name = 'SecondFactorRequired';
-  constructor() {
-    super('Enter the code from your authenticator app, or a recovery code');
-  }
-}
+export { SecondFactorRequired } from './second-factor';
+import { SecondFactorRequired } from './second-factor';
 const isMfaRequired = (error: unknown) => error instanceof ApiError && error.status === 401 && error.code?.toUpperCase() === 'MFA_REQUIRED';
 
 /**
@@ -98,7 +90,7 @@ export const adminApi = {
   // ---- auth ----
   /** `mfaCode` is used only by the native console sign-in, which sends it with the password again. */
   login(username: string, password: string, mfaCode?: string) {
-    if (localSignIn()) return cindertraceLocalAuth.login(username, password);
+    if (localSignIn()) return cindertraceLocalAuth.login(username, password, mfaCode);
     const identity = browserIdentity();
     if (identity) return identity.login(username, password);
     return emberpathPasswordCheck<{ ok: boolean; user: AdminUser }>('/api/auth/login', { username, password }, mfaCode);

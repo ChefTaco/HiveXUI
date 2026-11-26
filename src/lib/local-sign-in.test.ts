@@ -77,6 +77,39 @@ describe('Cindertrace local sign-in', () => {
     expect(calls.some((call) => call.url.startsWith('/api/admin') || call.url.startsWith('/api/emberpath'))).toBe(false);
   });
 
+  it('asks for the authenticator code when Cindertrace wants one, and words a wrong code and a rate limit', async () => {
+    const bodies: unknown[] = [];
+    let answer: () => Response = () => Response.json({ error: 'Authentication code required', totpRequired: true }, { status: 401 });
+    serve(local, { '/api/cindertrace/auth/local/login': () => answer() });
+    const original = globalThis.fetch;
+    vi.stubGlobal('fetch', vi.fn(async (input: string, init: RequestInit = {}) => {
+      if (input.endsWith('/auth/local/login')) bodies.push(JSON.parse(String(init.body)));
+      return original(input, init);
+    }));
+    const { runtime, api } = await fresh();
+    await runtime.initializeRuntime();
+    const { SecondFactorRequired } = await import('./second-factor');
+    const required = await api.adminApi.login('analyst', 'correct horse battery').catch((error: unknown) => error);
+    expect(required).toBeInstanceOf(SecondFactorRequired);
+    expect((required as InstanceType<typeof SecondFactorRequired>).kind).toBe('totp');
+
+    answer = () => Response.json({ error: 'Invalid credentials', totpRequired: true }, { status: 401 });
+    await expect(api.adminApi.login('analyst', 'correct horse battery', '123 456')).rejects.toThrow('That authentication code is not valid or was already used');
+    await expect(api.adminApi.login('analyst', 'correct horse battery', '12345')).rejects.toThrow('Enter the 6 digits');
+
+    answer = () => Response.json({ error: 'Too many login attempts' }, { status: 429, headers: { 'retry-after': '30' } });
+    await expect(api.adminApi.login('analyst', 'correct horse battery', '654321')).rejects.toThrow('Too many sign-in attempts. Try again in 30 seconds.');
+
+    answer = () => Response.json({ ok: true, username: 'analyst', userId: 'local:analyst', role: 'VIEWER' });
+    expect((await api.adminApi.login('analyst', 'correct horse battery', '654321')).user.roles).toEqual(['VIEWER']);
+    expect(bodies).toEqual([
+      { username: 'analyst', password: 'correct horse battery' },
+      { username: 'analyst', password: 'correct horse battery', totp: '123456' },
+      { username: 'analyst', password: 'correct horse battery', totp: '654321' },
+      { username: 'analyst', password: 'correct horse battery', totp: '654321' },
+    ]);
+  });
+
   it('treats a refused session as signed out and validates the profile', async () => {
     serve(local, {
       '/api/cindertrace/auth/local/session': () => Response.json({ error: 'Authentication required' }, { status: 401 }),
