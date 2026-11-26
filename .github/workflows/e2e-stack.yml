@@ -18,6 +18,8 @@ jobs:
     env:
       STUDIO_E2E_PRODUCTS_ROOT: ${{ github.workspace }}/products
       STUDIO_E2E_REQUIRED: '1'
+      # The runner's uid is not the images' 1000: let the containers read the per-run files.
+      STUDIO_E2E_SHARED_FILES: '1'
       # The runner is thrown away; keeping the containers lets the next step read their logs.
       STUDIO_E2E_KEEP: '1'
       STUDIO_E2E_SHOTS: ${{ github.workspace }}/products/HiveXUI/output/studio-e2e-shots
