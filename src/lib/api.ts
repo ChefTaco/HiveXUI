@@ -1,7 +1,7 @@
 import {createEmberpathApi} from './emberpath-api';
 import { memoryDashboardApi } from './memory-dashboard-api';
 import { readConsoleIncidents } from './console-incidents';
-import { apiFetch, clearAccess } from './transport';
+import { apiFetch, clearAccess, endChatSession } from './transport';
 import { failureMeta, HiveApiError, readApiFailure, readJsonAnswer, type HiveApiErrorOptions } from './api-error';
 import {createIamApi} from './iam-api';
 import { browserIdentity, enrollmentInstallationId, localSignIn } from './runtime';
@@ -82,6 +82,8 @@ export const adminApi = {
     if (localSignIn()) return cindertraceLocalAuth.logout();
     const identity = browserIdentity();
     if (identity) {
+      // Before the identity sign-out, which forgets that a chat session exists.
+      await endChatSession();
       await identity.logout();
       return { ok: true };
     }

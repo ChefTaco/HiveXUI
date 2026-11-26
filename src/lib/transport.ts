@@ -81,6 +81,31 @@ export function refreshResourceAccess(): void {
   tokens.clear();
 }
 export const hasChatSession = () => chatExpiresAt > Date.now();
+/**
+ * Sign-out ends ChatterMost's own cookie session too: it outlives the Oathweave session by up to its
+ * 15-minute lifetime otherwise, on a browser someone else may use next. Best effort and bounded, so
+ * a slow or failing chat service never holds up sign-out.
+ */
+export async function endChatSession(
+  request: typeof fetch = (input, init) => fetch(input, init),
+  timeoutMs = 3000,
+): Promise<void> {
+  const prefix = prefixes.get('chattermost');
+  if (!hasChatSession() || !prefix) return;
+  chatExpiresAt = 0;
+  chatPending = undefined;
+  try {
+    await request(prefix + '/api/v4/users/logout', {
+      method: 'POST',
+      credentials: 'include',
+      redirect: 'error',
+      headers: { [REQUEST_ID_HEADER]: createRequestId() },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch {
+    // The cookie still expires on its own; sign-out goes on.
+  }
+}
 export function productPrefix(product: Product): string | undefined {
   return prefixes.get(product);
 }
