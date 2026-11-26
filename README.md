@@ -124,8 +124,11 @@ never leaves memory:
    products get a random one).
 2. HiveXUI asks Oathweave to authorize the product's public client with `prompt=login`, S256 PKCE,
    that nonce and a new state. Oathweave answers `LOGIN_REQUIRED` with a login ticket.
-3. **Verify your identity** asks for the password and authenticator code (or a passkey), which go
-   only to Oathweave's own step-up endpoint.
+3. **Verify your identity** offers **Verify with a passkey** (a user-verified passkey alone, for
+   passkey-only accounts) and the password with the authenticator code or a passkey. Either goes
+   only to Oathweave's own step-up endpoint, which re-authenticates the same session and user
+   (Oathweave 2.7.0). An Oathweave with `IAM_PASSWORDLESS_PASSKEYS=false` answers
+   `PASSWORD_REQUIRED` to a passkey alone; the dialog then asks for the password next time.
 4. The same authorization is repeated with the ticket, and the code exchanged with the verifier.
    HiveXUI checks the ID token: signature, issuer, client, nonce, the same person (`sub`), an
    `auth_time` no older than the start, and `at_hash`.
@@ -375,3 +378,8 @@ configured issuer. Unknown or repeated parameters and unsafe callbacks remain lo
 portal does not redirect errors to unvalidated targets. Authorization requests and one-use continuations live only in
 memory and are invalidated on logout or session invalidation. Existing suite sign-in and UI deep
 links retain their original behavior.
+
+**Sign in with a passkey** on the console sign-in form and the portal (normal and forced sign-in)
+uses Oathweave's passwordless sign-in: a discoverable passkey with user verification required, no
+password. It is offered when the browser supports WebAuthn, never on Cindertrace's local sign-in,
+and disappears with a notice when Oathweave answers 404 (passwordless sign-in turned off).

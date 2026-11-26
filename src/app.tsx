@@ -17,7 +17,7 @@ import { ProductAccess } from './components/product-access';
 import { ViewBoundary } from './components/view-boundary';
 import { adminApi, ApiError, SecondFactorRequired } from './lib/api';
 import { onSessionEnded, signInServiceUnreachable, type SessionEnd } from './lib/session-events';
-import { LoginRequired, MfaRequired, PasswordExpired } from './lib/browser-auth';
+import { LoginRequired, MfaRequired, PasskeySignInUnavailable, PasswordExpired } from './lib/browser-auth';
 import { parsePortalAuthorization, requiresFreshSignIn, type PortalAuthorizationRequest } from './lib/authorization-portal';
 import {
   breadcrumbs,
@@ -374,6 +374,8 @@ function LoginScreen({ onSuccess, authorization = false, reauthentication = fals
   const [newPassword, setNewPassword] = useState(''),
     [confirmation, setConfirmation] = useState('');
   const [notice, setNotice] = useState(initialNotice);
+  // A passwordless passkey sign-in, offered until Oathweave says it has it turned off.
+  const [passkeyOffered, setPasskeyOffered] = useState(() => !local && !!browserIdentity()?.passkeySignInOffered());
   useDocumentTitle(authorization ? 'Oathweave sign-in' : mode === 'sign-in' ? 'Sign in' : 'Password recovery');
   function changeMode(value: typeof mode) {
     setMode(value);
@@ -400,6 +402,24 @@ function LoginScreen({ onSuccess, authorization = false, reauthentication = fals
       setError(
         describeApiError(error, 'Passkey verification failed'),
       );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function passkeySignIn() {
+    const identity = browserIdentity();
+    if (!identity || local) return;
+    setBusy(true);
+    setError(null);
+    setNotice('');
+    try {
+      const result = await identity.signInWithPasskey();
+      setPassword('');
+      onSuccess(result.user);
+    } catch (caught) {
+      if (caught instanceof PasskeySignInUnavailable) setPasskeyOffered(false);
+      setError(describeApiError(caught, 'Passkey sign-in failed'));
     } finally {
       setBusy(false);
     }
@@ -599,6 +619,21 @@ function LoginScreen({ onSuccess, authorization = false, reauthentication = fals
                   ? 'Verify and sign in'
                   : 'Sign in'}
           </Button>
+          {passkeyOffered && !local && mode === 'sign-in' && !challenge && !secondFactor && (
+            <>
+              <Button
+                type="button"
+                onClick={() => void passkeySignIn()}
+                disabled={busy}
+                aria-describedby="passkey-sign-in-hint"
+              >
+                Sign in with a passkey
+              </Button>
+              <span id="passkey-sign-in-hint" className="field-hint">
+                No password needed: confirm with your device PIN or biometric.
+              </span>
+            </>
+          )}
           {secondFactor && !browserIdentity() && (
             <Button variant="ghost" type="button" onClick={() => changeMode('sign-in')}>
               Back to sign in

@@ -1,4 +1,18 @@
 // Native WebAuthn only. Binary fields are serialized for Oathweave's public API.
+
+/** The browser closed, refused or timed out the passkey prompt: nothing was sent. */
+export class PasskeyCancelled extends Error {
+  override name = 'PasskeyCancelled';
+  constructor() {
+    super('The passkey request was cancelled or timed out. Try again when you are ready.');
+  }
+}
+
+/** Whether this browser offers WebAuthn (a secure context with PublicKeyCredential). */
+export function passkeysSupported(): boolean {
+  return typeof window !== 'undefined' && typeof window.PublicKeyCredential === 'function' &&
+    typeof navigator !== 'undefined' && typeof navigator.credentials?.get === 'function';
+}
 const bytes = (value: string): ArrayBuffer => {
   if (!/^[A-Za-z0-9_-]+$/.test(value))
     throw new Error('Invalid passkey challenge');
@@ -41,6 +55,8 @@ export async function authenticatePasskey(
 ): Promise<Record<string, unknown>> {
   if (typeof options.challenge !== 'string')
     throw new Error('Invalid passkey challenge');
+  // No allowCredentials (passwordless sign-in) lets the authenticator offer its discoverable
+  // passkeys for this site. User verification (device PIN or biometric) is always required.
   const credential = requireCredential(
     await navigator.credentials.get({
       publicKey: {
@@ -49,6 +65,10 @@ export async function authenticatePasskey(
         allowCredentials: descriptors(options.allowCredentials),
         userVerification: 'required',
       } as PublicKeyCredentialRequestOptions,
+    }).catch((error: unknown) => {
+      if (error instanceof DOMException && (error.name === 'NotAllowedError' || error.name === 'AbortError'))
+        throw new PasskeyCancelled();
+      throw error;
     }),
   );
   const response = credential.response as AuthenticatorAssertionResponse;
