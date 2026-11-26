@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "product": "HiveSkills",
-  "version": "1.2.2",
+  "version": "1.9.1",
   "source": "product-owned docs/browser-contracts.ts",
   "license": "Apache-2.0",
-  "sha256": "4949135b17e46b5c878f78f16c63e292667418405f5c75b6fb854d2e45c24567",
-  "sourceCommit": "0d05011b7ae780b4da5b7425ecca01066816a5dc"
+  "sha256": "dbc671ffd1c41903033b60f6b621c9d2fc30a57ad02facac1a5644f76485829b",
+  "sourceCommit": "eb82b09af3c6f5e67e1616359d8c905fa9d15575"
 }
