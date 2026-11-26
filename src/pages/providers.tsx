@@ -49,6 +49,8 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
   // The page address comes from Emberpath: only an http(s) one becomes a link.
   const codexVerificationUrl = safeExternalUrl(codexFlow?.verificationUrl);
   const [codexCheck, setCodexCheck] = useState<CodexOAuthCheck | null>(null);
+  const [discovering, setDiscovering] = useState(false);
+  const [discovery, setDiscovery] = useState<{ ok: boolean; text: string } | null>(null);
 
   const patch = (changes: Partial<ProviderForm>) => setForm((current) => ({ ...current, ...changes }));
   // Stored credentials stay with the server they were entered for; see provider-form.ts.
@@ -62,6 +64,7 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
   }
 
   function openEdit(provider: Provider) {
+    setDiscovery(null);
     try {
       const next = formFromProvider(provider);
       setEditing(provider);
@@ -69,6 +72,28 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
       setDrawerOpen(true);
     } catch (error) {
       toast.error('Provider could not be edited', describeApiError(error, 'Invalid provider model data'));
+    }
+  }
+
+  /**
+   * Discovery writes: Emberpath reconciles the provider's live model list into its rows (operator
+   * overrides stay). The drawer then shows the provider's models as stored, keeping other edits.
+   */
+  async function discoverModels() {
+    if (!editing) return;
+    setDiscovering(true);
+    setDiscovery(null);
+    try {
+      const { data: result } = await adminApi.discoverProviderModels(editing.id);
+      if (result.provider) patch({ models: formFromProvider(result.provider).models });
+      const parts = [`${result.created.length} new`, `${result.updated.length} updated`, `${result.unchanged.length} unchanged`];
+      if (result.stale.length) parts.push(`${result.stale.length} no longer listed (${result.stale.slice(0, 5).join(', ')}${result.stale.length > 5 ? ', …' : ''})`);
+      setDiscovery({ ok: true, text: `Found ${result.discovered.length} ${result.discovered.length === 1 ? 'model' : 'models'}: ${parts.join(', ')}.` });
+      await refresh();
+    } catch (caught) {
+      setDiscovery({ ok: false, text: describeApiError(caught, 'Model discovery failed') });
+    } finally {
+      setDiscovering(false);
     }
   }
 
@@ -375,6 +400,17 @@ export function ProvidersPage({ currentUser }: { currentUser: AdminUser | null }
         <Field label="Models (JSON array)" hint='e.g. [{"model":"gpt-4o","enabled":true}]'>
           <TextArea value={form.models} onChange={(v) => patch({ models: v })} spellCheck={false} />
         </Field>
+        {editing ? (
+          <div className="grid gap-2">
+            <div className="inline-actions">
+              <Button size="sm" onClick={() => void discoverModels()} loading={discovering} disabled={!canWriteProviders} icon={<Icon.Refresh className="btn-ico" />}>
+                Discover models
+              </Button>
+              <span className="text-xs text-text-muted">Asks the provider for its live model list and saves it to Emberpath now. Models you changed by hand keep your values.</span>
+            </div>
+            {discovery ? <p role={discovery.ok ? 'status' : 'alert'} className={discovery.ok ? 'm-0 text-sm' : 'm-0 text-sm text-danger'}>{discovery.text}</p> : null}
+          </div>
+        ) : null}
 
         <div className="inline-actions">
           <Toggle checked={form.enabled} onChange={(v) => patch({ enabled: v })} label="Enabled" />
