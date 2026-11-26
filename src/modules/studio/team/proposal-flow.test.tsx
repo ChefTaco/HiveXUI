@@ -1,11 +1,17 @@
 // @vitest-environment jsdom
 import { act } from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { button, click, dialog, mount, settle, stubBrowser, type Mounted } from '../../magnus/test-dom';
 import StudioModule from '../index';
 import { acquireProjectStore, resetProjectStores } from '../state/project-store';
 import { agent, AT, PROJECT_ID, proposal, revision, serveStudio, snapshot, team, teamBody, type StudioRequest } from '../test-fixtures';
 import type { TeamProposalRecord, TeamState } from '../api/endpoints';
+
+// The project areas load on demand; load them once up front so each page renders as it opens.
+beforeAll(async () => {
+  const { preloadStudioAreas } = await import('../pages');
+  await preloadStudioAreas();
+}, 60_000);
 
 vi.mock('../../../lib/runtime', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../lib/runtime')>()),

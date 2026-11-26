@@ -192,7 +192,8 @@ test('4. artifact download: a reset part-way resumes with Range, and the digest 
 
   const artifacts = await ctx.ardent.artifacts.list(finished.ardent.task_id);
   const poster = artifacts.find(artifact => artifact.manifest.mime === 'image/png');
-  test.skip(!poster, `The fixture model wrote no PNG for Ardent task ${finished.ardent.task_id}; artifacts: ${artifacts.map(item => item.manifest.mime).join(', ') || 'none'}`);
+  // The fixture model always writes the poster; without it the download checks below prove nothing.
+  expect(poster, `The fixture model wrote no PNG for Ardent task ${finished.ardent.task_id}; artifacts: ${artifacts.map(item => item.manifest.mime).join(', ') || 'none'}`).toBeDefined();
   const { sha256, size } = poster!.manifest;
   expect(size).toBeGreaterThan(2 * 1024 * 1024);
 

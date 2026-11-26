@@ -1,21 +1,38 @@
-import type { ReactNode } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { ArrowUpRight, Compass, Library, Plus, ServerOff, ShieldAlert } from 'lucide-react';
 import { Button, EmptyState, PageHeader, Panel, LoadingRows, buttonClass } from '@ui';
 import { parseProfileRef, profileHref } from '../magnus/pages/agents/ardent/logic';
 import type { StudioConnection } from './api/client';
 import './projects/projects.css';
-import { AgentStudio } from './agents/page';
 import { AgentPageLink } from '../agents/link';
 import { StudioLink } from './link';
-import { ProjectReview } from './review/page';
 import { CreateProject } from './projects/create';
 import { ProjectsHome } from './projects/home';
 import { ArchivedNotice, ProjectLanding } from './projects/project-page';
 import { Gallery } from './gallery/gallery';
-import { TeamDesigner } from './team/designer';
-import { ConversationRoom } from './room/room-page';
 import { STUDIO_PREFIX } from './paths';
 import type { StudioMatch } from './routes';
+
+// The four project areas are each a large page with its own dependencies (the team canvas, the room's
+// transcript and scene, review's renditions, Agent Studio). Each loads when it is first opened.
+const AREAS = {
+  team: () => import('./team/designer'),
+  room: () => import('./room/room-page'),
+  review: () => import('./review/page'),
+  agents: () => import('./agents/page'),
+};
+/** Loads every project area's chunk; a page opened afterwards renders without waiting. */
+export const preloadStudioAreas = (): Promise<unknown> => Promise.all(Object.values(AREAS).map((load) => load()));
+const TeamDesigner = lazy(() => AREAS.team().then((module) => ({ default: module.TeamDesigner })));
+const ConversationRoom = lazy(() => AREAS.room().then((module) => ({ default: module.ConversationRoom })));
+const ProjectReview = lazy(() => AREAS.review().then((module) => ({ default: module.ProjectReview })));
+const AgentStudio = lazy(() => AREAS.agents().then((module) => ({ default: module.AgentStudio })));
+
+const AREA_LOADING = (
+  <Panel aria-busy="true">
+    <LoadingRows rows={4} />
+  </Panel>
+);
 
 /** What each page will hold once the Studio service's client is here, in the words of its empty state. */
 const PURPOSE: Record<StudioMatch['route']['id'], string> = {
@@ -161,7 +178,7 @@ export function StudioPage({ match, connection, onRetry }: { match: StudioMatch;
         </div>
       ) : null}
       {match.projectId && connection.state === 'ready' ? <ArchivedNotice projectId={match.projectId} /> : null}
-      {page ?? (
+      {page ? <Suspense fallback={AREA_LOADING}>{page}</Suspense> : (
         <>
           <PageHeader eyebrow="Ardent Project Studio" title={match.route.title} description={description} actions={actions} />
           <ServiceBody match={match} connection={connection} onRetry={onRetry} />
