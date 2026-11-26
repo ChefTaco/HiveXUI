@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-11-26
+
 - Fix: one failing page no longer blanks the console. Every shell page and the fullscreen Studio sit behind an error boundary that keeps the shell working and offers **Try again** and **Reload console**. A tab left open across an upgrade, whose old hashed chunks are gone, reloads once to fetch the new build (`vite:preloadError` and failed lazy imports); if the fresh page fails the same way it shows "A new HiveXUI version is available" with a reload button instead of reloading again. The search palette and inbox bell fail quietly.
 - Fix: an identity service outage at startup shows "The identity service is unreachable" with **Retry** (and the Cindertrace recovery sign-in where it is offered) instead of a sign-in form that could only fail. A signed-out session still shows the form.
 - Fix: sign-out also ends the ChatterMost cookie session (`POST /api/v4/users/logout`, best effort, bounded to 3 s) before the Oathweave sign-out.
