@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Bot, Plus, RefreshCw } from 'lucide-react';
 import { Button, EmptyState, Panel, LoadingRows, ResourceError, buttonClass } from '@ui';
-import { productInstalled } from '../../lib/runtime';
+import { browserIdentity, productInstalled } from '../../lib/runtime';
 import { useMagnusResource, type Resource } from '../magnus/api/use-resource';
 import { listProfiles } from '../magnus/pages/agents/ardent/api';
 import type { ArdentProfileSummary } from '../magnus/pages/agents/ardent/schemas';
@@ -49,7 +49,7 @@ export function AgentGate({ agents, children }: { agents: ReturnType<typeof useA
       );
     return (
       <Panel>
-        <ResourceError error={agents.error} title="Ardent agents could not be checked" onRetry={() => void agents.refresh()} />
+        <ResourceError error={agents.error} title="Ardent agents could not be checked" onRetry={() => { browserIdentity()?.retryConsent(); void agents.refresh(); }} />
       </Panel>
     );
   }
@@ -69,7 +69,7 @@ export function AgentGate({ agents, children }: { agents: ReturnType<typeof useA
         }
         action={
           <div className="flex flex-wrap justify-center gap-2">
-            <Button icon={<RefreshCw className="size-4" />} loading={agents.refreshing} onClick={() => void agents.refresh()}>
+            <Button icon={<RefreshCw className="size-4" />} loading={agents.refreshing} onClick={() => { browserIdentity()?.retryConsent(); void agents.refresh(); }}>
               Refresh
             </Button>
             {admin ? (

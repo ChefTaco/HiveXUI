@@ -13,7 +13,9 @@ const ChatInviteRedemption = lazy(() => import('./modules/chat/invite-redemption
 const CommandPalette = lazy(() => import('./components/command-palette'));
 const InboxBell = lazy(() => import('./modules/inbox/bell'));
 import { ProductAccess } from './components/product-access';
+import { ViewBoundary } from './components/view-boundary';
 import { adminApi, ApiError } from './lib/api';
+import { HiveApiError } from './lib/api-error';
 import { MfaRequired } from './lib/browser-auth';
 import { parsePortalAuthorization } from './lib/authorization-portal';
 import {
@@ -55,17 +57,29 @@ import { initials, relativeTime } from './lib/format';
 import { Button, buttonClass } from '@ui';
 
 type AuthState = 'checking' | 'unauthed' | 'authed';
+type StartupState = AuthState | 'unreachable';
+
+/**
+ * Whether a failed session check means the sign-in service is down, not that nobody is signed in:
+ * the request never got an answer, or the service or its gateway answered with a 5xx.
+ */
+export function signInServiceUnreachable(error: unknown): boolean {
+  if (error instanceof TypeError) return true;
+  return error instanceof HiveApiError && error.status >= 500;
+}
 
 export function App() {
   if (location.pathname === '/auth/authorize') return <AuthorizationPortal />;
   // Public: the person redeeming an invite has no identity to sign in with.
-  if (location.pathname === '/signup') return <Suspense fallback={<Background />}><ChatInviteRedemption /></Suspense>;
+  if (location.pathname === '/signup') return <ViewBoundary label="Chat invite redemption"><Suspense fallback={<Background />}><ChatInviteRedemption /></Suspense></ViewBoundary>;
   return <ConsoleApp />;
 }
 
 function ConsoleApp() {
-  const [auth, setAuth] = useState<AuthState>('checking');
+  const [auth, setAuth] = useState<StartupState>('checking');
   const [user, setUser] = useState<AdminUser | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [startupError, setStartupError] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -76,14 +90,19 @@ function ConsoleApp() {
           setUser(result.user);
           setAuth('authed');
         }
-      } catch {
-        if (active) setAuth('unauthed');
+      } catch (caught) {
+        if (!active) return;
+        // An outage is not a signed-out session: a sign-in form would only fail at the gateway.
+        if (signInServiceUnreachable(caught)) {
+          setStartupError(caught instanceof Error ? caught.message : '');
+          setAuth('unreachable');
+        } else setAuth('unauthed');
       }
     })();
     return () => {
       active = false;
     };
-  }, []);
+  }, [attempt]);
 
   const handleAuthExpired = useCallback(() => {
     browserIdentity()?.invalidate();
@@ -102,6 +121,18 @@ function ConsoleApp() {
       </>
     );
   }
+
+  if (auth === 'unreachable')
+    return (
+      <SignInUnavailable
+        detail={startupError}
+        onRetry={() => {
+          setAuth('checking');
+          setAttempt((value) => value + 1);
+        }}
+        onSignIn={() => setAuth('unauthed')}
+      />
+    );
 
   if (auth === 'unauthed') {
     return (
@@ -146,9 +177,11 @@ function SignedIn({ user, onLogout }: { user: AdminUser | null; onLogout: () => 
   if (fullscreen) {
     const Page = fullscreen.component;
     return (
-      <Suspense fallback={<><Background /><div className="center-load"><span className="spinner spinner--lg" /></div></>}>
-        <Page view={fullscreen.id} currentUser={user} onNavigate={() => {}} onAuthExpired={onLogout} />
-      </Suspense>
+      <ViewBoundary key={fullscreen.id} label={fullscreen.title} resetKey={pathname}>
+        <Suspense fallback={<><Background /><div className="center-load"><span className="spinner spinner--lg" /></div></>}>
+          <Page view={fullscreen.id} currentUser={user} onNavigate={() => {}} onAuthExpired={onLogout} />
+        </Suspense>
+      </ViewBoundary>
     );
   }
   return (
@@ -197,6 +230,44 @@ function AuthorizationPortal() {
   </section></main></>;
 }
 
+/** The sign-in service did not answer at startup. Retry, or use the Cindertrace recovery sign-in. */
+function SignInUnavailable({ detail, onRetry, onSignIn }: { detail: string; onRetry: () => void; onSignIn: () => void }) {
+  const local = localSignIn(), offered = localSignInOffered();
+  const service = local ? 'Cindertrace' : 'Oathweave';
+  return (
+    <>
+      <Background />
+      <AuthLimitsStrip />
+      <main className="login-shell">
+        <section className="login-card" aria-labelledby="sign-in-unavailable-title">
+          <HiveSigil className="login-sigil" />
+          <p className="login-eyebrow">Hive:Magnus</p>
+          <h1 id="sign-in-unavailable-title">The identity service is unreachable</h1>
+          <p className="login-sub">
+            {service} did not answer, so the console cannot check your sign-in. Your session may still be valid.
+          </p>
+          <div className="error-banner" role="alert">
+            <Icon.Alert aria-hidden="true" />
+            {detail || `${service} could not be reached. Try again in a moment.`}
+          </div>
+          <Button variant="primary" onClick={onRetry}>
+            <Icon.Refresh className="btn-ico" />
+            Retry
+          </Button>
+          {offered && !local ? (
+            <Button variant="ghost" type="button" onClick={() => chooseLocalSignIn(true)}>
+              Cindertrace recovery sign-in
+            </Button>
+          ) : null}
+          <Button variant="ghost" type="button" onClick={onSignIn}>
+            Show the sign-in form
+          </Button>
+        </section>
+      </main>
+    </>
+  );
+}
+
 function Background() {
   return (
     <>
@@ -210,7 +281,7 @@ function Background() {
 
 function LoginScreen({ onSuccess, authorization = false }: { onSuccess: (user: AdminUser) => void; authorization?: boolean }) {
   const local = localSignIn(), offered = localSignInOffered();
-  const [username, setUsername] = useState('admin');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [challenge, setChallenge] = useState<MfaRequired | null>(null);
   const [code, setCode] = useState('');
@@ -373,6 +444,7 @@ function LoginScreen({ onSuccess, authorization = false }: { onSuccess: (user: A
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   autoComplete="username"
+                  required
                 />
               </label>
               <label className="field">
@@ -382,6 +454,7 @@ function LoginScreen({ onSuccess, authorization = false }: { onSuccess: (user: A
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
+                  required
                 />
               </label>
             </>
@@ -598,6 +671,7 @@ function Shell({
   /** Follows an address from the route table, such as a search result. */
   function openAddress(href: string) {
     setNavOpen(false);
+    browserIdentity()?.retryConsent();
     if (isStudioPath(href.split(/[?#]/, 1)[0]!)) {
       setPaletteOpen(false);
       openStudio(href);
@@ -610,6 +684,8 @@ function Shell({
   function navigate(requested: string, path?: string) {
     const target = viewAvailable(requested, productInstalled) ? routeFor(requested)! : routeFor('hive')!;
     setNavOpen(false);
+    // Opening a page is a fresh request for its product: a declined consent prompt may be reviewed again.
+    browserIdentity()?.retryConsent();
     // Studio opens over the shell and returns here when it closes.
     if (target.fullscreen) {
       setPaletteOpen(false);
@@ -737,9 +813,11 @@ function Shell({
                 </button>
               ) : null}
               <SetupNudge user={user} onOpen={() => navigate('setup')} />
-              <Suspense fallback={null}>
-                <InboxBell subject={user?.id || 'operator'} onOpenInbox={() => navigate('inbox')} />
-              </Suspense>
+              <ViewBoundary quiet label="Inbox bell">
+                <Suspense fallback={null}>
+                  <InboxBell subject={user?.id || 'operator'} onOpenInbox={() => navigate('inbox')} />
+                </Suspense>
+              </ViewBoundary>
             </div>
           </header>
 
@@ -776,12 +854,16 @@ function Shell({
                     </Button>
                   </div>
                 ) : null}
-                <ViewContent
-                  view={view}
-                  onNavigate={navigate}
-                  user={user}
-                  onAuthExpired={onLogout}
-                />
+                {/* One failing page, or a chunk gone after an upgrade, leaves the shell working. */}
+                {/* Not keyed: IAM's sections share one page that keeps its forms between them. */}
+                <ViewBoundary label={titleFor(view)} resetKey={`${view} ${pathname}`}>
+                  <ViewContent
+                    view={view}
+                    onNavigate={navigate}
+                    user={user}
+                    onAuthExpired={onLogout}
+                  />
+                </ViewBoundary>
               </>
             )}
           </div>
@@ -791,9 +873,11 @@ function Shell({
         ) : null}
       </div>
       {paletteOpen ? (
-        <Suspense fallback={null}>
-          <CommandPalette screens={screens} user={user} onNavigate={navigate} onOpen={openAddress} onClose={() => setPaletteOpen(false)} />
-        </Suspense>
+        <ViewBoundary quiet label="Search palette">
+          <Suspense fallback={null}>
+            <CommandPalette screens={screens} user={user} onNavigate={navigate} onOpen={openAddress} onClose={() => setPaletteOpen(false)} />
+          </Suspense>
+        </ViewBoundary>
       ) : null}
     </>
   );

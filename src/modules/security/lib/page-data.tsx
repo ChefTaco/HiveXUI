@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactElement, type ReactNode } from 'react';
-import { LoadingRows } from '@ui';
+import { Button, LoadingRows } from '@ui';
 
 /** Reloads the current Cindertrace page's records, after a change or while an action runs. */
 export const SecurityRefresh = createContext<{ revision: number; refresh: () => void }>({ revision: 0, refresh: () => {} });
@@ -37,11 +37,15 @@ export function useSecurityData<T>(load: () => Promise<T>, key: string): Securit
 
 /** A page's loading lines, its failure, or the page itself. */
 export function SecurityPage<T>({ data, children }: { data: SecurityData<T>; children: (data: T) => ReactNode }): ReactElement {
+  const { refresh } = useContext(SecurityRefresh);
   if (data.status === 'error')
     return (
-      <p className="error-banner" role="alert">
-        {data.message}
-      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="error-banner" role="alert">
+          {data.message}
+        </p>
+        <Button variant="ghost" size="sm" onClick={refresh}>Retry</Button>
+      </div>
     );
   if (data.status === 'loading')
     return (
