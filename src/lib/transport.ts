@@ -91,15 +91,17 @@ export function refreshResourceAccess(): void {
 export const hasChatSession = () => chatExpiresAt > Date.now();
 /**
  * Sign-out ends ChatterMost's own cookie session too: it outlives the Oathweave session by up to its
- * 15-minute lifetime otherwise, on a browser someone else may use next. Best effort and bounded, so
- * a slow or failing chat service never holds up sign-out.
+ * 15-minute lifetime otherwise, on a browser someone else may use next. The cookie belongs to the
+ * whole origin, so the logout is sent whenever ChatterMost is configured, not only from a tab that
+ * opened chat: a reloaded tab or one that never opened chat knows nothing of a cookie another tab
+ * minted. Best effort and bounded, so a slow or failing chat service never holds up sign-out.
  */
 export async function endChatSession(
   request: typeof fetch = (input, init) => fetch(input, init),
   timeoutMs = 3000,
 ): Promise<void> {
   const prefix = prefixes.get('chattermost');
-  if (!hasChatSession() || !prefix) return;
+  if (!prefix) return;
   chatExpiresAt = 0;
   chatPending = undefined;
   try {

@@ -132,9 +132,13 @@ describe('product API transport', () => {
     expect(logout.mock.calls[0]![1]).toMatchObject({ method: 'POST', credentials: 'include', redirect: 'error' });
     expect(new Headers(logout.mock.calls[0]![1]!.headers).has('authorization')).toBe(false);
     expect(hasChatSession()).toBe(false);
-    // Without a chat session there is nothing to end.
+  });
+  it('ends the chat cookie from a tab that never opened chat, since the cookie is the origin\'s', async () => {
+    configureEndpoint('chattermost', '/api/chat');
+    expect(hasChatSession()).toBe(false);
+    const logout = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 401 }));
     await endChatSession(logout);
-    expect(logout).toHaveBeenCalledTimes(1);
+    expect(logout.mock.calls.map((call) => call[0])).toEqual(['/api/chat/api/v4/users/logout']);
   });
 });
 

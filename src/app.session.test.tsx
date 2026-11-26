@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { button, click, mount, settle, stubBrowser, type, type Mounted } from './modules/magnus/test-dom';
 import { resetSessionEvents, sessionEnded } from './lib/session-events';
 
-const { me } = vi.hoisted(() => ({ me: vi.fn() }));
+const { me, endChatSession } = vi.hoisted(() => ({ me: vi.fn(), endChatSession: vi.fn(async () => {}) }));
+vi.mock('./lib/transport', async (importOriginal) => ({ ...(await importOriginal<typeof import('./lib/transport')>()), endChatSession }));
 vi.mock('./lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./lib/api')>();
   return { ...actual, adminApi: { ...actual.adminApi, me } };
@@ -77,6 +78,8 @@ describe('the end of a session', () => {
     other.postMessage({ type: 'signed-out' });
     await until(() => document.querySelector('input[type="password"]'));
     expect(document.body.textContent).toContain('You signed out in another tab.');
+    // The chat cookie is the whole origin's: this tab ends it too, whether or not it opened chat.
+    expect(endChatSession).toHaveBeenCalled();
     other.close();
   });
 
