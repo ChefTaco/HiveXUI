@@ -209,7 +209,7 @@ test('3-4. room: a streamed reply, a clarification answered, a pinned decision a
   await form.getByRole('button', { name: 'Create task' }).click();
   await expect(page.getByText('Task created: Draw the region map.')).toBeVisible();
   await expect(roomMessage(/Delivered Region Map/).first()).toBeVisible({ timeout: 120_000 });
-  await page.getByRole('button', { name: /^Decisions \d/ }).click();
+  await page.getByRole('button', { name: /^Decisions \d/ }).first().click();
   await expect(page.getByRole('dialog', { name: 'Decisions' }).getByText('Adventure outline')).toBeVisible();
   await shot(page, '15-room-decisions-drawer');
   await page.getByRole('dialog', { name: 'Decisions' }).getByRole('button', { name: 'Close' }).click();
@@ -333,7 +333,7 @@ test('8. close with ✕, sign out and in, reopen: team, decisions and history ar
   await signInPage(page, `/studio/p/${projectId}/room`);
   await expect(page.getByRole('main', { name: 'Conversation Room' })).toBeVisible();
   await expect(roomMessage('Outline the adventure').first()).toBeVisible();
-  await page.getByRole('button', { name: /^Decisions \d/ }).click();
+  await page.getByRole('button', { name: /^Decisions \d/ }).first().click();
   await expect(page.getByRole('dialog', { name: 'Decisions' }).getByText('Adventure outline')).toBeVisible();
   await page.getByRole('dialog', { name: 'Decisions' }).getByRole('button', { name: 'Close' }).click();
   await page.getByRole('link', { name: 'Team' }).click();
