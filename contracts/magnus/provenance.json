@@ -3,7 +3,7 @@
   "product": "magnus-browser",
   "version": 1,
   "repository": "https://github.com/ChefTaco/magnus",
-  "revision": "08442f10c4746f43a95a4485359049c51c109ae8",
+  "revision": "71d146eca8e0faef066730a9b336d0c4633c0e69",
   "files": [
     {
       "path": "browser.ts",
