@@ -11,6 +11,7 @@ import {
 } from './identity-prompts';
 import { authenticatePasskey, passkeysSupported } from './passkeys';
 import { sessionEnded } from './session-events';
+import { STEP_UP_CANCELLED_MESSAGE } from './step-up-notice';
 import {
   LoginRequestSchema,
   MfaChallengeRequestSchema,
@@ -84,7 +85,7 @@ export class PasskeySignInUnavailable extends Error {
 export class ReauthenticationCancelled extends Error {
   override name = 'ReauthenticationCancelled';
   constructor() {
-    super('Identity verification was cancelled, so nothing was changed. Start the action again when you are ready.');
+    super(STEP_UP_CANCELLED_MESSAGE);
   }
 }
 

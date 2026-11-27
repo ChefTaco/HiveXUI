@@ -177,12 +177,14 @@ test('the provider drawer says why a moved base URL needs the secret again, with
   await page.getByRole('row', { name: /Router A/ }).getByRole('button', { name: 'Edit' }).click();
   const drawer = page.getByRole('dialog', { name: 'Router A' });
   await expect(drawer).toBeVisible();
+  // The form's own notices (the drawer keeps an empty live region of its own beside its actions).
+  const form = drawer.locator('.drawer-body');
   // Nothing is asked while the provider stays on its server, even on another path.
   await drawer.getByLabel('Base URL').fill('https://router-a.example.com/api/v2');
-  await expect(drawer.getByRole('status')).toHaveCount(0);
+  await expect(form.getByRole('status')).toHaveCount(0);
   await expect(drawer.getByText('Leave blank to keep the current secret')).toBeVisible();
   await drawer.getByLabel('Base URL').fill('https://elsewhere.example.net/v1');
-  const notice = drawer.getByRole('status');
+  const notice = form.getByRole('status');
   await expect(notice).toContainText('The base URL now points to a different server (https://elsewhere.example.net)');
   await expect(notice).toContainText('enter the auth secret again');
   await expect(notice).toContainText('"x-api-token"');
@@ -193,7 +195,7 @@ test('the provider drawer says why a moved base URL needs the secret again, with
   // Typing the secret and a real header value clears the notice.
   await drawer.getByLabel('Auth Secret').fill('synthetic-secret');
   await drawer.getByLabel('Default Headers (JSON object)').fill('{"x-api-token":"synthetic-header","x-title":"Hive"}');
-  await expect(drawer.getByRole('status')).toHaveCount(0);
+  await expect(form.getByRole('status')).toHaveCount(0);
 });
 
 test('the Magnus agent upgrade drawer has no serious or critical accessibility violations', async ({ page }) => {

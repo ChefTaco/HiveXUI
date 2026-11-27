@@ -13,6 +13,7 @@ import {
   setStepUpProvider,
 } from './transport';
 import { ApiError } from './api';
+import { resetStepUpNotices, subscribeStepUpOutcome } from './step-up-notice';
 import { MagnusApiError, MagnusContractError } from '../modules/magnus/api/errors';
 import { StudioApiError, StudioContractError } from '../modules/studio/api/client';
 
@@ -162,6 +163,33 @@ describe('step-up', () => {
     expect(error.code).toBe('RETRY_AFTER_STEP_UP');
     expect(error.message).toBe('Identity verified. Review and submit the operation again.');
     expect(error.requestId).toBeTruthy();
+  });
+
+  it('tells an open drawer or dialog how the step-up ended, and nothing for a repeated read', async () => {
+    const outcomes: string[] = [];
+    const stop = subscribeStepUpOutcome((outcome) => outcomes.push(outcome));
+    try {
+      let verified = false;
+      setStepUpProvider(async () => {
+        verified = true;
+      });
+      const { send } = answering(() => (verified ? json({ ok: true }, 200) : json({ error: 'STEP_UP_REQUIRED' }, 403)));
+      await send('/api/magnus/settings');
+      expect(outcomes).toEqual([]);
+      verified = false;
+      await send('/api/magnus/settings', { method: 'POST', body: '{}' });
+      expect(outcomes).toEqual(['verified']);
+      setStepUpProvider(async () => {
+        throw Object.assign(new Error('Identity verification was cancelled'), { name: 'ReauthenticationCancelled' });
+      });
+      verified = false;
+      const cancelled = await send('/api/magnus/settings', { method: 'POST', body: '{}' });
+      expect(cancelled.status).toBe(403);
+      expect(outcomes).toEqual(['verified', 'cancelled']);
+    } finally {
+      stop();
+      resetStepUpNotices();
+    }
   });
 });
 

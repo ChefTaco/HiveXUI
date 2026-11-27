@@ -11,10 +11,12 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PropsWithChildren,
   type ReactNode,
+  type RefObject,
 } from 'react';
 import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { cn } from '../lib/cn';
 import { describeApiError } from '../lib/api-error';
+import { STEP_UP_CANCELLED_HINT, STEP_UP_CANCELLED_TITLE, STEP_UP_VERIFIED_MESSAGE, subscribeStepUpOutcome, type StepUpOutcome } from '../lib/step-up-notice';
 import { Icon } from './icons';
 
 /* ===== Button ===== */
@@ -443,6 +445,105 @@ export function JsonBlock({ value }: { value: unknown }) {
   return <pre className="code-block" tabIndex={0}>{text}</pre>;
 }
 
+/* ===== Step-up notice ===== */
+/** The overlay's own row of actions, where the person submits again. */
+const OVERLAY_ACTIONS = ':scope > .drawer-footer, :scope > .confirm-actions';
+const STEP_UP_WORDS: Record<StepUpOutcome, { title: string; message: string }> = {
+  verified: { title: 'Identity verified.', message: STEP_UP_VERIFIED_MESSAGE.replace(/^Identity verified\.\s*/, '') },
+  cancelled: { title: `${STEP_UP_CANCELLED_TITLE}.`, message: STEP_UP_CANCELLED_HINT },
+};
+
+/**
+ * While a drawer or dialog is open, how an identity check (step-up) its action asked for ended: the
+ * transport never replays a refused change, so the person submits again. Focus goes back to the
+ * action that asked, once it is usable again, and the notice stays until dismissed or the overlay
+ * closes.
+ */
+function useStepUpNotice(open: boolean, panel: RefObject<HTMLElement | null>) {
+  const [outcome, setOutcome] = useState<StepUpOutcome | null>(null);
+  /** The button last pressed in the overlay, and the one that had been pressed when the outcome came. */
+  const action = useRef<HTMLElement | null>(null);
+  const asked = useRef<HTMLElement | null>(null);
+  const retry = useRef<number | undefined>(undefined);
+
+  /** The button that asked, else the overlay's last action (its primary one). */
+  const target = useCallback((): HTMLElement | null => {
+    const node = panel.current;
+    if (!node) return null;
+    const remembered = asked.current;
+    if (remembered?.isConnected && node.contains(remembered)) return remembered;
+    return [...(node.querySelector(OVERLAY_ACTIONS)?.querySelectorAll<HTMLElement>('button') ?? [])].at(-1) ?? null;
+  }, [panel]);
+
+  /** The action is disabled while its request runs, and the identity prompt holds focus until it closes. */
+  const focusAction = useCallback(() => {
+    window.clearTimeout(retry.current);
+    let tries = 0;
+    const attempt = () => {
+      const button = target();
+      if (!button) return;
+      const waiting = (button as HTMLButtonElement).disabled || document.querySelector('dialog[open]') !== null;
+      if (!waiting) button.focus();
+      else if ((tries += 1) < 100) retry.current = window.setTimeout(attempt, 30);
+    };
+    attempt();
+  }, [target]);
+
+  useEffect(() => {
+    setOutcome(null);
+    const node = panel.current;
+    if (!open || !node) return undefined;
+    // Remember the button that was pressed, by pointer or keyboard (focus alone does not count: the
+    // overlay focuses its first control when it opens).
+    const remember = (event: Event) => {
+      const button = event.target instanceof Element ? event.target.closest<HTMLElement>('button') : null;
+      if (button && node.contains(button) && !button.closest('.step-up-notice')) action.current = button;
+    };
+    node.addEventListener('click', remember, true);
+    const stop = subscribeStepUpOutcome((next) => {
+      asked.current = action.current;
+      setOutcome(next);
+      focusAction();
+    });
+    return () => {
+      stop();
+      node.removeEventListener('click', remember, true);
+      window.clearTimeout(retry.current);
+      action.current = null;
+      asked.current = null;
+    };
+  }, [open, panel, focusAction]);
+
+  const dismiss = useCallback(() => {
+    setOutcome(null);
+    focusAction();
+  }, [focusAction]);
+  return { outcome, dismiss };
+}
+
+/**
+ * The step-up outcome beside an overlay's actions. The live region is always present while the
+ * overlay is open, so screen readers announce what is added to it.
+ */
+function StepUpNotice({ outcome, onDismiss }: { outcome: StepUpOutcome | null; onDismiss: () => void }) {
+  const words = outcome ? STEP_UP_WORDS[outcome] : null;
+  return (
+    <div className={cn('step-up-notice', words && 'step-up-notice--shown info-banner')}>
+      <div className="step-up-notice__text" role="status" aria-live="polite">
+        {words ? (
+          <>
+            <Icon.Info />
+            <p>
+              <strong>{words.title}</strong> {words.message}
+            </p>
+          </>
+        ) : null}
+      </div>
+      {words ? <IconButton label="Dismiss notice" size="sm" icon={<Icon.Close />} onClick={onDismiss} /> : null}
+    </div>
+  );
+}
+
 /* ===== Drawer ===== */
 export function Drawer({
   open,
@@ -455,6 +556,7 @@ export function Drawer({
   const drawerRef = useRef<HTMLElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  const stepUp = useStepUpNotice(open, drawerRef);
   useEffect(() => {
     if (!open) return;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -486,6 +588,7 @@ export function Drawer({
           <IconButton label="Close" icon={<Icon.Close />} onClick={onClose} />
         </div>
         <div className="drawer-body">{children}</div>
+        <StepUpNotice outcome={stepUp.outcome} onDismiss={stepUp.dismiss} />
         {footer ? <div className="drawer-footer">{footer}</div> : null}
       </aside>
     </>
@@ -522,6 +625,7 @@ export function ConfirmDialog({
   const dialogRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef(onCancel);
   cancelRef.current = onCancel;
+  const stepUp = useStepUpNotice(open, dialogRef);
   const titleId = useId(), messageId = useId();
   useEffect(() => {
     if (!open) return;
@@ -547,6 +651,7 @@ export function ConfirmDialog({
         <h3 id={titleId}>{title}</h3>
         <p id={messageId}>{message}</p>
         {children}
+        <StepUpNotice outcome={stepUp.outcome} onDismiss={stepUp.dismiss} />
         <div className="confirm-actions">
           <Button variant="ghost" onClick={onCancel}>
             Cancel

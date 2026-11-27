@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Toasts no longer cover a drawer's or dialog's actions. After a step-up, the toast **Identity
+  verified. Review and submit the operation again.** sat over **Generate key** in **Issue key**
+  (and over the primary action of any drawer) until dismissed. With a drawer or dialog open, the
+  outcome of a step-up (verified or cancelled) is now shown in it, beside its actions, in a polite
+  live region with **Dismiss notice**, and focus returns to the action that asked once it is usable
+  again; no toast repeats it. Other toasts move beside an open drawer, or above its actions where
+  the drawer fills the screen. The empty toast stack no longer takes clicks meant for the page
+  beneath it.
+
 ## [0.14.0] - 2026-11-27
 
 ### Upgrade notes
