@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-27
+
+### Upgrade notes
+
+- **Emberpath-alias agents need Magnus 3.5.0 or later.** New Agent with an Emberpath alias, **Resume
+  with key** and **Set Emberpath key** send `emberpath_client_key`; Magnus 3.4.1 and earlier refuse
+  a New Agent request that carries it (400 `VALIDATION_ERROR`) and have no Set Emberpath key route
+  (404). A llama.cpp server agent is unaffected.
+- **Create agent from definition needs ArdentStudio 0.8.0 or later and Magnus 3.5.0 or later** for
+  an Emberpath-alias definition. ArdentStudio 0.7.0 refuses `emberpath_client_key` on
+  `deploy-check` and `deploy` (400 `VALIDATION_ERROR`, shown as such), and without the key Magnus
+  reports `SECRET_UNBOUND`. A codex definition is unaffected. Upgrade order: Magnus, then
+  ArdentStudio, then HiveXUI.
+- **Oathweave 2.7.0 or later** stays required for sign-in and re-authentication, as in 0.14.0.
+- No migrations and no `runtime.json` change. Downgrading to 0.14.0 is safe.
+
 ### Added
 
 - **New Agent asks for the Emberpath client key an Emberpath alias needs.** With an Emberpath alias,
@@ -37,18 +53,6 @@
   client key on New Agent and resume, Set Emberpath key, and the `model-credential` operation kind.
 - The vendored ArdentStudio browser contract is re-synced from ArdentStudio 0.8.0 (`02bf759`): the
   optional, write-only `emberpath_client_key` on `deploy-check`, `deploy` and `POST /agents`.
-
-### Upgrade notes
-
-- **Needs the next Magnus release** (not yet published). Magnus 3.4.1 and earlier refuse a New Agent
-  request that carries `emberpath_client_key` (400 `VALIDATION_ERROR`), so an Emberpath alias agent
-  cannot be created from this HiveXUI against them, and they have no Set Emberpath key route (404).
-  A llama.cpp server agent is unaffected. Release HiveXUI together with that Magnus.
-- **Create agent from definition needs the next ArdentStudio release (after 0.7.0) and the same
-  Magnus release.** ArdentStudio 0.7.0 refuses `emberpath_client_key` on `deploy-check` and
-  `deploy` (400 `VALIDATION_ERROR`, shown as such), and without it Magnus reports `SECRET_UNBOUND`
-  for an Emberpath-alias definition. A codex definition is unaffected. Release order: Magnus, then
-  ArdentStudio, then HiveXUI.
 
 ### Fixed
 
