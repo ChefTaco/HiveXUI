@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-27
+
 ### Upgrade notes
 
 - **HiveXUI no longer signs in with a password through Emberpath.** A `mode: "legacy"` runtime (no
