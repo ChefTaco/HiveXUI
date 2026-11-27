@@ -284,8 +284,6 @@ function Wizard({ installations: given, onDone, onCancel, onDeployStarted, onDep
       setStep(2);
       return;
     }
-    setBusy(true);
-    setProblem('');
     let request: ReturnType<typeof buildRequest>;
     try {
       request = buildRequest(draft, emberpathKey);
@@ -293,6 +291,8 @@ function Wizard({ installations: given, onDone, onCancel, onDeployStarted, onDep
       // The key is in the request now; the field never holds it again.
       setEmberpathKey('');
     }
+    setBusy(true);
+    setProblem('');
     try {
       const id = await deployAgent(request);
       setOperationId(id);
