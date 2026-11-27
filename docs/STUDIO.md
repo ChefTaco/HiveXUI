@@ -131,7 +131,10 @@ whose coordinator is bound to an available agent; until then the button says why
 **New agent** runs Magnus's New Agent wizard (Node, Identity, Model, Review, Deploy). Deploy streams
 each step: create the profile, start the service, write `SOUL.md` and `IDENTITY.md`, enroll the
 HiveMem identity, configure the model and memory, enable skills, restart, and wait for the agent to
-answer. The role is bound only when the last check answers. It needs a Magnus ADMIN.
+answer. The role is bound only when the last check answers. It needs a Magnus ADMIN. An agent on an
+Emberpath alias also needs an **Emberpath client key**: issue one in Emberpath → API Keys (the
+wizard's **Issue a key in Emberpath** link opens its Issue key drawer in a new tab) and paste it on
+the Model step. The key is sent once and never shown again.
 
 **Propose a team from the brief** asks an agent (the coordinator by default) for roles,
 relationships, stages and suggested agents. The answer is validated, and retried once with the

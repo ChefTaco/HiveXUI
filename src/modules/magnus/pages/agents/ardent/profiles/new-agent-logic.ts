@@ -1,6 +1,6 @@
 // What the New Agent wizard decides without the DOM: which nodes can take an agent, the next free
 // port, each step's validation, the request it sends, and how an operation's step receipts read.
-import { ardentAgentDeployRequestSchema, ardentAgentModelSchema, type ardentAgentOperationSchema, type ardentAgentStepSchema } from '@contracts/magnus/browser';
+import { ARDENT_EMBERPATH_CLIENT_KEY_PATTERN, ardentAgentDeployRequestSchema, ardentAgentModelSchema, type ardentAgentOperationSchema, type ardentAgentStepSchema } from '@contracts/magnus/browser';
 import type { z } from 'zod';
 import { isProfileId } from '../logic';
 import type { ArdentInstallation } from '../schemas';
@@ -16,6 +16,11 @@ export type WizardStep = 0 | 1 | 2 | 3 | 4;
 /** The steps of each operation kind, as Magnus runs them, for the checklist before the first event. */
 export const DEPLOY_STEPS: readonly AgentStepName[] = ['profile-create', 'service-start', 'identity-soul', 'identity-identity', 'hivemem-enroll', 'config-save', 'skill-set', 'service-restart', 'ready-probe'];
 export const HIVEMEM_STEPS: readonly AgentStepName[] = ['profile-check', 'hivemem-enroll', 'config-save', 'service-restart', 'ready-probe'];
+/** Set Emberpath key on an existing agent. */
+export const MODEL_CREDENTIAL_STEPS: readonly AgentStepName[] = ['profile-check', 'config-save', 'service-restart', 'ready-probe'];
+/** The planned steps of an operation kind, for the checklist before its first event. */
+export const plannedSteps = (kind: AgentOperation['kind']): readonly AgentStepName[] =>
+  kind === 'hivemem' ? HIVEMEM_STEPS : kind === 'model-credential' ? MODEL_CREDENTIAL_STEPS : DEPLOY_STEPS;
 
 export const STEP_LABELS: Record<AgentStepName, string> = {
   'profile-check': 'Check the profile',
@@ -32,8 +37,11 @@ export const STEP_LABELS: Record<AgentStepName, string> = {
   'skill-install': 'Install the pinned skills',
 };
 
-/** A step's label; Enable HiveMem's configuration step writes only the memory settings. */
-export const stepLabel = (name: AgentStepName, kind: AgentOperation['kind']): string => (kind === 'hivemem' && name === 'config-save' ? 'Configure memory' : STEP_LABELS[name]);
+/** A step's label; Enable HiveMem's configuration step writes only the memory settings, Set Emberpath key's only the key. */
+export const stepLabel = (name: AgentStepName, kind: AgentOperation['kind']): string =>
+  name === 'config-save' && kind === 'hivemem' ? 'Configure memory'
+    : name === 'config-save' && kind === 'model-credential' ? 'Deliver the Emberpath key'
+      : STEP_LABELS[name];
 
 /** Magnus suggests ports from this range, and so does the wizard. */
 export const PORT_RANGE = { first: 9910, last: 9999 } as const;
@@ -129,7 +137,17 @@ export function emptyDraft(): NewAgentDraft {
 }
 
 /** Field name to the message the operator reads. Empty when the step is complete. */
-export type StepErrors = Partial<Record<'nodeId' | 'profileId' | 'apiPort' | 'soul' | 'identity' | 'alias' | 'baseUrl' | 'model' | 'skills', string>>;
+export type StepErrors = Partial<Record<'nodeId' | 'profileId' | 'apiPort' | 'soul' | 'identity' | 'alias' | 'emberpathKey' | 'baseUrl' | 'model' | 'skills', string>>;
+
+/**
+ * Why an Emberpath client key cannot be sent, or undefined when it has the shape Magnus accepts. The key
+ * itself is never part of the draft: the wizard holds it apart and drops it once the request is sent.
+ */
+export function emberpathKeyError(key: string): string | undefined {
+  if (!key) return 'Enter the Emberpath client key for this agent';
+  if (!ARDENT_EMBERPATH_CLIENT_KEY_PATTERN.test(key)) return 'An Emberpath client key is 16 to 512 characters, without spaces or quotes. Paste it exactly as Emberpath showed it.';
+  return undefined;
+}
 
 const bytes = (text: string) => new TextEncoder().encode(text).length;
 function identityError(text: string, name: string): string | undefined {
@@ -145,7 +163,7 @@ function modelOf(draft: NewAgentDraft) {
   return draft.modelKind === 'emberpath' ? { emberpath_alias: draft.alias.trim() } : { base_url: draft.baseUrl.trim(), model: draft.model.trim() };
 }
 
-export function validateStep(step: WizardStep, draft: NewAgentDraft, choices: readonly NodeChoice[]): StepErrors {
+export function validateStep(step: WizardStep, draft: NewAgentDraft, choices: readonly NodeChoice[], emberpathKey = ''): StepErrors {
   const errors: StepErrors = {};
   if (step === 0) {
     const choice = choices.find((item) => item.installation.nodeId === draft.nodeId);
@@ -166,6 +184,8 @@ export function validateStep(step: WizardStep, draft: NewAgentDraft, choices: re
   if (step === 2) {
     if (draft.modelKind === 'emberpath') {
       if (!ardentAgentModelSchema.safeParse(modelOf(draft)).success) errors.alias = 'Enter an Emberpath alias: letters, digits and . _ : / -';
+      const keyError = emberpathKeyError(emberpathKey);
+      if (keyError) errors.emberpathKey = keyError;
     } else {
       if (!ardentAgentModelSchema.safeParse({ base_url: draft.baseUrl.trim(), model: 'model' }).success) errors.baseUrl = 'Enter an http(s) URL without credentials, query or fragment';
       if (!draft.model.trim() || draft.model.trim().length > 200) errors.model = 'Enter the model the server serves';
@@ -177,8 +197,8 @@ export function validateStep(step: WizardStep, draft: NewAgentDraft, choices: re
   return errors;
 }
 
-/** The request body, checked against the contract. Throws when a step was skipped. */
-export function buildRequest(draft: NewAgentDraft): AgentDeployRequest {
+/** The request body, checked against the contract. Throws when a step was skipped. An Emberpath alias carries its client key. */
+export function buildRequest(draft: NewAgentDraft, emberpathKey = ''): AgentDeployRequest {
   return ardentAgentDeployRequestSchema.parse({
     nodeId: draft.nodeId,
     profile: draft.profileId,
@@ -189,8 +209,27 @@ export function buildRequest(draft: NewAgentDraft): AgentDeployRequest {
     skills: skillList(draft),
     hivemem: true,
     artifacts_max_bytes: draft.artifactsMaxBytes,
+    ...(draft.modelKind === 'emberpath' ? { emberpath_client_key: emberpathKey } : {}),
   });
 }
+
+/** The Magnus refusals about an Emberpath client key, and the field each belongs to. */
+export type EmberpathKeyField = 'emberpathKey' | 'alias' | null;
+const EMBERPATH_REFUSALS: Readonly<Record<string, { field: EmberpathKeyField; message: string }>> = {
+  EMBERPATH_KEY_REQUIRED: { field: 'emberpathKey', message: 'Emberpath key missing: an agent on an Emberpath alias needs an Emberpath client key, or every model request is refused.' },
+  EMBERPATH_KEY_INVALID: { field: 'emberpathKey', message: 'Emberpath refused this key: it is unknown, disabled or expired. Issue a new key in Emberpath and paste it here.' },
+  EMBERPATH_KEY_FORBIDDEN: { field: 'emberpathKey', message: 'Emberpath accepted this key but refused it the model list: give it the models:read and inference:write scopes in Emberpath.' },
+  EMBERPATH_ALIAS_UNAVAILABLE: { field: 'alias', message: "This key may not use the alias: check the alias, and the key's allowed models in Emberpath." },
+  EMBERPATH_NOT_EXPLICIT: { field: null, message: 'Magnus sends an Emberpath client key only to an Emberpath it is explicitly configured with: set MAGNUS_ARDENT_EMBERPATH_URL on the Magnus server.' },
+  MODEL_NOT_EMBERPATH: { field: null, message: "This agent's model is not an Emberpath alias served by the Emberpath Magnus is configured with, so an Emberpath key would not reach it." },
+  PROFILE_NOT_RUNNING: { field: null, message: 'Start the profile first: Magnus checks the running agent before it sets the key.' },
+};
+/** What a Magnus error code means for the Emberpath key, or undefined for any other code. */
+export const emberpathRefusal = (code: string | undefined): { field: EmberpathKeyField; message: string } | undefined =>
+  code === undefined ? undefined : EMBERPATH_REFUSALS[code];
+
+/** The key name suggested to Emberpath's Issue key drawer for this agent. */
+export const emberpathIssueKeyName = (profileId: string): string => `ardent-${profileId.trim() || 'agent'}`.slice(0, 64);
 
 export type StepState = 'pending' | 'running' | 'done' | 'skipped' | 'failed';
 export const stepState = (status: AgentStep['status']): StepState => (status === 'succeeded' ? 'done' : status);
@@ -204,7 +243,7 @@ export function receiptSummary(step: AgentStep): string {
   if (step.status === 'failed') return step.error ?? 'Failed';
   const receipt = step.receipt;
   if (!receipt) return step.status === 'running' ? 'Working…' : '';
-  if (receipt.unchanged === true) return 'Already as requested';
+  if (receipt.unchanged === true) return receipt.modelKeyConfigured === true ? 'Emberpath key delivered; the configuration already uses it' : 'Already as requested';
   const notes = Array.isArray(receipt.notes) ? receipt.notes.filter((note): note is string => typeof note === 'string') : [];
   switch (step.name) {
     case 'profile-check':
@@ -218,7 +257,7 @@ export function receiptSummary(step: AgentStep): string {
     case 'hivemem-enroll':
       return join([text(receipt.agentId) && `Agent ${String(receipt.agentId)}`, text(receipt.workspaceId) && `workspace ${String(receipt.workspaceId)}`, receipt.action === 'rotate' && 'credential rotated']);
     case 'config-save':
-      return join([short(receipt.revision) && `Revision ${short(receipt.revision)}`, ...notes]);
+      return join([short(receipt.revision) && `Revision ${short(receipt.revision)}`, receipt.modelKeyConfigured === true && 'Emberpath key delivered', ...notes]);
     case 'skill-set': {
       const enabled = Array.isArray(receipt.enabled) ? receipt.enabled.filter((item): item is string => typeof item === 'string') : [];
       const already = Array.isArray(receipt.alreadyEnabled) ? receipt.alreadyEnabled.filter((item): item is string => typeof item === 'string') : [];

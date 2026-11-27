@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { adminApi, ApiError } from '../lib/api';
 import { useStore } from '../lib/store';
 import { useToast } from '../components/toast';
@@ -63,6 +63,13 @@ function metadataSummary(metadataJson?: string | null): string {
   }
 }
 
+/** The key name an Issue key link suggests, when it is one a key may have. */
+export function issueRequest(value: string | null): string | null {
+  if (value === null) return null;
+  const name = value.trim();
+  return /^[A-Za-z0-9][A-Za-z0-9 ._:-]{1,63}$/u.test(name) ? name : '';
+}
+
 export function KeysPage({ currentUser }: { currentUser: AdminUser | null }) {
   const { data, refresh } = useStore();
   const toast = useToast();
@@ -99,6 +106,16 @@ export function KeysPage({ currentUser }: { currentUser: AdminUser | null }) {
     setCreated(null);
     setTarget(key);
   };
+
+  // ?issue=<name> (Magnus New Agent and Set Emberpath key link here) opens the Issue key drawer with that name.
+  useEffect(() => {
+    const url = new URL(location.href);
+    const requested = issueRequest(url.searchParams.get('issue'));
+    if (url.searchParams.has('issue')) { url.searchParams.delete('issue'); history.replaceState(history.state, '', url); }
+    if (requested === null || !canWriteKeys) return;
+    openCreate();
+    setName(requested);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const closeDrawer = () => {
     setMode(null);

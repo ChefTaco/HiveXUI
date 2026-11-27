@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, Brain, ExternalLink, Rocket, RotateCcw } from 'lucide-react';
 import { Badge, Button, Field, Select, TextArea, TextInput, Toggle } from '@ui';
 import { cn } from '@lib/cn';
-import { errorMessage } from '../../../../api/errors';
+import { errorMessage, MagnusApiError } from '../../../../api/errors';
 import { useMagnusResource } from '../../../../api/use-resource';
 import { ADMIN_ONLY, RequireRole } from '../../../../session';
 import { identityFileName } from '../profile/editors';
@@ -13,10 +13,13 @@ import { deployAgent, listInstallations, readResource, resumeAgentOperation } fr
 import { skillsSchema, type ArdentInstallation } from '../schemas';
 import { NodeCommandOwners } from '../command-owners';
 import { agentOperationError, OperationChecklist, useAgentOperation } from './agent-operation';
+import { EmberpathKeyField } from './emberpath-key-field';
 import {
   agentRef,
   ARTIFACT_SIZES,
   buildRequest,
+  emberpathKeyError,
+  emberpathRefusal,
   emptyDraft,
   formatMiB,
   nodeChoices,
@@ -129,7 +132,7 @@ function IdentityStep({ draft, update, errors }: StepProps) {
   );
 }
 
-function ModelStep({ draft, update, errors, installation }: StepProps & { installation: ArdentInstallation | undefined }) {
+function ModelStep({ draft, update, errors, installation, emberpathKey, setEmberpathKey }: StepProps & { installation: ArdentInstallation | undefined; emberpathKey: string; setEmberpathKey: (key: string) => void }) {
   // The skills a running profile on the node reports: every profile on a node shares its skill directory.
   const sibling = installation?.profiles.find((profile) => profile.running);
   const known = useMagnusResource((signal) => readResource(installation!.nodeId, sibling!.id, 'skills', skillsSchema, signal), [installation?.nodeId, sibling?.id], { enabled: !!installation && !!sibling });
@@ -148,10 +151,13 @@ function ModelStep({ draft, update, errors, installation }: StepProps & { instal
           ))}
         </div>
         {draft.modelKind === 'emberpath' ? (
-          <Field label="Emberpath alias">
-            <TextInput value={draft.alias} maxLength={200} spellCheck={false} placeholder="general" aria-invalid={!!errors.alias} onChange={(alias) => update({ alias })} />
-            <FieldError message={errors.alias} />
-          </Field>
+          <div className="form-grid">
+            <Field label="Emberpath alias">
+              <TextInput value={draft.alias} maxLength={200} spellCheck={false} placeholder="general" aria-invalid={!!errors.alias} onChange={(alias) => update({ alias })} />
+              <FieldError message={errors.alias} />
+            </Field>
+            <EmberpathKeyField value={emberpathKey} onChange={setEmberpathKey} error={errors.emberpathKey} profileId={draft.profileId} />
+          </div>
         ) : (
           <div className="form-grid">
             <Field label="Base URL">
@@ -211,6 +217,7 @@ function ReviewStep({ draft, installation }: { draft: NewAgentDraft; installatio
         <Fact label="Node">{installation ? `${installation.nodeName} (${installation.hostname})` : draft.nodeId}</Fact>
         <Fact label="Profile"><span className="font-mono">{draft.profileId}</span> on port <span className="num">{draft.apiPort}</span></Fact>
         <Fact label="Model">{draft.modelKind === 'emberpath' ? <>Emberpath alias <span className="font-mono">{draft.alias}</span></> : <><span className="break-all font-mono">{draft.baseUrl}</span> · <span className="font-mono">{draft.model}</span></>}</Fact>
+        {draft.modelKind === 'emberpath' ? <Fact label="Emberpath client key">Entered; Magnus checks it and writes it only to this agent</Fact> : null}
         <Fact label="Skills">{skills.length ? skills.join(', ') : 'Template defaults only'}</Fact>
         <Fact label="HiveMem"><Badge tone="success" dot>Enrolled on deploy</Badge></Fact>
         <Fact label="Largest artifact">{formatMiB(draft.artifactsMaxBytes)}</Fact>
@@ -243,6 +250,10 @@ function Wizard({ installations: given, onDone, onCancel, onDeployStarted, onDep
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
   const [operationId, setOperationId] = useState<string | null>(null);
+  // The Emberpath client key lives here, apart from the draft, only until the request that carries it is sent.
+  const [emberpathKey, setEmberpathKey] = useState('');
+  // Resume answered EMBERPATH_KEY_REQUIRED: the server no longer holds the key, so the operator enters it again.
+  const [resumeKey, setResumeKey] = useState<{ value: string; error: string | undefined } | null>(null);
   const { operation, note, follow } = useAgentOperation();
   const notified = useRef<string | null>(null);
   const installation = installations?.find((item) => item.nodeId === draft.nodeId);
@@ -261,33 +272,63 @@ function Wizard({ installations: given, onDone, onCancel, onDeployStarted, onDep
   }, [operation, onDeployed]);
 
   function next() {
-    const found = validateStep(step, draft, choices);
+    const found = validateStep(step, draft, choices, emberpathKey);
     setErrors(found);
     if (Object.keys(found).length === 0) setStep((step + 1) as WizardStep);
   }
   async function deploy() {
+    // A key dropped after an earlier attempt is asked for again on the Model step.
+    const missing = validateStep(2, draft, choices, emberpathKey);
+    if (Object.keys(missing).length) {
+      setErrors(missing);
+      setStep(2);
+      return;
+    }
+    let request: ReturnType<typeof buildRequest>;
+    try {
+      request = buildRequest(draft, emberpathKey);
+    } finally {
+      // The key is in the request now; the field never holds it again.
+      setEmberpathKey('');
+    }
     setBusy(true);
     setProblem('');
     try {
-      const id = await deployAgent(buildRequest(draft));
+      const id = await deployAgent(request);
       setOperationId(id);
       setStep(4);
       follow(id);
       onDeployStarted?.(agentRef(draft.nodeId, draft.profileId));
     } catch (caught) {
-      setProblem(agentOperationError(caught, installation?.nodeName, 'The agent could not be deployed'));
+      const refusal = caught instanceof MagnusApiError ? emberpathRefusal(caught.code) : undefined;
+      if (refusal?.field) {
+        // Show the refusal beside the field it is about, on the step that has it.
+        setErrors({ [refusal.field]: refusal.message });
+        setStep(2);
+      } else setProblem(agentOperationError(caught, installation?.nodeName, 'The agent could not be deployed'));
     } finally {
       setBusy(false);
     }
   }
   async function resume() {
     if (!operationId) return;
+    const key = resumeKey?.value;
+    if (resumeKey) {
+      const error = emberpathKeyError(resumeKey.value);
+      if (error) { setResumeKey({ value: resumeKey.value, error }); return; }
+      setResumeKey({ value: '', error: undefined });
+    }
     setBusy(true);
     setProblem('');
     try {
-      follow(await resumeAgentOperation(operationId));
+      follow(await resumeAgentOperation(operationId, key ? { emberpath_client_key: key } : undefined));
+      setResumeKey(null);
     } catch (caught) {
-      setProblem(agentOperationError(caught, installation?.nodeName, 'The deploy could not be resumed'));
+      const code = caught instanceof MagnusApiError ? caught.code : undefined;
+      const refusal = emberpathRefusal(code);
+      if (code === 'EMBERPATH_KEY_REQUIRED') setResumeKey({ value: '', error: key ? refusal?.message : undefined });
+      else if (refusal?.field === 'emberpathKey' && key) setResumeKey({ value: '', error: refusal.message });
+      else setProblem(agentOperationError(caught, installation?.nodeName, 'The deploy could not be resumed'));
     } finally {
       setBusy(false);
     }
@@ -303,7 +344,7 @@ function Wizard({ installations: given, onDone, onCancel, onDeployStarted, onDep
       <div className="agent-wizard-body">
         {step === 0 ? <NodeStep draft={draft} update={update} errors={errors} choices={choices} /> : null}
         {step === 1 ? <IdentityStep draft={draft} update={update} errors={errors} /> : null}
-        {step === 2 ? <ModelStep draft={draft} update={update} errors={errors} installation={installation} /> : null}
+        {step === 2 ? <ModelStep draft={draft} update={update} errors={errors} installation={installation} emberpathKey={emberpathKey} setEmberpathKey={setEmberpathKey} /> : null}
         {step === 3 ? <ReviewStep draft={draft} installation={installation} /> : null}
         {step === 4 ? (
           <div className="grid gap-3">
@@ -314,6 +355,12 @@ function Wizard({ installations: given, onDone, onCancel, onDeployStarted, onDep
             <OperationChecklist operation={operation} kind="deploy" />
             {note ? <p role="status" className="m-0 text-sm text-warning">{note}</p> : null}
             {status === 'failed' ? <p role="alert" className="m-0 break-words text-sm text-danger">{stoppedAt(operation)} Finished steps are kept; Resume continues from the step that failed.</p> : null}
+            {status === 'failed' && resumeKey ? (
+              <div className="agent-wizard-note grid gap-2">
+                <p className="m-0 text-sm">The Emberpath client key has not reached the agent yet, and Magnus no longer holds the one you entered. Enter it again to resume.</p>
+                <EmberpathKeyField value={resumeKey.value} onChange={(value) => setResumeKey({ value, error: undefined })} error={resumeKey.error} profileId={draft.profileId} />
+              </div>
+            ) : null}
             {status === 'failed' && operation ? <NodeCommandOwners key={operation.attempts} nodeId={operation.nodeId} /> : null}
             {status === 'succeeded' ? <p role="status" className="m-0 text-sm text-success">The agent is running with its identity, model and HiveMem memory.</p> : null}
           </div>
@@ -325,7 +372,7 @@ function Wizard({ installations: given, onDone, onCancel, onDeployStarted, onDep
         {step > 0 && step < 4 ? <Button icon={<ArrowLeft className="size-4" />} disabled={busy} onClick={() => { setErrors({}); setProblem(''); setStep((step - 1) as WizardStep); }}>Back</Button> : null}
         {step < 3 ? <Button variant="primary" icon={<ArrowRight className="size-4" />} onClick={next}>Next</Button> : null}
         {step === 3 ? <Button variant="primary" icon={<Rocket className="size-4" />} loading={busy} onClick={() => void deploy()}>Deploy</Button> : null}
-        {step === 4 && status === 'failed' ? <Button variant="primary" icon={<RotateCcw className="size-4" />} loading={busy} onClick={() => void resume()}>Resume</Button> : null}
+        {step === 4 && status === 'failed' ? <Button variant="primary" icon={<RotateCcw className="size-4" />} loading={busy} onClick={() => void resume()}>{resumeKey ? 'Resume with key' : 'Resume'}</Button> : null}
         {step === 4 && status === 'succeeded' ? <Button variant="primary" icon={<ExternalLink className="size-4" />} onClick={() => onDone(agentRef(draft.nodeId, draft.profileId))}>{doneLabel}</Button> : null}
         {step === 4 && status === 'running' ? <span className="inline-flex items-center gap-2 text-sm text-text-muted"><Brain className="size-4" aria-hidden="true" /> The deploy continues on the server if you leave this page.</span> : null}
       </div>

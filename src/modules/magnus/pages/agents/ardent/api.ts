@@ -3,6 +3,8 @@ import {
   ardentAgentOperationAcceptedResponseSchema,
   ardentAgentOperationResponseSchema,
   type ardentAgentDeployRequestSchema,
+  type ardentAgentModelCredentialRequestSchema,
+  type ardentAgentOperationResumeRequestSchema,
 } from '@contracts/magnus/browser';
 import { responseRequestId } from '../../../../../lib/api-error';
 import { apiFetch } from '../../../../../lib/transport';
@@ -27,12 +29,22 @@ export const deployAgent = (request: z.input<typeof ardentAgentDeployRequestSche
   magnus.post('/ardent/agents', ardentAgentOperationAcceptedResponseSchema, { body: request }).then((response) => response.data.operationId);
 export const readAgentOperation = (operationId: string, signal?: AbortSignal) =>
   magnus.get(`/ardent/agents/operations/${segment(operationId)}`, ardentAgentOperationResponseSchema, { signal }).then((response) => response.data);
-/** Reruns a failed operation from its first unfinished step. */
-export const resumeAgentOperation = (operationId: string): Promise<string> =>
-  magnus.post(`/ardent/agents/operations/${segment(operationId)}/resume`, ardentAgentOperationAcceptedResponseSchema).then((response) => response.data.operationId);
+/**
+ * Reruns a failed operation from its first unfinished step. The body carries the Emberpath client key again only
+ * when Magnus answered 409 EMBERPATH_KEY_REQUIRED.
+ */
+export const resumeAgentOperation = (operationId: string, body?: z.input<typeof ardentAgentOperationResumeRequestSchema>): Promise<string> =>
+  magnus.post(`/ardent/agents/operations/${segment(operationId)}/resume`, ardentAgentOperationAcceptedResponseSchema, body ? { body } : {}).then((response) => response.data.operationId);
 /** Enroll an existing, running profile in HiveMem (or rotate its credential). */
 export const enableHiveMem = (nodeId: string, profileId: string): Promise<string> =>
   magnus.post(`${base(nodeId, profileId)}/hivemem`, ardentAgentOperationAcceptedResponseSchema).then((response) => response.data.operationId);
+/**
+ * Set Emberpath key: set or rotate the Emberpath client key of an existing agent on an Emberpath alias. Magnus checks
+ * the key, writes it to the profile and restarts it, as an operation of kind model-credential. Write-only.
+ */
+export const setEmberpathKey = (nodeId: string, profileId: string, emberpathClientKey: string): Promise<string> =>
+  magnus.post(`${base(nodeId, profileId)}/model-credential`, ardentAgentOperationAcceptedResponseSchema, { body: { emberpath_client_key: emberpathClientKey } satisfies z.input<typeof ardentAgentModelCredentialRequestSchema> })
+    .then((response) => response.data.operationId);
 export const agentOperationStreamPath = (operationId: string): string => `/ardent/agents/operations/${segment(operationId)}/stream`;
 
 /** How long a node may take, as the old console allowed. */

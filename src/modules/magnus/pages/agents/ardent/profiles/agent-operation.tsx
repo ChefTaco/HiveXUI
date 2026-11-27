@@ -1,4 +1,4 @@
-// Follows a Magnus Ardent agent operation (New Agent or Enable HiveMem) over its event stream, and
+// Follows a Magnus Ardent agent operation (New Agent, Enable HiveMem or Set Emberpath key) over its event stream, and
 // shows its steps as a checklist with each step's receipt.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle2, Circle, MinusCircle, XCircle } from 'lucide-react';
@@ -8,12 +8,17 @@ import { cn } from '@lib/cn';
 import { errorMessage, MagnusApiError } from '../../../../api/errors';
 import { openStream, type StreamHandle } from '../../../../api/stream';
 import { agentOperationStreamPath, readAgentOperation } from '../api';
-import { checklistSteps, DEPLOY_STEPS, HIVEMEM_STEPS, receiptSummary, stepLabel, stepState, type AgentOperation, type StepState } from './new-agent-logic';
+import { checklistSteps, emberpathRefusal, plannedSteps, receiptSummary, stepLabel, stepState, type AgentOperation, type StepState } from './new-agent-logic';
 
 /** What the operator reads when Magnus refuses to start or resume an operation. */
 export function agentOperationError(caught: unknown, nodeName: string | undefined, fallback: string): string {
+  // Studio level 6 delivers Emberpath keys; Magnus's message says which level the node needs.
   if (caught instanceof MagnusApiError && caught.code === 'AGENT_UPGRADE_REQUIRED')
-    return `Upgrade the Magnus agent on ${nodeName ?? 'this node'} first: it predates the Ardent bridge that creates agents and enrolls them in HiveMem.`;
+    return /Emberpath/u.test(caught.message)
+      ? `Upgrade the Magnus agent on ${nodeName ?? 'this node'} first: it cannot deliver an Emberpath client key to an agent yet.`
+      : `Upgrade the Magnus agent on ${nodeName ?? 'this node'} first: it predates the Ardent bridge that creates agents and enrolls them in HiveMem.`;
+  const refusal = caught instanceof MagnusApiError ? emberpathRefusal(caught.code) : undefined;
+  if (refusal) return refusal.message;
   // Magnus names the command holding the node; it is listed below the steps with its Reconcile action.
   if (caught instanceof MagnusApiError && caught.code === 'COMMAND_OWNER_UNSETTLED')
     return `${caught.message} The command is listed below.`;
@@ -86,7 +91,7 @@ function StepIcon({ state }: { state: StepState }) {
 export function OperationChecklist({ operation, kind, className }: { operation: AgentOperation | null; kind: AgentOperation['kind']; className?: string }) {
   return (
     <ol className={cn('agent-op-steps', className)} aria-label="Operation steps">
-      {checklistSteps(operation, kind === 'deploy' ? DEPLOY_STEPS : HIVEMEM_STEPS).map((step) => {
+      {checklistSteps(operation, plannedSteps(kind)).map((step) => {
         const state = stepState(step.status);
         const summary = receiptSummary(step);
         return (
