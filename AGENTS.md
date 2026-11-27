@@ -51,7 +51,7 @@ Contracts are vendored, never imported from a sibling checkout. Refresh Magnus w
 `npm run contracts:magnus:import` and `npm run magnus:provenance`, ArdentStudio with
 `npm run contracts:ardentstudio:import`; the other contracts are copied from the owning product's
 reviewed export with their provenance updated. When the Magnus contract moves, update the README's
-statement of the vendored Magnus version (Magnus main `71d146e`, after Magnus 3.4.1, now).
+statement of the vendored Magnus version (Magnus 3.5.0, `5539f83`, now).
 `@hivemagnus/hive-common` supplies `/errors` and `/contracts` in the browser.
 
 ## Conventions

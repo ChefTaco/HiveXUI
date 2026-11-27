@@ -33,9 +33,9 @@
 
 ### Changed
 
-- The vendored Magnus browser contract is re-synced from Magnus main (the Emberpath client key on
-  New Agent and resume, Set Emberpath key, and the `model-credential` operation kind).
-- The vendored ArdentStudio browser contract is re-synced from ArdentStudio main (8835dc8): the
+- The vendored Magnus browser contract is re-synced from Magnus 3.5.0 (`5539f83`): the Emberpath
+  client key on New Agent and resume, Set Emberpath key, and the `model-credential` operation kind.
+- The vendored ArdentStudio browser contract is re-synced from ArdentStudio 0.8.0 (`02bf759`): the
   optional, write-only `emberpath_client_key` on `deploy-check`, `deploy` and `POST /agents`.
 
 ### Upgrade notes
