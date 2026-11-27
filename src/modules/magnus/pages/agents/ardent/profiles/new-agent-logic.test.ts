@@ -4,7 +4,12 @@ import {
   buildRequest,
   checklistSteps,
   DEPLOY_STEPS,
+  emberpathIssueKeyName,
+  emberpathKeyError,
+  emberpathRefusal,
   emptyDraft,
+  MODEL_CREDENTIAL_STEPS,
+  plannedSteps,
   nodeChoices,
   receiptSummary,
   skillList,
@@ -24,6 +29,7 @@ const node = (nodeId: string, patch: Partial<ArdentInstallation> = {}): ArdentIn
   profiles: [], checkedAt: '2026-11-08T00:00:00.000Z', capabilities: { studio: 1 }, ...patch,
 });
 const draft = (patch: Partial<NewAgentDraft> = {}): NewAgentDraft => ({ ...emptyDraft(), nodeId: 'node-1', profileId: 'scout', apiPort: '9911', alias: 'general', ...patch });
+const KEY = 'fixture-emberpath-key-0001';
 const step = (patch: Partial<AgentStep> & Pick<AgentStep, 'name'>): AgentStep => ({ status: 'succeeded', startedAt: null, finishedAt: null, receipt: null, error: null, ...patch });
 
 describe('New Agent node choices', () => {
@@ -78,12 +84,20 @@ describe('New Agent validation', () => {
 
   it('checks the model the way Magnus does', () => {
     expect(validateStep(2, draft({ alias: '' }), choices).alias).toBeDefined();
-    expect(validateStep(2, draft({ alias: 'qwen3:32b/q4' }), choices)).toEqual({});
+    expect(validateStep(2, draft({ alias: 'qwen3:32b/q4' }), choices, KEY)).toEqual({});
     const llama = { modelKind: 'llamacpp' as const, model: 'local' };
     expect(validateStep(2, draft({ ...llama, baseUrl: 'http://192.0.2.20:8080/v1' }), choices)).toEqual({});
     expect(validateStep(2, draft({ ...llama, baseUrl: 'http://user:secret@192.0.2.20:8080' }), choices).baseUrl).toMatch(/without credentials/);
     expect(validateStep(2, draft({ ...llama, baseUrl: 'ftp://192.0.2.20' }), choices).baseUrl).toBeDefined();
     expect(validateStep(2, draft({ ...llama, baseUrl: 'http://192.0.2.20', model: ' ' }), choices).model).toBeDefined();
+  });
+
+  it('needs an Emberpath client key of the shape Magnus accepts for an alias, and none for a llama.cpp server', () => {
+    expect(validateStep(2, draft(), choices)).toEqual({ emberpathKey: 'Enter the Emberpath client key for this agent' });
+    for (const bad of ['short', 'fixture key with spaces', 'fixture-key\nINJECTED=1', 'fixture"quoted"key-0001', 'A'.repeat(513)])
+      expect(validateStep(2, draft(), choices, bad).emberpathKey, bad.slice(0, 12)).toMatch(/16 to 512 characters/);
+    expect(emberpathKeyError('A'.repeat(512))).toBeUndefined();
+    expect(validateStep(2, draft({ modelKind: 'llamacpp', baseUrl: 'http://192.0.2.20:8080/v1', model: 'local' }), choices)).toEqual({});
   });
 
   it('merges chosen and typed skills and rejects bad names', () => {
@@ -94,11 +108,27 @@ describe('New Agent validation', () => {
 
 describe('the New Agent request', () => {
   it('carries the draft with HiveMem on and the chosen artifact limit', () => {
-    expect(buildRequest(draft({ skills: ['research'], extraSkills: 'notes' }))).toEqual({
+    expect(buildRequest(draft({ skills: ['research'], extraSkills: 'notes' }), KEY)).toEqual({
       nodeId: 'node-1', profile: 'scout', apiPort: 9911, soul_md: emptyDraft().soul, identity_md: starterIdentity(''),
-      model: { emberpath_alias: 'general' }, skills: ['research', 'notes'], hivemem: true, artifacts_max_bytes: 64 * 1024 * 1024,
+      model: { emberpath_alias: 'general' }, skills: ['research', 'notes'], hivemem: true, artifacts_max_bytes: 64 * 1024 * 1024, emberpath_client_key: KEY,
     });
-    expect(buildRequest(draft({ modelKind: 'llamacpp', baseUrl: 'http://192.0.2.20:8080/v1', model: 'local' })).model).toEqual({ base_url: 'http://192.0.2.20:8080/v1', model: 'local' });
+    // A llama.cpp server keeps its key in the profile environment; the request never carries one.
+    const llama = buildRequest(draft({ modelKind: 'llamacpp', baseUrl: 'http://192.0.2.20:8080/v1', model: 'local' }), KEY);
+    expect(llama.model).toEqual({ base_url: 'http://192.0.2.20:8080/v1', model: 'local' });
+    expect(llama).not.toHaveProperty('emberpath_client_key');
+    expect(() => buildRequest(draft())).toThrow();
+  });
+
+  it('maps each Emberpath refusal to the field it is about', () => {
+    expect(emberpathRefusal('EMBERPATH_KEY_REQUIRED')?.field).toBe('emberpathKey');
+    expect(emberpathRefusal('EMBERPATH_KEY_INVALID')).toEqual({ field: 'emberpathKey', message: expect.stringContaining('unknown, disabled or expired') });
+    expect(emberpathRefusal('EMBERPATH_KEY_FORBIDDEN')).toEqual({ field: 'emberpathKey', message: expect.stringContaining('models:read and inference:write') });
+    expect(emberpathRefusal('EMBERPATH_ALIAS_UNAVAILABLE')?.field).toBe('alias');
+    for (const code of ['EMBERPATH_NOT_EXPLICIT', 'MODEL_NOT_EMBERPATH', 'PROFILE_NOT_RUNNING']) expect(emberpathRefusal(code)?.field).toBeNull();
+    expect(emberpathRefusal('CONFLICT')).toBeUndefined();
+    expect(emberpathRefusal(undefined)).toBeUndefined();
+    expect(emberpathIssueKeyName('scout')).toBe('ardent-scout');
+    expect(emberpathIssueKeyName('')).toBe('ardent-agent');
   });
 
   it('names the agent in the starter identity', () => {
@@ -122,6 +152,11 @@ describe('operation receipts', () => {
   it('label the configuration step by what the operation writes', () => {
     expect(stepLabel('config-save', 'deploy')).toBe('Configure model, memory and artifacts');
     expect(stepLabel('config-save', 'hivemem')).toBe('Configure memory');
+    expect(stepLabel('config-save', 'model-credential')).toBe('Deliver the Emberpath key');
+    expect(plannedSteps('model-credential')).toBe(MODEL_CREDENTIAL_STEPS);
+    expect(plannedSteps('definition')).toBe(DEPLOY_STEPS);
+    expect(receiptSummary(step({ name: 'config-save', receipt: { revision: 'abcdef0123456789', modelKeyConfigured: true } }))).toBe('Revision abcdef012345 · Emberpath key delivered');
+    expect(receiptSummary(step({ name: 'config-save', status: 'skipped', receipt: { unchanged: true, modelKeyConfigured: true } }))).toBe('Emberpath key delivered; the configuration already uses it');
   });
 
   it('name the step a failed operation stopped at', () => {

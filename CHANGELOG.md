@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+### Added
+
+- **New Agent asks for the Emberpath client key an Emberpath alias needs.** With an Emberpath alias,
+  the Model step has a required **Emberpath client key** password field (not filled or remembered
+  by the browser) with help on issuing one in Emberpath → API Keys and an **Issue a key in
+  Emberpath** link that opens Emberpath's Issue key drawer, named for the agent, in a new tab. The
+  key is sent as `emberpath_client_key` and dropped from the page as soon as the request leaves.
+  Magnus's refusals show beside the field they are about: `EMBERPATH_KEY_REQUIRED`,
+  `EMBERPATH_KEY_INVALID` and `EMBERPATH_KEY_FORBIDDEN` on the key, `EMBERPATH_ALIAS_UNAVAILABLE` on
+  the alias, `EMBERPATH_NOT_EXPLICIT` as a server setting to fix. When **Resume** answers
+  `EMBERPATH_KEY_REQUIRED` (the server no longer holds the key), the wizard asks for it again and
+  **Resume with key** sends it.
+- **Set Emberpath key** on an Ardent profile's page (Magnus ADMIN, llama.cpp backend) sets or rotates
+  the key of an existing agent through Magnus's new `POST
+  /ardent/installations/:nodeId/profiles/:name/model-credential`, then follows the operation
+  (check, deliver the key, restart, wait for the agent), with Resume and the same error messages.
+- Emberpath's **API Keys** page opens **Issue key** from a link with `?issue=<name>`.
+
+### Changed
+
+- The vendored Magnus browser contract is re-synced from Magnus main (the Emberpath client key on
+  New Agent and resume, Set Emberpath key, and the `model-credential` operation kind).
+
+### Upgrade notes
+
+- **Needs the next Magnus release** (not yet published). Magnus 3.4.1 and earlier refuse a New Agent
+  request that carries `emberpath_client_key` (400 `VALIDATION_ERROR`), so an Emberpath alias agent
+  cannot be created from this HiveXUI against them, and they have no Set Emberpath key route (404).
+  A llama.cpp server agent is unaffected. Release HiveXUI together with that Magnus.
+
 ### Fixed
 
 - Toasts no longer cover a drawer's or dialog's actions. After a step-up, the toast **Identity

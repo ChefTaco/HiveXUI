@@ -32,6 +32,7 @@ import {
 import { hiveMemCredentialView } from '../hivemem-credential';
 import { HiveMemCredential } from './hivemem-credential';
 import { HiveMemEnable } from './hivemem-enable';
+import { EmberpathKeyAction } from './emberpath-key';
 import { ActionButton, ConfigEditor, IdentityEditor, MemoryPanel, PeerEditor, SettingsForm, SkillList, TaskTest, type ProfileRef } from './editors';
 import { SkillCatalog } from './skill-catalog';
 import { skillListKey, skillStates } from './skill-catalog-logic';
@@ -349,7 +350,16 @@ export default function ArdentProfilePage() {
           title={profile?.name ?? profileId}
           description={<span className="break-all font-mono text-xs">{installation.data?.hostname ?? nodeId} · {installation.data?.version ?? 'version unavailable'}</span>}
           status={profile ? <Badge tone={running ? 'success' : 'neutral'} dot>{running ? 'Running' : 'Stopped'}</Badge> : undefined}
-          actions={<><AgentPageLink agentRef={`${nodeId}~${profileId}`} />{studioOffered() ? <OpenInStudio nodeId={nodeId} profileId={profileId} /> : null}</>}
+          actions={<>
+            <AgentPageLink agentRef={`${nodeId}~${profileId}`} />
+            {studioOffered() ? <OpenInStudio nodeId={nodeId} profileId={profileId} /> : null}
+            {/* Only a llama.cpp backend reaches Emberpath; Magnus also refuses a model that is not an Emberpath alias. */}
+            {profile && (profile.backend ?? 'llamacpp') === 'llamacpp' ? (
+              <RequireRole roles={ADMIN_ONLY}>
+                <EmberpathKeyAction nodeId={nodeId} profileId={profileId} nodeName={installation.data?.nodeName} running={running} onSet={() => setRefreshKey((value) => value + 1)} />
+              </RequireRole>
+            ) : null}
+          </>}
         />
       </PageItem>
       {installation.error && !installation.data ? <p role="alert" className="m-0 text-sm text-warning">Node inventory is unavailable: {errorMessage(installation.error)}</p> : null}

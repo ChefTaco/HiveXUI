@@ -66,15 +66,22 @@ async function load(role: string, answers: Answers = {}) {
 }
 const input = (label: string) => [...document.querySelectorAll('label.field')].find((item) => item.querySelector('.field-label')?.textContent === label)?.querySelector('input, textarea');
 
+/** An obviously fake Emberpath client key. */
+const KEY = 'fixture-emberpath-key-0001';
+const KEY_2 = 'fixture-emberpath-key-0002';
+
 /** Fill the steps with valid values and stop on Review. */
-async function walkToReview() {
+async function walkToReview(key = KEY) {
   await type(input('Profile ID'), 'scout');
   await click(button('Next'));
   await click(button('Next'));
   await type(input('Emberpath alias'), 'general');
+  await type(input('Emberpath client key'), key);
   await click(button('Next'));
   await settle(5);
 }
+const refused = (status: number, code: string, message = code) => Response.json({ success: false, error: { code, message } }, { status });
+const alerts = () => [...document.querySelectorAll('[role="alert"]')].map((item) => item.textContent).join(' ');
 
 beforeEach(() => {
   stubBrowser();
@@ -130,12 +137,96 @@ describe('the New Agent wizard', () => {
     expect(hivemem?.checked && hivemem.disabled).toBe(true);
     await click(document.querySelector<HTMLInputElement>('.check-field input'));
     await type(input('Emberpath alias'), 'general');
+    await type(input('Emberpath client key'), KEY);
     await click(button('Next'));
     expect(document.body.textContent).toContain('Emberpath alias general');
     expect(document.body.textContent).toContain('research');
     await click(button('Deploy'));
     await settle(10);
-    expect(stub.of('/ardent/agents')[0]?.body).toMatchObject({ nodeId: 'node-1', profile: 'scout', apiPort: 9911, model: { emberpath_alias: 'general' }, skills: ['research'], hivemem: true, artifacts_max_bytes: 67108864 });
+    expect(stub.of('/ardent/agents')[0]?.body).toMatchObject({ nodeId: 'node-1', profile: 'scout', apiPort: 9911, model: { emberpath_alias: 'general' }, skills: ['research'], hivemem: true, artifacts_max_bytes: 67108864,
+      emberpath_client_key: KEY });
+    // The key went out once and is not kept on the page.
+    expect(document.body.innerHTML).not.toContain(KEY);
+  });
+
+  it('asks for the Emberpath client key only for an alias, as a required password field the browser does not fill', async () => {
+    const { stub } = await load('ADMIN', { streams: [sse([['done', SUCCEEDED]])] });
+    await type(input('Profile ID'), 'scout');
+    await click(button('Next'));
+    await click(button('Next'));
+    const key = input('Emberpath client key') as HTMLInputElement;
+    expect(key.type).toBe('password');
+    expect(key.autocomplete).toBe('off');
+    expect(key.required).toBe(true);
+    expect(document.body.textContent).toContain('Emberpath → API Keys');
+    await click(document.querySelector<HTMLInputElement>('input[name="new-agent-model"][value="llamacpp"]'));
+    expect(input('Emberpath client key')).toBeUndefined();
+    await click(document.querySelector<HTMLInputElement>('input[name="new-agent-model"][value="emberpath"]'));
+    await type(input('Emberpath alias'), 'general');
+    await click(button('Next'));
+    expect(alerts()).toContain('Enter the Emberpath client key for this agent');
+    expect(document.querySelector('[aria-current="step"]')?.textContent).toContain('Model');
+    await type(input('Emberpath client key'), 'has spaces in it, not a key');
+    await click(button('Next'));
+    expect(alerts()).toContain('16 to 512 characters');
+    await type(input('Emberpath client key'), KEY);
+    await click(button('Next'));
+    expect(document.querySelector('[aria-current="step"]')?.textContent).toContain('Review');
+    expect(document.body.innerHTML).not.toContain(KEY);
+    expect(stub.of('/ardent/agents')).toEqual([]);
+  });
+
+  it('shows each Emberpath refusal beside the field it is about, and needs the key again after a refused deploy', async () => {
+    const answers = [refused(422, 'EMBERPATH_KEY_INVALID'), refused(422, 'EMBERPATH_ALIAS_UNAVAILABLE'), refused(409, 'EMBERPATH_NOT_EXPLICIT')];
+    const { stub } = await load('ADMIN', { deploy: () => answers.shift() });
+    await walkToReview();
+    await click(button('Deploy'));
+    await settle(5);
+    // Back on Model, the key field says why and is empty again.
+    expect(document.querySelector('[aria-current="step"]')?.textContent).toContain('Model');
+    expect(alerts()).toContain('Emberpath refused this key: it is unknown, disabled or expired');
+    expect((input('Emberpath client key') as HTMLInputElement).value).toBe('');
+    await type(input('Emberpath client key'), KEY_2);
+    await click(button('Next'));
+    await click(button('Deploy'));
+    await settle(5);
+    expect(alerts()).toContain("This key may not use the alias");
+    expect(input('Emberpath alias')?.getAttribute('aria-invalid')).toBe('true');
+    await type(input('Emberpath client key'), KEY);
+    await click(button('Next'));
+    await click(button('Deploy'));
+    await settle(5);
+    // A server setting the operator cannot fix here stays on Review.
+    expect(document.querySelector('[aria-current="step"]')?.textContent).toContain('Review');
+    expect(alerts()).toContain('MAGNUS_ARDENT_EMBERPATH_URL');
+    // Deploying again without the dropped key goes back to ask for it, sending nothing.
+    await click(button('Deploy'));
+    await settle(5);
+    expect(document.querySelector('[aria-current="step"]')?.textContent).toContain('Model');
+    expect(stub.of('/ardent/agents').map((request) => (request.body as { emberpath_client_key: string }).emberpath_client_key)).toEqual([KEY, KEY_2, KEY]);
+    expect(document.body.innerHTML).not.toMatch(/fixture-emberpath-key-000[12]/u);
+  });
+
+  it('asks for the key again when resume answers EMBERPATH_KEY_REQUIRED, and resumes with it', async () => {
+    const resumes = [refused(409, 'EMBERPATH_KEY_REQUIRED'), new Response(JSON.stringify({ success: true, data: { operationId: 'op-1' } }), { status: 202, headers: { 'content-type': 'application/json' } })];
+    const { stub } = await load('ADMIN', { streams: [sse([['done', FAILED]]), sse([['done', SUCCEEDED]])], resume: () => resumes.shift() });
+    await walkToReview();
+    await click(button('Deploy'));
+    await settle(10);
+    await click(button('Resume'));
+    await settle(5);
+    expect(document.body.textContent).toContain('Magnus no longer holds the one you entered');
+    const key = input('Emberpath client key') as HTMLInputElement;
+    expect(key.type).toBe('password');
+    await click(button('Resume with key'));
+    expect(alerts()).toContain('Enter the Emberpath client key');
+    await type(input('Emberpath client key'), KEY);
+    await click(button('Resume with key'));
+    await settle(10);
+    expect(stub.of('/ardent/agents/operations/op-1/resume').map((request) => request.body)).toEqual([null, { emberpath_client_key: KEY }]);
+    expect(input('Emberpath client key')).toBeUndefined();
+    expect(button('Open profile')).toBeDefined();
+    expect(document.body.innerHTML).not.toContain(KEY);
   });
 
   it('renders each step from the operation stream, then resumes a failed deploy and opens the profile', async () => {
