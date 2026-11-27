@@ -19,11 +19,24 @@
   /ardent/installations/:nodeId/profiles/:name/model-credential`, then follows the operation
   (check, deliver the key, restart, wait for the agent), with Resume and the same error messages.
 - Emberpath's **API Keys** page opens **Issue key** from a link with `?issue=<name>`.
+- **Create agent from definition** in Studio. An agent template's page in the Gallery has a **Create
+  agent** action. Its drawer installs that version as an agent definition through ArdentStudio:
+  choose the node and profile ID, and bind the Emberpath alias when the definition names none.
+  Magnus's preflight runs first (`deploy-check`), then the install (`deploy`), and the operation is
+  followed until the agent is running. When the definition's model is an Emberpath alias, the drawer
+  asks for the required **Emberpath client key**, using the field New Agent uses. The key is sent as
+  `emberpath_client_key` with the check and the deploy, then dropped from the page. Magnus's
+  refusals show beside the field they concern: `SECRET_UNBOUND` ("Emberpath key missing", or
+  Emberpath refusing the key), `EMBERPATH_KEY_*` and `PREFLIGHT_FAILED` problems on the key, and
+  `MISSING_BINDING` "model: …" and `EMBERPATH_ALIAS_UNAVAILABLE` on the alias. Other preflight
+  problems are listed.
 
 ### Changed
 
 - The vendored Magnus browser contract is re-synced from Magnus main (the Emberpath client key on
   New Agent and resume, Set Emberpath key, and the `model-credential` operation kind).
+- The vendored ArdentStudio browser contract is re-synced from ArdentStudio main (8835dc8): the
+  optional, write-only `emberpath_client_key` on `deploy-check`, `deploy` and `POST /agents`.
 
 ### Upgrade notes
 
@@ -31,6 +44,11 @@
   request that carries `emberpath_client_key` (400 `VALIDATION_ERROR`), so an Emberpath alias agent
   cannot be created from this HiveXUI against them, and they have no Set Emberpath key route (404).
   A llama.cpp server agent is unaffected. Release HiveXUI together with that Magnus.
+- **Create agent from definition needs the next ArdentStudio release (after 0.7.0) and the same
+  Magnus release.** ArdentStudio 0.7.0 refuses `emberpath_client_key` on `deploy-check` and
+  `deploy` (400 `VALIDATION_ERROR`, shown as such), and without it Magnus reports `SECRET_UNBOUND`
+  for an Emberpath-alias definition. A codex definition is unaffected. Release order: Magnus, then
+  ArdentStudio, then HiveXUI.
 
 ### Fixed
 

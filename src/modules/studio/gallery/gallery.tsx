@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { Archive, ArchiveRestore, ArrowLeft, Copy, Library, PencilLine, Play, Search, Users } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowLeft, Bot, Copy, Library, PencilLine, Play, Search, Users } from 'lucide-react';
 import { Badge, Button, ConfirmDialog, EmptyState, PageHeader, Panel, Select, Skeleton, Toggle, LoadingRows, ResourceError, buttonClass } from '@ui';
 import { cn } from '@lib/cn';
 import { formatTime } from '@lib/format';
@@ -15,6 +15,7 @@ import { useOptionalProject } from '../state/project-store';
 import { RELATIONSHIP_LABEL, STAGE_LABEL, type TeamDraft } from '../team/model';
 import '../team/team.css';
 import { roleFromTemplate } from './diff';
+import { DefinitionDeployDrawer } from './definition-deploy';
 import { galleryHref, parseTemplateParam, type GalleryKind } from './links';
 import { TemplateEditor } from './template-editor';
 
@@ -84,6 +85,7 @@ function Detail({ id, version, projectId, onBack }: { id: string; version: numbe
   const body: TemplateVersion | undefined = viewing ? older.data : detail.data?.latest;
   const [editing, setEditing] = useState<'version' | 'variant' | null>(null);
   const [archiving, setArchiving] = useState(false);
+  const [deploying, setDeploying] = useState(false);
   const [replace, setReplace] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
@@ -156,6 +158,11 @@ function Detail({ id, version, projectId, onBack }: { id: string; version: numbe
                 {projectId ? 'Use in project' : 'Use in a new project'}
               </Button>
             ) : null}
+            {template.kind === 'agent' && !template.archived ? (
+              <Button variant="primary" icon={<Bot className="size-4" />} onClick={() => setDeploying(true)}>
+                Create agent
+              </Button>
+            ) : null}
             <Button icon={<PencilLine className="size-4" />} disabled={template.archived} onClick={() => setEditing('version')}>
               Customize
             </Button>
@@ -208,7 +215,7 @@ function Detail({ id, version, projectId, onBack }: { id: string; version: numbe
             <p className="m-0 text-sm">
               {template.kind === 'team'
                 ? `Using it ${projectId ? "replaces this project's team draft" : 'starts a new project'} with ${roleCount} roles, their relationships and stages. No agent is created or changed: you bind each role to an existing agent, or create one with New agent.${templateRefs ? ` ${templateRefs} ${templateRefs === 1 ? 'role names an agent template' : 'roles name agent templates'} that New agent can start from.` : ''}`
-                : 'New agent can start from this persona: Magnus creates a new Ardent profile with it. Existing agents are never changed.'}
+                : 'Create agent installs this version as an agent definition: Magnus creates a new Ardent profile with its persona and pinned skills once its preflight passes. New agent can also start from this persona. Existing agents are never changed.'}
             </p>
           </Panel>
           <Panel title="Requirements">
@@ -290,6 +297,9 @@ function Detail({ id, version, projectId, onBack }: { id: string; version: numbe
             goStudio(galleryHref({ projectId, kind: saved.kind === 'agent' ? 'agents' : 'teams', template: saved.id }));
           }}
         />
+      ) : null}
+      {body.kind === 'agent' ? (
+        <DefinitionDeployDrawer open={deploying} templateId={template.id} version={body.version} templateName={body.body.name} onClose={() => setDeploying(false)} />
       ) : null}
       <ConfirmDialog
         open={archiving}

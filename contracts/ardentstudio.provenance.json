@@ -3,17 +3,17 @@
   "product": "ardentstudio-browser",
   "version": 1,
   "repository": "https://github.com/ChefTaco/ArdentStudio",
-  "revision": "f565d78783f4b13d00471147b6118bbb703337a5",
+  "revision": "8835dc8a1702c55441bcacf54896d8723ad43241",
   "files": [
     {
       "path": "browser.ts",
       "source": "src/shared/browser.ts",
-      "sha256": "25e793e47dd852a2d5a918b19f5d494bf0edca69114aad051017fdd9cf75cb0c"
+      "sha256": "c24cd042b73c548309be62a2ccea4d142f697979a32bba9ef6e7d10bd9caa3dc"
     },
     {
       "path": "openapi-browser.json",
       "source": "docs/openapi-browser.json",
-      "sha256": "8d90521748c9c4c02842f2221cea965e906ae79048987bd89f2c9918882c2c73"
+      "sha256": "b08379a4d2b7f911327f4c9ca59b8e02c29774bedd67312527222cea1d1bdd98"
     }
   ]
 }

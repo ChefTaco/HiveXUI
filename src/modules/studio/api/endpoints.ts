@@ -2,6 +2,11 @@
 import type { z } from 'zod';
 import {
   activitySchema,
+  agentOperationResponseSchema,
+  buildDefinitionResponseSchema,
+  definitionDeployCheckResponseSchema,
+  type definitionDeployCheckRequestSchema,
+  type definitionDeployRequestSchema,
   conversationResponseSchema,
   decisionResponseSchema,
   layoutResponseSchema,
@@ -65,6 +70,11 @@ export type ValidationIssue = ValidationResult['issues'][number];
 export type TemplateSummary = z.infer<typeof listTemplatesResponseSchema>['templates'][number];
 export type TemplateDetail = z.infer<typeof templateDetailSchema>;
 export type TemplateVersion = z.infer<typeof templateVersionSchema>;
+export type BuiltDefinition = z.infer<typeof buildDefinitionResponseSchema>;
+export type DeployCheck = z.input<typeof definitionDeployCheckRequestSchema>;
+export type DeployCheckResult = z.infer<typeof definitionDeployCheckResponseSchema>;
+export type DefinitionDeploy = z.input<typeof definitionDeployRequestSchema>;
+export type StudioAgentOperation = z.infer<typeof agentOperationResponseSchema>;
 export type Task = z.infer<typeof studioTaskSchema>;
 export type Conversation = z.infer<typeof conversationResponseSchema>;
 export type Message = z.infer<typeof messageSchema>;
@@ -139,6 +149,19 @@ export const listTemplates = (query: { kind?: 'agent' | 'team'; source?: 'seed' 
   studio.get('/templates', listTemplatesResponseSchema, { query, signal }).then((result) => result.templates);
 export const getTemplate = (id: string, signal?: Signal) => studio.get(`/templates/${segment(id)}`, templateDetailSchema, { signal });
 export const getTemplateVersion = (id: string, version: number, signal?: Signal) => studio.get(`/templates/${segment(id)}/versions/${version}`, templateVersionSchema, { signal });
+/** The agent definition (hive-agent-definition/1) an agent template version becomes, with what it leaves out. */
+export const buildDefinition = (id: string, version: number) =>
+  studio.post(`/templates/${segment(id)}/versions/${version}/definition`, buildDefinitionResponseSchema, { body: {} });
+/**
+ * Magnus's preflight of the version's definition for a node and bindings. An Emberpath-alias definition carries
+ * the write-only emberpath_client_key (needs the ArdentStudio release after 0.7.0 and the Magnus release after 3.4.1).
+ */
+export const checkDefinitionDeploy = (id: string, version: number, body: DeployCheck) =>
+  studio.post(`/templates/${segment(id)}/versions/${version}/deploy-check`, definitionDeployCheckResponseSchema, { body });
+/** Create agent from definition: 409 PREFLIGHT_FAILED (error.details.problems) creates nothing. Same key rules as the check. */
+export const deployDefinition = (id: string, version: number, body: DefinitionDeploy, idempotencyKey?: Key) =>
+  studio.post(`/templates/${segment(id)}/versions/${version}/deploy`, agentOperationResponseSchema, { body, idempotencyKey });
+export const getAgentOperation = (operationId: string, signal?: Signal) => studio.get(`/agents/operations/${segment(operationId)}`, agentOperationResponseSchema, { signal });
 export const createTemplate = (body: CreateTemplate, idempotencyKey?: Key) => studio.post('/templates', templateDetailSchema, { body, idempotencyKey });
 export const createTemplateVersion = (id: string, body: CreateTemplateVersion, idempotencyKey?: Key) =>
   studio.post(`/templates/${segment(id)}/versions`, templateDetailSchema, { body, idempotencyKey });
