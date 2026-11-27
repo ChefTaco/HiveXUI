@@ -1,5 +1,5 @@
 // Fake Studio service records for tests. Tests only; nothing in the console imports it.
-import type { Activity, Agent, Conversation, Decision, Message, Project, ReferenceLink, Task, ProjectSummary, Snapshot, StudioFile, TeamProposalRecord, TeamRevision, TeamState, TemplateDetail, TemplateSummary } from './api/endpoints';
+import type { Activity, Agent, BuiltDefinition, Conversation, Decision, Message, Project, ReferenceLink, StudioAgentOperation, Task, ProjectSummary, Snapshot, StudioFile, TeamProposalRecord, TeamRevision, TeamState, TemplateDetail, TemplateSummary } from './api/endpoints';
 
 const id = (prefix: string, n: number) => `${prefix}_01HZX3K6Q1V8R2M4N6P8T0W${String(n).padStart(3, '0')}`;
 export const PROJECT_ID = id('prj', 1);
@@ -192,6 +192,51 @@ export const templateDetail = (overrides: Partial<TemplateDetail> = {}): Templat
     ...overrides,
   };
 };
+
+export const AGENT_TEMPLATE_ID = id('tpl', 7);
+
+/** An agent template: an Archivist on an Emberpath alias (backend any becomes llamacpp in its definition). */
+export const agentTemplateDetail = (overrides: Partial<TemplateDetail> = {}): TemplateDetail => ({
+  ...templateSummary({ id: AGENT_TEMPLATE_ID, kind: 'agent', slug: 'archivist', source: 'user', name: 'Archivist', category: 'research', purpose: 'Keeps the project archive tidy.' }),
+  versions: [{ version: 1, changelog: 'First version', created_by: 'operator', created_at: AT }],
+  latest: {
+    template_id: AGENT_TEMPLATE_ID, version: 1, changelog: 'First version', created_by: 'operator', created_at: AT, kind: 'agent', source_definition: null,
+    body: {
+      name: 'Archivist', category: 'research', purpose: 'Keeps the project archive tidy.', example_uses: ['Index notes'],
+      soul_md: '# Archivist\n\nOrderly and kind.', identity_md: '# Identity\n\nThe project archivist.', skills: [{ kind: 'local', ref: 'filing' }],
+      model_hint: 'research-large', runtime_req: { ardent: '>=3.2.0', backend: 'any' }, integrations: ['hivemem', 'emberpath'],
+      expected_outputs: ['Index'], avatar_preset: { preset: 'silhouette-a', accent: 'blue', emblem: 'book' },
+    },
+  },
+  ...overrides,
+});
+
+/** The definition POST …/definition builds from it: llamacpp names its alias; codex has none and binds no key. */
+export const builtDefinition = (options: { backend?: 'llamacpp' | 'codex'; alias?: string | null } = {}): BuiltDefinition => {
+  const alias = options.alias === undefined ? 'research-large' : options.alias;
+  return {
+    definition: {
+      schema: 'hive-agent-definition/1', name: 'Archivist', description: 'Keeps the project archive tidy.', created_at: AT,
+      source_template: { template_id: AGENT_TEMPLATE_ID, version: 1 },
+      persona: { soul_md: '# Archivist\n\nOrderly and kind.', identity_md: '# Identity\n\nThe project archivist.', sha256: 'a'.repeat(64) },
+      runtime: { package: '@hivemagnus/ardent', version: '3.0.0', required_capabilities: [] },
+      extensions: [], skills: [],
+      config: { execution: { backend: options.backend ?? 'llamacpp' }, model: alias ? { emberpath_alias: alias } : {}, artifacts: {}, channels: 'excluded' },
+      requirements: { bindings: [{ key: 'hivemem', kind: 'hivemem', required: true }, { key: 'model', kind: 'emberpath_alias', required: !alias }], secrets: [] },
+      excludes: ['history', 'memory', 'sessions', 'artifacts'],
+      sha256: 'b'.repeat(64),
+    },
+    omitted: [{ kind: 'skill', name: 'filing', reason: 'A local skill has no portable source; a definition carries only pinned HiveSkills releases' }],
+  };
+};
+
+/** A Create agent from definition operation as ArdentStudio relays it. */
+export const definitionOperation = (status: StudioAgentOperation['status'] = 'running', overrides: Partial<StudioAgentOperation> = {}): StudioAgentOperation => ({
+  id: 'op-def-1', agent_ref: 'node-1~archivist', project_id: null, role_key: null, kind: 'definition', status,
+  steps: [{ name: 'profile-create', status: status === 'running' ? 'running' : 'succeeded', started_at: AT, finished_at: status === 'running' ? null : AT, receipt: null, error: null }],
+  error: status === 'failed' ? 'config-save: Emberpath key missing' : null, attempts: 1, created_by: 'usr_operator', created_at: AT, updated_at: AT, completed_at: status === 'running' ? null : AT,
+  ...overrides,
+});
 
 export const task = (overrides: Partial<Task> = {}): Task => ({
   id: id('tsk', 1),
