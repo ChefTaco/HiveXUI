@@ -12,6 +12,7 @@ export function IdentityPrompts() {
     [code, setCode] = useState('');
   const dialog = useRef<HTMLDialogElement>(null);
   const title = useId();
+  const passkeyHint = useId();
   useEffect(() => subscribeIdentityPrompts(setPrompt), []);
   useEffect(() => {
     setPassword('');
@@ -30,6 +31,13 @@ export function IdentityPrompts() {
       prompt.resolve(null);
       toast.info('Identity verification cancelled', 'Nothing was changed. Start the action again when you are ready.');
     }
+  };
+  /** A passkey alone: the device verifies the person, so no password is typed or sent. */
+  const passkeyOnly = () => {
+    if (prompt?.kind !== 'step-up' || !prompt.passkeyOnly) return;
+    setPassword('');
+    setCode('');
+    prompt.resolve({ passkey: true });
   };
   const verify = (passkey: boolean) => {
     if (prompt?.kind !== 'step-up' || !password) return;
@@ -88,6 +96,21 @@ export function IdentityPrompts() {
             This action needs a fresh sign-in. Verify your identity with
             Oathweave to continue; your password goes only to Oathweave.
           </p>
+          {prompt?.kind === 'step-up' && prompt.passkeyOnly && (
+            <div className="identity-passkey">
+              <Button
+                type="button"
+                aria-describedby={passkeyHint}
+                onClick={passkeyOnly}
+              >
+                Verify with a passkey
+              </Button>
+              <p id={passkeyHint} className="field-hint">
+                Your passkey alone, confirmed with your device PIN or
+                biometric. Or use your password below.
+              </p>
+            </div>
+          )}
           <Field label="Current password">
             <TextInput
               type="password"
@@ -114,7 +137,7 @@ export function IdentityPrompts() {
               disabled={!password}
               onClick={() => verify(true)}
             >
-              Use passkey
+              Password and passkey
             </Button>
             <Button variant="primary" type="submit">
               Verify

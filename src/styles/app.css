@@ -2254,6 +2254,11 @@ td .badge {
 .identity-dialog ul {
   overflow-wrap: anywhere;
 }
+.identity-passkey {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
 .codex-oauth-modal {
   display: grid;
   width: min(42.5rem, 100%);

@@ -117,7 +117,8 @@ test('the sign-in screen has no serious or critical accessibility violations', a
   await page.clock.setFixedTime(FIXED_NOW);
   await installMocks(page, [], { signedOut: true });
   await page.goto('/', { waitUntil: 'networkidle' });
-  await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign in with a passkey' })).toBeVisible();
   await expect(page).toHaveTitle('Sign in · HiveXUI');
   expect(await scan(page)).toEqual([]);
 });

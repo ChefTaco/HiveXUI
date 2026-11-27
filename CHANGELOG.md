@@ -9,16 +9,29 @@
   form. Suite installations already configure Oathweave and are unaffected; Cindertrace's local
   mode and its recovery sign-in are unchanged. The console's own upgrade panel with its password
   confirmation is gone; upgrades run on the installation controller as the panel describes.
-- Re-authentication needs Oathweave 2.7.0 (`prompt=login` and login tickets) and, for Emberpath's
-  credential and policy changes, Emberpath with `POST /api/auth/step-up` (the release after 2.9.0).
-  Against an older Oathweave the step-up still works (Oathweave ignores `prompt`). Against an older
-  Emberpath its step-up challenge answers 404: renewing the Emberpath token still carries the new
-  `auth_time`, which that Emberpath checks, so set no configuration. The vendored Oathweave browser
-  contract is Oathweave main after 2.6.0 (`aa9b837`).
+- **Needs Oathweave 2.7.0 or later** for re-authentication (`prompt=login`, login tickets and the
+  passkey-alone step-up) and the passkey sign-in. Emberpath's credential and policy changes use
+  Emberpath 2.10.0's `POST /api/auth/step-up`. Against an older Emberpath its step-up challenge
+  answers 404: renewing the Emberpath token still carries the new `auth_time`, which that Emberpath
+  checks, so set no configuration. Emberpath 2.10.0 turns its Oathweave password relay off by
+  default (`EMBERPATH_PASSWORD_RELAY=false`); this release never uses it. The vendored Oathweave
+  browser contract is Oathweave 2.7.0 (`5758e94`).
+- **Passkey sign-in** is offered when the browser supports WebAuthn and hidden after Oathweave
+  answers 404 (`IAM_PASSWORDLESS_PASSKEYS=false`); nothing to configure.
 - No migrations and no `runtime.json` change for suite installations. Downgrading to 0.13.0 is safe.
+
+### Added
+
+- **Sign in with a passkey** on the sign-in form and in the sign-in portal, for a normal and a
+  forced (`prompt=login`, `max_age`) sign-in: Oathweave's passwordless sign-in with a discoverable
+  passkey and user verification required. Passkey-only accounts can sign in without a password.
+- **Verify with a passkey** in **Verify your identity**: a passkey alone re-authenticates the same
+  session (Oathweave's step-up with a user-verified passkey), so passkey-only accounts can complete
+  a re-authentication. The password and second-factor button is now **Password and passkey**.
 
 ### Changed
 
+- A cancelled or timed-out passkey prompt says so instead of showing the browser's error.
 - Step-up is an OpenID Connect round trip in the page (`prompt=login`, PKCE, the product's
   nonce, Oathweave's login ticket), the ID token is checked in the browser and, for Emberpath, on
   the server; every product's access token is then renewed. The password goes only to Oathweave.

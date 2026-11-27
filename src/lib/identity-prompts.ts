@@ -6,12 +6,19 @@ export type IdentityPrompt =
       details: ConsentDetails;
       resolve: (approved: boolean) => void;
     }
-  | { kind: 'step-up'; resolve: (value: StepUpInput | null) => void };
-export interface StepUpInput {
-  password: string;
-  totpCode?: string;
-  passkey?: boolean;
-}
+  | {
+      kind: 'step-up';
+      /** Oathweave accepts a user-verified passkey alone (passwordless passkeys are on). */
+      passkeyOnly: boolean;
+      resolve: (value: StepUpInput | null) => void;
+    };
+/**
+ * How the person verifies: the password (with an authenticator code, or `passkey` for a passkey
+ * second factor), or `passkey` alone without a password.
+ */
+export type StepUpInput =
+  | { password: string; totpCode?: string; passkey?: boolean }
+  | { password?: undefined; totpCode?: undefined; passkey: true };
 let listener: ((prompt: IdentityPrompt | null) => void) | undefined;
 const queue: IdentityPrompt[] = [];
 function enqueue(prompt: IdentityPrompt): void {
@@ -59,10 +66,11 @@ export function requestConsent(details: ConsentDetails): Promise<boolean> {
     }
   });
 }
-export function requestStepUp(): Promise<StepUpInput | null> {
+export function requestStepUp(options: { passkeyOnly?: boolean } = {}): Promise<StepUpInput | null> {
   return new Promise((resolve, reject) => {
     const prompt: IdentityPrompt = {
       kind: 'step-up',
+      passkeyOnly: options.passkeyOnly ?? false,
       resolve: (value) => finish(prompt, () => resolve(value)),
     };
     try {

@@ -9,7 +9,7 @@ import {
   requestConsent,
   requestStepUp,
 } from './identity-prompts';
-import { authenticatePasskey } from './passkeys';
+import { authenticatePasskey, passkeysSupported } from './passkeys';
 import { sessionEnded } from './session-events';
 import {
   LoginRequestSchema,
@@ -20,6 +20,8 @@ import {
   PasskeyAuthenticationOptionsRequestSchema,
   PasskeyAuthenticationRequestSchema,
   PasskeyOptionsResponseSchema,
+  PasswordlessAuthenticationRequestSchema,
+  PasswordlessOptionsResponseSchema,
   AuthorizeConsentRequestSchema,
   AuthorizeCancelRequestSchema,
   BrowserLoginRequiredResponseSchema,
@@ -64,6 +66,17 @@ export class LoginRequired extends Error {
     readonly reason: 'no_session' | 'prompt_login' | 'max_age',
   ) {
     super('Sign in again to continue');
+  }
+}
+
+/**
+ * Oathweave does not offer passwordless passkey sign-in (`IAM_PASSWORDLESS_PASSKEYS=false`, or a
+ * release without it): the person signs in with the password instead.
+ */
+export class PasskeySignInUnavailable extends Error {
+  override name = 'PasskeySignInUnavailable';
+  constructor() {
+    super('Passkey sign-in is turned off for this Oathweave. Sign in with your password instead.');
   }
 }
 
@@ -128,6 +141,8 @@ export function createBrowserAuth(
   let generation = 0;
   let credentialEpoch = 0;
   let pendingStepUp: Promise<void> | undefined;
+  // Becomes false once Oathweave says it does not accept a passkey alone (sign-in or step-up).
+  let passwordless = true;
   // The part of a step-up that changes the session's sign-in time: new authorizations wait for it.
   let verifying: Promise<void> | undefined;
   // Retain settled results, including declines, until session invalidation. React
@@ -154,6 +169,7 @@ export function createBrowserAuth(
         '/mfa/webauthn/authenticate-options':
           PasskeyAuthenticationOptionsRequestSchema,
         '/mfa/webauthn/authenticate': PasskeyAuthenticationRequestSchema,
+        '/mfa/webauthn/passwordless/authenticate': PasswordlessAuthenticationRequestSchema,
         '/oauth/authorize': AuthorizeConsentRequestSchema,
         '/oauth/authorize/cancel': AuthorizeCancelRequestSchema,
         '/oauth/token': TokenExchangeRequestSchema,
@@ -452,6 +468,30 @@ export function createBrowserAuth(
     BrowserLoginResponseSchema.parse(await json('/mfa/webauthn/authenticate', { mfaToken: token, response }));
     return { ...(await me()), ok: true };
   }
+  /**
+   * Passwordless sign-in with a discoverable passkey: the browser offers this site's passkeys and
+   * the device verifies the person (PIN or biometric). Oathweave sets the SSO session, as for a
+   * password sign-in; no password exists in the exchange.
+   */
+  async function signInWithPasskey() {
+    let options: ReturnType<typeof PasswordlessOptionsResponseSchema.parse>;
+    try {
+      options = PasswordlessOptionsResponseSchema.parse(await json('/mfa/webauthn/passwordless/options', {}));
+    } catch (error) {
+      if (error instanceof HiveApiError && error.status === 404) {
+        passwordless = false;
+        throw new PasskeySignInUnavailable();
+      }
+      throw error;
+    }
+    const response = await authenticatePasskey(options.data);
+    BrowserLoginResponseSchema.parse(await json('/mfa/webauthn/passwordless/authenticate', { ceremonyId: options.ceremonyId, response }));
+    return { ...(await me()), ok: true };
+  }
+  /** Whether to offer a passkey alone: the browser supports it and Oathweave has not refused it. */
+  function passkeySignInOffered(): boolean {
+    return passwordless && passkeysSupported();
+  }
   async function recover(email: string): Promise<string> {
     const response = BrowserMessageResponseSchema.parse(await json('/auth/forgot-password', { email }));
     return typeof response.message === 'string'
@@ -543,7 +583,7 @@ export function createBrowserAuth(
         current();
         if (authorization instanceof LoginRequired) {
           const ticket = authorization.ticket;
-          const input = await requestStepUp();
+          const input = await requestStepUp({ passkeyOnly: passkeySignInOffered() });
           current();
           if (!input) {
             // Best effort: tell Oathweave, which ends the ticket; the action stays undone either way.
@@ -557,11 +597,20 @@ export function createBrowserAuth(
             assertion = await authenticatePasskey(PasskeyOptionsResponseSchema.parse(options).data);
             current();
           }
-          IamSuccessResponseSchema.parse(await json('/auth/step-up', {
-            password: input.password,
-            ...(input.totpCode ? { totpCode: input.totpCode } : {}),
-            ...(assertion ? { assertion } : {}),
-          }));
+          try {
+            // A passkey alone carries no password: Oathweave binds it to this session's user.
+            IamSuccessResponseSchema.parse(await json('/auth/step-up', input.password === undefined ? { assertion } : {
+              password: input.password,
+              ...(input.totpCode ? { totpCode: input.totpCode } : {}),
+              ...(assertion ? { assertion } : {}),
+            }));
+          } catch (error) {
+            if (input.password === undefined && error instanceof IdentityApiError && error.data.error === 'PASSWORD_REQUIRED') {
+              passwordless = false;
+              throw new Error('Oathweave needs your password for this check. Start the action again and enter your password.');
+            }
+            throw error;
+          }
           current();
           authorization = await authorizeWith(ticket);
           current();
@@ -642,6 +691,8 @@ export function createBrowserAuth(
     login,
     completeMfa,
     completePasskey,
+    signInWithPasskey,
+    passkeySignInOffered,
     recover,
     resetPassword,
     stepUp,
