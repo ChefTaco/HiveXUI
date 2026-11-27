@@ -5,6 +5,7 @@ import {
 } from '../lib/identity-prompts';
 import { Button, Field, TextInput } from './ui';
 import { useToast } from './toast';
+import { STEP_UP_CANCELLED_HINT, STEP_UP_CANCELLED_TITLE } from '../lib/step-up-notice';
 
 export function IdentityPrompts() {
   const [prompt, setPrompt] = useState<IdentityPrompt | null>(null);
@@ -29,7 +30,7 @@ export function IdentityPrompts() {
     if (prompt?.kind === 'consent') prompt.resolve(false);
     else if (prompt) {
       prompt.resolve(null);
-      toast.info('Identity verification cancelled', 'Nothing was changed. Start the action again when you are ready.');
+      toast.info(STEP_UP_CANCELLED_TITLE, STEP_UP_CANCELLED_HINT);
     }
   };
   /** A passkey alone: the device verifies the person, so no password is typed or sent. */

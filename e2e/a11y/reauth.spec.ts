@@ -186,6 +186,124 @@ test('a cancelled re-authentication shows a clear, dismissible notice and leaves
   await close.click();
 });
 
+/** The Issue key drawer's Generate refused for a step-up, then answered once the step-up is done. */
+async function issueKeyMocks(page: Page, state: { stepped: boolean }) {
+  const posts: string[] = [];
+  await page.route(/\/api\/emberpath\/client-keys$/, (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    posts.push(route.request().postData() ?? '');
+    return state.stepped
+      ? route.fulfill({ json: { data: { id: 'ck_2', name: 'release-bot', keyPrefix: 'ep_cd34', apiKey: 'ep_cd34_fixture_not_a_real_key' } } })
+      : route.fulfill({ status: 403, json: { error: 'STEP_UP_REQUIRED', message: 'Sign in again before changing credentials or security policy.' } });
+  });
+  return posts;
+}
+
+/**
+ * Whether the element itself is what the pointer reaches at its centre and near its corners: no
+ * toast or other layer sits over it.
+ */
+async function unobscured(page: Page, name: string): Promise<boolean> {
+  return page.getByRole('button', { name, exact: true }).evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const points = [[0.5, 0.5], [0.1, 0.2], [0.9, 0.2], [0.1, 0.8], [0.9, 0.8]] as const;
+    return box.width > 0 && box.bottom <= window.innerHeight && box.right <= window.innerWidth &&
+      points.every(([x, y]) => element.contains(document.elementFromPoint(box.left + box.width * x, box.top + box.height * y)));
+  });
+}
+
+/** Open Issue key, fill the name and press Generate key: Emberpath asks for a step-up. */
+async function generateWithStepUp(page: Page) {
+  await page.goto('/?page=keys', { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Issue Key' }).click();
+  const drawer = page.getByRole('dialog', { name: 'API key details' });
+  await drawer.getByLabel('Name').fill('release-bot');
+  await drawer.getByRole('button', { name: 'Generate key' }).click();
+  const identity = page.getByRole('dialog', { name: 'Verify your identity' });
+  await expect(identity).toBeVisible();
+  return { drawer, identity };
+}
+
+for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 }]) {
+  const size = `${viewport.width}x${viewport.height}`;
+
+  test(`at ${size}, after a step-up the drawer says so beside Generate key, which nothing covers`, async ({ page }, testInfo) => {
+    await page.setViewportSize(viewport);
+    await page.clock.setFixedTime(FIXED_NOW);
+    await installMocks(page);
+    const state = await stepUpMocks(page);
+    const posts = await issueKeyMocks(page, state);
+    const { drawer, identity } = await generateWithStepUp(page);
+    await identity.getByLabel('Current password').fill(PASSWORD);
+    await identity.getByRole('button', { name: 'Verify', exact: true }).click();
+    await expect(identity).toBeHidden();
+    await expect(drawer.getByRole('button', { name: 'Generate key' })).toBeEnabled();
+    await page.screenshot({ path: testInfo.outputPath(`after-step-up-${size}.png`) });
+
+    // The outcome is announced in the drawer, next to the action to submit again, and focus is back on it.
+    const generate = drawer.getByRole('button', { name: 'Generate key' });
+    expect(await unobscured(page, 'Generate key')).toBe(true);
+    await generate.click({ trial: true, timeout: 2_000 });
+    const notice = drawer.getByRole('status');
+    await expect(notice).toContainText('Identity verified. Review and submit the operation again.');
+    await expect(generate).toBeFocused();
+    // No toast repeats it over the page.
+    await expect(page.locator('.toast-stack')).not.toContainText('Identity verified');
+    expect(await axeSerious(page)).toEqual([]);
+
+    // Another toast while the drawer is open stays clear of its actions too.
+    await drawer.getByLabel('Metadata').fill('not json');
+    await drawer.getByRole('button', { name: 'Use metadata-only traces' }).click();
+    await expect(page.getByRole('alert').filter({ hasText: 'Invalid metadata' })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`error-toast-in-drawer-${size}.png`) });
+    expect(await unobscured(page, 'Generate key')).toBe(true);
+    expect(await unobscured(page, 'Cancel')).toBe(true);
+    expect(await unobscured(page, 'Dismiss notice')).toBe(true);
+    await generate.click({ trial: true, timeout: 2_000 });
+    // The toast itself is still on screen, with its dismiss button reachable.
+    const toast = page.getByRole('alert').filter({ hasText: 'Invalid metadata' });
+    const placed = (await toast.boundingBox())!;
+    expect(placed.x >= 0 && placed.y >= 0 && placed.x + placed.width <= viewport.width && placed.y + placed.height <= viewport.height).toBe(true);
+    await toast.getByRole('button', { name: 'Dismiss notification' }).click({ trial: true, timeout: 2_000 });
+
+    // The notice can be dismissed, and focus goes back to the action.
+    await drawer.getByRole('button', { name: 'Dismiss notice' }).click();
+    await expect(notice).toBeEmpty();
+    await expect(generate).toBeFocused();
+    await drawer.getByLabel('Metadata').fill('{}');
+    await generate.click();
+    await expect(drawer.getByText('Key "release-bot" was created and is valid once.')).toBeVisible();
+    expect(posts).toHaveLength(2);
+  });
+
+  test(`at ${size}, a cancelled step-up says so in the drawer and leaves Generate key reachable`, async ({ page }, testInfo) => {
+    await page.setViewportSize(viewport);
+    await page.clock.setFixedTime(FIXED_NOW);
+    await installMocks(page);
+    const state = await stepUpMocks(page);
+    const posts = await issueKeyMocks(page, state);
+    const { drawer, identity } = await generateWithStepUp(page);
+    await identity.getByRole('button', { name: 'Cancel' }).click();
+    await expect(identity).toBeHidden();
+    const generate = drawer.getByRole('button', { name: 'Generate key' });
+    await expect(generate).toBeEnabled();
+    await page.screenshot({ path: testInfo.outputPath(`after-cancel-${size}.png`) });
+
+    expect(await unobscured(page, 'Generate key')).toBe(true);
+    await generate.click({ trial: true, timeout: 2_000 });
+    const notice = drawer.getByRole('status');
+    await expect(notice).toContainText('Identity verification cancelled');
+    await expect(notice).toContainText('Nothing was changed.');
+    await expect(generate).toBeFocused();
+    await expect(page.locator('.toast-stack')).not.toContainText('Identity verification');
+    expect(await axeSerious(page)).toEqual([]);
+    await drawer.getByRole('button', { name: 'Dismiss notice' }).click();
+    await expect(notice).toBeEmpty();
+    expect(state.stepped).toBe(false);
+    expect(posts).toHaveLength(1);
+  });
+}
+
 test('the sign-in portal asks for a new sign-in for prompt=login and returns a cancellation to the application', async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);
   await installMocks(page);

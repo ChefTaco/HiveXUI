@@ -2204,6 +2204,29 @@ td .badge {
 .drawer-footer .spacer {
   margin-right: auto;
 }
+/* A step-up's outcome, beside the actions to submit again (ui.tsx StepUpNotice). Empty, it takes no room. */
+.step-up-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+.step-up-notice__text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.step-up-notice .btn--icon {
+  flex: none;
+  margin: calc(-1 * var(--space-1)) calc(-1 * var(--space-2)) calc(-1 * var(--space-1)) 0;
+}
+.drawer > .step-up-notice--shown {
+  margin: 0 var(--space-6) var(--space-4);
+}
+.confirm-box > .step-up-notice--shown {
+  margin-bottom: var(--space-4);
+}
 .confirm-box,
 .codex-oauth-modal,
 .identity-dialog {
@@ -2306,6 +2329,12 @@ td .badge {
   display: grid;
   width: min(22.5rem, calc(100vw - 2rem));
   gap: var(--space-2);
+  /* The stack's own box (the gap between its two live regions) is there even with no toast: only
+     the toasts take the pointer, never the page beneath. */
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
 }
 .toast-region {
   display: grid;

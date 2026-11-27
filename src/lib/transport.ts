@@ -7,6 +7,7 @@ import {
   REQUEST_ID_HEADER,
   failureMeta,
 } from './api-error';
+import { announceStepUpOutcome, STEP_UP_VERIFIED_MESSAGE } from './step-up-notice';
 
 export * from './api-error';
 
@@ -325,6 +326,7 @@ export function createApiFetch(request: typeof fetch, options: { stepUp?: boolea
           // The person closed the identity check: the product refused, so nothing changed. Pages show
           // this like any other refusal, and the action stays undone.
           if (error instanceof Error && error.name === 'ReauthenticationCancelled') {
+            announceStepUpOutcome('cancelled');
             const cancelled = Response.json({ error: 'REAUTH_CANCELLED', message: error.message }, { status: 403 });
             rememberSentRequestId(cancelled, requestId);
             return cancelled;
@@ -336,13 +338,11 @@ export function createApiFetch(request: typeof fetch, options: { stepUp?: boolea
         const method = (init.method ?? 'GET').toUpperCase();
         if ((method === 'GET' || method === 'HEAD') && init.body == null)
           return send(path, init, false);
-        // Never replay a durable mutation or an approval automatically.
+        // Never replay a durable mutation or an approval automatically. An open drawer or dialog
+        // says so beside the action to submit again.
+        announceStepUpOutcome('verified');
         const answer = Response.json(
-          {
-            error: 'RETRY_AFTER_STEP_UP',
-            message:
-              'Identity verified. Review and submit the operation again.',
-          },
+          { error: 'RETRY_AFTER_STEP_UP', message: STEP_UP_VERIFIED_MESSAGE },
           { status: 403 },
         );
         rememberSentRequestId(answer, requestId);
