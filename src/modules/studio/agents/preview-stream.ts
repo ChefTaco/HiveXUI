@@ -4,6 +4,7 @@
 // service answers with the same task from its start.
 import type { z } from 'zod';
 import { parseSseStream, type SseEvent } from '@hivemagnus/hive-common/sse';
+import { MAX_STREAM_EVENT_BYTES } from '../../magnus/api/stream';
 import {
   IDEMPOTENCY_HEADER,
   previewAcceptedEventSchema,
@@ -130,7 +131,7 @@ export async function runPreview({ agentRef, prompt, useDraft, newSession, signa
       }
       if (!response.body) throw new Error('No stream');
       // Leaving the loop at the end of the run cancels the body.
-      for await (const frame of parseSseStream(response.body, { signal, requireData: true })) {
+      for await (const frame of parseSseStream(response.body, { signal, requireData: true, maxEventBytes: MAX_STREAM_EVENT_BYTES })) {
         update(reducePreview(run, frame));
         if (previewFinished(run)) return run;
       }

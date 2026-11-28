@@ -32,7 +32,7 @@
     "This stream is not available"; it used to be retried forever.
   - `Retry-After` is honoured on 408 and 5xx as well as 429, at most the stream's longest wait
     (60 s); a longer one used to be honoured in full on a 429.
-  - An event larger than 4 MiB stops the stream with "The stream sent an event too large to read";
+  - An event larger than 4 MiB (in a live stream or an agent preview) stops the stream with "The stream sent an event too large to read";
     the old parser dropped it and went on. In an agent preview such an event drops the connection
     and the preview reconnects with the same idempotency key, failing as "connection lost" after
     its reconnects.
