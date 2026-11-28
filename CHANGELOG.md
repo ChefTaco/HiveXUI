@@ -7,7 +7,7 @@
 - Require `@hivemagnus/hive-common` ^0.10.0 (was ^0.6.0). HiveXUI's imports (`/artifact`, `/contracts`,
   `/errors`, `/execution`, `/retry`) are unchanged between those versions, all of them isomorphic, and
   the production bundle pulls in no Node built-in; no behaviour change.
-- Require `@hivemagnus/hive-common` ^0.11.0. Live streams (Magnus events, log tail and agent
+- Require `@hivemagnus/hive-common` ^0.11.1. Live streams (Magnus events, log tail and agent
   operations, Studio project feeds and project-list counts) now follow their connection with
   HiveCommon's `/sse` `followSse()`, and the Studio agent preview reads its reply with
   `parseSseStream()`; HiveXUI's own SSE parser is gone. Connections still go through the signed-in
