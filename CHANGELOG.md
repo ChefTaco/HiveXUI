@@ -7,6 +7,38 @@
 - Require `@hivemagnus/hive-common` ^0.10.0 (was ^0.6.0). HiveXUI's imports (`/artifact`, `/contracts`,
   `/errors`, `/execution`, `/retry`) are unchanged between those versions, all of them isomorphic, and
   the production bundle pulls in no Node built-in; no behaviour change.
+- Require `@hivemagnus/hive-common` ^0.11.1. Live streams (Magnus events, log tail and agent
+  operations, Studio project feeds and project-list counts) now follow their connection with
+  HiveCommon's `/sse` `followSse()`, and the Studio agent preview reads its reply with
+  `parseSseStream()`; HiveXUI's own SSE parser is gone. Connections still go through the signed-in
+  fetch with the same `Cache-Control` and per-connection `x-trace-id` headers, still send no
+  `Last-Event-ID` (a Studio feed resumes from its `?after=` cursor as before), and keep the same
+  states and stop messages. What differs:
+  - **401:** the stream renews the session once (as before, through the session check that signs
+    out a session that is really gone) and reconnects at once; a 401 on the renewed connection
+    stops it with "Sign in again to receive live updates". It used to allow three 401s in a row,
+    with a backoff wait between them. A later 401, after a connection opened, is renewed again.
+  - **Backoff** resets after a connection that delivered an event, instead of one that stayed open
+    30 seconds; such a connection that then closes reconnects without a backoff wait (while
+    connecting the stream shows Connecting), but never sooner than one second after the previous
+    connection started, so a server that answers and closes at once cannot cause a tight loop. A
+    connection that closes without an event still counts as a failure. The waits are unchanged:
+    1-2 s after the first failure, doubling to 60 s.
+  - A page handler that throws on one event no longer ends the connection: the event is skipped
+    with a console warning and the stream goes on. (It used to drop the connection and reconnect
+    after a backoff wait; with `followSse()` alone it would end the stream.) A throwing state
+    callback is caught the same way.
+  - A 4xx other than 401, 403, 404, 408 and 429 (for example 400 or 410) now stops the stream with
+    "This stream is not available"; it used to be retried forever.
+  - `Retry-After` is honoured on 408 and 5xx as well as 429, at most the stream's longest wait
+    (60 s); a longer one used to be honoured in full on a 429.
+  - An event larger than 4 MiB (in a live stream or an agent preview) stops the stream with "The stream sent an event too large to read";
+    the old parser dropped it and went on. In an agent preview such an event drops the connection
+    and the preview reconnects with the same idempotency key, failing as "connection lost" after
+    its reconnects.
+  - An event with only an `id:` or `event:` line (no `data:`) now reaches a stream's handler with
+    empty data, and an event's `id` is only the one it carries; no server HiveXUI reads sends such
+    events and no handler reads `id`. The agent preview still reads only events with data.
 
 ## [0.15.0] - 2026-11-27
 

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { activitySchema, conversationSchema, decisionSchema, fileSchema, projectCountsSchema, referenceLinkSchema, taskRecoveryEventSchema, teamProposalRecordSchema } from '@contracts/ardentstudio.generated';
 import { studioTaskSchema } from '../api/execution';
 import type { StreamHandle, StreamState } from '../../magnus/api/stream';
-import type { SseEvent } from '../../magnus/api/sse';
+import type { SseEvent } from '@hivemagnus/hive-common/sse';
 import { getSnapshot, type Project, type ReferenceLink, type Snapshot, type StudioFile, type TeamProposalRecord, type TeamState } from '../api/endpoints';
 import { openProjectStream, reduceStreamFrame, type MessageDelta, type ProjectEvent } from '../api/stream';
 import { StudioApiError } from '../api/client';

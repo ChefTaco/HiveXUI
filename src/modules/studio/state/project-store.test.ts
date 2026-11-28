@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { SseEvent } from '../../magnus/api/sse';
+import type { SseEvent } from '@hivemagnus/hive-common/sse';
 import { StudioApiError } from '../api/client';
 import type { Snapshot } from '../api/endpoints';
 import { file, link, PROJECT_ID, project, proposal, snapshot } from '../test-fixtures';

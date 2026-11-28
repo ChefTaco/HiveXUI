@@ -87,6 +87,26 @@ describe('running a preview', () => {
     expect(JSON.parse(String(calls[0]!.init?.body))).toEqual({ prompt: 'Describe the archive', use_draft: true, new_session: true });
   });
 
+  it('reads a step text over 1 MiB, as Studio relays up to 4 MiB', async () => {
+    const long = 'w'.repeat(2 * 1024 * 1024);
+    const calls: string[] = [];
+    const run = await runPreview({
+      agentRef: 'node-1~lead',
+      prompt: 'Write it all',
+      useDraft: true,
+      newSession: true,
+      signal: new AbortController().signal,
+      onRun: () => {},
+      request: async (path) => {
+        calls.push(path);
+        return new Response(sse([['preview.accepted', { task_id: 't1', session_id: 's1' }], ['preview.text', { step: 1, text: long }], ['preview.done', { task_id: 't1', state: 'completed', result: long, error: null }]], 65_536), { headers: { 'content-type': 'text/event-stream' } });
+      },
+    });
+    expect(run.status).toBe('done');
+    expect(previewText(run).length).toBe(long.length);
+    expect(calls).toHaveLength(1);
+  });
+
   it('reconnects with the same key when the stream drops before the task ends', async () => {
     const keys: string[] = [];
     let attempt = 0;
