@@ -3,6 +3,7 @@
 // connection drops before the task finishes, asks again with the same idempotency key, which the
 // service answers with the same task from its start.
 import type { z } from 'zod';
+import { parseSseStream, type SseEvent } from '@hivemagnus/hive-common/sse';
 import {
   IDEMPOTENCY_HEADER,
   previewAcceptedEventSchema,
@@ -13,7 +14,6 @@ import {
 } from '@contracts/ardentstudio.generated';
 import { apiFetch } from '../../../lib/transport';
 import { randomId } from '../../magnus/api/client';
-import { createSseParser, type SseEvent } from '../../magnus/api/sse';
 import { studioFailure, studioPath } from '../api/client';
 import { agentPath } from './api';
 
@@ -129,17 +129,10 @@ export async function runPreview({ agentRef, prompt, useDraft, newSession, signa
         return run;
       }
       if (!response.body) throw new Error('No stream');
-      const parser = createSseParser((frame) => update(reducePreview(run, frame)));
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        parser(decoder.decode(value, { stream: true }));
-        if (previewFinished(run)) {
-          void reader.cancel().catch(() => undefined);
-          return run;
-        }
+      // Leaving the loop at the end of the run cancels the body.
+      for await (const frame of parseSseStream(response.body, { signal, requireData: true })) {
+        update(reducePreview(run, frame));
+        if (previewFinished(run)) return run;
       }
     } catch {
       if (signal.aborted) break;

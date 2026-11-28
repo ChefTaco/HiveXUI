@@ -1,11 +1,12 @@
-// Reads a text/event-stream with fetch, because EventSource cannot send a bearer token. Each
-// connection goes through apiFetch, so a new one carries a newly minted token: Oathweave streams
-// close at token expiry and on logout, and a clean close simply reconnects.
-import { backoffDelay as sharedBackoff } from '@hivemagnus/hive-common/retry';
+// Reads a text/event-stream with HiveCommon's followSse(), because EventSource cannot send a bearer
+// token. Each connection goes through apiFetch, so a new one carries a newly minted token: Oathweave
+// streams close at token expiry and on logout, and a clean close simply reconnects.
+import { followSse, SseEventTooLargeError, SseStatusError, type SseEvent } from '@hivemagnus/hive-common/sse';
+import { sleepAbortable } from '@hivemagnus/hive-common/retry';
 import { apiFetch, onAccessCleared } from '../../../lib/transport';
 import { apiPath, handleUnauthorized, randomId, type Query } from './client';
-import { createSseParser, type SseEvent } from './sse';
 
+export type { SseEvent };
 export type StreamState = 'connecting' | 'open' | 'retrying' | 'stopped';
 export interface StreamOptions {
   /** Relative to /api/v1: '/events/stream'. */
@@ -20,115 +21,96 @@ export interface StreamOptions {
   deniedMessage?: string;
   onEvent: (event: SseEvent) => void;
   onState?: (state: StreamState, detail?: string) => void;
-  /** Backoff between attempts, jittered. Defaults: 1s doubling to 60s. */
+  /**
+   * Backoff between failed connections, jittered: 2 x minDelayMs after the first failure, doubling
+   * to maxDelayMs. minDelayMs is also the least time between two connections. Defaults 1s and 60s.
+   */
   minDelayMs?: number;
   maxDelayMs?: number;
   /** No bytes for this long means a dead connection: the server sends a keep-alive far more often. */
   idleTimeoutMs?: number;
   request?: typeof fetch;
-  random?: () => number;
 }
 export interface StreamHandle {
   close: () => void;
 }
-const HEALTHY_MS = 30_000;
-/** A 401 can be a token that just expired. Past this many in a row the session is gone. */
-const MAX_UNAUTHORIZED = 3;
 
-/** The wait after `attempt` failures in a row (0 after a healthy connection): HiveCommon's equal jitter. */
-export function backoffDelay(attempt: number, minMs: number, maxMs: number, random: () => number = Math.random): number {
-  return sharedBackoff(attempt + 1, { maxAttempts: Number.MAX_SAFE_INTEGER, baseMs: minMs, maxMs, jitter: 'equal' }, { random }) ?? maxMs;
+export const STREAM_SIGNED_OUT = 'Sign in again to receive live updates';
+export const STREAM_UNAVAILABLE = 'This stream is not available';
+
+/** Why a follow ended, for the operator. */
+function stopDetail(error: unknown, deniedMessage: string): string | undefined {
+  if (error instanceof SseStatusError) return error.status === 401 ? STREAM_SIGNED_OUT : error.status === 403 ? deniedMessage : STREAM_UNAVAILABLE;
+  if (error instanceof SseEventTooLargeError) return 'The stream sent an event too large to read';
+  return 'Live updates stopped';
 }
 
 export function openStream(options: StreamOptions): StreamHandle {
-  const { path, query, url, deniedMessage = 'Your Magnus role does not allow this stream', onEvent, onState, minDelayMs = 1000, maxDelayMs = 60_000, idleTimeoutMs = 75_000, request = apiFetch, random } = options;
+  const { path, query, url, deniedMessage = 'Your Magnus role does not allow this stream', onEvent, onState, minDelayMs = 1000, maxDelayMs = 60_000, idleTimeoutMs = 75_000, request = apiFetch } = options;
   const lifetime = new AbortController();
+  const report = (state: StreamState, detail?: string) => {
+    // A page's state callback must not end the stream it is watching.
+    try {
+      onState?.(state, detail);
+    } catch (error) {
+      console.warn('A stream state handler failed:', error instanceof Error ? error.message : error);
+    }
+  };
   const stop = (detail?: string) => {
     if (lifetime.signal.aborted) return;
     lifetime.abort();
-    onState?.('stopped', detail);
+    report('stopped', detail);
   };
   const unsubscribe = onAccessCleared(() => stop('Signed out'));
   lifetime.signal.addEventListener('abort', unsubscribe, { once: true });
 
-  const wait = (ms: number) =>
-    new Promise<void>((resolve) => {
-      const timer = setTimeout(resolve, ms);
-      lifetime.signal.addEventListener('abort', () => {
-        clearTimeout(timer);
-        resolve();
-      }, { once: true });
-    });
+  // followSse reconnects at once after a connection that delivered events. A server that answers
+  // and closes straight away (a token about to expire) must not turn that into a tight loop.
+  let lastStart = Number.NEGATIVE_INFINITY;
+  const untilNextStart = () => Math.max(0, lastStart + minDelayMs - Date.now());
 
-  async function connect(): Promise<{ healthy: boolean; retryAfterMs?: number; unauthorized?: boolean }> {
-    const connection = new AbortController();
-    const abortConnection = () => connection.abort();
-    lifetime.signal.addEventListener('abort', abortConnection, { once: true });
-    let idle: ReturnType<typeof setTimeout> | undefined;
-    const startedAt = Date.now();
-    const watch = () => {
-      clearTimeout(idle);
-      idle = setTimeout(abortConnection, idleTimeoutMs);
-    };
-    try {
-      onState?.('connecting');
-      watch();
-      const response = await request(url ? url() : apiPath(path, query), {
-        headers: { Accept: 'text/event-stream', 'Cache-Control': 'no-cache', 'x-trace-id': randomId() },
-        signal: connection.signal,
-      });
-      if (response.status === 401) return { healthy: false, unauthorized: true };
-      if (response.status === 403 || response.status === 404) {
-        stop(response.status === 403 ? deniedMessage : 'This stream is not available');
-        return { healthy: false };
-      }
-      if (response.status === 429) {
-        const seconds = Number(response.headers.get('retry-after'));
-        return { healthy: false, ...(seconds > 0 ? { retryAfterMs: seconds * 1000 } : {}) };
-      }
-      if (!response.ok || !response.body) return { healthy: false };
-      onState?.('open');
-      const parse = createSseParser(onEvent);
-      const decoder = new TextDecoder();
-      const reader = response.body.getReader();
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        watch();
-        parse(decoder.decode(value, { stream: true }));
-      }
-      return { healthy: Date.now() - startedAt >= HEALTHY_MS };
-    } catch {
-      return { healthy: Date.now() - startedAt >= HEALTHY_MS };
-    } finally {
-      clearTimeout(idle);
-      lifetime.signal.removeEventListener('abort', abortConnection);
-      connection.abort();
-    }
-  }
-
-  void (async () => {
-    let attempt = 0;
-    let unauthorized = 0;
-    while (!lifetime.signal.aborted) {
-      const result = await connect();
+  // With url() set, the path below is only a placeholder: the fetch reads url() for every connection.
+  void followSse(apiPath(path, query), {
+    signal: lifetime.signal,
+    fetch: async (target, init) => {
+      const spacing = untilNextStart();
+      if (spacing > 0) await sleepAbortable(spacing, init.signal ?? undefined);
+      lastStart = Date.now();
+      const headers = new Headers(init.headers);
+      // The cursor, where a stream has one, is the caller's: url() carries it. Without one a
+      // stream starts at the present, as it always has.
+      headers.delete('last-event-id');
+      return request(url ? url() : target, { ...init, headers });
+    },
+    headers: () => ({ 'Cache-Control': 'no-cache', 'x-trace-id': randomId() }),
+    // A 401 can be a token that just expired. handleUnauthorized signs out if the session is really
+    // gone, and that stops this stream; otherwise reconnect once with a fresh token.
+    onUnauthorized: async () => {
+      await handleUnauthorized();
+      return true;
+    },
+    onStateChange: ({ state, delayMs = 0 }) => {
       if (lifetime.signal.aborted) return;
-      attempt = result.healthy ? 0 : attempt + 1;
-      if (result.unauthorized) {
-        // handleUnauthorized signs out if the session is really gone, and that stops this loop.
-        await handleUnauthorized();
-        unauthorized += 1;
-        if (unauthorized >= MAX_UNAUTHORIZED) {
-          stop('Sign in again to receive live updates');
-          return;
-        }
-      } else unauthorized = 0;
-      const delay = Math.max(result.retryAfterMs ?? 0, backoffDelay(attempt, minDelayMs, maxDelayMs, random));
-      if (lifetime.signal.aborted) return;
-      onState?.('retrying', `Reconnecting in ${Math.ceil(delay / 1000)}s`);
-      await wait(delay);
-    }
-  })();
+      if (state !== 'retrying') return report(state);
+      report('retrying', `Reconnecting in ${Math.ceil(Math.max(delayMs, untilNextStart()) / 1000)}s`);
+    },
+    onEvent: (event) => {
+      // A page's handler that throws on one event must not end the live stream it is showing.
+      try {
+        onEvent(event);
+      } catch (error) {
+        console.warn(`A stream event handler failed on '${event.event}':`, error instanceof Error ? error.message : error);
+      }
+    },
+    policy: { maxAttempts: Number.MAX_SAFE_INTEGER, baseMs: 2 * minDelayMs, maxMs: maxDelayMs, jitter: 'equal' },
+    maxFailures: Number.POSITIVE_INFINITY,
+    idleTimeoutMs,
+  }).then(
+    () => stop(),
+    (error: unknown) => {
+      if (!lifetime.signal.aborted) stop(stopDetail(error, deniedMessage));
+    },
+  );
 
   return { close: () => stop() };
 }

@@ -4,7 +4,7 @@
 import type { z } from 'zod';
 import { messageDeltaEventSchema, projectEventSchema, projectPurgedEventSchema, resetEventSchema, heartbeatEventSchema } from '@contracts/ardentstudio.generated';
 import { openStream, type StreamHandle, type StreamState } from '../../magnus/api/stream';
-import type { SseEvent } from '../../magnus/api/sse';
+import type { SseEvent } from '@hivemagnus/hive-common/sse';
 import { segment, studioPath } from './client';
 
 export type ProjectEvent = z.infer<typeof projectEventSchema>;

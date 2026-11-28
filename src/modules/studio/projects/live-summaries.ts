@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { projectCountsSchema, projectEventSchema } from '@contracts/ardentstudio.generated';
 import { openStream, type StreamHandle } from '../../magnus/api/stream';
-import type { SseEvent } from '../../magnus/api/sse';
+import type { SseEvent } from '@hivemagnus/hive-common/sse';
 import { segment, studioPath } from '../api/client';
 import type { ProjectSummary } from '../api/endpoints';
 import { SUMMARY_EVENTS } from '../state/project-store';
