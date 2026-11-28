@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Require `@hivemagnus/hive-common` ^0.10.0 (was ^0.6.0). HiveXUI's imports (`/artifact`, `/contracts`,
+  `/errors`, `/execution`, `/retry`) are unchanged between those versions, all of them isomorphic, and
+  the production bundle pulls in no Node built-in; no behaviour change.
+
 ## [0.15.0] - 2026-11-27
 
 ### Upgrade notes
