@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-28
+
+### Upgrade notes
+
+- No product needs upgrading for this release: the Magnus, ArdentStudio and Oathweave versions
+  0.15.0 requires stay the minimum. Live streams change how they reconnect, renew and stop (see
+  Changed); the servers they read are unchanged.
+- No migrations and no `runtime.json` change. Downgrading to 0.15.0 is safe.
+
 ### Changed
 
 - Require `@hivemagnus/hive-common` ^0.10.0 (was ^0.6.0). HiveXUI's imports (`/artifact`, `/contracts`,
