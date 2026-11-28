@@ -29,12 +29,15 @@ export interface StreamOptions {
   maxDelayMs?: number;
   /** No bytes for this long means a dead connection: the server sends a keep-alive far more often. */
   idleTimeoutMs?: number;
+  /** The largest event read, in bytes. 4 MiB, the limit Ardent Studio uses for the same Magnus streams. */
+  maxEventBytes?: number;
   request?: typeof fetch;
 }
 export interface StreamHandle {
   close: () => void;
 }
 
+export const MAX_STREAM_EVENT_BYTES = 4 * 1024 * 1024;
 export const STREAM_SIGNED_OUT = 'Sign in again to receive live updates';
 export const STREAM_UNAVAILABLE = 'This stream is not available';
 
@@ -46,7 +49,7 @@ function stopDetail(error: unknown, deniedMessage: string): string | undefined {
 }
 
 export function openStream(options: StreamOptions): StreamHandle {
-  const { path, query, url, deniedMessage = 'Your Magnus role does not allow this stream', onEvent, onState, minDelayMs = 1000, maxDelayMs = 60_000, idleTimeoutMs = 75_000, request = apiFetch } = options;
+  const { path, query, url, deniedMessage = 'Your Magnus role does not allow this stream', onEvent, onState, minDelayMs = 1000, maxDelayMs = 60_000, idleTimeoutMs = 75_000, maxEventBytes = MAX_STREAM_EVENT_BYTES, request = apiFetch } = options;
   const lifetime = new AbortController();
   const report = (state: StreamState, detail?: string) => {
     // A page's state callback must not end the stream it is watching.
@@ -105,6 +108,7 @@ export function openStream(options: StreamOptions): StreamHandle {
     policy: { maxAttempts: Number.MAX_SAFE_INTEGER, baseMs: 2 * minDelayMs, maxMs: maxDelayMs, jitter: 'equal' },
     maxFailures: Number.POSITIVE_INFINITY,
     idleTimeoutMs,
+    maxEventBytes,
   }).then(
     () => stop(),
     (error: unknown) => {

@@ -210,6 +210,20 @@ describe('the fetch stream', () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(details.at(-1)).toBe('This identity may not read this project');
   });
+  it('reads events up to 4 MiB, the limit Ardent Studio uses for the same streams, and stops above it', async () => {
+    const big = 'x'.repeat(2 * 1024 * 1024);
+    const request = vi.fn<typeof fetch>().mockImplementationOnce(async () => eventStream(`event: task:output\ndata: ${big}\n\n`)).mockImplementation(async (_path, init) => openForever(init?.signal));
+    const { events, handle } = start(request);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(events[0]?.data.length).toBe(big.length);
+    handle.close();
+    const tooBig = vi.fn<typeof fetch>().mockImplementation(async () => eventStream(`data: ${'y'.repeat(4 * 1024 * 1024)}\n\n`));
+    const refused = start(tooBig);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(refused.events).toEqual([]);
+    expect(refused.details.at(-1)).toBe('The stream sent an event too large to read');
+    refused.handle.close();
+  });
   it('keeps the stream when a page handler throws on one event', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     const request = vi.fn<typeof fetch>().mockImplementation(async (_path, init) => openForever(init?.signal, 'event: bad\ndata: 1\n\nevent: good\ndata: 2\n\n'));
